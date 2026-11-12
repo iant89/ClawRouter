@@ -1,0 +1,117 @@
+{
+  "lockfileVersion": 2,
+  "configVersion": 1,
+  "workspaces": {
+    "": {
+      "name": "clawapi",
+      "dependencies": {
+        "@clawapi/core": "workspace:*",
+        "@clawapi/database": "workspace:*",
+      },
+      "devDependencies": {
+        "@types/bun": "1.4.4",
+        "@types/react": "19.3.0",
+        "@types/react-dom": "19.3.0",
+        "typescript": "6.0.2",
+      },
+    },
+    "apps/console": {
+      "name": "@clawapi/console",
+      "version": "0.1.0",
+      "dependencies": {
+        "@clawapi/shared": "workspace:*",
+        "@enterprise-ui/react": "file:../../vendor/enterprise-ui-react.tgz",
+        "react": "19.3.1",
+        "react-dom": "19.3.1",
+      },
+    },
+    "apps/server": {
+      "name": "@clawapi/server",
+      "version": "0.1.0",
+      "dependencies": {
+        "@clawapi/api": "workspace:*",
+        "@clawapi/console": "workspace:*",
+        "@clawapi/core": "workspace:*",
+        "@clawapi/database": "workspace:*",
+        "@clawapi/health": "workspace:*",
+        "@clawapi/shared": "workspace:*",
+      },
+    },
+    "packages/api": {
+      "name": "@clawapi/api",
+      "version": "0.1.0",
+      "dependencies": {
+        "@clawapi/core": "workspace:*",
+        "@clawapi/health": "workspace:*",
+        "@clawapi/shared": "workspace:*",
+      },
+    },
+    "packages/core": {
+      "name": "@clawapi/core",
+      "version": "0.1.0",
+      "dependencies": {
+        "@clawapi/shared": "workspace:*",
+      },
+    },
+    "packages/database": {
+      "name": "@clawapi/database",
+      "version": "0.1.0",
+      "dependencies": {
+        "@clawapi/core": "workspace:*",
+      },
+    },
+    "packages/health": {
+      "name": "@clawapi/health",
+      "version": "0.1.0",
+      "dependencies": {
+        "@clawapi/core": "workspace:*",
+        "@clawapi/shared": "workspace:*",
+      },
+    },
+    "packages/shared": {
+      "name": "@clawapi/shared",
+      "version": "0.1.0",
+    },
+  },
+  "packages": {
+    "@clawapi/api": ["@clawapi/api@workspace:packages/api"],
+
+    "@clawapi/console": ["@clawapi/console@workspace:apps/console"],
+
+    "@clawapi/core": ["@clawapi/core@workspace:packages/core"],
+
+    "@clawapi/database": ["@clawapi/database@workspace:packages/database"],
+
+    "@clawapi/health": ["@clawapi/health@workspace:packages/health"],
+
+    "@clawapi/server": ["@clawapi/server@workspace:apps/server"],
+
+    "@clawapi/shared": ["@clawapi/shared@workspace:packages/shared"],
+
+    "@enterprise-ui/react": ["@enterprise-ui/react@../../vendor/enterprise-ui-react.tgz", { "dependencies": { "lucide-react": "^1.63.0" }, "peerDependencies": { "react": ">=18.2.0", "react-dom": ">=18.2.0" } }, "sha512-PvcnUXdBlT4C3pZjelbMTtpNdUZNfzzm2X5Gr1MkBdBMFxTnrPvElfPzU+v/oXtIU2GNWuS7SNOcaZWECMiqtQ=="],
+
+    "@types/bun": ["@types/bun@1.4.4", "", { "dependencies": { "bun-types": "1.4.4" } }, "sha512-9wkRDXUXK124pEnAutE6n/l18j+i9GC5IAHK8TmX/2nlySETmky0OU6yL5U8pW1AoKh++AN9auDCr647BfurjQ=="],
+
+    "@types/node": ["@types/node@26.6.6", "", { "dependencies": { "undici-types": "~8.9.0" } }, "sha512-MzQj+8Kx3XI40OmUAE6Qoh58ZMNstNNMwn2nfd3qWsfe7nDNSqJNzes4njhz6AHwrSHOffSLwXU6yb474Q4aog=="],
+
+    "@types/react": ["@types/react@19.3.0", "", { "dependencies": { "csstype": "^3.2.2" } }, "sha512-N0rFCuH9YoxG9/m61l9MfpJKfmLOVU0em7ipIz6TRgSSkvReLB9vL85GB+yr8Bs5leqpvg96JSwF4ZS1s4viQg=="],
+
+    "@types/react-dom": ["@types/react-dom@19.3.0", "", { "peerDependencies": { "@types/react": "^19.3.0" } }, "sha512-ZI7bU42mZXXKHn/qNLEw2IrbiINU7X5+vfgdixBHkCNpYWXjKgfQ/P+uyGb5CjOLB9UcnTeg3rylQtV2hym44Q=="],
+
+    "bun-types": ["bun-types@1.4.4", "", { "dependencies": { "@types/node": "*", "undici-types": "*" } }, "sha512-yjrJh5oGX7mMPKGd19YXyIjmEuj4G4zNC30bs7PM9Az7NQ3ndF3j6hbeRdvJTRQEhJ/FYQwW0a2moweEi2hMxQ=="],
+
+    "csstype": ["csstype@3.2.3", "", {}, "sha512-z1HGKcYy2xA8AGQfwrn0PAy+PB7X/GSj3UVJW9qKyn43xWa+gl5nXmU4qqLMRzWVLFC8KusUX8T/0kCiOYpAIQ=="],
+
+    "lucide-react": ["lucide-react@1.72.0", "", { "peerDependencies": { "@types/react": "*", "react": "^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0" }, "optionalPeers": ["@types/react"] }, "sha512-fbF5i1GU8GODETa3Q7rXqrJrcx3iPYrQtxthom103zGx+Z0BGwKYAW9s+9435ohYJ7hQm0av0PoZcqI1CRwNrg=="],
+
+    "react": ["react@19.3.1", "", {}, "sha512-QNhWdt7nrgVWWQG58QuGsAR3jv3Hbe4mb4vz7w2csnHavciZJgda1CPNaldF6eVxv90ud3jUXpKlHL69gO38yw=="],
+
+    "react-dom": ["react-dom@19.3.1", "", { "dependencies": { "scheduler": "^0.28.0" }, "peerDependencies": { "react": "^19.3.1" } }, "sha512-Y0bARz53lhEC1NMCASs0/j+faB/zqt3R8hpvg1e8+61ZVJ4UL0UdC4cBbXfZMcIuhrfgeILTLe+ZeBCavQPtKQ=="],
+
+    "scheduler": ["scheduler@0.28.0", "", {}, "sha512-juorfCmIkIw8tT+p5BXSm6PJjQF/ycEYmKyzURCIt/RaZIhL+PulbQ9Yu2z1HdOJDdqDTlxA1+xKBmHXJsczAw=="],
+
+    "typescript": ["typescript@6.0.2", "", { "bin": { "tsc": "bin/tsc", "tsserver": "bin/tsserver" } }, "sha512-bGdAIrZ0wiGDo5l8c++HWtbaNCWTS4UTv7RaTH/ThVIgjkveJt83m74bBHMJkuCbslY8ixgLBVZJIOiQlQTjfQ=="],
+
+    "undici-types": ["undici-types@8.9.0", "", {}, "sha512-KTDyRTYX8sWmKXAikPHHSyc63CRPETMctyjKFupcC6OBLXT3xsN0e9aF7m+mIXutFWpUXuedtowG7iLOzp0kQg=="],
+  }
+}

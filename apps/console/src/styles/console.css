@@ -1,0 +1,19 @@
+/*
+ * Console-level styles only. Colors, spacing and type come from ENTERPRISE-UI
+ * tokens (--eui-*); do not introduce raw values that bypass the design system.
+ */
+@import '@enterprise-ui/react/styles.css';
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--eui-color-background, #1d2228);
+}
+
+.claw-mono {
+  font-family: var(--eui-font-family-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-variant-numeric: tabular-nums;
+}

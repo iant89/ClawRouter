@@ -1,0 +1,14 @@
+{
+  "name": "@clawapi/server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@clawapi/api": "workspace:*",
+    "@clawapi/console": "workspace:*",
+    "@clawapi/core": "workspace:*",
+    "@clawapi/database": "workspace:*",
+    "@clawapi/health": "workspace:*",
+    "@clawapi/shared": "workspace:*"
+  }
+}

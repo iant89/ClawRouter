@@ -1,0 +1,8 @@
+[install]
+# Pin exact versions when adding dependencies.
+exact = true
+
+[test]
+# Tests live next to each package in `test/` directories.
+root = "."
+coverageSkipTestFiles = true

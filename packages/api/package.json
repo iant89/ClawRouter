@@ -1,0 +1,14 @@
+{
+  "name": "@clawapi/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@clawapi/core": "workspace:*",
+    "@clawapi/shared": "workspace:*",
+    "@clawapi/health": "workspace:*"
+  }
+}

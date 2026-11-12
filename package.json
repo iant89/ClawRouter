@@ -1,0 +1,32 @@
+{
+  "name": "clawapi",
+  "version": "0.1.0",
+  "private": true,
+  "description": "ClawAPI: self-hosted AI model gateway and control platform.",
+  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "setup": "bun scripts/build-ui.ts && bun install",
+    "ui:build": "bun scripts/build-ui.ts",
+    "dev": "bun --hot apps/server/src/main.ts",
+    "start": "bun scripts/start.ts",
+    "build": "bun build apps/server/src/main.ts --target=bun --production --outdir=dist --entry-naming=[name].[ext] --sourcemap=linked",
+    "migrate": "bun scripts/migrate.ts",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "bun test",
+    "check": "bun run typecheck && bun test"
+  },
+  "devDependencies": {
+    "@types/bun": "1.4.4",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "typescript": "6.0.2"
+  },
+  "dependencies": {
+    "@clawapi/core": "workspace:*",
+    "@clawapi/database": "workspace:*"
+  }
+}
