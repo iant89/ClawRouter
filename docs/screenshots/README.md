@@ -104,3 +104,17 @@ these screenshots was masked before capture.
 | ![Dashboard](08-gateway/dashboard-metrics.png) | Dashboard **Gateway activity** after 7 requests (live, in memory) |
 | ![Revoke](08-gateway/revoke-confirm.png) | Revoking a key; clients get 401 immediately |
 | ![Phone](08-gateway/phone.png) | API Access at phone width after revocation |
+
+## 09 · Rate limits
+
+The same mock provider as phase 8, with the alias `fast-chat` (OpenAI first, the
+local server second).
+
+| | |
+|---|---|
+| ![Defaults](09-rate-limits/defaults.png) | **Rate Limits** with the defaults, before any request |
+| ![Edit](09-rate-limits/edit-dialog.png) | **Edit rate limits**: 5 requests/min per key, 2/min on `openai/gpt-4o-mini` |
+| ![Usage](09-rate-limits/usage.png) | After 7 requests and 3 invalid keys: the key at its limit (2 refused), the OpenAI model at its limit (traffic moved to the local model), the address that sent invalid keys |
+| ![Key limit](09-rate-limits/key-limit-dialog.png) | Giving one key its own limit on the API Access page |
+| ![Dashboard](09-rate-limits/dashboard.png) | Dashboard: the **Refused by rate limits** tile |
+| ![Phone](09-rate-limits/phone.png) | Rate Limits at phone width |

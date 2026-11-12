@@ -224,22 +224,23 @@ Initial external API:
 Exit: an external AI client can point directly at ClawRouter and make an AI request without knowing which provider handled it ✅
 (tested with the mock providers and in the browser; real providers not yet tried).
 
-## Phase 9: Rate limiting ⬜ next
+## Phase 9: Rate limiting ✅
 
-Goal: protect the gateway.
+Goal: protect the gateway. See [rate limits](rate-limits.md).
 
-- [ ] Rate-limit abstraction (groundwork: in-memory login throttle)
-- [ ] Per API-key limits
-- [ ] Per-user limits
-- [ ] Per-model limits
-- [ ] Global limits
-- [ ] Rate-limit headers
-- [ ] Rate-limit events
-- [ ] Administrative configuration
+- [x] Rate-limit abstraction: async `CounterStore` (sliding-window counters) with an in-memory implementation; a shared store can replace it. The console sign-in throttle stays separate (it blocks for 15 minutes rather than limiting a rate)
+- [x] Per API-key limits: default for all keys, or a key's own limit (or none)
+- [x] Per-user limits: all keys created by one user, combined
+- [x] Per-model limits: a limited model is skipped and the next model tried; 429 only when all are limited
+- [x] Global limits: requests and tokens per minute, requests at the same time
+- [x] Rate-limit headers: `x-ratelimit-*` for the tightest limit; 429 with `Retry-After` in the OpenAI format
+- [x] Rate-limit events: `ratelimit.exceeded`, `ratelimits.changed`; refusals on the dashboard
+- [x] Administrative configuration: **Rate Limits** page with live usage, versioned and audited; per-key limits on **API Access**
+- [x] Invalid API keys per address: blocked for the rest of the window after too many (phase 8 follow-up)
 
-Exit: abusive or excessive clients cannot overwhelm the gateway.
+Exit: abusive or excessive clients cannot overwhelm the gateway ✅ (single node; counters reset on restart).
 
-## Phase 10: Requests + usage ⬜
+## Phase 10: Requests + usage ⬜ next
 
 Goal: make gateway activity observable.
 

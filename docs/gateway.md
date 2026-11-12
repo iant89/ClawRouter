@@ -110,6 +110,7 @@ capabilities the normalized model does not have yet.
 | 401 | `authentication_error` (`invalid_api_key`) | missing, wrong, expired or revoked key |
 | 403 | `permission_error` | model not allowed for this key |
 | 404 | `invalid_request_error` (`model_not_found`) | unknown model or alias |
+| 429 | `rate_limit_error` (`rate_limit_exceeded`) | a [rate limit](rate-limits.md) was reached; see `Retry-After` |
 | 502 / 504 | `api_error` | every attempt failed / timed out |
 | 503 | `api_error` | no usable model (e.g. all providers disabled, or no model with the capability) |
 
@@ -126,7 +127,7 @@ capabilities the normalized model does not have yet.
 ## Not yet
 
 - `/v1/responses`, tools, images, `n > 1` (see above).
-- Rate limits per key, including throttling invalid keys: phase 9.
+- Rate limits: see [rate limits](rate-limits.md) (phase 9). A refused request gets 429 `rate_limit_error` with `Retry-After`.
 - Request history, usage and cost: phase 10.
 - CORS: none. Browser apps should call ClawRouter from their backend.
 - Never tested against real provider APIs (see `MEMORY.md`).

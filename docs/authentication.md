@@ -86,7 +86,7 @@ claim it.
 
 ## Login throttling
 
-In memory, per process (phase 9 adds a pluggable store):
+In memory, per process. It stays separate from the gateway rate limits of phase 9 ([rate limits](rate-limits.md)), because it blocks for a fixed time after failures instead of limiting a rate:
 
 | Key | Limit | Block |
 |---|---|---|

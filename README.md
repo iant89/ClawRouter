@@ -21,14 +21,15 @@ usage tracking and an administration console built on
   capabilities, prices), and phase 7, the **routing engine** (aliases, priorities,
   weights, health-aware fallback, failover policies), and phase 8, the **request
   gateway**: an OpenAI-compatible `/v1` API (chat completions with streaming,
-  embeddings, models) authenticated by API keys, with retries and failover.
-  Rate limiting is next (phase 9).
+  embeddings, models) authenticated by API keys, with retries and failover, and
+  phase 9, **rate limiting** (per key, user, model and gateway, with live usage).
+  Request history and usage are next (phase 10).
 - **Architecture:** [`docs/architecture.md`](docs/architecture.md) ·
   **Security model:** [`docs/authentication.md`](docs/authentication.md),
   [`docs/authorization.md`](docs/authorization.md) · **Console:**
   [`docs/console-shell.md`](docs/console-shell.md) · **Providers:**
   [`docs/providers.md`](docs/providers.md) · **Models:** [`docs/models.md`](docs/models.md) ·
-  **Routing:** [`docs/routing.md`](docs/routing.md) · **Gateway:** [`docs/gateway.md`](docs/gateway.md)
+  **Routing:** [`docs/routing.md`](docs/routing.md) · **Gateway:** [`docs/gateway.md`](docs/gateway.md) · **Rate limits:** [`docs/rate-limits.md`](docs/rate-limits.md)
 - **Screenshots:** [`docs/screenshots/`](docs/screenshots/README.md)
 - **Working on the code:** [`AGENTS.md`](AGENTS.md) (rules, commands, definition
   of done) and [`MEMORY.md`](MEMORY.md) (important notes carried between sessions).

@@ -46,6 +46,12 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
   - The first setup requires a one-time setup token (written to `data/setup-token`).
   - Error toasts that duplicate information shown elsewhere on the page get a
     10-second duration, because persistent toasts covered dialog buttons.
+  - Rate limits (phase 9): a **Rate Limits** item under Gateway (spec §17 lists only
+    Requests, API Access, Usage); Operators may change limits (`rate_limits.write`),
+    Viewers may read them; default 120 requests/min per key and 100 concurrent
+    requests; an address over the invalid-key limit is refused even with a valid
+    key until the window passes; a rate-limited model is skipped (fail over) rather
+    than refusing the request.
 
 ### Warnings
 
@@ -68,18 +74,23 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
   phases revisit those screens.
 
 - **WARNING** · 2026-11-12 · Gateway limits until later phases
-  - No rate limits at all on `/v1` yet, including repeated invalid keys: phase 9.
-    Do not expose the gateway publicly before then.
+  - Rate-limit counters are in memory, per process: they reset on restart, and
+    several ClawRouter nodes would each enforce the limits separately. A shared
+    `CounterStore` (e.g. Redis) is needed before running more than one node.
+  - Token limits charge provider-reported usage after the response, so one large
+    request can overshoot a token limit (documented in `docs/rate-limits.md`).
   - Gateway metrics are in memory and reset on restart; request history and usage
     are only emitted as events (`request.completed`), not stored: phase 10.
   - `/v1/responses`, tools, images and `n > 1` are rejected with 400 (see
     `docs/gateway.md`). Agent clients that need tools will not work yet.
   - No CORS on `/v1`; browser apps must call it from their backend.
 
-- **WARNING** · 2026-11-12 · Behind a reverse proxy, login throttling is shared
+- **WARNING** · 2026-11-12 · Behind a reverse proxy, per-IP limits are shared
   Client IPs come from the socket. Behind a proxy, every client has the proxy's
-  IP, so the per-IP sign-in limit (50 per 15 minutes) applies to all users
-  together. Trusted `X-Forwarded-For` handling is planned for phase 17.
+  IP, so the per-IP sign-in limit (50 per 15 minutes) and the gateway's
+  invalid-API-key limit (default 20 per minute, then every `/v1` request from that
+  address is refused) apply to all clients together: one misconfigured client
+  could block everyone. Trusted `X-Forwarded-For` handling is planned for phase 17.
 
 - **WARNING** · 2026-11-12 · No way to recover a lost administrator password
   There is no user management yet (phase 14), so there is no reset. The intended
@@ -118,16 +129,26 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 
 ### Messages
 
-- **MESSAGE** · 2026-11-12 · Phase 8 waits for review; then phase 9, rate limiting
-  Phase 8 (request gateway) is on `claude/phase-8-gateway`, pushed, not merged.
-  Merge only when the owner says so (fast-forward `main`). Phase 9 next: a
-  rate-limit abstraction (the login throttle is groundwork), per API key, per
-  user, per model and global limits, `x-ratelimit-*` / `retry-after` headers,
-  events, admin configuration, and throttling of invalid API keys per IP.
+- **MESSAGE** · 2026-11-12 · Phases 8 and 9 wait for review (stacked); then phase 10
+  The owner said "continue to next phase" without merging phase 8, so phase 9 was
+  built on `claude/phase-9-rate-limiting`, branched from the tip of
+  `claude/phase-8-gateway` (`56004b9`). Neither is merged. If the owner approves
+  both, fast-forward `main` to the phase 9 branch (it contains phase 8). If phase 8
+  needs changes first, make them on the phase 8 branch and rebase phase 9 onto it.
+  Next: phase 10, requests + usage: persist `request.completed` / `request.failed`
+  (and refusals) as request history with tokens and cost, server-side paging and
+  filtering, the Requests and Usage pages.
 
 ---
 
 ## Resolved
+
+- **MESSAGE** · 2026-11-12 · Phase 8 waits for review; then phase 9. Resolved 2026-11-12:
+  phase 9 built on `claude/phase-9-rate-limiting` (see `docs/rate-limits.md`); the
+  review hand-off is now the "Phases 8 and 9 wait for review" message.
+
+- **WARNING** · 2026-11-12 · No rate limits on `/v1`. Resolved 2026-11-12: phase 9
+  added per-key, per-user, per-model, global and invalid-key-per-address limits.
 
 - **MESSAGE** · 2026-11-12 · Next: phase 8, the request gateway. Resolved 2026-11-12:
   built on `claude/phase-8-gateway` (see `docs/gateway.md`).
