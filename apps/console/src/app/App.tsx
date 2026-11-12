@@ -1,0 +1,110 @@
+import { useEffect } from 'react';
+import { BusyIndicator, Button, EmptyState, ThemeProvider, ToastProvider, useMediaQuery } from '@enterprise-ui/react';
+import { DashboardPage } from '../features/dashboard/DashboardPage.tsx';
+import { HealthPage } from '../features/health/HealthPage.tsx';
+import { HealthProvider } from '../features/health/HealthContext.tsx';
+import { SessionsPage } from '../features/sessions/SessionsPage.tsx';
+import { RolesPage } from '../features/roles/RolesPage.tsx';
+import { UsersPage } from '../features/users/UsersPage.tsx';
+import { ProvidersPage } from '../features/providers/ProvidersPage.tsx';
+import { ModelsPage } from '../features/models/ModelsPage.tsx';
+import { NoAccessPage } from '../pages/NoAccessPage.tsx';
+import { AuthProvider, useAuth, usePermissions } from '../features/auth/AuthContext.tsx';
+import { redirectFor } from '../features/auth/auth-state.ts';
+import { LoginPage } from '../features/auth/LoginPage.tsx';
+import { SetupPage } from '../features/auth/SetupPage.tsx';
+import { PlannedFeature } from '../components/custom/PlannedFeature.tsx';
+import { PageErrorBoundary } from '../components/custom/PageErrorBoundary.tsx';
+import { NotificationsProvider } from '../features/notifications/NotificationsContext.tsx';
+import { ConsoleLayout } from '../layouts/ConsoleLayout.tsx';
+import { NotFoundPage } from '../pages/NotFoundPage.tsx';
+import { canSee, resolvePath, type NavItem } from './navigation.ts';
+import { RouterProvider, useRouter } from './router.tsx';
+
+function PageFor({ item }: { item: NavItem | undefined }) {
+  const { set } = usePermissions();
+  if (!item) return <NotFoundPage />;
+  if (!canSee(item, set)) return <NoAccessPage item={item} />;
+  if (item.plannedPhase !== undefined) return <PlannedFeature item={item} />;
+  switch (item.id) {
+    case 'dashboard': return <DashboardPage />;
+    case 'health': return <HealthPage />;
+    case 'sessions': return <SessionsPage />;
+    case 'users': return <UsersPage />;
+    case 'providers': return <ProvidersPage />;
+    case 'models': return <ModelsPage />;
+    case 'roles': return <RolesPage />;
+    default: return <NotFoundPage />;
+  }
+}
+
+function Console() {
+  const { pathname } = useRouter();
+  const item = resolvePath(pathname);
+  useEffect(() => {
+    document.title = item ? `${item.label} · ClawAPI` : 'Not found · ClawAPI';
+  }, [item]);
+  return (
+    <HealthProvider>
+      <NotificationsProvider>
+        <ConsoleLayout activeId={item?.id}>
+          <PageErrorBoundary resetKey={pathname}>
+            <PageFor item={item} />
+          </PageErrorBoundary>
+        </ConsoleLayout>
+      </NotificationsProvider>
+    </HealthProvider>
+  );
+}
+
+/**
+ * Chooses the screen from the auth state. This only decides what to render:
+ * every API call is authorized by the server regardless (spec §16).
+ */
+function Gate() {
+  const { state, retry } = useAuth();
+  const { pathname, search, navigate } = useRouter();
+  const target = redirectFor(state, pathname, search);
+
+  useEffect(() => {
+    if (target) navigate(target, { replace: true });
+  }, [target, navigate]);
+  useEffect(() => {
+    if (state.status === 'setup-required') document.title = 'Setup · ClawAPI';
+    if (state.status === 'signed-out') document.title = 'Sign in · ClawAPI';
+  }, [state.status]);
+
+  switch (state.status) {
+    case 'loading':
+      return <BusyIndicator active text="Loading ClawAPI…" style={{ height: '100%' }} />;
+    case 'error':
+      return (
+        <EmptyState icon="disconnected" title="Cannot reach the ClawAPI server" description={state.message} actions={<Button onClick={retry}>Try again</Button>} />
+      );
+    case 'setup-required':
+      return target ? null : <SetupPage />;
+    case 'signed-out':
+      return target ? null : <LoginPage />;
+    case 'signed-in':
+      return target ? null : <Console />;
+  }
+}
+
+/**
+ * Spec §18: dark graphite, dense. Spec §20: touch targets of about 44px, so
+ * touch screens get the cozy density while mouse users keep compact.
+ */
+export function App() {
+  const touch = useMediaQuery('(pointer: coarse)');
+  return (
+    <ThemeProvider theme="dark" density={touch ? 'cozy' : 'compact'} style={{ height: '100%' }}>
+      <ToastProvider>
+        <RouterProvider>
+          <AuthProvider>
+            <Gate />
+          </AuthProvider>
+        </RouterProvider>
+      </ToastProvider>
+    </ThemeProvider>
+  );
+}

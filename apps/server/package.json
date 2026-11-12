@@ -1,0 +1,20 @@
+{
+  "name": "@clawapi/server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@clawapi/api": "workspace:*",
+    "@clawapi/audit": "workspace:*",
+    "@clawapi/authentication": "workspace:*",
+    "@clawapi/authorization": "workspace:*",
+    "@clawapi/console": "workspace:*",
+    "@clawapi/core": "workspace:*",
+    "@clawapi/database": "workspace:*",
+    "@clawapi/health": "workspace:*",
+    "@clawapi/models": "workspace:*",
+    "@clawapi/notifications": "workspace:*",
+    "@clawapi/providers": "workspace:*",
+    "@clawapi/shared": "workspace:*"
+  }
+}

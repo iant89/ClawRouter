@@ -1,0 +1,41 @@
+/*
+ * Console-level styles only. Colors, spacing and type come from ENTERPRISE-UI
+ * tokens (--eui-*); do not introduce raw values that bypass the design system.
+ */
+@import '@enterprise-ui/react/styles.css';
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--eui-color-background, #1d2228);
+}
+
+.claw-mono {
+  font-family: var(--eui-font-family-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-variant-numeric: tabular-nums;
+}
+
+/*
+ * Spec §20: interactive targets of at least ~44px on touch screens.
+ * ENTERPRISE-UI's cozy density targets WCAG 2.2 AA (24px minimum); on coarse
+ * pointers the console raises the size tokens instead of hard-coding sizes, so
+ * every library component follows. Candidate for an upstream "touch" density.
+ */
+@media (pointer: coarse) {
+  [data-eui-theme][data-eui-density='cozy'] {
+    --eui-control-height-sm: 2.75rem; /* 44px */
+    --eui-control-height: 2.75rem;    /* 44px */
+    --eui-control-height-lg: 3rem;    /* 48px */
+    --eui-row-height: 3rem;           /* 48px */
+    --eui-touch-target-min: 44px;
+  }
+}
+
+/* Long unbroken values (URLs, ids) wrap instead of widening tables. */
+.claw-break {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}

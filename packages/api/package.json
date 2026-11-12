@@ -1,0 +1,19 @@
+{
+  "name": "@clawapi/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@clawapi/authentication": "workspace:*",
+    "@clawapi/authorization": "workspace:*",
+    "@clawapi/core": "workspace:*",
+    "@clawapi/health": "workspace:*",
+    "@clawapi/models": "workspace:*",
+    "@clawapi/notifications": "workspace:*",
+    "@clawapi/providers": "workspace:*",
+    "@clawapi/shared": "workspace:*"
+  }
+}
