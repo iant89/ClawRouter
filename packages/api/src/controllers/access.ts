@@ -1,6 +1,6 @@
-import { errors, v } from '@clawapi/core';
-import type { AuthorizationService } from '@clawapi/authorization';
-import type { RoleInfo, UserWithRoles } from '@clawapi/shared';
+import { errors, v } from '@clawrouter/core';
+import type { AuthorizationService } from '@clawrouter/authorization';
+import type { RoleInfo, UserWithRoles } from '@clawrouter/shared';
 import { readJson } from '../http/body.ts';
 import type { Handler, RequestContext } from '../http/context.ts';
 import { ok } from '../http/responses.ts';

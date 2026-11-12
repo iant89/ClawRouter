@@ -1,4 +1,4 @@
-import { CSRF_HEADER, isApiErrorBody, REQUEST_ID_HEADER, type ApiSuccess, type ErrorCode, type FieldIssue, type PageMeta } from '@clawapi/shared';
+import { CSRF_HEADER, isApiErrorBody, REQUEST_ID_HEADER, type ApiSuccess, type ErrorCode, type FieldIssue, type PageMeta } from '@clawrouter/shared';
 
 /** Error raised for any failed API call, carrying the server's normalized error. */
 export class ApiClientError extends Error {
@@ -61,7 +61,7 @@ export async function requestEnvelope<T>(method: string, path: string, body: unk
     });
   } catch (error) {
     if (error instanceof DOMException && error.name === 'AbortError') throw error;
-    throw new ApiClientError('NETWORK_ERROR', 'Cannot reach the ClawAPI server.', 0, null);
+    throw new ApiClientError('NETWORK_ERROR', 'Cannot reach the ClawRouter server.', 0, null);
   }
 
   const requestId = response.headers.get(REQUEST_ID_HEADER);

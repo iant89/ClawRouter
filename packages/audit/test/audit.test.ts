@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { createLogger, type LogRecord } from '@clawapi/core';
+import { createLogger, type LogRecord } from '@clawrouter/core';
 import { createAuditService, createSqliteAuditRepository, type AuditRepository } from '../src/index.ts';
 import { createHarness } from '../../../tests/support/harness.ts';
 

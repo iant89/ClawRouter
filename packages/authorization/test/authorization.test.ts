@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
-import { PERMISSIONS } from '@clawapi/shared';
-import { migrations, openSqlite, runMigrations, type Migration } from '@clawapi/database';
+import { PERMISSIONS } from '@clawrouter/shared';
+import { migrations, openSqlite, runMigrations, type Migration } from '@clawrouter/database';
 import { BUILT_IN_ROLE_PERMISSIONS, permissionsOfRole } from '../src/index.ts';
 import { ADMIN, createHarness } from '../../../tests/support/harness.ts';
 

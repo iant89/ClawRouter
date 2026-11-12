@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Button, DescriptionList, Dialog, MessageStrip, Table, Text, type TableColumn } from '@enterprise-ui/react';
-import type { ProviderCheck, ProviderDetail, ProviderInfo } from '@clawapi/shared';
+import type { ProviderCheck, ProviderDetail, ProviderInfo } from '@clawrouter/shared';
 import { ProviderStatus } from '../../components/custom/ProviderStatus.tsx';
 import { fetchProvider } from '../../services/providers.ts';
 

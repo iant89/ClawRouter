@@ -4,7 +4,7 @@
  * is never authorization: the server enforces access.
  */
 import type { IconId } from '@enterprise-ui/react';
-import type { Permission } from '@clawapi/shared';
+import type { Permission } from '@clawrouter/shared';
 
 export type PageId =
   | 'dashboard'

@@ -1,4 +1,4 @@
-import type { HealthState, ProviderState } from '@clawapi/shared';
+import type { HealthState, ProviderState } from '@clawrouter/shared';
 import type { Logger } from './logger.ts';
 
 export type SessionRevokeReason = 'LOGOUT' | 'REVOKED' | 'USER_DISABLED' | 'PASSWORD_CHANGED';

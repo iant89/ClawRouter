@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import type { ApiSuccess, NotificationInfo, NotificationMeta } from '@clawapi/shared';
+import type { ApiSuccess, NotificationInfo, NotificationMeta } from '@clawrouter/shared';
 import { createHarness } from '../../../tests/support/harness.ts';
 
 type List = ApiSuccess<NotificationInfo[]> & { meta: NotificationMeta };

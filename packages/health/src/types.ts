@@ -1,4 +1,4 @@
-import type { HealthComponent, HealthState } from '@clawapi/shared';
+import type { HealthComponent, HealthState } from '@clawrouter/shared';
 
 export interface HealthProbeResult {
   status: HealthState;

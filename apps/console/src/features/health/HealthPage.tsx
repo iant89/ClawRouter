@@ -1,5 +1,5 @@
 import { MessageStrip, Page, RefreshControl, Table, Text, type TableColumn } from '@enterprise-ui/react';
-import type { HealthCheckResult } from '@clawapi/shared';
+import type { HealthCheckResult } from '@clawrouter/shared';
 import { HealthStateIndicator } from '../../components/custom/HealthStateIndicator.tsx';
 import { componentLabel, formatTime } from '../../services/format.ts';
 import { useHealth } from './HealthContext.tsx';

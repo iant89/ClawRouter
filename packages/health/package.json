@@ -1,5 +1,5 @@
 {
-  "name": "@clawapi/health",
+  "name": "@clawrouter/health",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -7,7 +7,7 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@clawapi/core": "workspace:*",
-    "@clawapi/shared": "workspace:*"
+    "@clawrouter/core": "workspace:*",
+    "@clawrouter/shared": "workspace:*"
   }
 }

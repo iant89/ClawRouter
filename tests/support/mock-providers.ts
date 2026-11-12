@@ -75,7 +75,7 @@ export function startMockProviders(key = 'sk-test-0123456789abcdefWXYZ'): MockPr
       const stream = typeof body === 'object' && body !== null && (body as { stream?: boolean }).stream === true;
 
       if (family === 'openai' || family === 'local') {
-        // Error text echoes the key, as some providers do, to prove ClawAPI scrubs it.
+        // Error text echoes the key, as some providers do, to prove ClawRouter scrubs it.
         if (family === 'openai' && (state.mode === 'auth' || h.get('authorization') !== `Bearer ${key}`)) {
           return json({ error: { message: `Incorrect API key provided: ${h.get('authorization')?.slice(7) ?? ''}` } }, 401);
         }

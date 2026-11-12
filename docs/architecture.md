@@ -1,4 +1,4 @@
-# ClawAPI architecture (first milestone)
+# ClawRouter architecture (first milestone)
 
 How the code maps onto the spec, and the decisions taken while bootstrapping.
 
@@ -17,8 +17,8 @@ HTTP (Bun.serve)                       apps/server/src/server.ts
   from `api`; nothing outside `database` imports `bun:sqlite` (spec §30, rule 4).
 - `apps/server/src/server.ts` is the only place that wires things together. There
   are no module-level singletons, so tests can start isolated instances
-  (`CLAWAPI_PORT=0`, `:memory:` database).
-- The console depends only on `@clawapi/shared` (types) and the REST API, never on
+  (`CLAWROUTER_PORT=0`, `:memory:` database).
+- The console depends only on `@clawrouter/shared` (types) and the REST API, never on
   server packages (spec §2.1, rule 6).
 
 ## Request path
@@ -28,7 +28,7 @@ Bun.serve routes
   /api/*, /v1/*  -> ApiApp.handle
                       requestIdHeader -> securityHeaders -> accessLog -> applyResponseHeaders
                         -> errorBoundary -> csrfProtection -> sessionAuthentication -> router -> controller
-  /*             -> console index.html (when CLAWAPI_CONSOLE_ENABLED and bundled)
+  /*             -> console index.html (when CLAWROUTER_CONSOLE_ENABLED and bundled)
 ```
 
 - `errorBoundary` turns every thrown value into an `AppError` and the error envelope.
@@ -46,9 +46,9 @@ Bun.serve routes
 
 | Decision | Why |
 |---|---|
-| Bun's HTML imports serve and bundle the console | One process and one toolchain in development (HMR included) and production (`bun build`). No Vite in ClawAPI (rule 10). |
-| Console can be disabled (`CLAWAPI_CONSOLE_ENABLED=false`) | The gateway must work without the console (spec §46). The integration test runs headless. |
-| ENTERPRISE-UI consumed as a packed tarball (`vendor/*.tgz`) | The console gets exactly what an npm consumer gets (`dist/` only), with no duplicate React from the parent repo's `node_modules`. |
+| Bun's HTML imports serve and bundle the console | One process and one toolchain in development (HMR included) and production (`bun build`). No Vite in ClawRouter (rule 10). |
+| Console can be disabled (`CLAWROUTER_CONSOLE_ENABLED=false`) | The gateway must work without the console (spec §46). The integration test runs headless. |
+| ENTERPRISE-UI consumed as a committed tarball (`vendor/enterprise-ui-react.tgz`) | It is not on npm yet. The console gets exactly what an npm consumer would (`dist/` only), and a fresh clone needs nothing but `bun install`. |
 | Hand-written config validation, no schema library | Small surface today. Revisit when request validation for `/v1/*` arrives (phase 8). |
 | Synchronous `Database` interface | Matches `bun:sqlite`. A PostgreSQL adapter will need async variants. Repository interfaces are the stable seam, not `Database`. |
 | Migrations as TS modules with checksums | Ship inside the bundle (no file lookups at runtime). Edited or unknown migrations stop startup instead of drifting. |
@@ -67,7 +67,7 @@ Bun.serve routes
 Both live in `apps/console/src/components/custom/` and are compositions of
 ENTERPRISE-UI components:
 
-- `HealthStateIndicator`: maps ClawAPI health states to `StatusIndicator` tones,
+- `HealthStateIndicator`: maps ClawRouter health states to `StatusIndicator` tones,
   always with a text label.
 - `PlannedFeature`: page placeholder (`Page` + `EmptyState`) for areas whose server
   API does not exist yet. The console shows no invented data.

@@ -1,4 +1,4 @@
-import { IDENTIFIER_PATTERN, type ProviderInfo, type ProviderKind, type ProviderKindInfo } from '@clawapi/shared';
+import { IDENTIFIER_PATTERN, type ProviderInfo, type ProviderKind, type ProviderKindInfo } from '@clawrouter/shared';
 
 export interface ProviderFormValues {
   kind: ProviderKind;

@@ -1,4 +1,4 @@
-import type { Capability, FieldIssue, ProviderKind, ProviderKindInfo } from '@clawapi/shared';
+import type { Capability, FieldIssue, ProviderKind, ProviderKindInfo } from '@clawrouter/shared';
 
 /**
  * Normalized request/response types: what the gateway (phase 8) speaks.

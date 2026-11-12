@@ -1,4 +1,4 @@
-import type { FieldIssue } from '@clawapi/shared';
+import type { FieldIssue } from '@clawrouter/shared';
 
 const METADATA_HOSTS = new Set(['metadata.google.internal', 'metadata', 'metadata.azure.com', '169.254.169.254', '[fd00:ec2::254]']);
 

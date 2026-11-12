@@ -4,7 +4,7 @@
 
 | Area | Behavior |
 |---|---|
-| Header | ClawAPI identity, system health (text + icon), notifications bell with unread count, help, user menu with name and roles (My sessions, Sign out) |
+| Header | ClawRouter identity, system health (text + icon), notifications bell with unread count, help, user menu with name and roles (My sessions, Sign out) |
 | Navigation | Spec §17 groups, filtered to the user's permissions (empty groups dropped). Collapses to icons on tablets and becomes a drawer on phones (ENTERPRISE-UI AppShell) |
 | Routing | History-API router; deep links work (the server serves the console for every non-API path). Signed-out users return to the requested page after sign-in |
 | Access | Pages without permission show a "no access" page. The server refuses the data regardless |
@@ -28,7 +28,7 @@ Server-generated, per user, kept for 30 days.
 | `user.roles_changed` | the user | Info | "Your roles changed: You now have Operator." |
 | `auth.login_throttled` (once per block) | `audit.read` | Warning | "Sign-in as "vera" is blocked for 15 min…" |
 
-The server runs its own health check every `CLAWAPI_HEALTH_INTERVAL_SECONDS`
+The server runs its own health check every `CLAWROUTER_HEALTH_INTERVAL_SECONDS`
 (default 30), so health notifications are created even when no console is open.
 
 ### API (any signed-in user, own notifications only)

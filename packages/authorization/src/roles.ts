@@ -1,4 +1,4 @@
-import { PERMISSIONS, type BuiltInRoleId, type Permission } from '@clawapi/shared';
+import { PERMISSIONS, type BuiltInRoleId, type Permission } from '@clawrouter/shared';
 
 /**
  * Permissions of the built-in roles (spec §16). Defined in code, not data, so a

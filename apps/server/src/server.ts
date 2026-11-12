@@ -1,21 +1,21 @@
 import type { HTMLBundle, Server } from 'bun';
-import { createApiApp, type ApiApp } from '@clawapi/api';
-import { createAuditService, createSqliteAuditRepository, type AuditService } from '@clawapi/audit';
+import { createApiApp, type ApiApp } from '@clawrouter/api';
+import { createAuditService, createSqliteAuditRepository, type AuditService } from '@clawrouter/audit';
 import {
   createArgon2Hasher, createAuthService, createSetupService, createSqliteSessionRepository, createSqliteUserRepository,
   type AuthService, type PasswordHasher, type SetupService,
-} from '@clawapi/authentication';
-import { createAuthorizationService, createSqliteRoleRepository, type AuthorizationService } from '@clawapi/authorization';
-import { createEventBus, type Config, type EventBus, type Logger } from '@clawapi/core';
-import { createNotificationService, createSqliteNotificationRepository, type NotificationService } from '@clawapi/notifications';
-import { createDefaultRegistry, createProviderService, createSqliteProviderRepository, type ProviderService } from '@clawapi/providers';
-import { createModelService, createSqliteModelRepository, type ModelService } from '@clawapi/models';
-import { migrations, openSqlite, runMigrations, type Database } from '@clawapi/database';
-import { createDatabaseCheck, createHealthService, createPlatformCheck, createProvidersCheck, type HealthService } from '@clawapi/health';
+} from '@clawrouter/authentication';
+import { createAuthorizationService, createSqliteRoleRepository, type AuthorizationService } from '@clawrouter/authorization';
+import { createEventBus, type Config, type EventBus, type Logger } from '@clawrouter/core';
+import { createNotificationService, createSqliteNotificationRepository, type NotificationService } from '@clawrouter/notifications';
+import { createDefaultRegistry, createProviderService, createSqliteProviderRepository, type ProviderService } from '@clawrouter/providers';
+import { createModelService, createSqliteModelRepository, type ModelService } from '@clawrouter/models';
+import { migrations, openSqlite, runMigrations, type Database } from '@clawrouter/database';
+import { createDatabaseCheck, createHealthService, createPlatformCheck, createProvidersCheck, type HealthService } from '@clawrouter/health';
 import { loadSecretBox } from './secret-key.ts';
 import { provisionSetupToken, type SetupToken } from './setup-token.ts';
 
-export interface ClawApiOptions {
+export interface ClawRouterOptions {
   config: Config;
   log: Logger;
   version: string;
@@ -27,7 +27,7 @@ export interface ClawApiOptions {
   providerFetch?: typeof fetch;
 }
 
-export interface ClawApi {
+export interface ClawRouter {
   server: Server<undefined>;
   db: Database;
   events: EventBus;
@@ -51,7 +51,7 @@ export interface ClawApi {
  * HTTP layer together, then starts listening. Everything is created here and
  * passed down explicitly; no module-level singletons.
  */
-export async function startClawApi({ config, log, version, consoleHtml, hasher = createArgon2Hasher(), providerFetch }: ClawApiOptions): Promise<ClawApi> {
+export async function startClawRouter({ config, log, version, consoleHtml, hasher = createArgon2Hasher(), providerFetch }: ClawRouterOptions): Promise<ClawRouter> {
   const db = openSqlite({ path: config.database.path });
   try {
     runMigrations(db, migrations, log);
@@ -153,9 +153,9 @@ export async function startClawApi({ config, log, version, consoleHtml, hasher =
   });
 
   const url = new URL(server.url.href);
-  log.info('ClawAPI listening', { component: 'server', url: url.href, env: config.env, console: serveConsole, version });
+  log.info('ClawRouter listening', { component: 'server', url: url.href, env: config.env, console: serveConsole, version });
   if (!config.auth.cookieSecure && !['127.0.0.1', 'localhost', '::1'].includes(config.server.host)) {
-    log.warn('session cookies are not marked Secure; serve ClawAPI over HTTPS and set CLAWAPI_COOKIE_SECURE=true', { component: 'server' });
+    log.warn('session cookies are not marked Secure; serve ClawRouter over HTTPS and set CLAWROUTER_COOKIE_SECURE=true', { component: 'server' });
   }
 
   let stopped = false;
@@ -175,7 +175,7 @@ export async function startClawApi({ config, log, version, consoleHtml, hasher =
       unsubscribeModels();
       await server.stop();
       db.close();
-      log.info('ClawAPI stopped', { component: 'server' });
+      log.info('ClawRouter stopped', { component: 'server' });
     },
   };
 }

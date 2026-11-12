@@ -31,7 +31,7 @@ CREATE TABLE user_roles (
 CREATE INDEX user_roles_role_id ON user_roles(role_id);
 
 INSERT INTO roles (id, name, description, built_in, created_at) VALUES
-  ('ADMIN', 'Administrator', 'Full access to every part of ClawAPI.', 1, strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  ('ADMIN', 'Administrator', 'Full access to every part of ClawRouter.', 1, strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
   ('OPERATOR', 'Operator', 'Runs the gateway: providers, models, routing, health, logs, audit, requests and usage.', 1, strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
   ('VIEWER', 'Viewer', 'Read-only access to gateway configuration and activity.', 1, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'));
 

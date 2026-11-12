@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { AppError } from '@clawapi/core';
+import { AppError } from '@clawrouter/core';
 import { migrationStatus, migrations, openSqlite, runMigrations, type Migration } from '../src/index.ts';
 
 const fresh = () => openSqlite({ path: ':memory:' });
@@ -62,8 +62,8 @@ describe('sqlite adapter', () => {
   });
 
   test('persists to a file', () => {
-    const dir = mkdtempSync(join(tmpdir(), 'clawapi-'));
-    const path = join(dir, 'nested', 'clawapi.db');
+    const dir = mkdtempSync(join(tmpdir(), 'clawrouter-'));
+    const path = join(dir, 'nested', 'clawrouter.db');
     const a = openSqlite({ path });
     runMigrations(a, migrations);
     a.run("INSERT INTO settings (key, value, updated_at) VALUES ('k', '1', 'now')");

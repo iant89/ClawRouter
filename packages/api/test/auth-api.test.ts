@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import type { ApiErrorBody, ApiSuccess, AuthSession, SessionInfo, SetupStatus } from '@clawapi/shared';
+import type { ApiErrorBody, ApiSuccess, AuthSession, SessionInfo, SetupStatus } from '@clawrouter/shared';
 import { ADMIN, SETUP_TOKEN, cookieFrom, createHarness } from '../../../tests/support/harness.ts';
 
 const json = async <T>(res: Response) => (await res.json()) as T;
@@ -14,7 +14,7 @@ describe('setup over HTTP', () => {
     const body = await json<ApiSuccess<AuthSession>>(res);
     expect(body.data.user.username).toBe('admin');
     expect(JSON.stringify(body)).not.toContain(ADMIN.password);
-    expect(cookieFrom(res)).toStartWith('clawapi_session=');
+    expect(cookieFrom(res)).toStartWith('clawrouter_session=');
 
     expect((await json<ApiSuccess<SetupStatus>>(await h.request('/api/setup/status'))).data.required).toBe(false);
     const again = await h.request('/api/setup', { method: 'POST', json: { setupToken: SETUP_TOKEN, ...ADMIN } });
@@ -74,7 +74,7 @@ describe('login / session / logout', () => {
     const h = createHarness({ secureCookie: true });
     const res = await h.request('/api/setup', { method: 'POST', json: { setupToken: SETUP_TOKEN, ...ADMIN } });
     const header = res.headers.getSetCookie()[0]!;
-    expect(header).toStartWith('__Host-clawapi_session=');
+    expect(header).toStartWith('__Host-clawrouter_session=');
     expect(header).toContain('Secure');
   });
 
@@ -99,7 +99,7 @@ describe('login / session / logout', () => {
   test('an invalid cookie is rejected and cleared', async () => {
     const h = createHarness();
     await h.completeSetup();
-    const res = await h.request('/api/auth/session', { cookie: 'clawapi_session=forged' });
+    const res = await h.request('/api/auth/session', { cookie: 'clawrouter_session=forged' });
     expect(res.status).toBe(401);
     expect(res.headers.getSetCookie()[0]).toContain('Max-Age=0');
   });
@@ -164,7 +164,7 @@ describe('CSRF', () => {
   test('same-origin Origin is accepted', async () => {
     const h = createHarness();
     await h.completeSetup();
-    const res = await h.request('/api/auth/login', { method: 'POST', json: { username: 'admin', password: ADMIN.password }, headers: { origin: 'http://clawapi.test' } });
+    const res = await h.request('/api/auth/login', { method: 'POST', json: { username: 'admin', password: ADMIN.password }, headers: { origin: 'http://clawrouter.test' } });
     expect(res.status).toBe(200);
   });
 

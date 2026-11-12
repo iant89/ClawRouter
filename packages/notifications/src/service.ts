@@ -1,5 +1,5 @@
-import { newId, type EventBus, type Logger } from '@clawapi/core';
-import type { HealthState, NotificationInfo, NotificationSeverity } from '@clawapi/shared';
+import { newId, type EventBus, type Logger } from '@clawrouter/core';
+import type { HealthState, NotificationInfo, NotificationSeverity } from '@clawrouter/shared';
 import type { NotificationRepository, Recipient } from './repository.ts';
 
 export interface NotifyInput {

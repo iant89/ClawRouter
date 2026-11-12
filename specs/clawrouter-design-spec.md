@@ -1,7 +1,8 @@
-# ClawAPI — AI Model Gateway & Control Platform
+# ClawRouter — AI Model Gateway & Control Platform
 
 Design Specification + Roadmap. This is the authoritative product and architecture
-spec. Section numbers are referenced from code comments and docs (e.g. "spec §25").
+spec. The product was named **ClawAPI** when this spec was written; it has been
+renamed ClawRouter throughout. Section numbers are referenced from code comments and docs (e.g. "spec §25").
 Implementation status is tracked in [`../docs/roadmap-status.md`](../docs/roadmap-status.md).
 
 ```
@@ -19,8 +20,8 @@ Authentication: Server-side Sessions
 Authorization:  RBAC
 ```
 
-**Important.** This implementation IS the new ClawAPI. There is no ClawAPI
-integration layer, adapter, wrapper, or dependency on another ClawAPI
+**Important.** This implementation IS the new ClawRouter. There is no ClawRouter
+integration layer, adapter, wrapper, or dependency on another ClawRouter
 implementation. The system owns: API gateway, authentication, authorization,
 provider management, model registry, model routing, failover, rate limiting,
 request execution, streaming, usage tracking, health monitoring, logging, audit,
@@ -31,7 +32,7 @@ another interface into the same application.
 
 ## 1. Product vision
 
-ClawAPI is a self-hosted AI gateway and control platform designed to sit between
+ClawRouter is a self-hosted AI gateway and control platform designed to sit between
 applications/users and one or more AI model providers.
 
 ```
@@ -41,7 +42,7 @@ applications/users and one or more AI model providers.
               | HTTP / HTTPS
               v
     +------------------------------------------------------+
-    |                     CLAWAPI                          |
+    |                     CLAWROUTER                          |
     |  API GATEWAY      Authentication, Authorization,     |
     |                   Validation, Rate Limiting,         |
     |                   Request Management, Streaming      |
@@ -102,7 +103,7 @@ using ENTERPRISE-UI primitives/tokens; (4) if generally reusable, contribute it 
 ## 4. Repository structure
 
 ```
-clawapi/
+clawrouter/
   apps/console/src/
     app/ layouts/ pages/ components/custom/
     features/{auth,dashboard,providers,models,routing,requests,usage,health,
@@ -238,7 +239,7 @@ Navigation:
 - System: Health, Logs, Audit
 - Administration: Users, Roles, Sessions, Settings
 
-Header: ClawAPI identity, gateway status, system health, notifications, current
+Header: ClawRouter identity, gateway status, system health, notifications, current
 user, role, account menu, logout.
 
 ## 18. Visual design
@@ -260,7 +261,7 @@ other external UI frameworks.
 
 ## 20. Application shell
 
-Desktop: header (ClawAPI | Gateway: HEALTHY | Notifications | user | Logout) above a
+Desktop: header (ClawRouter | Gateway: HEALTHY | Notifications | user | Logout) above a
 side navigation and page content. Must remain usable on desktop, laptop, tablet and
 mobile. Interactive targets should generally be at least 44px.
 
@@ -445,7 +446,7 @@ input sanitization, output safety, error normalization, security tests.
 | 5 Provider engine | Provider abstraction | Interface, repository, configuration, credential storage + encryption, lifecycle, connection testing, health checks, state, events, OpenAI, Anthropic, Google, Local/OpenAI-compatible | Multiple providers through one standardized interface |
 | 6 Model registry | First-class models | Repository, CRUD, provider/model relationship, capabilities, availability, context length, cost metadata, discovery, admin UI | Providers expose usable models |
 | 7 Routing engine | Provider/model selection | Routing domain, rules, aliases, capability matching, priority, weights, health-aware, disabled handling, fallback, tests | Deterministic selection of the best eligible provider/model |
-| 8 Request gateway | The actual AI gateway | Pipeline, external auth, API key management, validation, normalization, model resolution, routing integration, provider execution, response + error normalization, timeout, retry, failover, cancellation, streaming, request IDs, metrics, usage accounting; `/v1/models`, `/v1/chat/completions`, `/v1/embeddings`, `/v1/responses` | External clients use ClawAPI without knowing the provider |
+| 8 Request gateway | The actual AI gateway | Pipeline, external auth, API key management, validation, normalization, model resolution, routing integration, provider execution, response + error normalization, timeout, retry, failover, cancellation, streaming, request IDs, metrics, usage accounting; `/v1/models`, `/v1/chat/completions`, `/v1/embeddings`, `/v1/responses` | External clients use ClawRouter without knowing the provider |
 | 9 Rate limiting | Protect the gateway | Abstraction, per-key/user/model/global limits, headers, events, admin config | Abusive clients cannot overwhelm the gateway |
 | 10 Requests + usage | Observability of activity | Persistence, status, duration, provider/model, retry + failover counts, usage records, tokens, cost estimation, history UI, usage dashboard | Administrators understand gateway activity |
 | 11 Real-time | Live operational state | Typed event bus, WebSocket server, session-authenticated WS, provider/health/request/routing/notification events, UI subscriptions, reconnection | Dashboard updates live |
@@ -500,14 +501,14 @@ documented.
 
 ## 45. Architectural end state
 
-AI clients → ClawAPI gateway → (authentication, rate limiting, validation) →
+AI clients → ClawRouter gateway → (authentication, rate limiting, validation) →
 request engine → routing engine → providers A/B/C → AI providers. Control plane:
 the ENTERPRISE-UI admin console (dashboard, providers, models, routing, requests,
 usage, health, logs, audit, users, roles, API keys, sessions, settings).
 
 ## 46. Final architectural position
 
-ClawAPI is not an admin panel around an AI gateway. ClawAPI IS the AI gateway.
+ClawRouter is not an admin panel around an AI gateway. ClawRouter IS the AI gateway.
 
 - **Data plane** handles AI traffic: API gateway, authentication, API keys, rate
   limiting, request engine, routing, providers, streaming, failover, usage.
@@ -523,6 +524,6 @@ functional without the React console.
 Small, modular, low-level, testable, provider-agnostic, UI-independent,
 security-first, performance-aware. Avoid building a framework around the framework.
 Bun provides the runtime, TypeScript the language, ENTERPRISE-UI the UI system,
-SQLite the initial persistence layer. ClawAPI provides the gateway, routing,
+SQLite the initial persistence layer. ClawRouter provides the gateway, routing,
 provider abstraction, security, observability and control plane. Everything else
 should exist only when it solves a concrete problem.

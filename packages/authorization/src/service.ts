@@ -1,6 +1,6 @@
-import { AppError, errors, type EventBus, type Logger } from '@clawapi/core';
-import type { AuditService } from '@clawapi/audit';
-import type { Permission, RoleInfo, UserWithRoles } from '@clawapi/shared';
+import { AppError, errors, type EventBus, type Logger } from '@clawrouter/core';
+import type { AuditService } from '@clawrouter/audit';
+import type { Permission, RoleInfo, UserWithRoles } from '@clawrouter/shared';
 import type { RoleRepository } from './repository.ts';
 import { permissionsOfRole } from './roles.ts';
 
@@ -71,7 +71,7 @@ export function createAuthorizationService(options: {
 
     /**
      * Replaces a user's roles. Refuses unknown roles and any change that would
-     * leave ClawAPI without an active administrator.
+     * leave ClawRouter without an active administrator.
      */
     setUserRoles(actor: Actor, userId: string, requested: string[], client: ClientInfo): UserWithRoles {
       const roleIds = [...new Set(requested)].sort();
@@ -84,7 +84,7 @@ export function createAuthorizationService(options: {
         if (!user) throw errors.notFound('User not found.');
         const losesAdmin = user.roles.includes('ADMIN') && !roleIds.includes('ADMIN');
         if (losesAdmin && user.status === 'ACTIVE' && tx.countActiveHolders('ADMIN') <= 1) {
-          throw new AppError('CONFLICT', 'ClawAPI must keep at least one active administrator. Assign ADMIN to someone else first.');
+          throw new AppError('CONFLICT', 'ClawRouter must keep at least one active administrator. Assign ADMIN to someone else first.');
         }
         tx.setUserRoles(userId, roleIds, now().toISOString(), actor.id);
         return { before: user.roles, after: tx.findUserWithRoles(userId)! };

@@ -3,7 +3,7 @@ import {
   AlertDialog, Button, MessageStrip, OverflowMenu, Page, Pagination, RefreshControl, StatusIndicator, Table, Text, useToast,
   type TableColumn,
 } from '@enterprise-ui/react';
-import type { AdminSessionInfo } from '@clawapi/shared';
+import type { AdminSessionInfo } from '@clawrouter/shared';
 import { ApiClientError, type PagedResult } from '../../services/api-client.ts';
 import { fetchAllSessions, onSessionsChanged, revokeSession, revokeUserSessions } from '../../services/auth.ts';
 import { describeUserAgent, formatRelative } from '../../services/format.ts';

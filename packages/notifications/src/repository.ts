@@ -1,5 +1,5 @@
-import type { Database } from '@clawapi/database';
-import type { NotificationInfo, NotificationSeverity } from '@clawapi/shared';
+import type { Database } from '@clawrouter/database';
+import type { NotificationInfo, NotificationSeverity } from '@clawrouter/shared';
 
 export interface NewNotification {
   id: string;

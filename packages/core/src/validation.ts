@@ -1,4 +1,4 @@
-import type { FieldIssue } from '@clawapi/shared';
+import type { FieldIssue } from '@clawrouter/shared';
 import { errors } from './errors.ts';
 
 /**

@@ -1,6 +1,6 @@
 # Provider engine (phase 5)
 
-How ClawAPI talks to AI providers (spec §8, §29). The gateway (phase 8) sends
+How ClawRouter talks to AI providers (spec §8, §29). The gateway (phase 8) sends
 every request through this engine; routing (phase 7) decides which provider
 gets it.
 
@@ -43,8 +43,8 @@ Usage is reported as `source: 'provider'` when the provider sent token counts,
   IV per value, and the ciphertext is bound to `provider:<id>:api_key`, so a value
   copied to another row fails to decrypt. The key's fingerprint is stored too, so
   a wrong key is reported clearly.
-- The **encryption key is outside the database**: `CLAWAPI_SECRET_KEY` (base64 or
-  hex, 32 bytes) or `CLAWAPI_SECRET_KEY_FILE`. Production refuses to start
+- The **encryption key is outside the database**: `CLAWROUTER_SECRET_KEY` (base64 or
+  hex, 32 bytes) or `CLAWROUTER_SECRET_KEY_FILE`. Production refuses to start
   without one. In development a `secret.key` (mode 0600) is generated next to the
   database. **Back it up**: without it, stored keys cannot be decrypted and must
   be entered again.
@@ -80,7 +80,7 @@ Usage is reported as `source: 'provider'` when the provider sent token counts,
 - **Connection test** (`POST /api/providers/:id/test`): audited as
   `CONNECTION_TEST`. Concurrent tests of one provider share one call. The console
   runs one automatically after adding a provider or changing its key.
-- **Background health checks**: every `CLAWAPI_PROVIDER_HEALTH_INTERVAL_SECONDS`
+- **Background health checks**: every `CLAWROUTER_PROVIDER_HEALTH_INTERVAL_SECONDS`
   (default 300; `0` turns them off), first run 5 s after startup.
 - Every check is kept for 7 days (`provider_health_history`), shown under
   *Details and history*.

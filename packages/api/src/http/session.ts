@@ -1,7 +1,7 @@
-import { AppError } from '@clawapi/core';
-import type { AuthService } from '@clawapi/authentication';
-import type { AuthorizationService } from '@clawapi/authorization';
-import { CSRF_HEADER } from '@clawapi/shared';
+import { AppError } from '@clawrouter/core';
+import type { AuthService } from '@clawrouter/authentication';
+import type { AuthorizationService } from '@clawrouter/authorization';
+import { CSRF_HEADER } from '@clawrouter/shared';
 import type { Middleware } from './context.ts';
 import { parseCookies, serializeCookie } from './cookies.ts';
 
@@ -14,7 +14,7 @@ export interface SessionCookieConfig {
  * set by this host over HTTPS with Path=/ and no Domain attribute.
  */
 export function sessionCookieName(config: SessionCookieConfig): string {
-  return config.secure ? '__Host-clawapi_session' : 'clawapi_session';
+  return config.secure ? '__Host-clawrouter_session' : 'clawrouter_session';
 }
 
 /** Sets the cookie for a freshly created session; it lives exactly as long as the session's absolute lifetime. */
@@ -41,9 +41,9 @@ const UNSAFE = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
  * CSRF protection for the administration API (defence in depth on top of
  * SameSite=Strict cookies and JSON-only bodies):
  *   - a cross-site Origin (or Sec-Fetch-Site) on an unsafe request is rejected;
- *   - cookie-authenticated unsafe requests must carry the `x-clawapi-csrf`
+ *   - cookie-authenticated unsafe requests must carry the `x-clawrouter-csrf`
  *     header, which a cross-site page cannot add without a CORS preflight
- *     (and ClawAPI never answers CORS preflights for /api).
+ *     (and ClawRouter never answers CORS preflights for /api).
  */
 export function csrfProtection(config: SessionCookieConfig): Middleware {
   const rejected = () => new AppError('AUTHORIZATION_ERROR', 'Cross-site request rejected.');

@@ -1,14 +1,14 @@
 {
-  "name": "@clawapi/models",
+  "name": "@clawrouter/models",
   "version": "0.1.0",
   "private": true,
   "type": "module",
   "exports": { ".": "./src/index.ts" },
   "dependencies": {
-    "@clawapi/audit": "workspace:*",
-    "@clawapi/core": "workspace:*",
-    "@clawapi/database": "workspace:*",
-    "@clawapi/providers": "workspace:*",
-    "@clawapi/shared": "workspace:*"
+    "@clawrouter/audit": "workspace:*",
+    "@clawrouter/core": "workspace:*",
+    "@clawrouter/database": "workspace:*",
+    "@clawrouter/providers": "workspace:*",
+    "@clawrouter/shared": "workspace:*"
   }
 }

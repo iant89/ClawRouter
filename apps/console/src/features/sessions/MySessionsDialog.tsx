@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Button, Dialog, MessageStrip, StatusIndicator, Table, VisuallyHidden, type TableColumn } from '@enterprise-ui/react';
-import type { SessionInfo } from '@clawapi/shared';
+import type { SessionInfo } from '@clawrouter/shared';
 import { fetchMySessions, onSessionsChanged, revokeMyOtherSessions, revokeMySession } from '../../services/auth.ts';
 import { describeUserAgent } from '../../services/format.ts';
 

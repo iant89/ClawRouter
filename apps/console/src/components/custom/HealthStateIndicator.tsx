@@ -1,5 +1,5 @@
 import { StatusIndicator, type StatusIndicatorProps } from '@enterprise-ui/react';
-import type { HealthState } from '@clawapi/shared';
+import type { HealthState } from '@clawrouter/shared';
 
 type Tone = NonNullable<StatusIndicatorProps['tone']>;
 
@@ -29,7 +29,7 @@ export interface HealthStateIndicatorProps extends Omit<StatusIndicatorProps, 't
 /**
  * Health state as text plus icon (never color alone). Composition of the
  * ENTERPRISE-UI StatusIndicator; kept in the app because the state vocabulary
- * is ClawAPI-specific.
+ * is ClawRouter-specific.
  */
 export function HealthStateIndicator({ state, label, ...rest }: HealthStateIndicatorProps) {
   return (

@@ -42,7 +42,7 @@ function Console() {
   const { pathname } = useRouter();
   const item = resolvePath(pathname);
   useEffect(() => {
-    document.title = item ? `${item.label} · ClawAPI` : 'Not found · ClawAPI';
+    document.title = item ? `${item.label} · ClawRouter` : 'Not found · ClawRouter';
   }, [item]);
   return (
     <HealthProvider>
@@ -70,16 +70,16 @@ function Gate() {
     if (target) navigate(target, { replace: true });
   }, [target, navigate]);
   useEffect(() => {
-    if (state.status === 'setup-required') document.title = 'Setup · ClawAPI';
-    if (state.status === 'signed-out') document.title = 'Sign in · ClawAPI';
+    if (state.status === 'setup-required') document.title = 'Setup · ClawRouter';
+    if (state.status === 'signed-out') document.title = 'Sign in · ClawRouter';
   }, [state.status]);
 
   switch (state.status) {
     case 'loading':
-      return <BusyIndicator active text="Loading ClawAPI…" style={{ height: '100%' }} />;
+      return <BusyIndicator active text="Loading ClawRouter…" style={{ height: '100%' }} />;
     case 'error':
       return (
-        <EmptyState icon="disconnected" title="Cannot reach the ClawAPI server" description={state.message} actions={<Button onClick={retry}>Try again</Button>} />
+        <EmptyState icon="disconnected" title="Cannot reach the ClawRouter server" description={state.message} actions={<Button onClick={retry}>Try again</Button>} />
       );
     case 'setup-required':
       return target ? null : <SetupPage />;

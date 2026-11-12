@@ -1,5 +1,5 @@
-import type { AuditAction, AuditRecord } from '@clawapi/shared';
-import type { Database } from '@clawapi/database';
+import type { AuditAction, AuditRecord } from '@clawrouter/shared';
+import type { Database } from '@clawrouter/database';
 
 export interface AuditQuery {
   action?: AuditAction;

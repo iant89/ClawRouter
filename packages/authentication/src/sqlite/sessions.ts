@@ -1,4 +1,4 @@
-import type { Database } from '@clawapi/database';
+import type { Database } from '@clawrouter/database';
 import type { Session, SessionRepository } from '../sessions.ts';
 
 interface Row {

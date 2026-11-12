@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
-import { createSecretBox, generateSecretKey, parseSecretKey } from '@clawapi/core';
+import { createSecretBox, generateSecretKey, parseSecretKey } from '@clawrouter/core';
 import { createDefaultRegistry, createProviderService, createSqliteProviderRepository } from '../src/index.ts';
 import { createHarness } from '../../../tests/support/harness.ts';
 import { startMockProviders, type MockProviders } from '../../../tests/support/mock-providers.ts';

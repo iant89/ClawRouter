@@ -1,5 +1,5 @@
-import type { Database } from '@clawapi/database';
-import type { ProviderCheck, ProviderKind, ProviderState } from '@clawapi/shared';
+import type { Database } from '@clawrouter/database';
+import type { ProviderCheck, ProviderKind, ProviderState } from '@clawrouter/shared';
 
 export interface ProviderRecord {
   id: string;

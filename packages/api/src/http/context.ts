@@ -1,5 +1,5 @@
-import type { Logger } from '@clawapi/core';
-import type { Permission, SessionInfo, UserSummary } from '@clawapi/shared';
+import type { Logger } from '@clawrouter/core';
+import type { Permission, SessionInfo, UserSummary } from '@clawrouter/shared';
 
 /** The authenticated console user for this request (session cookie). */
 export interface AuthContext {

@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import type { AdminSessionInfo, ApiErrorBody, ApiSuccess, PageMeta, RevokeResult } from '@clawapi/shared';
+import type { AdminSessionInfo, ApiErrorBody, ApiSuccess, PageMeta, RevokeResult } from '@clawrouter/shared';
 import { createHarness } from '../../../tests/support/harness.ts';
 
 const json = async <T>(res: Response) => (await res.json()) as T;

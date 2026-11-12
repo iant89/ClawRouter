@@ -1,4 +1,4 @@
-import type { FieldIssue } from '@clawapi/shared';
+import type { FieldIssue } from '@clawrouter/shared';
 import { checkEndpoint } from '../endpoint.ts';
 import type { ChatMessage, DiscoveredModel, ProviderCallContext } from '../types.ts';
 

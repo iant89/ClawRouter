@@ -1,5 +1,5 @@
-import { newId, redact, type Logger } from '@clawapi/core';
-import type { AuditAction, AuditRecord, AuditResult } from '@clawapi/shared';
+import { newId, redact, type Logger } from '@clawrouter/core';
+import type { AuditAction, AuditRecord, AuditResult } from '@clawrouter/shared';
 import type { AuditRepository } from './repository.ts';
 
 export interface AuditEntry {

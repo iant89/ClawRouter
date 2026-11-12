@@ -1,7 +1,7 @@
 import { chmodSync, existsSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
-import { generateToken } from '@clawapi/authentication';
-import type { Config, Logger } from '@clawapi/core';
+import { generateToken } from '@clawrouter/authentication';
+import type { Config, Logger } from '@clawrouter/core';
 
 export interface SetupToken {
   value: string;
@@ -13,19 +13,19 @@ export interface SetupToken {
 
 /**
  * Provides the one-time initial-setup token. The token is a secret, so it is
- * never logged: it is either chosen by the operator (CLAWAPI_SETUP_TOKEN) or
+ * never logged: it is either chosen by the operator (CLAWROUTER_SETUP_TOKEN) or
  * generated and written to `setup-token` next to the database (mode 0600),
  * and only the file path is logged.
  */
 export function provisionSetupToken(config: Config, log: Logger): SetupToken {
   if (config.auth.setupToken) {
-    log.warn('initial setup required: use the token from CLAWAPI_SETUP_TOKEN at /setup', { component: 'setup' });
+    log.warn('initial setup required: use the token from CLAWROUTER_SETUP_TOKEN at /setup', { component: 'setup' });
     return { value: config.auth.setupToken, file: null, discard() {} };
   }
 
   const value = generateToken(24);
   if (config.database.path === ':memory:') {
-    log.warn('initial setup required, but the database is in memory: set CLAWAPI_SETUP_TOKEN to complete setup', { component: 'setup' });
+    log.warn('initial setup required, but the database is in memory: set CLAWROUTER_SETUP_TOKEN to complete setup', { component: 'setup' });
     return { value, file: null, discard() {} };
   }
 

@@ -1,4 +1,4 @@
-import type { NotificationInfo, NotificationSeverity } from '@clawapi/shared';
+import type { NotificationInfo, NotificationSeverity } from '@clawrouter/shared';
 
 export const SEVERITY_LABEL: Record<NotificationSeverity, string> = {
   INFO: 'Info',

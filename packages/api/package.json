@@ -1,5 +1,5 @@
 {
-  "name": "@clawapi/api",
+  "name": "@clawrouter/api",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -7,13 +7,13 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@clawapi/authentication": "workspace:*",
-    "@clawapi/authorization": "workspace:*",
-    "@clawapi/core": "workspace:*",
-    "@clawapi/health": "workspace:*",
-    "@clawapi/models": "workspace:*",
-    "@clawapi/notifications": "workspace:*",
-    "@clawapi/providers": "workspace:*",
-    "@clawapi/shared": "workspace:*"
+    "@clawrouter/authentication": "workspace:*",
+    "@clawrouter/authorization": "workspace:*",
+    "@clawrouter/core": "workspace:*",
+    "@clawrouter/health": "workspace:*",
+    "@clawrouter/models": "workspace:*",
+    "@clawrouter/notifications": "workspace:*",
+    "@clawrouter/providers": "workspace:*",
+    "@clawrouter/shared": "workspace:*"
   }
 }

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { BusyIndicator, Button, Checkbox, Dialog, MessageStrip, SearchField, Select, StatusIndicator, Table, Text, type TableColumn } from '@enterprise-ui/react';
-import type { DiscoveredModelInfo, ProviderInfo } from '@clawapi/shared';
+import type { DiscoveredModelInfo, ProviderInfo } from '@clawrouter/shared';
 import { discoverModels, importModels } from '../../services/models.ts';
 import { formatTokens } from '../../services/format.ts';
 

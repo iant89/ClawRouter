@@ -1,4 +1,4 @@
-import type { Database } from '@clawapi/database';
+import type { Database } from '@clawrouter/database';
 import type { NewUser, User, UserRepository } from '../users.ts';
 
 interface Row {

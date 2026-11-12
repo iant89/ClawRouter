@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { AppError } from '@clawapi/core';
+import { AppError } from '@clawrouter/core';
 import { Router, type Handler } from '../src/index.ts';
 
 const h = (name: string): Handler => () => new Response(name);

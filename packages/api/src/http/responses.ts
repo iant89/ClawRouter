@@ -1,5 +1,5 @@
-import type { ApiErrorBody, ApiSuccess } from '@clawapi/shared';
-import type { AppError } from '@clawapi/core';
+import type { ApiErrorBody, ApiSuccess } from '@clawrouter/shared';
+import type { AppError } from '@clawrouter/core';
 
 const JSON_HEADERS = { 'content-type': 'application/json; charset=utf-8' };
 

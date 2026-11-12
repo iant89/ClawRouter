@@ -1,4 +1,4 @@
-import type { UserStatus, UserSummary } from '@clawapi/shared';
+import type { UserStatus, UserSummary } from '@clawrouter/shared';
 
 export interface User {
   id: string;

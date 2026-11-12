@@ -1,5 +1,5 @@
 import { StatusIndicator } from '@enterprise-ui/react';
-import type { ModelInfo } from '@clawapi/shared';
+import type { ModelInfo } from '@clawrouter/shared';
 
 /**
  * Whether a model can receive requests, and why not. Combines the model's own

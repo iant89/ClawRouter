@@ -1,6 +1,6 @@
 import type {
   ConnectionTestResult, CreateProviderRequest, ProviderDetail, ProviderInfo, ProviderKindInfo, UpdateProviderRequest,
-} from '@clawapi/shared';
+} from '@clawrouter/shared';
 import { apiDelete, apiGet, apiPost, apiPut, request } from './api-client.ts';
 
 export const fetchProviders = (signal?: AbortSignal) => apiGet<ProviderInfo[]>('/api/providers', { signal });

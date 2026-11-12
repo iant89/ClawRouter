@@ -1,7 +1,7 @@
-import { AppError, errors, v } from '@clawapi/core';
-import type { AuthService, ClientInfo, SetupService } from '@clawapi/authentication';
-import type { AuthorizationService } from '@clawapi/authorization';
-import type { AdminSessionInfo, AuthSession, RevokeResult, SetupStatus } from '@clawapi/shared';
+import { AppError, errors, v } from '@clawrouter/core';
+import type { AuthService, ClientInfo, SetupService } from '@clawrouter/authentication';
+import type { AuthorizationService } from '@clawrouter/authorization';
+import type { AdminSessionInfo, AuthSession, RevokeResult, SetupStatus } from '@clawrouter/shared';
 import { readJson } from '../http/body.ts';
 import type { Handler, RequestContext } from '../http/context.ts';
 import { noContent, ok } from '../http/responses.ts';

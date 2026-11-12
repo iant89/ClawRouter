@@ -1,9 +1,9 @@
-import { AppError, errors, newId, type EventBus, type Logger, type SecretBox } from '@clawapi/core';
-import type { AuditService } from '@clawapi/audit';
+import { AppError, errors, newId, type EventBus, type Logger, type SecretBox } from '@clawrouter/core';
+import type { AuditService } from '@clawrouter/audit';
 import {
   IDENTIFIER_PATTERN, type ConnectionTestResult, type CreateProviderRequest, type FieldIssue, type ProviderDetail, type ProviderInfo,
   type ProviderKindInfo, type ProviderState, type UpdateProviderRequest,
-} from '@clawapi/shared';
+} from '@clawrouter/shared';
 import { checkEndpoint } from './endpoint.ts';
 import { ProviderCallError } from './http.ts';
 import type { ProviderRecord, ProviderRepository } from './repository.ts';
@@ -106,7 +106,7 @@ export function createProviderService(options: ProviderServiceOptions) {
     const stored = repo.getCredential(p.id, API_KEY);
     if (!stored) return null;
     if (stored.keyFingerprint !== secrets.fingerprint) {
-      throw new ConfigurationProblem('The stored API key was encrypted with a different secret key. Restore the original CLAWAPI_SECRET_KEY or enter the API key again.');
+      throw new ConfigurationProblem('The stored API key was encrypted with a different secret key. Restore the original CLAWROUTER_SECRET_KEY or enter the API key again.');
     }
     try {
       return await secrets.decrypt(stored.ciphertext, `provider:${p.id}:${API_KEY}`);
@@ -349,7 +349,7 @@ export function createProviderService(options: ProviderServiceOptions) {
 
     /**
      * One standardized call into any provider (used by the gateway, phase 8).
-     * `providerId` is the ClawAPI provider id; `request.model` the provider's model id.
+     * `providerId` is the ClawRouter provider id; `request.model` the provider's model id.
      */
     async chat(providerId: string, request: ChatRequest, signal?: AbortSignal): Promise<ChatResponse> {
       const p = mustGet(providerId);

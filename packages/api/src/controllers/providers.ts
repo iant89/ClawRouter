@@ -1,6 +1,6 @@
-import { errors, v, type Validator } from '@clawapi/core';
-import type { ProviderService } from '@clawapi/providers';
-import { PROVIDER_KINDS, type ConnectionTestResult, type ProviderDetail, type ProviderInfo, type ProviderKind, type ProviderKindInfo } from '@clawapi/shared';
+import { errors, v, type Validator } from '@clawrouter/core';
+import type { ProviderService } from '@clawrouter/providers';
+import { PROVIDER_KINDS, type ConnectionTestResult, type ProviderDetail, type ProviderInfo, type ProviderKind, type ProviderKindInfo } from '@clawrouter/shared';
 import { readJson } from '../http/body.ts';
 import type { Handler, RequestContext } from '../http/context.ts';
 import { created, noContent, ok } from '../http/responses.ts';

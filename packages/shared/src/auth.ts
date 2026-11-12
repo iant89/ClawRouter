@@ -58,7 +58,7 @@ export const PASSWORD_POLICY = { minLength: 12, maxLength: 256 } as const;
 export const USERNAME_PATTERN = /^[a-zA-Z0-9][a-zA-Z0-9._-]{1,63}$/;
 
 /** Header the console sends on state-changing requests (CSRF defence in depth). */
-export const CSRF_HEADER = 'x-clawapi-csrf';
+export const CSRF_HEADER = 'x-clawrouter-csrf';
 
 /** A session as shown to administrators: includes whose it is. */
 export interface AdminSessionInfo extends SessionInfo {

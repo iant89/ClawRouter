@@ -1,4 +1,4 @@
-import { AppError, type Logger } from '@clawapi/core';
+import { AppError, type Logger } from '@clawrouter/core';
 import type { Database } from './types.ts';
 
 export interface Migration {

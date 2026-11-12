@@ -20,7 +20,7 @@ export function AuthPanel({ title, subtitle, children }: { title: string; subtit
       <div style={{ width: '100%', maxWidth: '26rem', display: 'grid', gap: 'var(--eui-space-4, 1rem)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--eui-space-2, 0.5rem)' }}>
           <Icon name="it-host" color="var(--eui-color-primary)" />
-          <Title level={1} size="md">ClawAPI</Title>
+          <Title level={1} size="md">ClawRouter</Title>
           <Text tone="secondary">AI Gateway Control Plane</Text>
         </div>
         <Card title={title} subtitle={subtitle} headingLevel={2}>

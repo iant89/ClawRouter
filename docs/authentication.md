@@ -32,7 +32,7 @@ How the console signs people in, and why it is built this way. Spec §14, §15, 
 ## Initial setup
 
 1. On startup with an empty `users` table, the server creates a one-time **setup
-   token**: either `CLAWAPI_SETUP_TOKEN`, or 192 random bits written to
+   token**: either `CLAWROUTER_SETUP_TOKEN`, or 192 random bits written to
    `setup-token` next to the database with mode 0600. Only the file path is logged,
    never the token.
 2. `POST /api/setup` requires the token (compared in constant time; 10 wrong guesses
@@ -62,11 +62,11 @@ claim it.
   **SHA-256 hash**, so a copy of the database cannot be used to take over sessions.
   Sessions also have a separate public id, used for listing and revocation.
 - Cookie: `HttpOnly; SameSite=Strict; Path=/`, and `Secure` with the `__Host-` name
-  prefix when `CLAWAPI_COOKIE_SECURE` is on (default in production). Max-Age equals
+  prefix when `CLAWROUTER_COOKIE_SECURE` is on (default in production). Max-Age equals
   the absolute session lifetime.
-- **Idle timeout** (`CLAWAPI_SESSION_IDLE_MINUTES`, default 60) slides on activity.
+- **Idle timeout** (`CLAWROUTER_SESSION_IDLE_MINUTES`, default 60) slides on activity.
   `last_seen_at` is written at most once a minute. **Absolute lifetime**
-  (`CLAWAPI_SESSION_MAX_HOURS`, default 12) never slides.
+  (`CLAWROUTER_SESSION_MAX_HOURS`, default 12) never slides.
 - A session is rejected if it is revoked, past either expiry, or its user is not
   `ACTIVE` (disabled-user protection). An invalid cookie is cleared in the response.
 - Revocation takes effect on the session's **next request**: it is checked on every
@@ -112,8 +112,8 @@ Layered, because the session is a cookie:
 2. Unsafe requests (`POST/PUT/PATCH/DELETE`) with a cross-site `Origin` or
    `Sec-Fetch-Site` are rejected with 403.
 3. Request bodies must be `application/json`, which a cross-site form cannot send
-   without a CORS preflight. ClawAPI never answers CORS preflights.
-4. Cookie-authenticated unsafe requests must carry `x-clawapi-csrf` (any value).
+   without a CORS preflight. ClawRouter never answers CORS preflights.
+4. Cookie-authenticated unsafe requests must carry `x-clawrouter-csrf` (any value).
    The console adds it automatically. Scripts using a cookie must add it too.
 
 ## Audit

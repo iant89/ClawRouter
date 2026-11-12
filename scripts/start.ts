@@ -3,7 +3,7 @@
  *
  * Bun resolves the bundled console assets relative to the working directory,
  * so the server runs from dist/. Relative paths in the environment (e.g.
- * CLAWAPI_DATABASE_PATH) are resolved against the project root first so they
+ * CLAWROUTER_DATABASE_PATH) are resolved against the project root first so they
  * mean the same thing as in development.
  */
 import { existsSync } from 'node:fs';
@@ -16,11 +16,11 @@ if (!existsSync(join(dist, 'main.js'))) {
   process.exit(1);
 }
 
-const dbPath = process.env.CLAWAPI_DATABASE_PATH ?? './data/clawapi.db';
+const dbPath = process.env.CLAWROUTER_DATABASE_PATH ?? './data/clawrouter.db';
 const env = {
   ...process.env,
-  CLAWAPI_ENV: process.env.CLAWAPI_ENV ?? 'production',
-  CLAWAPI_DATABASE_PATH: dbPath === ':memory:' || isAbsolute(dbPath) ? dbPath : resolve(root, dbPath),
+  CLAWROUTER_ENV: process.env.CLAWROUTER_ENV ?? 'production',
+  CLAWROUTER_DATABASE_PATH: dbPath === ':memory:' || isAbsolute(dbPath) ? dbPath : resolve(root, dbPath),
 };
 
 const child = Bun.spawn(['bun', 'main.js'], { cwd: dist, env, stdio: ['inherit', 'inherit', 'inherit'] });

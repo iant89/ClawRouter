@@ -1,21 +1,21 @@
 /**
- * Test harness: a fully wired ClawAPI core (in-memory SQLite, real services,
+ * Test harness: a fully wired ClawRouter core (in-memory SQLite, real services,
  * fast password hashing, controllable clock) without a network socket.
  */
-import { createApiApp, type ApiApp } from '@clawapi/api';
-import { createAuditService, createSqliteAuditRepository, type AuditService } from '@clawapi/audit';
+import { createApiApp, type ApiApp } from '@clawrouter/api';
+import { createAuditService, createSqliteAuditRepository, type AuditService } from '@clawrouter/audit';
 import {
   createArgon2Hasher, createAuthService, createSetupService, createSqliteSessionRepository, createSqliteUserRepository,
   type AuthService, type PasswordHasher, type SetupService, type UserRepository,
-} from '@clawapi/authentication';
-import { createAuthorizationService, createSqliteRoleRepository, type AuthorizationService } from '@clawapi/authorization';
-import { createEventBus, createLogger, createSecretBox, generateSecretKey, parseSecretKey, type EventBus, type LogRecord, type SecretBox } from '@clawapi/core';
-import { createDefaultRegistry, createProviderService, createSqliteProviderRepository, type ProviderService } from '@clawapi/providers';
-import { createModelService, createSqliteModelRepository, type ModelService } from '@clawapi/models';
-import { createNotificationService, createSqliteNotificationRepository, type NotificationService } from '@clawapi/notifications';
-import { migrations, openSqlite, runMigrations, type Database } from '@clawapi/database';
-import { createDatabaseCheck, createHealthService, type HealthService } from '@clawapi/health';
-import { CSRF_HEADER } from '@clawapi/shared';
+} from '@clawrouter/authentication';
+import { createAuthorizationService, createSqliteRoleRepository, type AuthorizationService } from '@clawrouter/authorization';
+import { createEventBus, createLogger, createSecretBox, generateSecretKey, parseSecretKey, type EventBus, type LogRecord, type SecretBox } from '@clawrouter/core';
+import { createDefaultRegistry, createProviderService, createSqliteProviderRepository, type ProviderService } from '@clawrouter/providers';
+import { createModelService, createSqliteModelRepository, type ModelService } from '@clawrouter/models';
+import { createNotificationService, createSqliteNotificationRepository, type NotificationService } from '@clawrouter/notifications';
+import { migrations, openSqlite, runMigrations, type Database } from '@clawrouter/database';
+import { createDatabaseCheck, createHealthService, type HealthService } from '@clawrouter/health';
+import { CSRF_HEADER } from '@clawrouter/shared';
 
 /** Low-cost argon2id so tests stay fast. Never use these parameters in production. */
 export const fastHasher: PasswordHasher = createArgon2Hasher({ memoryCost: 256, timeCost: 1 });
@@ -60,7 +60,7 @@ export interface Harness {
 }
 
 export function cookieFrom(response: Response): string {
-  const header = response.headers.getSetCookie().find((c) => c.includes('clawapi_session=') && !c.includes('Max-Age=0'));
+  const header = response.headers.getSetCookie().find((c) => c.includes('clawrouter_session=') && !c.includes('Max-Age=0'));
   if (!header) throw new Error(`no session cookie in response (status ${response.status})`);
   return header.split(';')[0]!;
 }
@@ -114,7 +114,7 @@ export function createHarness(options: { idleMinutes?: number; maxHours?: number
       if (cookie) headers.set('cookie', cookie);
       if (cookie && csrf) headers.set(CSRF_HEADER, '1');
       return api.handle(
-        new Request(`http://clawapi.test${path}`, { ...rest, headers, body: json === undefined ? rest.body : JSON.stringify(json) }),
+        new Request(`http://clawrouter.test${path}`, { ...rest, headers, body: json === undefined ? rest.body : JSON.stringify(json) }),
         ip,
       );
     },

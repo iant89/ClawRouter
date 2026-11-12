@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Button, Dialog, Form, Input, MessageStrip, NumberInput, PasswordInput, Select, Switch, Text } from '@enterprise-ui/react';
-import type { ProviderInfo, ProviderKindInfo } from '@clawapi/shared';
+import type { ProviderInfo, ProviderKindInfo } from '@clawrouter/shared';
 import { ApiClientError } from '../../services/api-client.ts';
 import { createProvider, removeProviderKey, updateProvider } from '../../services/providers.ts';
 import { initialValues, SERVER_FIELD, slugify, validate, type ProviderFormErrors, type ProviderFormValues } from './provider-form.ts';

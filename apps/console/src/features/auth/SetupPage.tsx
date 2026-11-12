@@ -1,6 +1,6 @@
 import { useMemo, useState, type FormEvent } from 'react';
 import { Button, Form, FormErrorSummary, Input, MessageStrip, PasswordInput, Text, type FormErrorSummaryItem } from '@enterprise-ui/react';
-import { PASSWORD_POLICY, USERNAME_PATTERN } from '@clawapi/shared';
+import { PASSWORD_POLICY, USERNAME_PATTERN } from '@clawrouter/shared';
 import { AuthPanel } from '../../components/custom/AuthPanel.tsx';
 import { ApiClientError } from '../../services/api-client.ts';
 import { useAuth } from './AuthContext.tsx';
@@ -67,7 +67,7 @@ export function SetupPage() {
       <Form onSubmit={submit} noValidate aria-busy={busy}>
         <Text as="p" size="sm" tone="secondary">
           The setup token is in the <code className="claw-mono">setup-token</code> file next to the database (the server log shows the
-          path), or in <code className="claw-mono">CLAWAPI_SETUP_TOKEN</code> if the operator set one. Setup can only be done once.
+          path), or in <code className="claw-mono">CLAWROUTER_SETUP_TOKEN</code> if the operator set one. Setup can only be done once.
         </Text>
         {summary.length > 0 && <FormErrorSummary errors={summary} focusKey={attempt} />}
         {formError && <MessageStrip tone="error" announce="assertive">{formError}</MessageStrip>}

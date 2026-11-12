@@ -161,7 +161,7 @@ describe('queries (server-side pagination and filters)', () => {
     expect(h.models.list({ usableOnly: true }).total).toBe(3);
   });
 
-  test('providers expose usable models to the rest of ClawAPI (phase 6 exit criterion)', async () => {
+  test('providers expose usable models to the rest of ClawRouter (phase 6 exit criterion)', async () => {
     const { h, openai, google } = await withProviders();
     await h.models.import(actor, openai.id, ['gpt-4o-mini', 'text-embedding-3-small'], client);
     await h.models.import(actor, google.id, ['gemini-2.0-flash'], client);

@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
-import type { ApiErrorBody, ApiSuccess, DiscoveredModelInfo, ImportModelsResult, ModelInfo, PageMeta, ProviderInfo } from '@clawapi/shared';
+import type { ApiErrorBody, ApiSuccess, DiscoveredModelInfo, ImportModelsResult, ModelInfo, PageMeta, ProviderInfo } from '@clawrouter/shared';
 import { createHarness } from '../../../tests/support/harness.ts';
 import { startMockProviders, type MockProviders } from '../../../tests/support/mock-providers.ts';
 

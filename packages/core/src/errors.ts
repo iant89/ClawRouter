@@ -1,4 +1,4 @@
-import type { ErrorCode, FieldIssue } from '@clawapi/shared';
+import type { ErrorCode, FieldIssue } from '@clawrouter/shared';
 
 const HTTP_STATUS: Record<ErrorCode, number> = {
   VALIDATION_ERROR: 400,
@@ -43,7 +43,7 @@ export interface AppErrorOptions {
   cause?: unknown;
 }
 
-/** The single error type thrown by ClawAPI domain and application code. */
+/** The single error type thrown by ClawRouter domain and application code. */
 export class AppError extends Error {
   readonly code: ErrorCode;
   readonly status: number;

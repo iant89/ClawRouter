@@ -1,6 +1,6 @@
-import { createLogger, loadConfig, AppError } from '@clawapi/core';
-import consoleHtml from '@clawapi/console/index.html';
-import { startClawApi } from './server.ts';
+import { createLogger, loadConfig, AppError } from '@clawrouter/core';
+import consoleHtml from '@clawrouter/console/index.html';
+import { startClawRouter } from './server.ts';
 import { VERSION } from './version.ts';
 
 let config;
@@ -14,7 +14,7 @@ try {
 const log = createLogger({ level: config.log.level, format: config.log.format });
 
 try {
-  const app = await startClawApi({ config, log, version: VERSION, consoleHtml });
+  const app = await startClawRouter({ config, log, version: VERSION, consoleHtml });
 
   const shutdown = async (signal: string) => {
     log.info('shutdown requested', { component: 'server', signal });

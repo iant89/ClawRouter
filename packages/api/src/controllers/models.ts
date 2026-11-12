@@ -1,6 +1,6 @@
-import { errors, v, type Validator } from '@clawapi/core';
-import type { ModelService } from '@clawapi/models';
-import { CAPABILITIES, type Capability, type DiscoveredModelInfo, type ImportModelsResult, type ModelInfo } from '@clawapi/shared';
+import { errors, v, type Validator } from '@clawrouter/core';
+import type { ModelService } from '@clawrouter/models';
+import { CAPABILITIES, type Capability, type DiscoveredModelInfo, type ImportModelsResult, type ModelInfo } from '@clawrouter/shared';
 import { readJson } from '../http/body.ts';
 import type { Handler, RequestContext } from '../http/context.ts';
 import { created, noContent, ok } from '../http/responses.ts';

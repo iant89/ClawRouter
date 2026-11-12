@@ -1,12 +1,12 @@
 # Roadmap status
 
-Tracks implementation against [the spec](../specs/clawapi-design-spec.md) §40/§44.
+Tracks implementation against [the spec](../specs/clawrouter-design-spec.md) §40/§44.
 
 ## First working milestone (§44)
 
 | Exit criterion | Status | Where |
 |---|---|---|
-| Repository exists | ✅ | `clawapi/` in the ENTERPRISE-UI repository |
+| Repository exists | ✅ | `iant89/ClawRouter` (started as `clawapi/` in ENTERPRISE-UI; moved with history) |
 | Bun builds/runs | ✅ | `bun run dev`, `bun run build`, `bun run start` |
 | TypeScript strict mode | ✅ | `tsconfig.json` (`strict`, `noUncheckedIndexedAccess`, ...), `bun run typecheck` |
 | React console runs | ✅ | `apps/console`, served by the Bun server |
@@ -88,7 +88,7 @@ Exit criterion: authenticated users have a functional enterprise application she
 | Provider interface | ✅ | `ProviderAdapter` in `packages/providers/src/types.ts` |
 | Provider repository | ✅ | `providers`, migration `0006_providers` |
 | Provider configuration | ✅ | endpoint policy, priority, timeout, enable/disable |
-| Credential storage + encryption | ✅ | AES-256-GCM, key outside the database (`CLAWAPI_SECRET_KEY`) |
+| Credential storage + encryption | ✅ | AES-256-GCM, key outside the database (`CLAWROUTER_SECRET_KEY`) |
 | Provider lifecycle | ✅ | create / update / delete / enable / disable, all audited |
 | Connection testing | ✅ | `POST /api/providers/:id/test`, console *Test* |
 | Health checks | ✅ | background checks, 7-day history |
@@ -96,7 +96,7 @@ Exit criterion: authenticated users have a functional enterprise application she
 | Provider event system | ✅ | `provider.status`, `provider.changed`, `provider.test.*`, notifications |
 | OpenAI / Anthropic / Google / Local providers | ✅ | `packages/providers/src/adapters/*`, chat + streaming |
 
-Exit criterion: ClawAPI communicates with multiple AI providers through one
+Exit criterion: ClawRouter communicates with multiple AI providers through one
 standardized interface ✅. `ProviderService.chat()` / `chatStream()` reach all
 four kinds in the tests (against a local mock of each API).
 
@@ -114,5 +114,5 @@ four kinds in the tests (against a local mock of each API).
 | Model discovery | ✅ | discover + import, availability refreshed by every health check |
 | Model administration UI | ✅ | AI Infrastructure → Models |
 
-Exit criterion: providers expose usable models to the rest of ClawAPI ✅
+Exit criterion: providers expose usable models to the rest of ClawRouter ✅
 (`listUsable`, `resolveRef`, then `ProviderService.chat`, covered by tests).

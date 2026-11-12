@@ -1,5 +1,5 @@
-import type { Database } from '@clawapi/database';
-import type { Capability, ModelAvailability, ModelInfo, ModelSource, ProviderKind, ProviderState } from '@clawapi/shared';
+import type { Database } from '@clawrouter/database';
+import type { Capability, ModelAvailability, ModelInfo, ModelSource, ProviderKind, ProviderState } from '@clawrouter/shared';
 
 export interface ModelRecord {
   id: string;

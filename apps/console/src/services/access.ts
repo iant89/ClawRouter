@@ -1,4 +1,4 @@
-import type { RoleInfo, SetUserRolesRequest, UserWithRoles } from '@clawapi/shared';
+import type { RoleInfo, SetUserRolesRequest, UserWithRoles } from '@clawrouter/shared';
 import { apiGet, apiPut } from './api-client.ts';
 
 export const fetchRoles = (signal?: AbortSignal) => apiGet<RoleInfo[]>('/api/roles', { signal });

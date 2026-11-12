@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useToast } from '@enterprise-ui/react';
-import type { NotificationInfo } from '@clawapi/shared';
+import type { NotificationInfo } from '@clawrouter/shared';
 import * as api from '../../services/notifications.ts';
 import { newAlerts } from './notification-utils.ts';
 

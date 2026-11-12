@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Button, Checkbox, Dialog, Form, Input, MessageStrip, NumberInput, Select, Switch, Text } from '@enterprise-ui/react';
-import { CAPABILITIES, type Capability, type ModelInfo, type ProviderInfo } from '@clawapi/shared';
+import { CAPABILITIES, type Capability, type ModelInfo, type ProviderInfo } from '@clawrouter/shared';
 import { ApiClientError } from '../../services/api-client.ts';
 import { createModel, updateModel } from '../../services/models.ts';
 

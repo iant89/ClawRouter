@@ -3,7 +3,7 @@ import {
   AlertDialog, Button, Checkbox, FilterBar, MessageStrip, OverflowMenu, Page, Pagination, RefreshControl, SearchField, Select, Table, Text, useToast,
   type TableColumn,
 } from '@enterprise-ui/react';
-import { CAPABILITIES, type Capability, type ModelInfo, type ProviderInfo } from '@clawapi/shared';
+import { CAPABILITIES, type Capability, type ModelInfo, type ProviderInfo } from '@clawrouter/shared';
 import { ModelAvailability } from '../../components/custom/ModelAvailability.tsx';
 import { ProviderStatus } from '../../components/custom/ProviderStatus.tsx';
 import { useRouter } from '../../app/router.tsx';
@@ -134,7 +134,7 @@ export function ModelsPage() {
   return (
     <Page
       title="Models"
-      subtitle="Models ClawAPI can route requests to. Availability combines the model and its provider."
+      subtitle="Models ClawRouter can route requests to. Availability combines the model and its provider."
       actions={
         <>
           <RefreshControl onRefresh={reload} refreshing={loading} lastUpdated={lastUpdated} intervals={[]} />

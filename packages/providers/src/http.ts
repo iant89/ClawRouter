@@ -1,4 +1,4 @@
-import { AppError } from '@clawapi/core';
+import { AppError } from '@clawrouter/core';
 import type { ProviderCallContext } from './types.ts';
 
 /** Why a provider call failed, in provider-independent terms. */

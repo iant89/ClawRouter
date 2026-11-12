@@ -1,4 +1,4 @@
-import type { AdminSessionInfo, AuthSession, LoginRequest, RevokeResult, SessionInfo, SetupRequest, SetupStatus } from '@clawapi/shared';
+import type { AdminSessionInfo, AuthSession, LoginRequest, RevokeResult, SessionInfo, SetupRequest, SetupStatus } from '@clawrouter/shared';
 import { ApiClientError, apiDelete, apiGet, apiGetPage, apiPost } from './api-client.ts';
 
 const quiet = { ignoreUnauthorized: true };

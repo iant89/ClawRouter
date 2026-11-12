@@ -1,4 +1,4 @@
-import type { ProviderKind, ProviderKindInfo } from '@clawapi/shared';
+import type { ProviderKind, ProviderKindInfo } from '@clawrouter/shared';
 import { anthropicAdapter } from './adapters/anthropic.ts';
 import { googleAdapter } from './adapters/google.ts';
 import { openAiAdapter, openAiCompatibleAdapter } from './adapters/openai.ts';

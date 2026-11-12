@@ -1,5 +1,5 @@
 import { Card, Icon, MessageStrip, Page, RefreshControl, Table, Text, VisuallyHidden, type TableColumn } from '@enterprise-ui/react';
-import { PERMISSION_DESCRIPTIONS, PERMISSIONS, type Permission, type RoleInfo } from '@clawapi/shared';
+import { PERMISSION_DESCRIPTIONS, PERMISSIONS, type Permission, type RoleInfo } from '@clawrouter/shared';
 import { useResource } from '../../hooks/useResource.ts';
 import { fetchRoles } from '../../services/access.ts';
 

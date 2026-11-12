@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
-import type { ApiErrorBody, ApiSuccess, AuthSession, RoleInfo, UserWithRoles } from '@clawapi/shared';
-import { PERMISSIONS } from '@clawapi/shared';
+import type { ApiErrorBody, ApiSuccess, AuthSession, RoleInfo, UserWithRoles } from '@clawrouter/shared';
+import { PERMISSIONS } from '@clawrouter/shared';
 import { createHarness } from '../../../tests/support/harness.ts';
 
 const json = async <T>(res: Response) => (await res.json()) as T;

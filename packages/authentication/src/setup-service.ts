@@ -1,6 +1,6 @@
-import { AppError, errors, newId, type Logger } from '@clawapi/core';
-import type { AuditService } from '@clawapi/audit';
-import { USERNAME_PATTERN } from '@clawapi/shared';
+import { AppError, errors, newId, type Logger } from '@clawrouter/core';
+import type { AuditService } from '@clawrouter/audit';
+import { USERNAME_PATTERN } from '@clawrouter/shared';
 import type { AuthService, ClientInfo, LoginResult } from './auth-service.ts';
 import { checkPasswordPolicy, type PasswordHasher } from './password.ts';
 import { FailureThrottle } from './throttle.ts';

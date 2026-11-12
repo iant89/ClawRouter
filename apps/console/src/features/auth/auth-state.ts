@@ -1,4 +1,4 @@
-import type { AuthSession } from '@clawapi/shared';
+import type { AuthSession } from '@clawrouter/shared';
 
 /** Console authentication state (spec §34: auth state is separate from server and UI state). */
 export type AuthState =

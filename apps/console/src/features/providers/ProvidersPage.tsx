@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   AlertDialog, Button, MessageStrip, OverflowMenu, Page, RefreshControl, Table, Text, useToast, type TableColumn,
 } from '@enterprise-ui/react';
-import type { ProviderInfo, ProviderKindInfo } from '@clawapi/shared';
+import type { ProviderInfo, ProviderKindInfo } from '@clawrouter/shared';
 import { ProviderStatus } from '../../components/custom/ProviderStatus.tsx';
 import { EmptyStateFor } from './EmptyStateFor.tsx';
 import { useResource } from '../../hooks/useResource.ts';
@@ -146,7 +146,7 @@ export function ProvidersPage() {
   return (
     <Page
       title="Providers"
-      subtitle="AI providers ClawAPI can send requests to. API keys are stored encrypted and never shown again."
+      subtitle="AI providers ClawRouter can send requests to. API keys are stored encrypted and never shown again."
       actions={
         <>
           <RefreshControl onRefresh={reload} refreshing={loading} lastUpdated={lastUpdated} intervals={[]} />

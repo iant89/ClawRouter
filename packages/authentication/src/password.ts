@@ -1,4 +1,4 @@
-import { PASSWORD_POLICY, type FieldIssue } from '@clawapi/shared';
+import { PASSWORD_POLICY, type FieldIssue } from '@clawrouter/shared';
 
 export interface PasswordHasher {
   hash(password: string): Promise<string>;

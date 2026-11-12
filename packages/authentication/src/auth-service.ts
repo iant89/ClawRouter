@@ -1,6 +1,6 @@
-import { AppError, newId, type EventBus, type Logger, type SessionRevokeReason } from '@clawapi/core';
-import type { AuditService } from '@clawapi/audit';
-import type { AdminSessionInfo, SessionInfo, UserSummary } from '@clawapi/shared';
+import { AppError, newId, type EventBus, type Logger, type SessionRevokeReason } from '@clawrouter/core';
+import type { AuditService } from '@clawrouter/audit';
+import type { AdminSessionInfo, SessionInfo, UserSummary } from '@clawrouter/shared';
 import type { PasswordHasher } from './password.ts';
 import type { Session, SessionRepository } from './sessions.ts';
 import { FailureThrottle } from './throttle.ts';

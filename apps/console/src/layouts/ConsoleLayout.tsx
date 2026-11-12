@@ -30,7 +30,7 @@ export function ConsoleLayout({ activeId, children }: { activeId: string | undef
     <AppShell
       header={
         <ApplicationHeader
-          productName="ClawAPI"
+          productName="ClawRouter"
           secondaryTitle="AI Gateway Control Plane"
           logo={<Icon name="it-host" color="var(--eui-color-primary)" />}
           homeHref="/"

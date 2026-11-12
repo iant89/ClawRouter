@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Button, MessageStrip, Page, RefreshControl, StatusIndicator, Table, Text, useToast, type TableColumn } from '@enterprise-ui/react';
-import type { RoleInfo, UserWithRoles } from '@clawapi/shared';
+import type { RoleInfo, UserWithRoles } from '@clawrouter/shared';
 import { RoleTags } from '../../components/custom/RoleTags.tsx';
 import { useResource } from '../../hooks/useResource.ts';
 import { fetchRoles, fetchUsers } from '../../services/access.ts';

@@ -1,4 +1,4 @@
-import type { CreateModelRequest, DiscoveredModelInfo, ImportModelsResult, ModelInfo, ModelQuery, UpdateModelRequest } from '@clawapi/shared';
+import type { CreateModelRequest, DiscoveredModelInfo, ImportModelsResult, ModelInfo, ModelQuery, UpdateModelRequest } from '@clawrouter/shared';
 import { apiDelete, apiGet, apiGetPage, apiPost, request } from './api-client.ts';
 
 export function fetchModels(query: ModelQuery, signal?: AbortSignal) {

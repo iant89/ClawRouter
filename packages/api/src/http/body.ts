@@ -1,4 +1,4 @@
-import { AppError, parse, type Validator } from '@clawapi/core';
+import { AppError, parse, type Validator } from '@clawrouter/core';
 import type { RequestContext } from './context.ts';
 
 export const DEFAULT_BODY_LIMIT = 64 * 1024;

@@ -1,10 +1,10 @@
-import { AppError, newRequestId, type Logger } from '@clawapi/core';
-import type { AuthService, SetupService } from '@clawapi/authentication';
-import type { AuthorizationService } from '@clawapi/authorization';
-import type { NotificationService } from '@clawapi/notifications';
-import type { ProviderService } from '@clawapi/providers';
-import type { ModelService } from '@clawapi/models';
-import type { HealthService } from '@clawapi/health';
+import { AppError, newRequestId, type Logger } from '@clawrouter/core';
+import type { AuthService, SetupService } from '@clawrouter/authentication';
+import type { AuthorizationService } from '@clawrouter/authorization';
+import type { NotificationService } from '@clawrouter/notifications';
+import type { ProviderService } from '@clawrouter/providers';
+import type { ModelService } from '@clawrouter/models';
+import type { HealthService } from '@clawrouter/health';
 import { compose, type Handler, type Middleware, type RequestContext } from './http/context.ts';
 import { accessLog, errorBoundary, requestIdHeader, securityHeaders } from './http/middleware.ts';
 import { Router } from './http/router.ts';

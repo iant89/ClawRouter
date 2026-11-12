@@ -1,11 +1,11 @@
 {
-  "name": "@clawapi/console",
+  "name": "@clawrouter/console",
   "version": "0.1.0",
   "private": true,
   "type": "module",
   "exports": { "./index.html": "./index.html" },
   "dependencies": {
-    "@clawapi/shared": "workspace:*",
+    "@clawrouter/shared": "workspace:*",
     "@enterprise-ui/react": "file:../../vendor/enterprise-ui-react.tgz",
     "react": "19.3.1",
     "react-dom": "19.3.1"

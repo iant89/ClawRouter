@@ -1,5 +1,5 @@
 import { StatusIndicator, type StatusIndicatorProps } from '@enterprise-ui/react';
-import type { ProviderState } from '@clawapi/shared';
+import type { ProviderState } from '@clawrouter/shared';
 
 type Tone = NonNullable<StatusIndicatorProps['tone']>;
 const TONE: Record<ProviderState, Tone> = { HEALTHY: 'success', DEGRADED: 'warning', OFFLINE: 'error', DISABLED: 'neutral', UNKNOWN: 'information' };

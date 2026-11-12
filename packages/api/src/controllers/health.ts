@@ -1,4 +1,4 @@
-import type { HealthService } from '@clawapi/health';
+import type { HealthService } from '@clawrouter/health';
 import type { Handler } from '../http/context.ts';
 import { ok } from '../http/responses.ts';
 

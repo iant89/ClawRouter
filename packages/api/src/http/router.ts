@@ -1,5 +1,5 @@
-import { errors } from '@clawapi/core';
-import type { Permission } from '@clawapi/shared';
+import { errors } from '@clawrouter/core';
+import type { Permission } from '@clawrouter/shared';
 import type { Handler } from './context.ts';
 
 export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';

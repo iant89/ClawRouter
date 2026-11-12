@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { AppError } from '@clawapi/core';
+import { AppError } from '@clawrouter/core';
 import { hashToken } from '../src/index.ts';
 import { ADMIN, createHarness } from '../../../tests/support/harness.ts';
 

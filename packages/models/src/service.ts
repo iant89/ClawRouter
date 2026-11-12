@@ -1,10 +1,10 @@
-import { errors, newId, type EventBus, type Logger } from '@clawapi/core';
-import type { AuditService } from '@clawapi/audit';
-import type { ProviderService } from '@clawapi/providers';
+import { errors, newId, type EventBus, type Logger } from '@clawrouter/core';
+import type { AuditService } from '@clawrouter/audit';
+import type { ProviderService } from '@clawrouter/providers';
 import {
   CAPABILITIES, type Capability, type CreateModelRequest, type DiscoveredModelInfo, type FieldIssue, type ImportModelsResult,
   type ModelInfo, type ModelQuery, type UpdateModelRequest,
-} from '@clawapi/shared';
+} from '@clawrouter/shared';
 import type { ModelPatch, ModelRecord, ModelRepository } from './repository.ts';
 
 export interface Actor {
@@ -32,7 +32,7 @@ export type ModelService = ReturnType<typeof createModelService>;
 /**
  * The model registry (spec §9): first-class models that belong to providers,
  * with capabilities, limits, cost metadata and availability. This is how
- * providers expose usable models to the rest of ClawAPI (routing, gateway).
+ * providers expose usable models to the rest of ClawRouter (routing, gateway).
  */
 export function createModelService(options: {
   repo: ModelRepository;

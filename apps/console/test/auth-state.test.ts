@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { displayTitle, newAlerts } from '../src/features/notifications/notification-utils.ts';
-import type { AuthSession } from '@clawapi/shared';
+import type { AuthSession } from '@clawrouter/shared';
 import { authReducer, redirectFor, safeNext, type AuthState } from '../src/features/auth/auth-state.ts';
 
 const session = { user: { id: 'u', username: 'admin' }, session: { id: 's' } } as unknown as AuthSession;

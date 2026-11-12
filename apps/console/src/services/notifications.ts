@@ -1,4 +1,4 @@
-import type { NotificationInfo, NotificationMeta } from '@clawapi/shared';
+import type { NotificationInfo, NotificationMeta } from '@clawrouter/shared';
 import { apiDelete, apiPost, requestEnvelope } from './api-client.ts';
 
 export async function fetchNotifications(signal?: AbortSignal): Promise<{ items: NotificationInfo[]; unread: number }> {

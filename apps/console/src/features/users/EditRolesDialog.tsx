@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Button, Checkbox, Dialog, MessageStrip, Text } from '@enterprise-ui/react';
-import type { RoleInfo, UserWithRoles } from '@clawapi/shared';
+import type { RoleInfo, UserWithRoles } from '@clawrouter/shared';
 import { setUserRoles } from '../../services/access.ts';
 
 export interface EditRolesDialogProps {

@@ -1,5 +1,5 @@
 import { createContext, useContext, type ReactNode } from 'react';
-import type { HealthReport } from '@clawapi/shared';
+import type { HealthReport } from '@clawrouter/shared';
 import { usePolling, type PollingState } from '../../hooks/usePolling.ts';
 import { fetchHealth } from '../../services/health.ts';
 

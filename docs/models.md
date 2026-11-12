@@ -1,7 +1,7 @@
 # Model registry (phase 6)
 
 Models are first-class entities (spec §9). The registry is how providers
-expose usable models to the rest of ClawAPI: routing (phase 7) chooses among
+expose usable models to the rest of ClawRouter: routing (phase 7) chooses among
 them, and the gateway (phase 8) calls them through the provider engine.
 
 ## A model

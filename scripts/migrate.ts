@@ -3,8 +3,8 @@
  *   bun run migrate            apply pending migrations
  *   bun run migrate --status   show status only
  */
-import { createLogger, loadConfig } from '@clawapi/core';
-import { migrationStatus, migrations, openSqlite, runMigrations } from '@clawapi/database';
+import { createLogger, loadConfig } from '@clawrouter/core';
+import { migrationStatus, migrations, openSqlite, runMigrations } from '@clawrouter/database';
 
 const config = loadConfig();
 const log = createLogger({ level: 'info', format: 'pretty' });

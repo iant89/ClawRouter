@@ -95,49 +95,49 @@ export function loadConfig(env: Env = process.env): Config {
     return fallback;
   };
 
-  const envName = oneOf('CLAWAPI_ENV', ENVIRONMENTS, env.NODE_ENV === 'production' ? 'production' : 'development');
+  const envName = oneOf('CLAWROUTER_ENV', ENVIRONMENTS, env.NODE_ENV === 'production' ? 'production' : 'development');
   const config: Config = {
     env: envName,
     server: {
       // Loopback by default: nothing is exposed until an operator chooses to.
-      host: str('CLAWAPI_HOST', '127.0.0.1'),
-      port: int('CLAWAPI_PORT', 8080, 0, 65535),
+      host: str('CLAWROUTER_HOST', '127.0.0.1'),
+      port: int('CLAWROUTER_PORT', 8080, 0, 65535),
     },
     database: {
-      path: str('CLAWAPI_DATABASE_PATH', envName === 'test' ? ':memory:' : './data/clawapi.db'),
+      path: str('CLAWROUTER_DATABASE_PATH', envName === 'test' ? ':memory:' : './data/clawrouter.db'),
     },
     log: {
-      level: oneOf('CLAWAPI_LOG_LEVEL', LOG_LEVELS, envName === 'development' ? 'debug' : 'info'),
-      format: oneOf<LogFormat>('CLAWAPI_LOG_FORMAT', ['json', 'pretty'], envName === 'development' ? 'pretty' : 'json'),
+      level: oneOf('CLAWROUTER_LOG_LEVEL', LOG_LEVELS, envName === 'development' ? 'debug' : 'info'),
+      format: oneOf<LogFormat>('CLAWROUTER_LOG_FORMAT', ['json', 'pretty'], envName === 'development' ? 'pretty' : 'json'),
     },
     console: {
-      enabled: bool('CLAWAPI_CONSOLE_ENABLED', true),
+      enabled: bool('CLAWROUTER_CONSOLE_ENABLED', true),
     },
     health: {
-      intervalSeconds: int('CLAWAPI_HEALTH_INTERVAL_SECONDS', 30, 5, 3600),
+      intervalSeconds: int('CLAWROUTER_HEALTH_INTERVAL_SECONDS', 30, 5, 3600),
     },
     providers: {
-      healthIntervalSeconds: int('CLAWAPI_PROVIDER_HEALTH_INTERVAL_SECONDS', 300, 0, 86_400),
+      healthIntervalSeconds: int('CLAWROUTER_PROVIDER_HEALTH_INTERVAL_SECONDS', 300, 0, 86_400),
     },
     secrets: {
-      key: env.CLAWAPI_SECRET_KEY?.trim() || null,
-      keyFile: env.CLAWAPI_SECRET_KEY_FILE?.trim() || null,
+      key: env.CLAWROUTER_SECRET_KEY?.trim() || null,
+      keyFile: env.CLAWROUTER_SECRET_KEY_FILE?.trim() || null,
     },
     auth: {
-      sessionIdleMinutes: int('CLAWAPI_SESSION_IDLE_MINUTES', 60, 1, 7 * 24 * 60),
-      sessionMaxHours: int('CLAWAPI_SESSION_MAX_HOURS', 12, 1, 30 * 24),
-      cookieSecure: bool('CLAWAPI_COOKIE_SECURE', envName === 'production'),
-      setupToken: env.CLAWAPI_SETUP_TOKEN?.trim() || null,
+      sessionIdleMinutes: int('CLAWROUTER_SESSION_IDLE_MINUTES', 60, 1, 7 * 24 * 60),
+      sessionMaxHours: int('CLAWROUTER_SESSION_MAX_HOURS', 12, 1, 30 * 24),
+      cookieSecure: bool('CLAWROUTER_COOKIE_SECURE', envName === 'production'),
+      setupToken: env.CLAWROUTER_SETUP_TOKEN?.trim() || null,
     },
   };
   if (config.secrets.key && config.secrets.keyFile) {
-    issues.push({ key: 'CLAWAPI_SECRET_KEY', message: 'set either CLAWAPI_SECRET_KEY or CLAWAPI_SECRET_KEY_FILE, not both' });
+    issues.push({ key: 'CLAWROUTER_SECRET_KEY', message: 'set either CLAWROUTER_SECRET_KEY or CLAWROUTER_SECRET_KEY_FILE, not both' });
   }
   if (config.env === 'production' && !config.secrets.key && !config.secrets.keyFile) {
-    issues.push({ key: 'CLAWAPI_SECRET_KEY', message: 'is required in production (or CLAWAPI_SECRET_KEY_FILE). Generate one with: openssl rand -base64 32' });
+    issues.push({ key: 'CLAWROUTER_SECRET_KEY', message: 'is required in production (or CLAWROUTER_SECRET_KEY_FILE). Generate one with: openssl rand -base64 32' });
   }
   if (config.auth.setupToken !== null && config.auth.setupToken.length < 16) {
-    issues.push({ key: 'CLAWAPI_SETUP_TOKEN', message: 'must be at least 16 characters' });
+    issues.push({ key: 'CLAWROUTER_SETUP_TOKEN', message: 'must be at least 16 characters' });
   }
 
   if (issues.length) {

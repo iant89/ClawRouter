@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useReducer, type ReactNode } from 'react';
-import type { LoginRequest, Permission, SetupRequest } from '@clawapi/shared';
+import type { LoginRequest, Permission, SetupRequest } from '@clawrouter/shared';
 import { setUnauthorizedHandler } from '../../services/api-client.ts';
 import * as authApi from '../../services/auth.ts';
 import { authReducer, type AuthState } from './auth-state.ts';
@@ -27,7 +27,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const [setup, session] = await Promise.all([authApi.fetchSetupStatus(), authApi.fetchSession()]);
       dispatch({ type: 'resolved', setupRequired: setup.required, session });
     } catch (error) {
-      dispatch({ type: 'failed', message: error instanceof Error ? error.message : 'Cannot reach the ClawAPI server.' });
+      dispatch({ type: 'failed', message: error instanceof Error ? error.message : 'Cannot reach the ClawRouter server.' });
     }
   }, []);
 

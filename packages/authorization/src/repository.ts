@@ -1,5 +1,5 @@
-import type { Database } from '@clawapi/database';
-import type { UserWithRoles } from '@clawapi/shared';
+import type { Database } from '@clawrouter/database';
+import type { UserWithRoles } from '@clawrouter/shared';
 
 export interface RoleRecord {
   id: string;

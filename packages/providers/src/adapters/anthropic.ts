@@ -1,4 +1,4 @@
-import type { ProviderKindInfo } from '@clawapi/shared';
+import type { ProviderKindInfo } from '@clawrouter/shared';
 import { invalidResponse, joinUrl, ProviderCallError, providerFetch, readJson } from '../http.ts';
 import { parseSse } from '../sse.ts';
 import type { ChatRequest, ChatResponse, FinishReason, ProviderAdapter, ProviderCallContext, StreamEvent, Usage } from '../types.ts';

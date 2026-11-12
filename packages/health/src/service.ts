@@ -1,5 +1,5 @@
-import type { HealthCheckResult, HealthReport, HealthState } from '@clawapi/shared';
-import type { EventBus, Logger } from '@clawapi/core';
+import type { HealthCheckResult, HealthReport, HealthState } from '@clawrouter/shared';
+import type { EventBus, Logger } from '@clawrouter/core';
 import type { HealthCheck } from './types.ts';
 
 export interface HealthServiceOptions {

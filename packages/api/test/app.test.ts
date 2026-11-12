@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { REQUEST_ID_HEADER, type ApiErrorBody, type ApiSuccess, type HealthReport } from '@clawapi/shared';
+import { REQUEST_ID_HEADER, type ApiErrorBody, type ApiSuccess, type HealthReport } from '@clawrouter/shared';
 import { createHarness } from '../../../tests/support/harness.ts';
 
 describe('GET /api/health', () => {

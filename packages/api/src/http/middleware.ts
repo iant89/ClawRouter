@@ -1,5 +1,5 @@
-import { normalizeError } from '@clawapi/core';
-import { REQUEST_ID_HEADER } from '@clawapi/shared';
+import { normalizeError } from '@clawrouter/core';
+import { REQUEST_ID_HEADER } from '@clawrouter/shared';
 import type { Middleware } from './context.ts';
 import { errorResponse } from './responses.ts';
 

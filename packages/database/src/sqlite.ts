@@ -1,7 +1,7 @@
 import { Database as BunSqlite } from 'bun:sqlite';
 import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
-import { AppError } from '@clawapi/core';
+import { AppError } from '@clawrouter/core';
 import type { Database, RunResult, SqlParams } from './types.ts';
 
 export interface SqliteOptions {

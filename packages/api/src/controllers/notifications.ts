@@ -1,6 +1,6 @@
-import { errors } from '@clawapi/core';
-import type { NotificationService, Recipient } from '@clawapi/notifications';
-import type { NotificationInfo, NotificationMeta } from '@clawapi/shared';
+import { errors } from '@clawrouter/core';
+import type { NotificationService, Recipient } from '@clawrouter/notifications';
+import type { NotificationInfo, NotificationMeta } from '@clawrouter/shared';
 import type { Handler, RequestContext } from '../http/context.ts';
 import { noContent, ok } from '../http/responses.ts';
 

@@ -1,4 +1,4 @@
-import { AppError } from '@clawapi/core';
+import { AppError } from '@clawrouter/core';
 import type { Database } from '../types.ts';
 
 export type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };

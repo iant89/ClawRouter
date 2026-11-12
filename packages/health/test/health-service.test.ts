@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
-import { createEventBus } from '@clawapi/core';
-import type { HealthState } from '@clawapi/shared';
+import { createEventBus } from '@clawrouter/core';
+import type { HealthState } from '@clawrouter/shared';
 import { aggregateHealth, createDatabaseCheck, createHealthService, createPlatformCheck, type HealthCheck } from '../src/index.ts';
 
 const check = (status: HealthState, critical = false): HealthCheck => ({ component: 'platform', critical, check: () => ({ status }) });

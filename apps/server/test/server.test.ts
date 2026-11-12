@@ -2,20 +2,20 @@ import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
 import { existsSync, mkdtempSync, readFileSync, rmSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { loadConfig, silentLogger } from '@clawapi/core';
-import { CSRF_HEADER, type ApiSuccess, type HealthReport } from '@clawapi/shared';
-import { startClawApi, type ClawApi } from '../src/server.ts';
+import { loadConfig, silentLogger } from '@clawrouter/core';
+import { CSRF_HEADER, type ApiSuccess, type HealthReport } from '@clawrouter/shared';
+import { startClawRouter, type ClawRouter } from '../src/server.ts';
 import { ADMIN, fastHasher } from '../../../tests/support/harness.ts';
 
 /** End-to-end over a real socket: Bun server + SQLite file + migrations + API. */
-describe('ClawAPI server', () => {
-  let app: ClawApi;
+describe('ClawRouter server', () => {
+  let app: ClawRouter;
   let dir: string;
 
   beforeAll(async () => {
-    dir = mkdtempSync(join(tmpdir(), 'clawapi-server-'));
-    const config = loadConfig({ CLAWAPI_ENV: 'test', CLAWAPI_PORT: '0', CLAWAPI_DATABASE_PATH: join(dir, 'clawapi.db') });
-    app = await startClawApi({ config, log: silentLogger, version: 'test', hasher: fastHasher });
+    dir = mkdtempSync(join(tmpdir(), 'clawrouter-server-'));
+    const config = loadConfig({ CLAWROUTER_ENV: 'test', CLAWROUTER_PORT: '0', CLAWROUTER_DATABASE_PATH: join(dir, 'clawrouter.db') });
+    app = await startClawRouter({ config, log: silentLogger, version: 'test', hasher: fastHasher });
   });
   afterAll(async () => {
     await app.stop();
@@ -66,8 +66,8 @@ describe('ClawAPI server', () => {
   });
 
   test('reports OFFLINE with 503 when the database goes away', async () => {
-    const config = loadConfig({ CLAWAPI_ENV: 'test', CLAWAPI_PORT: '0', CLAWAPI_SETUP_TOKEN: 'x'.repeat(20) });
-    const other = await startClawApi({ config, log: silentLogger, version: 'test', hasher: fastHasher });
+    const config = loadConfig({ CLAWROUTER_ENV: 'test', CLAWROUTER_PORT: '0', CLAWROUTER_SETUP_TOKEN: 'x'.repeat(20) });
+    const other = await startClawRouter({ config, log: silentLogger, version: 'test', hasher: fastHasher });
     try {
       other.db.close();
       expect((await fetch(new URL('/api/health', other.url))).status).toBe(503);
