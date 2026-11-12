@@ -23,30 +23,56 @@ export interface MockProviders {
   slowMs: number;
   /** Models the OpenAI-style mocks list; tests change it to simulate models appearing and disappearing. */
   openaiModels: string[];
+  /** Provider families ("openai", "local", "anthropic", "google") that answer 500. */
+  failFamilies: Set<string>;
+  /** Families that answer 400 (the request is at fault). */
+  badRequestFamilies: Set<string>;
+  /** Streams break (connection error) after the first content event. */
+  streamBreak: boolean;
+  /** Delay between stream events (ms). */
+  streamDelayMs: number;
+  /** Stream events written so far (to see whether a cancelled stream really stopped). */
+  streamEventsSent: number;
   stop(): Promise<void>;
 }
 
 const enc = new TextEncoder();
-const sse = (events: { event?: string; data: unknown }[], delayMs = 0) =>
-  new Response(
-    new ReadableStream({
-      async start(controller) {
-        for (const e of events) {
-          // Split each event across two chunks to exercise incremental parsing.
-          const text = `${e.event ? `event: ${e.event}\n` : ''}data: ${typeof e.data === 'string' ? e.data : JSON.stringify(e.data)}\n\n`;
-          const mid = Math.floor(text.length / 2);
-          controller.enqueue(enc.encode(text.slice(0, mid)));
-          if (delayMs) await Bun.sleep(delayMs);
-          controller.enqueue(enc.encode(text.slice(mid)));
-        }
-        controller.close();
-      },
-    }),
-    { headers: { 'content-type': 'text/event-stream' } },
-  );
 
 export function startMockProviders(key = 'sk-test-0123456789abcdefWXYZ'): MockProviders {
-  const state: MockProviders = { url: '', key, requests: [], mode: 'ok', slowMs: 0, openaiModels: ['gpt-4o-mini', 'gpt-4o', 'text-embedding-3-small'], stop: async () => {} };
+  const state: MockProviders = {
+    url: '', key, requests: [], mode: 'ok', slowMs: 0, openaiModels: ['gpt-4o-mini', 'gpt-4o', 'text-embedding-3-small'],
+    failFamilies: new Set(), badRequestFamilies: new Set(), streamBreak: false, streamDelayMs: 0, streamEventsSent: 0, stop: async () => {},
+  };
+
+  const sse = (events: { event?: string; data: unknown }[]) =>
+    new Response(
+      new ReadableStream({
+        async start(controller) {
+          let content = 0;
+          for (const e of events) {
+            // Split each event across two chunks to exercise incremental parsing.
+            const text = `${e.event ? `event: ${e.event}\n` : ''}data: ${typeof e.data === 'string' ? e.data : JSON.stringify(e.data)}\n\n`;
+            const mid = Math.floor(text.length / 2);
+            try {
+              controller.enqueue(enc.encode(text.slice(0, mid)));
+              if (state.streamDelayMs) await Bun.sleep(state.streamDelayMs);
+              controller.enqueue(enc.encode(text.slice(mid)));
+            } catch {
+              return; // the reader went away (cancelled)
+            }
+            state.streamEventsSent += 1;
+            if (/"(content|text)":"[^"]+"|text_delta|"parts"/.test(text)) content += 1;
+            if (state.streamBreak && content >= 1) {
+              await Bun.sleep(30); // let the content reach the client first
+              controller.error(new Error('connection reset'));
+              return;
+            }
+          }
+          controller.close();
+        },
+      }),
+      { headers: { 'content-type': 'text/event-stream' } },
+    );
 
   const server: Server<undefined> = Bun.serve({
     port: 0,
@@ -73,8 +99,19 @@ export function startMockProviders(key = 'sk-test-0123456789abcdefWXYZ'): MockPr
       const [, family, ...rest] = url.pathname.split('/');
       const path = `/${rest.join('/')}`;
       const stream = typeof body === 'object' && body !== null && (body as { stream?: boolean }).stream === true;
+      if (rest.join('/').includes('models') && req.method === 'GET') {
+        // model listing is unaffected by per-family failures (health checks stay green)
+      } else if (state.failFamilies.has(family!)) {
+        return json({ error: { message: `${family} is down` } }, 500);
+      } else if (state.badRequestFamilies.has(family!)) {
+        return json({ error: { message: 'This model maximum context length is 10 tokens' } }, 400);
+      }
 
       if (family === 'openai' || family === 'local') {
+        if (path === '/v1/embeddings' && (family === 'local' || h.get('authorization') === `Bearer ${key}`)) {
+          const input = (body as { input: string[] }).input;
+          return json({ object: 'list', model: 'text-embedding-3-small', data: input.map((_, i) => ({ object: 'embedding', index: i, embedding: [i, 0.5, -0.25] })).reverse(), usage: { prompt_tokens: 4 * input.length, total_tokens: 4 * input.length } });
+        }
         // Error text echoes the key, as some providers do, to prove ClawRouter scrubs it.
         if (family === 'openai' && (state.mode === 'auth' || h.get('authorization') !== `Bearer ${key}`)) {
           return json({ error: { message: `Incorrect API key provided: ${h.get('authorization')?.slice(7) ?? ''}` } }, 401);
@@ -125,6 +162,10 @@ export function startMockProviders(key = 'sk-test-0123456789abcdefWXYZ'): MockPr
               { name: 'models/text-embedding-004', displayName: 'Text Embedding 004', inputTokenLimit: 2048, outputTokenLimit: 1, supportedGenerationMethods: ['embedContent'] },
             ],
           });
+        }
+        if (path === '/v1beta/models/text-embedding-004:batchEmbedContents') {
+          const requests = (body as { requests: unknown[] }).requests;
+          return json({ embeddings: requests.map((_, i) => ({ values: [i, 1, 2] })) });
         }
         if (path === '/v1beta/models/gemini-2.0-flash:generateContent') {
           return json({ candidates: [{ content: { role: 'model', parts: [{ text: 'Hello ' }, { text: 'from Gemini' }] }, finishReason: 'STOP' }], usageMetadata: { promptTokenCount: 6, candidatesTokenCount: 3, totalTokenCount: 9 }, modelVersion: 'gemini-2.0-flash-001' });
