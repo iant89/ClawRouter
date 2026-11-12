@@ -9,6 +9,7 @@ import { UsersPage } from '../features/users/UsersPage.tsx';
 import { ProvidersPage } from '../features/providers/ProvidersPage.tsx';
 import { ModelsPage } from '../features/models/ModelsPage.tsx';
 import { RoutingPage } from '../features/routing/RoutingPage.tsx';
+import { ApiAccessPage } from '../features/api-access/ApiAccessPage.tsx';
 import { NoAccessPage } from '../pages/NoAccessPage.tsx';
 import { AuthProvider, useAuth, usePermissions } from '../features/auth/AuthContext.tsx';
 import { redirectFor } from '../features/auth/auth-state.ts';
@@ -35,6 +36,7 @@ function PageFor({ item }: { item: NavItem | undefined }) {
     case 'providers': return <ProvidersPage />;
     case 'models': return <ModelsPage />;
     case 'routing': return <RoutingPage />;
+    case 'api-access': return <ApiAccessPage />;
     case 'roles': return <RolesPage />;
     default: return <NotFoundPage />;
   }

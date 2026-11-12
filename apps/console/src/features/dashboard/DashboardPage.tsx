@@ -3,25 +3,17 @@ import { HEALTH_LABEL, HEALTH_TONE, HealthStateIndicator } from '../../component
 import { componentLabel, formatTime, formatUptime } from '../../services/format.ts';
 import { useRouter } from '../../app/router.tsx';
 import { useHealth } from '../health/HealthContext.tsx';
+import { GatewayActivity } from './GatewayActivity.tsx';
 import { usePermissions, useSession } from '../auth/AuthContext.tsx';
 
-/** Metrics that need the gateway (Phase 8+) are listed honestly rather than faked. */
-const PENDING_METRICS = [
-  { term: 'Active requests', description: 'Request gateway — phase 8' },
-  { term: 'Requests / minute', description: 'Request gateway — phase 8' },
-  { term: 'Error rate', description: 'Requests + usage — phase 10' },
-  { term: 'Average latency', description: 'Requests + usage — phase 10' },
-  { term: 'Provider availability', description: 'Provider engine — phase 5' },
-  { term: 'Model availability', description: 'Model registry — phase 6' },
-  { term: 'Token usage / cost', description: 'Requests + usage — phase 10' },
-  { term: 'Active sessions', description: 'Administration — phase 14' },
-];
 
 export function DashboardPage() {
   const { data, error, loading, lastUpdated, refresh } = useHealth();
   const { navigate } = useRouter();
   const { roles } = useSession();
-  const canHealth = usePermissions().can('health.read');
+  const perms = usePermissions();
+  const canHealth = perms.can('health.read');
+  const canRequests = perms.can('requests.read');
   const database = data?.checks.find((c) => c.component === 'database');
   const issues = data?.checks.filter((c) => c.status !== 'HEALTHY' && c.status !== 'DISABLED') ?? [];
 
@@ -88,11 +80,11 @@ export function DashboardPage() {
         </DashboardWidget>
       </Dashboard>
 
-      <Dashboard title="Gateway activity" description="These metrics appear as the data plane is built." columns={{ base: 1 }}>
-        <Card>
-          <DescriptionList columns={4} items={PENDING_METRICS} />
-        </Card>
-      </Dashboard>
+      {canRequests ? (
+        <GatewayActivity />
+      ) : (
+        <MessageStrip tone="information" title="Gateway activity">Request metrics need the requests.read permission.</MessageStrip>
+      )}
     </Page>
   );
 }
