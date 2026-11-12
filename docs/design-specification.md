@@ -3,7 +3,7 @@
 Design Specification + Roadmap. This is the authoritative product and architecture
 spec. The product was named **ClawAPI** when this spec was written; it has been
 renamed ClawRouter throughout. Section numbers are referenced from code comments and docs (e.g. "spec §25").
-Implementation status is tracked in [`../docs/roadmap-status.md`](../docs/roadmap-status.md).
+Implementation status is tracked in the [roadmap](roadmap.md).
 
 ```
 STATUS
@@ -115,6 +115,9 @@ clawrouter/
   docs/ specs/ tests/ scripts/
   package.json bun.lock bunfig.toml tsconfig.json
 ```
+
+As built, the specification and roadmap live in `docs/`; there is no separate
+`specs/` directory.
 
 ## 5. Core domain architecture
 

@@ -9,8 +9,8 @@ usage tracking and an administration console built on
 > here with its history and renamed. Environment variables are now
 > `CLAWROUTER_*`.
 
-- **Spec:** [`specs/clawrouter-design-spec.md`](specs/clawrouter-design-spec.md)
-- **Status:** [`docs/roadmap-status.md`](docs/roadmap-status.md). Done so far: the
+- **Spec:** [`docs/design-specification.md`](docs/design-specification.md)
+- **Roadmap and status:** [`docs/roadmap.md`](docs/roadmap.md). Done so far: the
   first working milestone (Bun server, SQLite with migrations, `/api/health`,
   console shell), phase 2 **authentication** (server-side sessions, initial
   setup, login throttling, audit, session revocation) and phase 3
@@ -25,6 +25,9 @@ usage tracking and an administration console built on
   [`docs/authorization.md`](docs/authorization.md) · **Console:**
   [`docs/console-shell.md`](docs/console-shell.md) · **Providers:**
   [`docs/providers.md`](docs/providers.md) · **Models:** [`docs/models.md`](docs/models.md)
+- **Screenshots:** [`docs/screenshots/`](docs/screenshots/README.md)
+- **Working on the code:** [`AGENTS.md`](AGENTS.md) (rules, commands, definition
+  of done) and [`MEMORY.md`](MEMORY.md) (important notes carried between sessions).
 
 > Serve ClawRouter over HTTPS (behind a reverse proxy) before exposing it.
 
@@ -119,8 +122,7 @@ clawrouter/
     audit/       append-only audit log
     health/      health checks and aggregation service
     api/         router, middleware (CSRF, sessions), response conventions, controllers
-  specs/         design specification
-  docs/          architecture and status
+  docs/          design specification, roadmap, architecture, feature docs, screenshots/
   scripts/       build-ui, migrate, start
   tests/support/ shared test harness (in-memory, fast hashing, fake clock)
   vendor/        ENTERPRISE-UI package tarball (committed; see vendor/README.md)
