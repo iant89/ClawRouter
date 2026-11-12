@@ -9,6 +9,7 @@ import { useResource } from '../../hooks/useResource.ts';
 import { formatRelative } from '../../services/format.ts';
 import { deleteProvider, fetchProviderKinds, fetchProviders, testProvider, updateProvider } from '../../services/providers.ts';
 import { usePermissions } from '../auth/AuthContext.tsx';
+import { useRouter } from '../../app/router.tsx';
 import { ProviderDialog } from './ProviderDialog.tsx';
 import { ProviderHistoryDialog } from './ProviderHistoryDialog.tsx';
 
@@ -23,7 +24,10 @@ const REFRESH_MS = 30_000;
 /** AI Infrastructure → Providers (spec §8, §17). */
 export function ProvidersPage() {
   const toast = useToast();
-  const canWrite = usePermissions().can('providers.write');
+  const { can } = usePermissions();
+  const canWrite = can('providers.write');
+  const canDiscover = can('models.write');
+  const { navigate } = useRouter();
   const { data, error, loading, lastUpdated, reload } = useResource(loadAll);
   const [editing, setEditing] = useState<ProviderInfo | null>(null);
   const [creating, setCreating] = useState(false);
@@ -114,6 +118,8 @@ export function ProvidersPage() {
             label={`More actions for ${p.name}`}
             items={[
               { id: 'history', label: 'Details and history' },
+              { id: 'models', label: 'View models' },
+              ...(canDiscover ? [{ id: 'discover', label: 'Discover models' }] : []),
               ...(canWrite
                 ? [
                     { id: 'edit', label: 'Edit' },
@@ -125,6 +131,8 @@ export function ProvidersPage() {
             ]}
             onAction={(id) => {
               if (id === 'history') setHistory(p);
+              if (id === 'models') navigate(`/models?provider=${encodeURIComponent(p.id)}`);
+              if (id === 'discover') navigate(`/models?provider=${encodeURIComponent(p.id)}&discover=1`);
               if (id === 'edit') setEditing(p);
               if (id === 'toggle') void toggle(p);
               if (id === 'delete') setDeleting(p);

@@ -46,6 +46,11 @@ export type StreamEvent =
 export interface DiscoveredModel {
   id: string;
   displayName: string | null;
+  /** Input token limit, when the provider publishes it (Google does). */
+  contextLength?: number | null;
+  maxOutputTokens?: number | null;
+  /** Best guess from the provider's metadata or the model id. */
+  kind?: 'chat' | 'embedding' | 'other';
 }
 
 /** Everything an adapter needs for one call. The API key is decrypted just for the call. */

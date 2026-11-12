@@ -11,6 +11,7 @@ import {
 import { createAuthorizationService, createSqliteRoleRepository, type AuthorizationService } from '@clawapi/authorization';
 import { createEventBus, createLogger, createSecretBox, generateSecretKey, parseSecretKey, type EventBus, type LogRecord, type SecretBox } from '@clawapi/core';
 import { createDefaultRegistry, createProviderService, createSqliteProviderRepository, type ProviderService } from '@clawapi/providers';
+import { createModelService, createSqliteModelRepository, type ModelService } from '@clawapi/models';
 import { createNotificationService, createSqliteNotificationRepository, type NotificationService } from '@clawapi/notifications';
 import { migrations, openSqlite, runMigrations, type Database } from '@clawapi/database';
 import { createDatabaseCheck, createHealthService, type HealthService } from '@clawapi/health';
@@ -40,6 +41,7 @@ export interface Harness {
   authz: AuthorizationService;
   notifications: NotificationService;
   providers: ProviderService;
+  models: ModelService;
   secrets: SecretBox;
   /** Replaces the fetch used for provider calls. */
   setProviderFetch(fn: typeof fetch): void;
@@ -95,11 +97,13 @@ export function createHarness(options: { idleMinutes?: number; maxHours?: number
     repo: createSqliteProviderRepository(db), registry: createDefaultRegistry(), secrets, audit, events, log, now: clock.now,
     fetch: ((input: RequestInfo | URL, init?: RequestInit) => providerFetch(input, init)) as typeof fetch,
   });
+  const models = createModelService({ repo: createSqliteModelRepository(db), providers, audit, events, log, now: clock.now });
+  models.subscribe(events);
   const health = createHealthService({ checks: [createDatabaseCheck(db)], version: 'test', environment: 'test', now: clock.now });
-  const api = createApiApp({ log, health, auth, authz, notifications, providers, setup, cookie: { secure: options.secureCookie ?? false } });
+  const api = createApiApp({ log, health, auth, authz, notifications, providers, models, setup, cookie: { secure: options.secureCookie ?? false } });
 
   const h: Harness = {
-    db, clock, events, users, audit, auth, authz, notifications, providers, secrets, setup, health, api, logs,
+    db, clock, events, users, audit, auth, authz, notifications, providers, models, secrets, setup, health, api, logs,
     setProviderFetch(fn) {
       providerFetch = fn;
     },

@@ -70,3 +70,27 @@ export function formatRelative(iso: string, now = Date.now()): string {
   if (h < 24) return `${h} h ago`;
   return `${Math.floor(h / 24)} d ago`;
 }
+
+/**
+ * Token counts as model specs write them: the unit that gives an exact whole
+ * number wins, decimal first (128000 -> "128K", 2000000 -> "2M"), then binary
+ * (8192 -> "8K", 131072 -> "128K", 1048576 -> "1M"); otherwise decimal with
+ * one decimal place (1500 -> "1.5K").
+ */
+export function formatTokens(n: number | null): string {
+  if (n === null) return '—';
+  const units: [string, number][] = [['M', 1_000_000], ['M', 1_048_576], ['K', 1_000], ['K', 1_024]];
+  for (const [unit, size] of units) {
+    if (n >= size && n % size === 0) return `${n / size}${unit}`;
+  }
+  if (n >= 1_000_000) return `${Math.round(n / 100_000) / 10}M`;
+  if (n >= 1_000) return `${Math.round(n / 100) / 10}K`;
+  return String(n);
+}
+
+/** USD per million tokens: at least two decimals, more only when needed ($0.60, $0.075, $15.00). */
+export function formatPrice(n: number | null): string {
+  if (n === null) return '—';
+  const wholeCents = Math.round(n * 100) === n * 100;
+  return `$${wholeCents ? n.toFixed(2) : String(Number(n.toFixed(4)))}`;
+}

@@ -2,7 +2,7 @@ import type { ProviderKindInfo } from '@clawapi/shared';
 import { invalidResponse, joinUrl, providerFetch, readJson } from '../http.ts';
 import { parseSse } from '../sse.ts';
 import type { ChatRequest, ChatResponse, FinishReason, ProviderAdapter, ProviderCallContext, StreamEvent, Usage } from '../types.ts';
-import { baseValidation, connectionChecks, splitSystem } from './common.ts';
+import { baseValidation, connectionChecks, guessKind, splitSystem } from './common.ts';
 
 interface GeminiUsage {
   promptTokenCount?: number;
@@ -62,11 +62,23 @@ const textOf = (r: GeminiResponse) => (r.candidates?.[0]?.content?.parts ?? []).
 
 async function listModels(ctx: ProviderCallContext) {
   const res = await providerFetch(ctx, joinUrl(ctx.endpoint, '/models?pageSize=100'), { method: 'GET', headers: headers(ctx) });
-  const json = await readJson<{ models?: { name?: unknown; displayName?: unknown }[] }>(res, ctx.apiKey);
+  type GoogleModel = { name: string; displayName?: unknown; inputTokenLimit?: unknown; outputTokenLimit?: unknown; supportedGenerationMethods?: unknown };
+  const json = await readJson<{ models?: Partial<GoogleModel>[] }>(res, ctx.apiKey);
   if (!Array.isArray(json.models)) throw invalidResponse('model list has no "models" array');
+  const num = (v: unknown) => (typeof v === 'number' && Number.isInteger(v) && v > 0 ? v : null);
   return json.models
-    .filter((m): m is { name: string; displayName?: unknown } => typeof m.name === 'string')
-    .map((m) => ({ id: m.name.replace(/^models\//, ''), displayName: typeof m.displayName === 'string' ? m.displayName : null }));
+    .filter((m): m is GoogleModel => typeof m.name === 'string')
+    .map((m) => {
+      const methods = Array.isArray(m.supportedGenerationMethods) ? (m.supportedGenerationMethods as unknown[]) : [];
+      const kind = methods.includes('generateContent') ? 'chat' as const : methods.includes('embedContent') ? 'embedding' as const : methods.length ? 'other' as const : guessKind(m.name);
+      return {
+        id: m.name.replace(/^models\//, ''),
+        displayName: typeof m.displayName === 'string' ? m.displayName : null,
+        contextLength: num(m.inputTokenLimit),
+        maxOutputTokens: num(m.outputTokenLimit),
+        kind,
+      };
+    });
 }
 
 export const googleAdapter: ProviderAdapter = {

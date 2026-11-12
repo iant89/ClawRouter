@@ -141,13 +141,15 @@ export function createProviderService(options: ProviderServiceOptions) {
     let error: unknown = null;
     try {
       const { adapter, ctx } = await callContext(p, Math.min(p.timeoutMs, checkTimeoutMs));
-      if (kind === 'TEST') {
-        const result = await adapter.testConnection(ctx);
-        latencyMs = result.latencyMs;
-        models = result.models;
-      } else {
-        latencyMs = (await adapter.healthCheck(ctx)).latencyMs;
-      }
+      // Both kinds use the model list: it is free, proves the credentials work, and
+      // keeps model availability current (spec §9) without extra calls.
+      const result = await adapter.testConnection(ctx);
+      latencyMs = result.latencyMs;
+      models = result.models;
+      events?.emit('provider.models_listed', {
+        providerId: p.id,
+        models: result.models.map((m) => ({ id: m.id, displayName: m.displayName, contextLength: m.contextLength ?? null, maxOutputTokens: m.maxOutputTokens ?? null, kind: m.kind ?? 'chat' })),
+      });
     } catch (e) {
       error = e;
     }
@@ -307,6 +309,22 @@ export function createProviderService(options: ProviderServiceOptions) {
       })().finally(() => inflight.delete(id));
       inflight.set(id, run);
       return run;
+    },
+
+    /** Live model list from the provider (model discovery, spec §9). Throws on failure. */
+    async listModels(id: string) {
+      const p = mustGet(id);
+      try {
+        const { adapter, ctx } = await callContext(p, Math.min(p.timeoutMs, checkTimeoutMs));
+        const models = await adapter.listModels(ctx);
+        events?.emit('provider.models_listed', {
+          providerId: p.id,
+          models: models.map((m) => ({ id: m.id, displayName: m.displayName, contextLength: m.contextLength ?? null, maxOutputTokens: m.maxOutputTokens ?? null, kind: m.kind ?? 'chat' })),
+        });
+        return { provider: toInfo(p), models };
+      } catch (e) {
+        throw e instanceof ConfigurationProblem ? new AppError('VALIDATION_ERROR', e.message) : e;
+      }
     },
 
     /** Background health check of every enabled provider (spec §8 healthCheck). */

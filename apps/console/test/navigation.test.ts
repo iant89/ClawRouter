@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { NAV_ITEMS, NAVIGATION, resolvePath, visibleNavigation } from '../src/app/navigation.ts';
-import { describeUserAgent, formatRelative, formatUptime } from '../src/services/format.ts';
+import { describeUserAgent, formatPrice, formatRelative, formatTokens, formatUptime } from '../src/services/format.ts';
 
 describe('console navigation', () => {
   test('matches the spec §17 structure', () => {
@@ -27,7 +27,7 @@ describe('console navigation', () => {
   });
 
   test('only implemented pages lack a planned phase', () => {
-    expect(NAV_ITEMS.filter((i) => i.plannedPhase === undefined).map((i) => i.id)).toEqual(['dashboard', 'providers', 'health', 'users', 'roles', 'sessions']);
+    expect(NAV_ITEMS.filter((i) => i.plannedPhase === undefined).map((i) => i.id)).toEqual(['dashboard', 'providers', 'models', 'health', 'users', 'roles', 'sessions']);
   });
 });
 
@@ -76,5 +76,14 @@ describe('visibleNavigation', () => {
 
   test('every page except the dashboard requires a permission', () => {
     expect(NAV_ITEMS.filter((i) => !i.permission).map((i) => i.id)).toEqual(['dashboard']);
+  });
+});
+
+describe('formatTokens / formatPrice', () => {
+  test.each([[null, '—'], [512, '512'], [8192, '8K'], [131072, '128K'], [128000, '128K'], [200000, '200K'], [1048576, '1M'], [2000000, '2M'], [32768, '32K'], [4096, '4K'], [1500, '1.5K'], [1234567, '1.2M']] as const)('%p -> %s', (n, out) => {
+    expect(formatTokens(n)).toBe(out);
+  });
+  test.each([[null, '—'], [0.15, '$0.15'], [0.6, '$0.60'], [0.075, '$0.075'], [0.0375, '$0.0375'], [2.5, '$2.50'], [15, '$15.00']] as const)('%p -> %s', (n, out) => {
+    expect(formatPrice(n)).toBe(out);
   });
 });

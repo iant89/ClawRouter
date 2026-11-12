@@ -56,7 +56,7 @@ async function listModels(ctx: ProviderCallContext) {
   if (!Array.isArray(json.data)) throw invalidResponse('model list has no "data" array');
   return json.data
     .filter((m): m is { id: string; display_name?: unknown } => typeof m.id === 'string')
-    .map((m) => ({ id: m.id, displayName: typeof m.display_name === 'string' ? m.display_name : null }));
+    .map((m) => ({ id: m.id, displayName: typeof m.display_name === 'string' ? m.display_name : null, kind: 'chat' as const }));
 }
 
 export const anthropicAdapter: ProviderAdapter = {

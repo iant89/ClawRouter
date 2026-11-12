@@ -11,15 +11,16 @@ usage tracking and an administration console built on
   console shell), phase 2 **authentication** (server-side sessions, initial
   setup, login throttling, audit, session revocation) and phase 3
   **authorization** (ADMIN / OPERATOR / VIEWER roles enforced on every route), and
-  phase 4, the **console shell** with notifications, and phase 5, the **provider
+  phase 4, the **console shell** with notifications, phase 5, the **provider
   engine** (OpenAI, Anthropic, Google, local / OpenAI-compatible, with encrypted
-  credentials).
+  credentials), and phase 6, the **model registry** (discovery, availability,
+  capabilities, prices).
   The AI gateway itself (`/v1/*`) is not built yet.
 - **Architecture:** [`docs/architecture.md`](docs/architecture.md) ·
   **Security model:** [`docs/authentication.md`](docs/authentication.md),
   [`docs/authorization.md`](docs/authorization.md) · **Console:**
   [`docs/console-shell.md`](docs/console-shell.md) · **Providers:**
-  [`docs/providers.md`](docs/providers.md)
+  [`docs/providers.md`](docs/providers.md) · **Models:** [`docs/models.md`](docs/models.md)
 
 > Serve ClawAPI over HTTPS (behind a reverse proxy) before exposing it.
 
@@ -110,6 +111,7 @@ clawapi/
     authorization/   roles, permissions, role assignment
     notifications/   per-user and per-permission notifications, event producers
     providers/   provider adapters (OpenAI, Anthropic, Google, OpenAI-compatible), encrypted credentials, status
+    models/      model registry: discovery, availability, capabilities, cost metadata
     audit/       append-only audit log
     health/      health checks and aggregation service
     api/         router, middleware (CSRF, sessions), response conventions, controllers
@@ -120,7 +122,7 @@ clawapi/
   vendor/        packed ENTERPRISE-UI (generated, git-ignored)
 ```
 
-The remaining packages from spec §4 (`gateway`, `models`, `routing`,
+The remaining packages from spec §4 (`gateway`, `routing`,
 `observability`) are added by the phase
 that implements them, so the tree never contains empty placeholders.
 

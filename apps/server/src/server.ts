@@ -9,6 +9,7 @@ import { createAuthorizationService, createSqliteRoleRepository, type Authorizat
 import { createEventBus, type Config, type EventBus, type Logger } from '@clawapi/core';
 import { createNotificationService, createSqliteNotificationRepository, type NotificationService } from '@clawapi/notifications';
 import { createDefaultRegistry, createProviderService, createSqliteProviderRepository, type ProviderService } from '@clawapi/providers';
+import { createModelService, createSqliteModelRepository, type ModelService } from '@clawapi/models';
 import { migrations, openSqlite, runMigrations, type Database } from '@clawapi/database';
 import { createDatabaseCheck, createHealthService, createPlatformCheck, createProvidersCheck, type HealthService } from '@clawapi/health';
 import { loadSecretBox } from './secret-key.ts';
@@ -35,6 +36,7 @@ export interface ClawApi {
   authz: AuthorizationService;
   notifications: NotificationService;
   providers: ProviderService;
+  models: ModelService;
   setup: SetupService;
   audit: AuditService;
   /** Present while initial setup is pending. */
@@ -64,6 +66,8 @@ export async function startClawApi({ config, log, version, consoleHtml, hasher =
   const providers = createProviderService({
     repo: createSqliteProviderRepository(db), registry: createDefaultRegistry(), secrets, audit, events, log, fetch: providerFetch,
   });
+  const models = createModelService({ repo: createSqliteModelRepository(db), providers, audit, events, log });
+  const unsubscribeModels = models.subscribe(events);
   const health = createHealthService({
     checks: [createPlatformCheck(), createDatabaseCheck(db), createProvidersCheck(providers)],
     version,
@@ -127,7 +131,7 @@ export async function startClawApi({ config, log, version, consoleHtml, hasher =
   providerKickoff?.unref();
   providerTimer?.unref();
 
-  const api = createApiApp({ log, health, auth, authz, notifications, providers, setup, cookie: { secure: config.auth.cookieSecure } });
+  const api = createApiApp({ log, health, auth, authz, notifications, providers, models, setup, cookie: { secure: config.auth.cookieSecure } });
 
   const handle = (request: Request, srv: Server<undefined>) => api.handle(request, srv.requestIP(request)?.address ?? null);
   const serveConsole = config.console.enabled && consoleHtml !== undefined;
@@ -156,7 +160,7 @@ export async function startClawApi({ config, log, version, consoleHtml, hasher =
 
   let stopped = false;
   return {
-    server, db, events, health, auth, authz, notifications, providers, setup, audit, api, url,
+    server, db, events, health, auth, authz, notifications, providers, models, setup, audit, api, url,
     get setupToken() {
       return setupToken;
     },
@@ -168,6 +172,7 @@ export async function startClawApi({ config, log, version, consoleHtml, hasher =
       if (providerKickoff) clearTimeout(providerKickoff);
       if (providerTimer) clearInterval(providerTimer);
       unsubscribeNotifications();
+      unsubscribeModels();
       await server.stop();
       db.close();
       log.info('ClawAPI stopped', { component: 'server' });

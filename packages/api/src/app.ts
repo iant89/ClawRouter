@@ -3,6 +3,7 @@ import type { AuthService, SetupService } from '@clawapi/authentication';
 import type { AuthorizationService } from '@clawapi/authorization';
 import type { NotificationService } from '@clawapi/notifications';
 import type { ProviderService } from '@clawapi/providers';
+import type { ModelService } from '@clawapi/models';
 import type { HealthService } from '@clawapi/health';
 import { compose, type Handler, type Middleware, type RequestContext } from './http/context.ts';
 import { accessLog, errorBoundary, requestIdHeader, securityHeaders } from './http/middleware.ts';
@@ -13,6 +14,7 @@ import { authController } from './controllers/auth.ts';
 import { accessController } from './controllers/access.ts';
 import { notificationsController } from './controllers/notifications.ts';
 import { providersController } from './controllers/providers.ts';
+import { modelsController } from './controllers/models.ts';
 
 export interface ApiDependencies {
   log: Logger;
@@ -21,6 +23,7 @@ export interface ApiDependencies {
   authz: AuthorizationService;
   notifications: NotificationService;
   providers: ProviderService;
+  models: ModelService;
   setup: SetupService;
   cookie: SessionCookieConfig;
 }
@@ -45,6 +48,7 @@ export function createApiApp(deps: ApiDependencies): ApiApp {
   const access = accessController(deps.authz);
   const notes = notificationsController(deps.notifications);
   const prov = providersController(deps.providers);
+  const mod = modelsController(deps.models);
 
   // Public: health for load balancers, setup and sign-in.
   router.get('/api/health', 'public', healthHandler(deps.health));
@@ -73,6 +77,16 @@ export function createApiApp(deps: ApiDependencies): ApiApp {
   router.post('/api/providers/:id/test', 'providers.write', prov.test);
   router.put('/api/providers/:id/credential', 'providers.write', prov.putKey);
   router.delete('/api/providers/:id/credential', 'providers.write', prov.deleteKey);
+  // Discovery calls the provider, so it needs write access, like a connection test.
+  router.get('/api/providers/:id/models/discover', 'models.write', mod.discover);
+  router.post('/api/providers/:id/models/import', 'models.write', mod.importModels);
+
+  // AI infrastructure: model registry (spec §31)
+  router.get('/api/models', 'models.read', mod.list);
+  router.post('/api/models', 'models.write', mod.create);
+  router.get('/api/models/:id', 'models.read', mod.get);
+  router.patch('/api/models/:id', 'models.write', mod.update);
+  router.delete('/api/models/:id', 'models.write', mod.remove);
 
   // Administration
   router.get('/api/sessions', 'sessions.read', authRoutes.listAllSessions);

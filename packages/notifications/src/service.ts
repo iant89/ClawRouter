@@ -104,6 +104,22 @@ export function createNotificationService(options: {
             source: `provider.status:${providerId}`,
           });
         })),
+        bus.on('model.availability', safely(({ modelId, ref, displayName, previous, current }) => {
+          if (previous === 'AVAILABLE' && current === 'UNAVAILABLE') {
+            service.notify({
+              audiencePermission: 'models.read', severity: 'WARNING',
+              title: `Model ${displayName} is no longer offered`,
+              body: `The provider stopped listing ${ref}. Requests cannot be routed to it until it returns.`,
+              link: '/models', source: `model.availability:${modelId}`,
+            });
+          } else if (previous === 'UNAVAILABLE' && current === 'AVAILABLE') {
+            service.notify({
+              audiencePermission: 'models.read', severity: 'SUCCESS',
+              title: `Model ${displayName} is offered again`, body: `${ref} is listed by its provider again.`,
+              link: '/models', source: `model.availability:${modelId}`,
+            });
+          }
+        })),
         bus.on('user.roles_changed', safely(({ userId, roles }) => {
           service.notify({
             userId,

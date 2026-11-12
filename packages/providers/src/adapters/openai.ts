@@ -2,7 +2,7 @@ import type { Capability, ProviderKind, ProviderKindInfo } from '@clawapi/shared
 import { invalidResponse, joinUrl, providerFetch, readJson } from '../http.ts';
 import { parseSse } from '../sse.ts';
 import type { ChatRequest, ChatResponse, FinishReason, ProviderAdapter, ProviderCallContext, StreamEvent, Usage } from '../types.ts';
-import { baseValidation, connectionChecks } from './common.ts';
+import { baseValidation, connectionChecks, guessKind } from './common.ts';
 
 interface OpenAiUsage {
   prompt_tokens?: number;
@@ -62,7 +62,7 @@ export function createOpenAiStyleAdapter(options: OpenAiStyleOptions): ProviderA
     const res = await providerFetch(ctx, joinUrl(ctx.endpoint, '/models'), { method: 'GET', headers: headers(ctx) });
     const json = await readJson<{ data?: { id?: unknown }[] }>(res, ctx.apiKey);
     if (!Array.isArray(json.data)) throw invalidResponse('model list has no "data" array');
-    return json.data.filter((m): m is { id: string } => typeof m.id === 'string').map((m) => ({ id: m.id, displayName: null }));
+    return json.data.filter((m): m is { id: string } => typeof m.id === 'string').map((m) => ({ id: m.id, displayName: null, kind: guessKind(m.id) }));
   }
 
   return {

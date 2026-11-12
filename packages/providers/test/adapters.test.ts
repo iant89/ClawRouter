@@ -12,7 +12,7 @@ const registry = createDefaultRegistry();
 const cases = [
   { kind: 'openai', base: '/openai/v1', model: 'gpt-4o-mini', text: 'Hello from OpenAI', streamText: 'Hello', models: 3, usage: [7, 4, 11], streamUsage: [7, 2, 9], streamFinish: 'stop' },
   { kind: 'anthropic', base: '/anthropic', model: 'claude-sonnet-4-5', text: 'Hello from Anthropic', streamText: 'Hi there', models: 1, usage: [9, 5, 14], streamUsage: [9, 2, 11], streamFinish: 'length' },
-  { kind: 'google', base: '/google/v1beta', model: 'gemini-2.0-flash', text: 'Hello from Gemini', streamText: 'Gemini', models: 1, usage: [6, 3, 9], streamUsage: [6, 2, 8], streamFinish: 'stop' },
+  { kind: 'google', base: '/google/v1beta', model: 'gemini-2.0-flash', text: 'Hello from Gemini', streamText: 'Gemini', models: 2, usage: [6, 3, 9], streamUsage: [6, 2, 8], streamFinish: 'stop' },
   { kind: 'openai_compatible', base: '/local/v1', model: 'llama3', text: 'Hello from OpenAI', streamText: 'Hello', models: 3, usage: [7, 4, 11], streamUsage: [7, 2, 9], streamFinish: 'stop' },
 ] as const;
 
@@ -128,5 +128,17 @@ describe('failure handling', () => {
       return out;
     })();
     expect(rest.filter((e) => e.type === 'delta').length).toBeLessThan(2);
+  });
+});
+
+describe('discovery metadata', () => {
+  test('Google reports limits and generation methods; others are classified by id', async () => {
+    const google = await registry.get('google').listModels(ctx('/google/v1beta'));
+    expect(google).toEqual([
+      { id: 'gemini-2.0-flash', displayName: 'Gemini 2.0 Flash', contextLength: 1048576, maxOutputTokens: 8192, kind: 'chat' },
+      { id: 'text-embedding-004', displayName: 'Text Embedding 004', contextLength: 2048, maxOutputTokens: 1, kind: 'embedding' },
+    ]);
+    const openai = await registry.get('openai').listModels(ctx('/openai/v1'));
+    expect(openai.map((m) => [m.id, m.kind])).toEqual([['gpt-4o-mini', 'chat'], ['gpt-4o', 'chat'], ['text-embedding-3-small', 'embedding']]);
   });
 });

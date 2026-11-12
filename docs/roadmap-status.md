@@ -28,7 +28,8 @@ Tracks implementation against [the spec](../specs/clawapi-design-spec.md) §40/�
 | 3 Authorization | ✅ Done | See below. |
 | 4 Application shell | ✅ Done | See below. |
 | 5 Provider engine | ✅ Done | See below. |
-| 6–17 | ⬜ | Console pages for these areas show a "not available yet" placeholder. |
+| 6 Model registry | ✅ Done | See below. |
+| 7–17 | ⬜ | Console pages for these areas show a "not available yet" placeholder. |
 | 12 Health + operations | 🟡 Started | Platform and database health, background health checks, health page. |
 | 13 Logging + audit | 🟡 Started | Audit repository and service; authentication events audited. |
 | 14 Administration | 🟡 Started | Session management; Users page (list, role assignment); Roles page (permission matrix). Missing: creating/disabling users, password reset, settings. |
@@ -98,3 +99,20 @@ Exit criterion: authenticated users have a functional enterprise application she
 Exit criterion: ClawAPI communicates with multiple AI providers through one
 standardized interface ✅. `ProviderService.chat()` / `chatStream()` reach all
 four kinds in the tests (against a local mock of each API).
+
+## Phase 6: model registry
+
+| Task | Status | Where |
+|---|---|---|
+| Model repository | ✅ | `models`, migration `0007_models` |
+| Model CRUD | ✅ | `/api/models`, audited |
+| Provider/model relationship | ✅ | foreign key, deleted with the provider; `ref` = `<provider>/<model>` |
+| Capability metadata | ✅ | seven capabilities, filterable |
+| Availability state | ✅ | `AVAILABLE` / `UNAVAILABLE` / `UNKNOWN`, separate from provider status; `usable` + reason |
+| Context length | ✅ | plus max output tokens; filled from discovery where published |
+| Cost metadata | ✅ | USD per million input/output tokens |
+| Model discovery | ✅ | discover + import, availability refreshed by every health check |
+| Model administration UI | ✅ | AI Infrastructure → Models |
+
+Exit criterion: providers expose usable models to the rest of ClawAPI ✅
+(`listUsable`, `resolveRef`, then `ProviderService.chat`, covered by tests).

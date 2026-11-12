@@ -21,6 +21,8 @@ export interface MockProviders {
   requests: RecordedRequest[];
   mode: MockMode;
   slowMs: number;
+  /** Models the OpenAI-style mocks list; tests change it to simulate models appearing and disappearing. */
+  openaiModels: string[];
   stop(): Promise<void>;
 }
 
@@ -44,7 +46,7 @@ const sse = (events: { event?: string; data: unknown }[], delayMs = 0) =>
   );
 
 export function startMockProviders(key = 'sk-test-0123456789abcdefWXYZ'): MockProviders {
-  const state: MockProviders = { url: '', key, requests: [], mode: 'ok', slowMs: 0, stop: async () => {} };
+  const state: MockProviders = { url: '', key, requests: [], mode: 'ok', slowMs: 0, openaiModels: ['gpt-4o-mini', 'gpt-4o', 'text-embedding-3-small'], stop: async () => {} };
 
   const server: Server<undefined> = Bun.serve({
     port: 0,
@@ -77,7 +79,7 @@ export function startMockProviders(key = 'sk-test-0123456789abcdefWXYZ'): MockPr
         if (family === 'openai' && (state.mode === 'auth' || h.get('authorization') !== `Bearer ${key}`)) {
           return json({ error: { message: `Incorrect API key provided: ${h.get('authorization')?.slice(7) ?? ''}` } }, 401);
         }
-        if (path === '/v1/models') return json({ object: 'list', data: [{ id: 'gpt-4o-mini' }, { id: 'gpt-4o' }, { id: 'text-embedding-3-small' }] });
+        if (path === '/v1/models') return json({ object: 'list', data: state.openaiModels.map((id) => ({ id })) });
         if (path === '/v1/chat/completions') {
           if (!stream) {
             return json({ id: 'c1', model: 'gpt-4o-mini-2024', choices: [{ index: 0, message: { role: 'assistant', content: 'Hello from OpenAI' }, finish_reason: 'stop' }], usage: { prompt_tokens: 7, completion_tokens: 4, total_tokens: 11 } });
@@ -116,7 +118,14 @@ export function startMockProviders(key = 'sk-test-0123456789abcdefWXYZ'): MockPr
       if (family === 'google') {
         if (url.searchParams.has('key')) return json({ error: { message: 'key must not be in the URL' } }, 400);
         if (state.mode === 'auth' || h.get('x-goog-api-key') !== key) return json({ error: { code: 403, message: 'API key not valid' } }, 403);
-        if (path === '/v1beta/models') return json({ models: [{ name: 'models/gemini-2.0-flash', displayName: 'Gemini 2.0 Flash' }] });
+        if (path === '/v1beta/models') {
+          return json({
+            models: [
+              { name: 'models/gemini-2.0-flash', displayName: 'Gemini 2.0 Flash', inputTokenLimit: 1048576, outputTokenLimit: 8192, supportedGenerationMethods: ['generateContent', 'countTokens'] },
+              { name: 'models/text-embedding-004', displayName: 'Text Embedding 004', inputTokenLimit: 2048, outputTokenLimit: 1, supportedGenerationMethods: ['embedContent'] },
+            ],
+          });
+        }
         if (path === '/v1beta/models/gemini-2.0-flash:generateContent') {
           return json({ candidates: [{ content: { role: 'model', parts: [{ text: 'Hello ' }, { text: 'from Gemini' }] }, finishReason: 'STOP' }], usageMetadata: { promptTokenCount: 6, candidatesTokenCount: 3, totalTokenCount: 9 }, modelVersion: 'gemini-2.0-flash-001' });
         }

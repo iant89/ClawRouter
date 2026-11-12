@@ -33,3 +33,14 @@ export function splitSystem(messages: ChatMessage[]): { system: string | null; r
   const system = messages.filter((m) => m.role === 'system').map((m) => m.content).join('\n\n');
   return { system: system || null, rest: messages.filter((m) => m.role !== 'system') };
 }
+
+/**
+ * Classifies a model from its id when the provider gives no metadata. Only used
+ * to pre-select capabilities on import; administrators can change them.
+ */
+export function guessKind(id: string): 'chat' | 'embedding' | 'other' {
+  const lower = id.toLowerCase();
+  if (/embed/.test(lower)) return 'embedding';
+  if (/(whisper|tts|dall-e|image|moderation|transcribe|realtime|audio|davinci-00|babbage-00|rerank)/.test(lower)) return 'other';
+  return 'chat';
+}

@@ -11,6 +11,7 @@
     "@clawapi/authorization": "workspace:*",
     "@clawapi/core": "workspace:*",
     "@clawapi/health": "workspace:*",
+    "@clawapi/models": "workspace:*",
     "@clawapi/notifications": "workspace:*",
     "@clawapi/providers": "workspace:*",
     "@clawapi/shared": "workspace:*"
