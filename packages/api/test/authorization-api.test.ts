@@ -28,13 +28,13 @@ describe('every protected endpoint enforces its permission (phase 3 exit criteri
   test('each route declares a known access level', () => {
     const h = createHarness();
     for (const r of h.api.router.list()) {
-      expect(['public', 'authenticated', ...PERMISSIONS]).toContain(r.access);
+      expect(['public', 'authenticated', 'api_key', ...PERMISSIONS]).toContain(r.access);
     }
   });
 
   test('users without the permission get 403; holders get through; anonymous gets 401', async () => {
     const { h, ids, cookies } = await world();
-    const routes = h.api.router.list().filter((r) => r.access !== 'public' && r.access !== 'authenticated');
+    const routes = h.api.router.list().filter((r) => r.access !== 'public' && r.access !== 'authenticated' && r.access !== 'api_key');
     expect(routes.length).toBeGreaterThan(0);
     for (const route of routes) {
       const { path, init } = sampleRequest(route.method, route.pattern, ids);

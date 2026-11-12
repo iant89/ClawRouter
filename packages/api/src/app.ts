@@ -5,11 +5,12 @@ import type { NotificationService } from '@clawrouter/notifications';
 import type { ProviderService } from '@clawrouter/providers';
 import type { ModelService } from '@clawrouter/models';
 import type { RoutingService } from '@clawrouter/routing';
+import type { ApiKeyService, GatewayService } from '@clawrouter/gateway';
 import type { HealthService } from '@clawrouter/health';
 import { compose, type Handler, type Middleware, type RequestContext } from './http/context.ts';
 import { accessLog, errorBoundary, requestIdHeader, securityHeaders } from './http/middleware.ts';
 import { Router } from './http/router.ts';
-import { applyResponseHeaders, csrfProtection, sessionAuthentication, type SessionCookieConfig } from './http/session.ts';
+import { apiKeyAuthentication, applyResponseHeaders, csrfProtection, sessionAuthentication, type SessionCookieConfig } from './http/session.ts';
 import { healthHandler } from './controllers/health.ts';
 import { authController } from './controllers/auth.ts';
 import { accessController } from './controllers/access.ts';
@@ -17,6 +18,7 @@ import { notificationsController } from './controllers/notifications.ts';
 import { providersController } from './controllers/providers.ts';
 import { modelsController } from './controllers/models.ts';
 import { routingController } from './controllers/routing.ts';
+import { apiKeysController, gatewayController } from './controllers/gateway.ts';
 
 export interface ApiDependencies {
   log: Logger;
@@ -27,6 +29,8 @@ export interface ApiDependencies {
   providers: ProviderService;
   models: ModelService;
   routing: RoutingService;
+  apiKeys: ApiKeyService;
+  gateway: GatewayService;
   setup: SetupService;
   cookie: SessionCookieConfig;
 }
@@ -53,6 +57,8 @@ export function createApiApp(deps: ApiDependencies): ApiApp {
   const prov = providersController(deps.providers);
   const mod = modelsController(deps.models);
   const rt = routingController(deps.routing);
+  const keys = apiKeysController(deps.apiKeys);
+  const gw = gatewayController(deps.gateway);
 
   // Public: health for load balancers, setup and sign-in.
   router.get('/api/health', 'public', healthHandler(deps.health));
@@ -105,11 +111,26 @@ export function createApiApp(deps: ApiDependencies): ApiApp {
   router.get('/api/users', 'users.read', access.listUsers);
   router.put('/api/users/:id/roles', 'roles.assign', access.setUserRoles);
 
-  // External gateway API (/v1/*) is introduced in phase 8 with API-key authentication.
+  // Gateway administration: API keys (spec §14, §31) and live metrics.
+  router.get('/api/api-keys', 'api_keys.read', keys.list);
+  router.post('/api/api-keys', 'api_keys.write', keys.create);
+  router.delete('/api/api-keys/:id', 'api_keys.write', keys.revoke);
+  router.get('/api/gateway/metrics', 'requests.read', gw.metrics);
+
+  // External AI API (spec §7, §32): API keys only, OpenAI-compatible.
+  router.get('/v1/models', 'api_key', gw.models);
+  router.post('/v1/chat/completions', 'api_key', gw.chat);
+  router.post('/v1/embeddings', 'api_key', gw.embeddings);
+  router.post('/v1/responses', 'api_key', gw.responses);
 
   const dispatch: Handler = (ctx) => {
     const match = router.match(ctx.method, ctx.url.pathname);
-    if (match.access !== 'public') {
+    if (match.access === 'api_key') {
+      if (!ctx.apiKey) {
+        const presented = ctx.request.headers.has('authorization') || ctx.request.headers.has('x-api-key');
+        throw new AppError('AUTHENTICATION_ERROR', presented ? 'Invalid, expired or revoked API key.' : 'Missing API key. Send it as "Authorization: Bearer <key>".', { expose: true });
+      }
+    } else if (match.access !== 'public') {
       if (!ctx.auth) throw new AppError('AUTHENTICATION_ERROR');
       if (match.access !== 'authenticated' && !ctx.auth.permissions.has(match.access)) {
         ctx.log.info('access denied', { component: 'authorization', userId: ctx.auth.user.id, permission: match.access, path: ctx.url.pathname });
@@ -128,6 +149,7 @@ export function createApiApp(deps: ApiDependencies): ApiApp {
     errorBoundary,
     csrfProtection(deps.cookie),
     sessionAuthentication(deps.auth, deps.authz, deps.cookie),
+    apiKeyAuthentication(deps.apiKeys),
   ];
   const handler = compose(pipeline, dispatch);
 
@@ -144,6 +166,7 @@ export function createApiApp(deps: ApiDependencies): ApiApp {
         ip,
         log: deps.log.child({ requestId }),
         auth: null,
+        apiKey: null,
         responseHeaders: new Headers(),
         state: {},
       };

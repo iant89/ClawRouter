@@ -1,4 +1,5 @@
 import type { Logger } from '@clawrouter/core';
+import type { ApiKeyPrincipal } from '@clawrouter/gateway';
 import type { Permission, SessionInfo, UserSummary } from '@clawrouter/shared';
 
 /** The authenticated console user for this request (session cookie). */
@@ -25,6 +26,8 @@ export interface RequestContext {
   log: Logger;
   /** Set by the session middleware on `/api/*` when a valid session cookie is present. */
   auth: AuthContext | null;
+  /** Set on /v1/* when a valid API key is presented (external AI clients). */
+  apiKey: ApiKeyPrincipal | null;
   /** Headers to add to the response (e.g. Set-Cookie), applied after the handler runs. */
   readonly responseHeaders: Headers;
   /** Free-form slots for later phases. */

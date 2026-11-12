@@ -43,9 +43,10 @@ describe('conventions', () => {
     expect(body.error.requestId).toBe(res.headers.get(REQUEST_ID_HEADER)!);
   });
 
-  test('the external gateway namespace is separate and not yet served', async () => {
+  test('the external gateway needs an API key and answers in the OpenAI error format', async () => {
     const res = await createHarness().request('/v1/chat/completions', { method: 'POST' });
-    expect(res.status).toBe(404);
+    expect(res.status).toBe(401);
+    expect(((await res.json()) as { error: { type: string; code: string } }).error).toMatchObject({ type: 'authentication_error', code: 'invalid_api_key' });
   });
 
   test('wrong method returns 405 with Allow', async () => {

@@ -9,9 +9,11 @@ export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
  * deliberate decision visible next to the path:
  *   - 'public'         no session needed (health, setup, sign-in);
  *   - 'authenticated'  any signed-in user, for their own data only (own session);
- *   - a Permission     signed in and holding that permission.
+ *   - a Permission     signed in and holding that permission;
+ *   - 'api_key'        an external AI client with a valid API key (/v1/* only;
+ *                      a console session never satisfies it, spec §32).
  */
-export type Access = 'public' | 'authenticated' | Permission;
+export type Access = 'public' | 'authenticated' | 'api_key' | Permission;
 
 interface Route {
   method: HttpMethod;

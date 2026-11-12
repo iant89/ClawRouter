@@ -1,7 +1,7 @@
 import { normalizeError } from '@clawrouter/core';
 import { REQUEST_ID_HEADER } from '@clawrouter/shared';
 import type { Middleware } from './context.ts';
-import { errorResponse } from './responses.ts';
+import { errorResponse, openAiErrorResponse } from './responses.ts';
 
 /**
  * Turns any thrown error into a normalized error response. 5xx errors are
@@ -15,7 +15,8 @@ export const errorBoundary: Middleware = async (ctx, next) => {
     if (error.status >= 500) {
       ctx.log.error('request failed', { component: 'http', code: error.code, error: error.cause ?? error });
     }
-    return errorResponse(error, ctx.requestId);
+    // The external gateway speaks the OpenAI error format; the admin API its own envelope.
+    return ctx.url.pathname.startsWith('/v1/') ? openAiErrorResponse(error, ctx.requestId) : errorResponse(error, ctx.requestId);
   }
 };
 

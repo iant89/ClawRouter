@@ -13,6 +13,7 @@ import { createEventBus, createLogger, createSecretBox, generateSecretKey, parse
 import { createDefaultRegistry, createProviderService, createSqliteProviderRepository, type ProviderService } from '@clawrouter/providers';
 import { createModelService, createSqliteModelRepository, type ModelService } from '@clawrouter/models';
 import { createRoutingService, createSqliteRoutingStore, seededRandom, type RoutingService } from '@clawrouter/routing';
+import { createApiKeyService, createGatewayService, type ApiKeyService, type GatewayService } from '@clawrouter/gateway';
 import { createNotificationService, createSqliteNotificationRepository, type NotificationService } from '@clawrouter/notifications';
 import { migrations, openSqlite, runMigrations, type Database } from '@clawrouter/database';
 import { createDatabaseCheck, createHealthService, type HealthService } from '@clawrouter/health';
@@ -44,6 +45,8 @@ export interface Harness {
   providers: ProviderService;
   models: ModelService;
   routing: RoutingService;
+  apiKeys: ApiKeyService;
+  gateway: GatewayService;
   secrets: SecretBox;
   /** Replaces the fetch used for provider calls. */
   setProviderFetch(fn: typeof fetch): void;
@@ -103,11 +106,14 @@ export function createHarness(options: { idleMinutes?: number; maxHours?: number
   models.subscribe(events);
   // Seeded randomness: weighted routing choices are reproducible in tests.
   const routing = createRoutingService({ store: createSqliteRoutingStore(db), models, providers, audit, events, log, now: clock.now, random: seededRandom(42) });
+  const apiKeys = createApiKeyService({ db, audit, log, now: clock.now });
+  // No retry backoff in tests: they would only get slower.
+  const gateway = createGatewayService({ routing, providers, models, events, log, now: clock.now, backoffMs: 0 });
   const health = createHealthService({ checks: [createDatabaseCheck(db)], version: 'test', environment: 'test', now: clock.now });
-  const api = createApiApp({ log, health, auth, authz, notifications, providers, models, routing, setup, cookie: { secure: options.secureCookie ?? false } });
+  const api = createApiApp({ log, health, auth, authz, notifications, providers, models, routing, apiKeys, gateway, setup, cookie: { secure: options.secureCookie ?? false } });
 
   const h: Harness = {
-    db, clock, events, users, audit, auth, authz, notifications, providers, models, routing, secrets, setup, health, api, logs,
+    db, clock, events, users, audit, auth, authz, notifications, providers, models, routing, apiKeys, gateway, secrets, setup, health, api, logs,
     setProviderFetch(fn) {
       providerFetch = fn;
     },

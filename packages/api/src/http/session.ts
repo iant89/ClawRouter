@@ -1,6 +1,7 @@
 import { AppError } from '@clawrouter/core';
 import type { AuthService } from '@clawrouter/authentication';
 import type { AuthorizationService } from '@clawrouter/authorization';
+import type { ApiKeyService } from '@clawrouter/gateway';
 import { CSRF_HEADER } from '@clawrouter/shared';
 import type { Middleware } from './context.ts';
 import { parseCookies, serializeCookie } from './cookies.ts';
@@ -94,3 +95,18 @@ export const applyResponseHeaders: Middleware = async (ctx, next) => {
   for (const cookie of ctx.responseHeaders.getSetCookie()) response.headers.append('set-cookie', cookie);
   return response;
 };
+
+/**
+ * API-key authentication for the external gateway (/v1/* only). Accepts
+ * `Authorization: Bearer <key>` (OpenAI clients) or `x-api-key: <key>`. Console
+ * sessions are never consulted here (spec §32).
+ */
+export function apiKeyAuthentication(apiKeys: ApiKeyService): Middleware {
+  return (ctx, next) => {
+    if (!ctx.url.pathname.startsWith('/v1/')) return next();
+    const header = ctx.request.headers.get('authorization');
+    const presented = header?.toLowerCase().startsWith('bearer ') ? header.slice(7).trim() : ctx.request.headers.get('x-api-key')?.trim();
+    if (presented) ctx.apiKey = apiKeys.authenticate(presented);
+    return next();
+  };
+}

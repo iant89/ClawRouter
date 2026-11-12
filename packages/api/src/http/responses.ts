@@ -25,6 +25,30 @@ export function noContent(): Response {
 }
 
 /** Error envelope. Only client-safe information leaves the server. */
+const OPENAI_TYPE: Partial<Record<AppError['code'], string>> = {
+  VALIDATION_ERROR: 'invalid_request_error',
+  NOT_FOUND: 'invalid_request_error',
+  METHOD_NOT_ALLOWED: 'invalid_request_error',
+  CONFLICT: 'invalid_request_error',
+  AUTHENTICATION_ERROR: 'authentication_error',
+  AUTHORIZATION_ERROR: 'permission_error',
+  RATE_LIMITED: 'rate_limit_error',
+};
+
+/**
+ * Error body for the external gateway (/v1/*), in the OpenAI format so existing
+ * client libraries understand it: { error: { message, type, param, code } }.
+ */
+export function openAiErrorResponse(error: AppError, requestId: string): Response {
+  const details = (error.expose ? error.details : undefined) as { param?: string | null; code?: string } | undefined;
+  const code = details?.code
+    ?? (error.code === 'AUTHENTICATION_ERROR' ? 'invalid_api_key' : error.code === 'NOT_FOUND' ? 'not_found' : error.code.toLowerCase());
+  return json(
+    { error: { message: error.publicMessage, type: OPENAI_TYPE[error.code] ?? 'api_error', param: details?.param ?? null, code, request_id: requestId } },
+    { status: error.status, headers: error.headers },
+  );
+}
+
 export function errorResponse(error: AppError, requestId: string): Response {
   const body: ApiErrorBody = {
     error: {

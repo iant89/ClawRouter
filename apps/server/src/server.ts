@@ -11,6 +11,7 @@ import { createNotificationService, createSqliteNotificationRepository, type Not
 import { createDefaultRegistry, createProviderService, createSqliteProviderRepository, type ProviderService } from '@clawrouter/providers';
 import { createModelService, createSqliteModelRepository, type ModelService } from '@clawrouter/models';
 import { createRoutingService, createSqliteRoutingStore, type RoutingService } from '@clawrouter/routing';
+import { createApiKeyService, createGatewayService, type ApiKeyService, type GatewayService } from '@clawrouter/gateway';
 import { migrations, openSqlite, runMigrations, type Database } from '@clawrouter/database';
 import { createDatabaseCheck, createHealthService, createPlatformCheck, createProvidersCheck, type HealthService } from '@clawrouter/health';
 import { loadSecretBox } from './secret-key.ts';
@@ -39,6 +40,8 @@ export interface ClawRouter {
   providers: ProviderService;
   models: ModelService;
   routing: RoutingService;
+  apiKeys: ApiKeyService;
+  gateway: GatewayService;
   setup: SetupService;
   audit: AuditService;
   /** Present while initial setup is pending. */
@@ -71,6 +74,8 @@ export async function startClawRouter({ config, log, version, consoleHtml, hashe
   const models = createModelService({ repo: createSqliteModelRepository(db), providers, audit, events, log });
   const unsubscribeModels = models.subscribe(events);
   const routing = createRoutingService({ store: createSqliteRoutingStore(db), models, providers, audit, events, log });
+  const apiKeys = createApiKeyService({ db, audit, log });
+  const gateway = createGatewayService({ routing, providers, models, events, log });
   const health = createHealthService({
     checks: [createPlatformCheck(), createDatabaseCheck(db), createProvidersCheck(providers)],
     version,
@@ -134,7 +139,7 @@ export async function startClawRouter({ config, log, version, consoleHtml, hashe
   providerKickoff?.unref();
   providerTimer?.unref();
 
-  const api = createApiApp({ log, health, auth, authz, notifications, providers, models, routing, setup, cookie: { secure: config.auth.cookieSecure } });
+  const api = createApiApp({ log, health, auth, authz, notifications, providers, models, routing, apiKeys, gateway, setup, cookie: { secure: config.auth.cookieSecure } });
 
   const handle = (request: Request, srv: Server<undefined>) => api.handle(request, srv.requestIP(request)?.address ?? null);
   const serveConsole = config.console.enabled && consoleHtml !== undefined;
@@ -146,6 +151,9 @@ export async function startClawRouter({ config, log, version, consoleHtml, hashe
   const server = Bun.serve({
     hostname: config.server.host,
     port: config.server.port,
+    // Bun closes idle connections after 10 s by default, which would cut off slow
+    // model responses and streams. 255 s is Bun's maximum.
+    idleTimeout: 255,
     development: config.env === 'development' && { hmr: true, console: false },
     routes,
     fetch: handle,
@@ -163,7 +171,7 @@ export async function startClawRouter({ config, log, version, consoleHtml, hashe
 
   let stopped = false;
   return {
-    server, db, events, health, auth, authz, notifications, providers, models, routing, setup, audit, api, url,
+    server, db, events, health, auth, authz, notifications, providers, models, routing, apiKeys, gateway, setup, audit, api, url,
     get setupToken() {
       return setupToken;
     },
