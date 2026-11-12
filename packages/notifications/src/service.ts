@@ -89,6 +89,21 @@ export function createNotificationService(options: {
             source: 'health.changed',
           });
         })),
+        bus.on('provider.status', safely(({ providerId, name, previous, current, detail }) => {
+          // Admin actions (enable/disable, edits) and first checks are not news; failures and recoveries are.
+          const failing = current === 'OFFLINE' || current === 'DEGRADED';
+          const recovered = current === 'HEALTHY' && (previous === 'OFFLINE' || previous === 'DEGRADED');
+          if (!failing && !recovered) return;
+          if (failing && previous === current) return;
+          service.notify({
+            audiencePermission: 'providers.read',
+            severity: recovered ? 'SUCCESS' : current === 'OFFLINE' ? 'ERROR' : 'WARNING',
+            title: recovered ? `Provider ${name} recovered` : `Provider ${name} is ${current === 'OFFLINE' ? 'offline' : 'degraded'}`,
+            body: detail ?? undefined,
+            link: '/providers',
+            source: `provider.status:${providerId}`,
+          });
+        })),
         bus.on('user.roles_changed', safely(({ userId, roles }) => {
           service.notify({
             userId,

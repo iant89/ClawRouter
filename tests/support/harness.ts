@@ -9,7 +9,8 @@ import {
   type AuthService, type PasswordHasher, type SetupService, type UserRepository,
 } from '@clawapi/authentication';
 import { createAuthorizationService, createSqliteRoleRepository, type AuthorizationService } from '@clawapi/authorization';
-import { createEventBus, createLogger, type EventBus, type LogRecord } from '@clawapi/core';
+import { createEventBus, createLogger, createSecretBox, generateSecretKey, parseSecretKey, type EventBus, type LogRecord, type SecretBox } from '@clawapi/core';
+import { createDefaultRegistry, createProviderService, createSqliteProviderRepository, type ProviderService } from '@clawapi/providers';
 import { createNotificationService, createSqliteNotificationRepository, type NotificationService } from '@clawapi/notifications';
 import { migrations, openSqlite, runMigrations, type Database } from '@clawapi/database';
 import { createDatabaseCheck, createHealthService, type HealthService } from '@clawapi/health';
@@ -38,6 +39,10 @@ export interface Harness {
   auth: AuthService;
   authz: AuthorizationService;
   notifications: NotificationService;
+  providers: ProviderService;
+  secrets: SecretBox;
+  /** Replaces the fetch used for provider calls. */
+  setProviderFetch(fn: typeof fetch): void;
   setup: SetupService;
   health: HealthService;
   api: ApiApp;
@@ -84,11 +89,20 @@ export function createHarness(options: { idleMinutes?: number; maxHours?: number
     users, hasher: fastHasher, auth, audit, setupToken: SETUP_TOKEN, log, now: clock.now,
     grantAdministrator: (userId) => authz.grantInitialAdministrator(userId),
   });
+  const secrets = createSecretBox(parseSecretKey(generateSecretKey()));
+  let providerFetch: typeof fetch = (() => Promise.reject(new Error('no network in tests'))) as unknown as typeof fetch;
+  const providers = createProviderService({
+    repo: createSqliteProviderRepository(db), registry: createDefaultRegistry(), secrets, audit, events, log, now: clock.now,
+    fetch: ((input: RequestInfo | URL, init?: RequestInit) => providerFetch(input, init)) as typeof fetch,
+  });
   const health = createHealthService({ checks: [createDatabaseCheck(db)], version: 'test', environment: 'test', now: clock.now });
-  const api = createApiApp({ log, health, auth, authz, notifications, setup, cookie: { secure: options.secureCookie ?? false } });
+  const api = createApiApp({ log, health, auth, authz, notifications, providers, setup, cookie: { secure: options.secureCookie ?? false } });
 
   const h: Harness = {
-    db, clock, events, users, audit, auth, authz, notifications, setup, health, api, logs,
+    db, clock, events, users, audit, auth, authz, notifications, providers, secrets, setup, health, api, logs,
+    setProviderFetch(fn) {
+      providerFetch = fn;
+    },
     request(path, init = {}) {
       const { json, cookie, csrf = true, ip = '203.0.113.7', ...rest } = init;
       const headers = new Headers(rest.headers);

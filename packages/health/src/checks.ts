@@ -1,4 +1,4 @@
-import type { HealthCheck } from './types.ts';
+import type { HealthCheck, HealthProbeResult } from './types.ts';
 
 /** Structural type so this package does not depend on the database package. */
 export interface Pingable {
@@ -38,5 +38,14 @@ export function createPlatformCheck(options: PlatformCheckOptions = {}): HealthC
       const detail = `Bun ${Bun.version}, heap ${mb(heapUsed)}, rss ${mb(rss)}`;
       return { status: heapUsed > limit ? 'DEGRADED' : 'HEALTHY', detail };
     },
+  };
+}
+
+/** Provider availability as a non-critical platform component (counts only; /api/health is public). */
+export function createProvidersCheck(source: { healthSummary(): { status: HealthProbeResult['status']; detail: string } }): HealthCheck {
+  return {
+    component: 'providers',
+    critical: false,
+    check: () => source.healthSummary(),
   };
 }

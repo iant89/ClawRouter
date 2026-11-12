@@ -7,3 +7,5 @@ vendor/*.tgz
 *.db-wal
 .env
 .env.local
+secret.key
+setup-token

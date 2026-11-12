@@ -6,6 +6,7 @@ import { HealthProvider } from '../features/health/HealthContext.tsx';
 import { SessionsPage } from '../features/sessions/SessionsPage.tsx';
 import { RolesPage } from '../features/roles/RolesPage.tsx';
 import { UsersPage } from '../features/users/UsersPage.tsx';
+import { ProvidersPage } from '../features/providers/ProvidersPage.tsx';
 import { NoAccessPage } from '../pages/NoAccessPage.tsx';
 import { AuthProvider, useAuth, usePermissions } from '../features/auth/AuthContext.tsx';
 import { redirectFor } from '../features/auth/auth-state.ts';
@@ -29,6 +30,7 @@ function PageFor({ item }: { item: NavItem | undefined }) {
     case 'health': return <HealthPage />;
     case 'sessions': return <SessionsPage />;
     case 'users': return <UsersPage />;
+    case 'providers': return <ProvidersPage />;
     case 'roles': return <RolesPage />;
     default: return <NotFoundPage />;
   }

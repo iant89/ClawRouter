@@ -8,8 +8,10 @@ import {
 import { createAuthorizationService, createSqliteRoleRepository, type AuthorizationService } from '@clawapi/authorization';
 import { createEventBus, type Config, type EventBus, type Logger } from '@clawapi/core';
 import { createNotificationService, createSqliteNotificationRepository, type NotificationService } from '@clawapi/notifications';
+import { createDefaultRegistry, createProviderService, createSqliteProviderRepository, type ProviderService } from '@clawapi/providers';
 import { migrations, openSqlite, runMigrations, type Database } from '@clawapi/database';
-import { createDatabaseCheck, createHealthService, createPlatformCheck, type HealthService } from '@clawapi/health';
+import { createDatabaseCheck, createHealthService, createPlatformCheck, createProvidersCheck, type HealthService } from '@clawapi/health';
+import { loadSecretBox } from './secret-key.ts';
 import { provisionSetupToken, type SetupToken } from './setup-token.ts';
 
 export interface ClawApiOptions {
@@ -20,6 +22,8 @@ export interface ClawApiOptions {
   consoleHtml?: HTMLBundle;
   /** Override password hashing cost (tests). */
   hasher?: PasswordHasher;
+  /** Override the fetch used for provider calls (tests). */
+  providerFetch?: typeof fetch;
 }
 
 export interface ClawApi {
@@ -30,6 +34,7 @@ export interface ClawApi {
   auth: AuthService;
   authz: AuthorizationService;
   notifications: NotificationService;
+  providers: ProviderService;
   setup: SetupService;
   audit: AuditService;
   /** Present while initial setup is pending. */
@@ -44,7 +49,7 @@ export interface ClawApi {
  * HTTP layer together, then starts listening. Everything is created here and
  * passed down explicitly; no module-level singletons.
  */
-export async function startClawApi({ config, log, version, consoleHtml, hasher = createArgon2Hasher() }: ClawApiOptions): Promise<ClawApi> {
+export async function startClawApi({ config, log, version, consoleHtml, hasher = createArgon2Hasher(), providerFetch }: ClawApiOptions): Promise<ClawApi> {
   const db = openSqlite({ path: config.database.path });
   try {
     runMigrations(db, migrations, log);
@@ -54,15 +59,19 @@ export async function startClawApi({ config, log, version, consoleHtml, hasher =
   }
 
   const events = createEventBus(log);
+  const audit = createAuditService(createSqliteAuditRepository(db), log);
+  const secrets = loadSecretBox(config, log);
+  const providers = createProviderService({
+    repo: createSqliteProviderRepository(db), registry: createDefaultRegistry(), secrets, audit, events, log, fetch: providerFetch,
+  });
   const health = createHealthService({
-    checks: [createPlatformCheck(), createDatabaseCheck(db)],
+    checks: [createPlatformCheck(), createDatabaseCheck(db), createProvidersCheck(providers)],
     version,
     environment: config.env,
     events,
     log,
   });
 
-  const audit = createAuditService(createSqliteAuditRepository(db), log);
   const users = createSqliteUserRepository(db);
   const auth = createAuthService({
     users,
@@ -95,7 +104,8 @@ export async function startClawApi({ config, log, version, consoleHtml, hasher =
     try {
       const removed = auth.purgeExpired();
       const notes = notifications.purgeOld();
-      if (removed || notes) log.debug('housekeeping', { component: 'server', sessionsPurged: removed, notificationsPurged: notes });
+      const checks = providers.pruneHistory();
+      if (removed || notes || checks) log.debug('housekeeping', { component: 'server', sessionsPurged: removed, notificationsPurged: notes, providerChecksPruned: checks });
     } catch (error) {
       log.error('housekeeping failed', { component: 'server', error });
     }
@@ -109,7 +119,15 @@ export async function startClawApi({ config, log, version, consoleHtml, hasher =
   const healthTimer = setInterval(runHealth, config.health.intervalSeconds * 1000);
   healthTimer.unref();
 
-  const api = createApiApp({ log, health, auth, authz, notifications, setup, cookie: { secure: config.auth.cookieSecure } });
+  // Provider health monitor (spec §8 healthCheck). First run shortly after startup.
+  const providerInterval = config.providers.healthIntervalSeconds * 1000;
+  const checkProviders = () => void providers.checkAll().then(runHealth).catch((error: unknown) => log.error('provider health checks failed', { component: 'providers', error }));
+  const providerKickoff = providerInterval ? setTimeout(checkProviders, 5_000) : null;
+  const providerTimer = providerInterval ? setInterval(checkProviders, providerInterval) : null;
+  providerKickoff?.unref();
+  providerTimer?.unref();
+
+  const api = createApiApp({ log, health, auth, authz, notifications, providers, setup, cookie: { secure: config.auth.cookieSecure } });
 
   const handle = (request: Request, srv: Server<undefined>) => api.handle(request, srv.requestIP(request)?.address ?? null);
   const serveConsole = config.console.enabled && consoleHtml !== undefined;
@@ -138,7 +156,7 @@ export async function startClawApi({ config, log, version, consoleHtml, hasher =
 
   let stopped = false;
   return {
-    server, db, events, health, auth, authz, notifications, setup, audit, api, url,
+    server, db, events, health, auth, authz, notifications, providers, setup, audit, api, url,
     get setupToken() {
       return setupToken;
     },
@@ -147,6 +165,8 @@ export async function startClawApi({ config, log, version, consoleHtml, hasher =
       stopped = true;
       clearInterval(purgeTimer);
       clearInterval(healthTimer);
+      if (providerKickoff) clearTimeout(providerKickoff);
+      if (providerTimer) clearInterval(providerTimer);
       unsubscribeNotifications();
       await server.stop();
       db.close();

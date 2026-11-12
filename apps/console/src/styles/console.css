@@ -33,3 +33,9 @@ body {
     --eui-touch-target-min: 44px;
   }
 }
+
+/* Long unbroken values (URLs, ids) wrap instead of widening tables. */
+.claw-break {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}

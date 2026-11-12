@@ -27,7 +27,8 @@ Tracks implementation against [the spec](../specs/clawapi-design-spec.md) §40/�
 | 2 Authentication | ✅ Done | See below. |
 | 3 Authorization | ✅ Done | See below. |
 | 4 Application shell | ✅ Done | See below. |
-| 5–17 | ⬜ | Console pages for these areas show a "not available yet" placeholder. |
+| 5 Provider engine | ✅ Done | See below. |
+| 6–17 | ⬜ | Console pages for these areas show a "not available yet" placeholder. |
 | 12 Health + operations | 🟡 Started | Platform and database health, background health checks, health page. |
 | 13 Logging + audit | 🟡 Started | Audit repository and service; authentication events audited. |
 | 14 Administration | 🟡 Started | Session management; Users page (list, role assignment); Roles page (permission matrix). Missing: creating/disabling users, password reset, settings. |
@@ -78,3 +79,22 @@ Exit criterion: every protected endpoint enforces permissions server-side ✅.
 | Error states | ✅ | message strips, server-unreachable screen, `PageErrorBoundary` |
 
 Exit criterion: authenticated users have a functional enterprise application shell ✅.
+
+## Phase 5: provider engine
+
+| Task | Status | Where |
+|---|---|---|
+| Provider interface | ✅ | `ProviderAdapter` in `packages/providers/src/types.ts` |
+| Provider repository | ✅ | `providers`, migration `0006_providers` |
+| Provider configuration | ✅ | endpoint policy, priority, timeout, enable/disable |
+| Credential storage + encryption | ✅ | AES-256-GCM, key outside the database (`CLAWAPI_SECRET_KEY`) |
+| Provider lifecycle | ✅ | create / update / delete / enable / disable, all audited |
+| Connection testing | ✅ | `POST /api/providers/:id/test`, console *Test* |
+| Health checks | ✅ | background checks, 7-day history |
+| Provider state | ✅ | UNKNOWN / HEALTHY / DEGRADED / OFFLINE / DISABLED |
+| Provider event system | ✅ | `provider.status`, `provider.changed`, `provider.test.*`, notifications |
+| OpenAI / Anthropic / Google / Local providers | ✅ | `packages/providers/src/adapters/*`, chat + streaming |
+
+Exit criterion: ClawAPI communicates with multiple AI providers through one
+standardized interface ✅. `ProviderService.chat()` / `chatStream()` reach all
+four kinds in the tests (against a local mock of each API).

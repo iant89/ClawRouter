@@ -26,6 +26,16 @@ export interface Config {
     /** How often the server checks its own health in the background. */
     intervalSeconds: number;
   };
+  providers: {
+    /** How often enabled providers are health-checked. 0 turns background checks off. */
+    healthIntervalSeconds: number;
+  };
+  secrets: {
+    /** 32-byte key for encrypting stored credentials (base64 or hex). Never stored in the database. */
+    key: string | null;
+    /** File containing the key, as an alternative to `key`. */
+    keyFile: string | null;
+  };
   auth: {
     /** A session ends after this long without activity. */
     sessionIdleMinutes: number;
@@ -106,6 +116,13 @@ export function loadConfig(env: Env = process.env): Config {
     health: {
       intervalSeconds: int('CLAWAPI_HEALTH_INTERVAL_SECONDS', 30, 5, 3600),
     },
+    providers: {
+      healthIntervalSeconds: int('CLAWAPI_PROVIDER_HEALTH_INTERVAL_SECONDS', 300, 0, 86_400),
+    },
+    secrets: {
+      key: env.CLAWAPI_SECRET_KEY?.trim() || null,
+      keyFile: env.CLAWAPI_SECRET_KEY_FILE?.trim() || null,
+    },
     auth: {
       sessionIdleMinutes: int('CLAWAPI_SESSION_IDLE_MINUTES', 60, 1, 7 * 24 * 60),
       sessionMaxHours: int('CLAWAPI_SESSION_MAX_HOURS', 12, 1, 30 * 24),
@@ -113,6 +130,12 @@ export function loadConfig(env: Env = process.env): Config {
       setupToken: env.CLAWAPI_SETUP_TOKEN?.trim() || null,
     },
   };
+  if (config.secrets.key && config.secrets.keyFile) {
+    issues.push({ key: 'CLAWAPI_SECRET_KEY', message: 'set either CLAWAPI_SECRET_KEY or CLAWAPI_SECRET_KEY_FILE, not both' });
+  }
+  if (config.env === 'production' && !config.secrets.key && !config.secrets.keyFile) {
+    issues.push({ key: 'CLAWAPI_SECRET_KEY', message: 'is required in production (or CLAWAPI_SECRET_KEY_FILE). Generate one with: openssl rand -base64 32' });
+  }
   if (config.auth.setupToken !== null && config.auth.setupToken.length < 16) {
     issues.push({ key: 'CLAWAPI_SETUP_TOKEN', message: 'must be at least 16 characters' });
   }

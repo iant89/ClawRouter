@@ -34,7 +34,8 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
       // Toast only for warnings/errors that arrived since the last poll, never on first load.
       if (known.current) {
         for (const n of newAlerts(next.items, known.current)) {
-          toast.show({ tone: n.severity === 'ERROR' ? 'error' : 'warning', title: n.title, description: n.body ?? undefined });
+          // Timed: the notification itself stays in the panel until read.
+          toast.show({ duration: 10_000, tone: n.severity === 'ERROR' ? 'error' : 'warning', title: n.title, description: n.body ?? undefined });
         }
       }
       known.current = new Set(next.items.map((n) => n.id));

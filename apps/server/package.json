@@ -13,6 +13,7 @@
     "@clawapi/database": "workspace:*",
     "@clawapi/health": "workspace:*",
     "@clawapi/notifications": "workspace:*",
+    "@clawapi/providers": "workspace:*",
     "@clawapi/shared": "workspace:*"
   }
 }

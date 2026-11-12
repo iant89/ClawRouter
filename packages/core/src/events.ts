@@ -1,4 +1,4 @@
-import type { HealthState } from '@clawapi/shared';
+import type { HealthState, ProviderState } from '@clawapi/shared';
 import type { Logger } from './logger.ts';
 
 export type SessionRevokeReason = 'LOGOUT' | 'REVOKED' | 'USER_DISABLED' | 'PASSWORD_CHANGED';
@@ -16,6 +16,11 @@ export interface EventMap {
   'user.roles_changed': { userId: string; roles: string[] };
   /** A username was blocked after repeated failed sign-ins (emitted once per block). */
   'auth.login_throttled': { username: string; ip: string | null; scope: 'username' | 'ip'; retryAfterSeconds: number };
+  'provider.changed': { providerId: string; action: 'created' | 'updated' | 'deleted' | 'enabled' | 'disabled' | 'credential' };
+  'provider.status': { providerId: string; name: string; previous: ProviderState; current: ProviderState; detail: string | null };
+  'provider.test.started': { providerId: string };
+  'provider.test.completed': { providerId: string; status: ProviderState; latencyMs: number | null };
+  'provider.test.failed': { providerId: string; status: ProviderState; message: string };
   'notification.created': { id: string; userId: string | null; audiencePermission: string | null };
 }
 

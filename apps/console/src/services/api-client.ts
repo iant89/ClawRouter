@@ -41,7 +41,7 @@ export function setUnauthorizedHandler(handler: UnauthorizedHandler | null): voi
  * HttpOnly cookie the console cannot read; no credentials are stored in the
  * browser. State-changing requests carry the CSRF header.
  */
-async function request<T>(method: string, path: string, body: unknown, options: RequestOptions = {}): Promise<T> {
+export async function request<T>(method: string, path: string, body: unknown, options: RequestOptions = {}): Promise<T> {
   return (await requestEnvelope<T>(method, path, body, options)).data;
 }
 

@@ -16,8 +16,13 @@ describe('loadConfig', () => {
   });
 
   test('production defaults to JSON logs at info', () => {
-    const config = loadConfig({ CLAWAPI_ENV: 'production' });
+    const config = loadConfig({ CLAWAPI_ENV: 'production', CLAWAPI_SECRET_KEY: 'a'.repeat(64) });
     expect(config.log).toEqual({ level: 'info', format: 'json' });
+  });
+
+  test('production requires a secret key for credential encryption', () => {
+    expect(() => loadConfig({ CLAWAPI_ENV: 'production' })).toThrow('CLAWAPI_SECRET_KEY');
+    expect(() => loadConfig({ CLAWAPI_SECRET_KEY: 'x', CLAWAPI_SECRET_KEY_FILE: '/k' })).toThrow('not both');
   });
 
   test('parses explicit values', () => {

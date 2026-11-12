@@ -11,12 +11,15 @@ usage tracking and an administration console built on
   console shell), phase 2 **authentication** (server-side sessions, initial
   setup, login throttling, audit, session revocation) and phase 3
   **authorization** (ADMIN / OPERATOR / VIEWER roles enforced on every route), and
-  phase 4, the **console shell** with notifications.
+  phase 4, the **console shell** with notifications, and phase 5, the **provider
+  engine** (OpenAI, Anthropic, Google, local / OpenAI-compatible, with encrypted
+  credentials).
   The AI gateway itself (`/v1/*`) is not built yet.
 - **Architecture:** [`docs/architecture.md`](docs/architecture.md) ·
   **Security model:** [`docs/authentication.md`](docs/authentication.md),
   [`docs/authorization.md`](docs/authorization.md) · **Console:**
-  [`docs/console-shell.md`](docs/console-shell.md)
+  [`docs/console-shell.md`](docs/console-shell.md) · **Providers:**
+  [`docs/providers.md`](docs/providers.md)
 
 > Serve ClawAPI over HTTPS (behind a reverse proxy) before exposing it.
 
@@ -37,6 +40,9 @@ On first start there are no users. The server writes a one-time **setup token**
 to `data/setup-token` (mode 0600) and logs that path. Open the console, which
 redirects to `/setup`, paste the token, and create the first administrator.
 The token file is deleted and `/setup` closes for good once setup succeeds.
+
+Development also generates `data/secret.key`, which encrypts provider API keys.
+Keep it with the database: without it, stored keys cannot be decrypted.
 
 `bun run dev` starts one process that serves:
 
@@ -84,6 +90,9 @@ Invalid values stop the server with a message listing every problem.
 | `CLAWAPI_SESSION_MAX_HOURS` | `12` | A session ends this long after sign-in, regardless of activity |
 | `CLAWAPI_COOKIE_SECURE` | `true` in production | Marks the session cookie `Secure` and uses the `__Host-` prefix. Requires HTTPS |
 | `CLAWAPI_HEALTH_INTERVAL_SECONDS` | `30` | Background health checks (5–3600) |
+| `CLAWAPI_SECRET_KEY` | generated in dev | 32-byte key (base64 or hex) that encrypts provider credentials. **Required in production.** `openssl rand -base64 32` |
+| `CLAWAPI_SECRET_KEY_FILE` | | File containing the key, instead of `CLAWAPI_SECRET_KEY` |
+| `CLAWAPI_PROVIDER_HEALTH_INTERVAL_SECONDS` | `300` | Background provider checks; `0` turns them off |
 | `CLAWAPI_SETUP_TOKEN` | generated | Pre-chosen initial setup token (≥ 16 chars), e.g. for automated installs |
 
 ## Layout
@@ -100,6 +109,7 @@ clawapi/
     authentication/  users, sessions, password hashing, login throttling, initial setup
     authorization/   roles, permissions, role assignment
     notifications/   per-user and per-permission notifications, event producers
+    providers/   provider adapters (OpenAI, Anthropic, Google, OpenAI-compatible), encrypted credentials, status
     audit/       append-only audit log
     health/      health checks and aggregation service
     api/         router, middleware (CSRF, sessions), response conventions, controllers
@@ -110,7 +120,7 @@ clawapi/
   vendor/        packed ENTERPRISE-UI (generated, git-ignored)
 ```
 
-The remaining packages from spec §4 (`gateway`, `providers`, `models`, `routing`,
+The remaining packages from spec §4 (`gateway`, `models`, `routing`,
 `observability`) are added by the phase
 that implements them, so the tree never contains empty placeholders.
 

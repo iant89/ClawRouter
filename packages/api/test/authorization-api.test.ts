@@ -43,8 +43,9 @@ describe('every protected endpoint enforces its permission (phase 3 exit criteri
       const denied = await h.request(path, { ...init, cookie: cookies.nobody });
       expect([route.pattern, denied.status]).toEqual([route.pattern, 403]);
       expect((await json<ApiErrorBody>(denied)).error.code).toBe('AUTHORIZATION_ERROR');
+      // Past authorization: anything but 401/403 (a sample body may still be invalid or the id unknown).
       const allowed = await h.request(path, { ...init, cookie: cookies.admin });
-      expect([route.pattern, allowed.status < 400 || allowed.status === 404]).toEqual([route.pattern, true]);
+      expect([route.pattern, allowed.status !== 401 && allowed.status !== 403]).toEqual([route.pattern, true]);
     }
   });
 

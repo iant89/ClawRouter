@@ -2,6 +2,7 @@ import { AppError, newRequestId, type Logger } from '@clawapi/core';
 import type { AuthService, SetupService } from '@clawapi/authentication';
 import type { AuthorizationService } from '@clawapi/authorization';
 import type { NotificationService } from '@clawapi/notifications';
+import type { ProviderService } from '@clawapi/providers';
 import type { HealthService } from '@clawapi/health';
 import { compose, type Handler, type Middleware, type RequestContext } from './http/context.ts';
 import { accessLog, errorBoundary, requestIdHeader, securityHeaders } from './http/middleware.ts';
@@ -11,6 +12,7 @@ import { healthHandler } from './controllers/health.ts';
 import { authController } from './controllers/auth.ts';
 import { accessController } from './controllers/access.ts';
 import { notificationsController } from './controllers/notifications.ts';
+import { providersController } from './controllers/providers.ts';
 
 export interface ApiDependencies {
   log: Logger;
@@ -18,6 +20,7 @@ export interface ApiDependencies {
   auth: AuthService;
   authz: AuthorizationService;
   notifications: NotificationService;
+  providers: ProviderService;
   setup: SetupService;
   cookie: SessionCookieConfig;
 }
@@ -41,6 +44,7 @@ export function createApiApp(deps: ApiDependencies): ApiApp {
   const authRoutes = authController(deps);
   const access = accessController(deps.authz);
   const notes = notificationsController(deps.notifications);
+  const prov = providersController(deps.providers);
 
   // Public: health for load balancers, setup and sign-in.
   router.get('/api/health', 'public', healthHandler(deps.health));
@@ -58,6 +62,17 @@ export function createApiApp(deps: ApiDependencies): ApiApp {
   router.post('/api/notifications/read-all', 'authenticated', notes.markAllRead);
   router.post('/api/notifications/:id/read', 'authenticated', notes.markRead);
   router.delete('/api/notifications/:id', 'authenticated', notes.dismiss);
+
+  // AI infrastructure: providers (spec §31)
+  router.get('/api/providers/kinds', 'providers.read', prov.kinds);
+  router.get('/api/providers', 'providers.read', prov.list);
+  router.post('/api/providers', 'providers.write', prov.create);
+  router.get('/api/providers/:id', 'providers.read', prov.get);
+  router.patch('/api/providers/:id', 'providers.write', prov.update);
+  router.delete('/api/providers/:id', 'providers.write', prov.remove);
+  router.post('/api/providers/:id/test', 'providers.write', prov.test);
+  router.put('/api/providers/:id/credential', 'providers.write', prov.putKey);
+  router.delete('/api/providers/:id/credential', 'providers.write', prov.deleteKey);
 
   // Administration
   router.get('/api/sessions', 'sessions.read', authRoutes.listAllSessions);
