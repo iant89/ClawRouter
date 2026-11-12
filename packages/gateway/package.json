@@ -1,0 +1,16 @@
+{
+  "name": "@clawrouter/gateway",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": { ".": "./src/index.ts" },
+  "dependencies": {
+    "@clawrouter/audit": "workspace:*",
+    "@clawrouter/core": "workspace:*",
+    "@clawrouter/database": "workspace:*",
+    "@clawrouter/models": "workspace:*",
+    "@clawrouter/providers": "workspace:*",
+    "@clawrouter/routing": "workspace:*",
+    "@clawrouter/shared": "workspace:*"
+  }
+}

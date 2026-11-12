@@ -14,6 +14,12 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 
 ### Important
 
+- **IMPORTANT** · 2026-11-12 · Workflow: one branch per phase, merged when the owner says so
+  Build each phase on a branch (`claude/phase-N-<name>`), push it, and report.
+  The owner reviews and says "merge it". Then fast-forward `main` to the branch
+  and push. No pull requests unless the owner asks for one. (Phase 7 was merged
+  this way.)
+
 - **IMPORTANT** · 2026-11-12 · Project renamed from ClawAPI to ClawRouter
   Moved out of `iant89/ENTERPRISE-UI` (it lived in `clawapi/` there) with full
   history, then renamed everywhere: `@clawrouter/*` packages, `CLAWROUTER_*`
@@ -101,11 +107,6 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
     never lost.
 
 ### Messages
-
-- **MESSAGE** · 2026-11-12 · Phase 7 is on a branch, not on main
-  Phase 7 is on `claude/phase-7-routing`, pushed but not merged and without a pull
-  request: the owner was asked whether to use a branch plus PR per phase and had
-  not answered yet. Ask before merging, and record the answer here as IMPORTANT.
 
 - **MESSAGE** · 2026-11-12 · Next: phase 8, the request gateway
   Phases 0–7 are done (see `docs/roadmap.md`). Phase 8 is the `/v1/*`

@@ -1,7 +1,7 @@
 import type { Capability, ProviderKind, ProviderKindInfo } from '@clawrouter/shared';
 import { invalidResponse, joinUrl, providerFetch, readJson } from '../http.ts';
 import { parseSse } from '../sse.ts';
-import type { ChatRequest, ChatResponse, FinishReason, ProviderAdapter, ProviderCallContext, StreamEvent, Usage } from '../types.ts';
+import type { ChatRequest, ChatResponse, EmbeddingResponse, FinishReason, ProviderAdapter, ProviderCallContext, StreamEvent, Usage } from '../types.ts';
 import { baseValidation, connectionChecks, guessKind } from './common.ts';
 
 interface OpenAiUsage {
@@ -78,6 +78,20 @@ export function createOpenAiStyleAdapter(options: OpenAiStyleOptions): ProviderA
       const choice = json.choices?.[0];
       if (!choice) throw invalidResponse('no choices in response');
       return { model: json.model ?? req.model, content: choice.message?.content ?? '', finishReason: finish(choice.finish_reason), usage: usageOf(json.usage) };
+    },
+
+    async embed(ctx, req): Promise<EmbeddingResponse> {
+      const res = await providerFetch(ctx, joinUrl(ctx.endpoint, '/embeddings'), { method: 'POST', headers: headers(ctx), body: JSON.stringify({ model: req.model, input: req.input }) });
+      const json = await readJson<{ model?: string; data?: { embedding?: unknown; index?: number }[]; usage?: OpenAiUsage }>(res, ctx.apiKey);
+      if (!Array.isArray(json.data)) throw invalidResponse('no "data" in embeddings response');
+      const sorted = [...json.data].sort((a, b) => (a.index ?? 0) - (b.index ?? 0));
+      if (sorted.length !== req.input.length || !sorted.every((d) => Array.isArray(d.embedding))) throw invalidResponse('embeddings do not match the inputs');
+      const u = json.usage;
+      return {
+        model: json.model ?? req.model,
+        embeddings: sorted.map((d) => d.embedding as number[]),
+        usage: u ? { inputTokens: u.prompt_tokens ?? null, outputTokens: 0, totalTokens: u.total_tokens ?? u.prompt_tokens ?? null, source: 'provider' } : usageOf(null),
+      };
     },
 
     async *sendStreamingRequest(ctx, req): AsyncGenerator<StreamEvent> {

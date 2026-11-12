@@ -8,7 +8,7 @@ import { checkEndpoint } from './endpoint.ts';
 import { ProviderCallError } from './http.ts';
 import type { ProviderRecord, ProviderRepository } from './repository.ts';
 import type { ProviderRegistry } from './registry.ts';
-import type { ChatRequest, ChatResponse, ProviderAdapter, ProviderCallContext, StreamEvent } from './types.ts';
+import type { ChatRequest, ChatResponse, EmbeddingRequest, EmbeddingResponse, ProviderAdapter, ProviderCallContext, StreamEvent } from './types.ts';
 
 export interface Actor {
   id: string;
@@ -367,6 +367,16 @@ export function createProviderService(options: ProviderServiceOptions) {
         throw e instanceof ConfigurationProblem ? new AppError('PROVIDER_ERROR', e.message, { expose: true }) : e;
       });
       yield* adapter.sendStreamingRequest(ctx, request);
+    },
+
+    async embed(providerId: string, request: EmbeddingRequest, signal?: AbortSignal): Promise<EmbeddingResponse> {
+      const p = mustGet(providerId);
+      if (!p.enabled) throw new AppError('ROUTING_ERROR', 'Provider is disabled.');
+      const { adapter, ctx } = await callContext(p, p.timeoutMs, signal).catch((e) => {
+        throw e instanceof ConfigurationProblem ? new AppError('PROVIDER_ERROR', e.message, { expose: true }) : e;
+      });
+      if (!adapter.embed) throw new AppError('PROVIDER_ERROR', `${adapter.info.displayName} providers do not offer embeddings.`, { expose: true });
+      return adapter.embed(ctx, request);
     },
   };
   return service;

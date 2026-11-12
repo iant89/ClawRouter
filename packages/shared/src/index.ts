@@ -7,3 +7,4 @@ export * from './notifications.ts';
 export * from './providers.ts';
 export * from './models.ts';
 export * from './routing.ts';
+export * from './gateway.ts';

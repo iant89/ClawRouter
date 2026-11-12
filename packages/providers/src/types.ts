@@ -78,6 +78,20 @@ export interface ProviderAdapter {
   healthCheck(ctx: ProviderCallContext): Promise<{ latencyMs: number }>;
   sendRequest(ctx: ProviderCallContext, request: ChatRequest): Promise<ChatResponse>;
   sendStreamingRequest(ctx: ProviderCallContext, request: ChatRequest): AsyncIterable<StreamEvent>;
+  /** Text embeddings. Absent when the provider has no embeddings API (Anthropic). */
+  embed?(ctx: ProviderCallContext, request: EmbeddingRequest): Promise<EmbeddingResponse>;
 }
 
 export type { ProviderKind };
+
+export interface EmbeddingRequest {
+  model: string;
+  input: string[];
+}
+
+export interface EmbeddingResponse {
+  model: string;
+  /** One vector per input, in input order. */
+  embeddings: number[][];
+  usage: Usage;
+}

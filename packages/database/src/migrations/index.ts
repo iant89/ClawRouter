@@ -7,6 +7,7 @@ import { m0005Notifications } from './0005_notifications.ts';
 import { m0006Providers } from './0006_providers.ts';
 import { m0007Models } from './0007_models.ts';
 import { m0008Routing } from './0008_routing.ts';
+import { m0009ApiKeys } from './0009_api_keys.ts';
 
 /** All migrations, in order. Append only. */
-export const migrations: readonly Migration[] = [m0001Settings, m0002UsersSessions, m0003AuditLog, m0004Roles, m0005Notifications, m0006Providers, m0007Models, m0008Routing];
+export const migrations: readonly Migration[] = [m0001Settings, m0002UsersSessions, m0003AuditLog, m0004Roles, m0005Notifications, m0006Providers, m0007Models, m0008Routing, m0009ApiKeys];

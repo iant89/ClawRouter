@@ -1,7 +1,7 @@
 import type { ProviderKindInfo } from '@clawrouter/shared';
 import { invalidResponse, joinUrl, providerFetch, readJson } from '../http.ts';
 import { parseSse } from '../sse.ts';
-import type { ChatRequest, ChatResponse, FinishReason, ProviderAdapter, ProviderCallContext, StreamEvent, Usage } from '../types.ts';
+import type { ChatRequest, ChatResponse, EmbeddingResponse, FinishReason, ProviderAdapter, ProviderCallContext, StreamEvent, Usage } from '../types.ts';
 import { baseValidation, connectionChecks, guessKind, splitSystem } from './common.ts';
 
 interface GeminiUsage {
@@ -93,6 +93,20 @@ export const googleAdapter: ProviderAdapter = {
     const json = await readJson<GeminiResponse>(res, ctx.apiKey);
     if (!Array.isArray(json.candidates)) throw invalidResponse('no candidates in response');
     return { model: json.modelVersion ?? req.model, content: textOf(json), finishReason: finish(json.candidates[0]?.finishReason), usage: usageOf(json.usageMetadata) };
+  },
+
+  async embed(ctx, req): Promise<EmbeddingResponse> {
+    const name = `models/${req.model.replace(/^models\//, '')}`;
+    const res = await providerFetch(ctx, joinUrl(ctx.endpoint, `${modelPath(req.model)}:batchEmbedContents`), {
+      method: 'POST', headers: headers(ctx),
+      body: JSON.stringify({ requests: req.input.map((text) => ({ model: name, content: { parts: [{ text }] } })) }),
+    });
+    const json = await readJson<{ embeddings?: { values?: unknown }[] }>(res, ctx.apiKey);
+    if (!Array.isArray(json.embeddings) || json.embeddings.length !== req.input.length || !json.embeddings.every((e) => Array.isArray(e.values))) {
+      throw invalidResponse('embeddings do not match the inputs');
+    }
+    // The Gemini API reports no token usage for embeddings.
+    return { model: req.model, embeddings: json.embeddings.map((e) => e.values as number[]), usage: usageOf(undefined) };
   },
 
   async *sendStreamingRequest(ctx, req): AsyncGenerator<StreamEvent> {

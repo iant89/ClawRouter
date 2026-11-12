@@ -112,6 +112,19 @@
         "@clawrouter/core": "workspace:*",
       },
     },
+    "packages/gateway": {
+      "name": "@clawrouter/gateway",
+      "version": "0.1.0",
+      "dependencies": {
+        "@clawrouter/audit": "workspace:*",
+        "@clawrouter/core": "workspace:*",
+        "@clawrouter/database": "workspace:*",
+        "@clawrouter/models": "workspace:*",
+        "@clawrouter/providers": "workspace:*",
+        "@clawrouter/routing": "workspace:*",
+        "@clawrouter/shared": "workspace:*",
+      },
+    },
     "packages/health": {
       "name": "@clawrouter/health",
       "version": "0.1.0",
@@ -181,6 +194,8 @@
     "@clawrouter/core": ["@clawrouter/core@workspace:packages/core"],
 
     "@clawrouter/database": ["@clawrouter/database@workspace:packages/database"],
+
+    "@clawrouter/gateway": ["@clawrouter/gateway@workspace:packages/gateway"],
 
     "@clawrouter/health": ["@clawrouter/health@workspace:packages/health"],
 
