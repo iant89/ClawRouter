@@ -180,6 +180,16 @@
         "@clawrouter/shared": "workspace:*",
       },
     },
+    "packages/requests": {
+      "name": "@clawrouter/requests",
+      "version": "0.1.0",
+      "dependencies": {
+        "@clawrouter/core": "workspace:*",
+        "@clawrouter/database": "workspace:*",
+        "@clawrouter/models": "workspace:*",
+        "@clawrouter/shared": "workspace:*",
+      },
+    },
     "packages/routing": {
       "name": "@clawrouter/routing",
       "version": "0.1.0",
@@ -223,6 +233,8 @@
     "@clawrouter/providers": ["@clawrouter/providers@workspace:packages/providers"],
 
     "@clawrouter/rate-limits": ["@clawrouter/rate-limits@workspace:packages/rate-limits"],
+
+    "@clawrouter/requests": ["@clawrouter/requests@workspace:packages/requests"],
 
     "@clawrouter/routing": ["@clawrouter/routing@workspace:packages/routing"],
 

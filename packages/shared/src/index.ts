@@ -9,3 +9,4 @@ export * from './models.ts';
 export * from './routing.ts';
 export * from './gateway.ts';
 export * from './rate-limits.ts';
+export * from './requests.ts';

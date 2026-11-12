@@ -26,6 +26,12 @@ export interface Config {
     /** How often the server checks its own health in the background. */
     intervalSeconds: number;
   };
+  requests: {
+    /** Days to keep gateway request history (0 keeps it forever). */
+    retentionDays: number;
+    /** Days to keep hourly usage records (0 keeps them forever). */
+    usageRetentionDays: number;
+  };
   providers: {
     /** How often enabled providers are health-checked. 0 turns background checks off. */
     healthIntervalSeconds: number;
@@ -115,6 +121,10 @@ export function loadConfig(env: Env = process.env): Config {
     },
     health: {
       intervalSeconds: int('CLAWROUTER_HEALTH_INTERVAL_SECONDS', 30, 5, 3600),
+    },
+    requests: {
+      retentionDays: int('CLAWROUTER_REQUEST_RETENTION_DAYS', 30, 0, 3650),
+      usageRetentionDays: int('CLAWROUTER_USAGE_RETENTION_DAYS', 400, 0, 3650),
     },
     providers: {
       healthIntervalSeconds: int('CLAWROUTER_PROVIDER_HEALTH_INTERVAL_SECONDS', 300, 0, 86_400),
