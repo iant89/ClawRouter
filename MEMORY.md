@@ -57,8 +57,15 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
   nothing. Move this entry to Resolved once it is gone.
 
 - **WARNING** · 2026-11-12 · Screenshots show the old name
-  Everything in `docs/screenshots/` was captured before the rename; the header says
-  "ClawAPI". Retake screenshots as phases revisit those screens.
+  Folders 01–06 in `docs/screenshots/` were captured before the rename; the header
+  says "ClawAPI". From 07 (routing) on they show ClawRouter. Retake older ones as
+  phases revisit those screens.
+
+- **WARNING** · 2026-11-12 · Routing plans are not executed yet
+  Phase 7 only plans routes. Nothing sends requests through a plan, and nothing
+  records failures in `RoutingService.failures` (the `FailureTracker`) until the
+  gateway exists (phase 8). The gateway must call `recordFailure` /
+  `recordSuccess` per attempt, or failure demotion never takes effect.
 
 - **WARNING** · 2026-11-12 · Behind a reverse proxy, login throttling is shared
   Client IPs come from the socket. Behind a proxy, every client has the proxy's
@@ -85,17 +92,35 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
   - Inline Python in shell commands has been rejected by the session's command
     safety check; edit files with the editor tools instead.
   - The repository has no LICENSE file yet; ask the owner before adding one.
+  - Routing weights are random draws: with weights 3:1 the heavier target is first
+    about 75% of the time, not always. Tests inject `seededRandom(...)` (the
+    harness uses seed 42), so they are reproducible; production uses `Math.random`.
+  - The alias dialog offers the first 200 models (by provider priority). A
+    searchable model picker is needed for very large registries.
+  - The session worker can restart mid-task. Commit and push in steps, so work is
+    never lost.
 
 ### Messages
 
-- **MESSAGE** · 2026-11-12 · Next: phase 7, the routing engine
-  Phases 0–6 are done (see `docs/roadmap.md`). Phase 7: routing rules, model
-  aliases (e.g. `fast-code`), capability matching, priority and weights,
-  health-aware selection using `ModelService.listUsable()` and provider status,
-  fallback chains, deterministic tests. Then phase 8 (the `/v1/*` gateway) uses it.
+- **MESSAGE** · 2026-11-12 · Phase 7 is on a branch, not on main
+  Phase 7 is on `claude/phase-7-routing`, pushed but not merged and without a pull
+  request: the owner was asked whether to use a branch plus PR per phase and had
+  not answered yet. Ask before merging, and record the answer here as IMPORTANT.
+
+- **MESSAGE** · 2026-11-12 · Next: phase 8, the request gateway
+  Phases 0–7 are done (see `docs/roadmap.md`). Phase 8 is the `/v1/*`
+  OpenAI-compatible API:
+  - API keys (hashed, shown once) for external clients, never console sessions;
+  - request validation and normalization;
+  - `RoutingService.plan()` → execute the attempts with `ProviderService.chat` /
+    `chatStream`, with timeouts, cancellation on client disconnect, and
+    `FailureTracker` updates;
+  - streaming SSE passthrough without buffering (spec §13);
+  - request IDs and usage accounting hooks.
 
 ---
 
 ## Resolved
 
-_Nothing yet._
+- **MESSAGE** · 2026-11-12 · Next: phase 7, the routing engine. Resolved 2026-11-12:
+  phase 7 built on `claude/phase-7-routing` (see `docs/routing.md`).

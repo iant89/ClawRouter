@@ -15,8 +15,8 @@ Partly built items in later phases are marked "(groundwork: …)".
 | 4 Application shell | ✅ |
 | 5 Provider engine | ✅ |
 | 6 Model registry | ✅ |
-| 7 Routing engine | ⬜ **next** |
-| 8 Request gateway | ⬜ |
+| 7 Routing engine | ✅ |
+| 8 Request gateway | ⬜ **next** |
 | 9 Rate limiting | ⬜ |
 | 10 Requests + usage | ⬜ |
 | 11 Real-time system | 🟡 groundwork only |
@@ -172,25 +172,26 @@ Goal: create first-class model management. See [models](models.md).
 
 Exit: providers expose usable models to the rest of ClawRouter ✅ (`listUsable`, `resolveRef`)
 
-## Phase 7: Routing engine ⬜ next
+## Phase 7: Routing engine ✅
 
-Goal: implement provider/model selection.
+Goal: implement provider/model selection. See [routing](routing.md).
 
-- [ ] Routing domain
-- [ ] Routing rules
-- [ ] Model aliases
-- [ ] Capability matching
-- [ ] Provider priority (groundwork: providers have `priority`)
-- [ ] Provider weights
-- [ ] Health-aware routing (groundwork: model `usable` and provider status)
-- [ ] Disabled provider handling
-- [ ] Disabled model handling
-- [ ] Fallback rules
-- [ ] Routing tests
+- [x] Routing domain: pure engine `planRoute()` in `packages/routing` (no HTTP, database or clock)
+- [x] Routing rules: one versioned configuration, migration `0008_routing`, `GET/PUT /api/routing`
+- [x] Model aliases: targets with priority and weight; capability aliases without targets
+- [x] Capability matching: alias and request capabilities combined
+- [x] Provider priority: for model-id and capability routing
+- [x] Provider weights: per-target weights within a priority level (weighted random, seedable)
+- [x] Health-aware routing: healthy before unchecked before degraded within a priority level; failure history demotes
+- [x] Disabled provider handling
+- [x] Disabled model handling
+- [x] Fallback rules: priority order plus failover policies (NONE / RETRY_SAME_PROVIDER / FAILOVER_PROVIDER / RETRY_AND_FAILOVER), capped at 10 attempts
+- [x] Routing tests: engine and API, with a seeded random source
 
-Exit: given a request, ClawRouter can deterministically select the best eligible provider/model.
+Exit: given a request, ClawRouter deterministically selects the best eligible provider/model ✅
+(`POST /api/routing/preview`; reproducible with a seeded random source).
 
-## Phase 8: Request gateway ⬜
+## Phase 8: Request gateway ⬜ next
 
 Goal: build the actual AI gateway.
 
@@ -265,7 +266,7 @@ Goal: provide live operational state.
 - [ ] Provider events (groundwork: emitted internally)
 - [ ] Health events (groundwork: emitted internally)
 - [ ] Request events
-- [ ] Routing events
+- [ ] Routing events (groundwork: `routing.changed` emitted internally)
 - [ ] Notification events (groundwork: emitted internally; the console polls)
 - [ ] UI subscriptions
 - [ ] Reconnection handling
@@ -301,7 +302,7 @@ Goal: provide operational and security traceability.
 - [ ] Audit UI
 - [x] Authentication auditing
 - [x] Provider auditing
-- [ ] Routing auditing
+- [x] Routing auditing (`ROUTING_UPDATED` with a diff)
 - [x] User auditing (setup, role changes)
 - [ ] API-key auditing
 - [x] Secret redaction
@@ -318,7 +319,7 @@ Goal: complete the control plane.
 - [ ] API-key management
 - [x] Provider management
 - [x] Model management
-- [ ] Routing management
+- [x] Routing management (Routing page)
 - [ ] System settings (groundwork: `settings` table and repository)
 - [ ] Security settings
 
@@ -398,7 +399,7 @@ Exit: ClawRouter can be deployed as a standalone production AI gateway.
 
 01 Bun + TypeScript foundation ✅ → 02 core backend ✅ → 03 SQLite + repositories ✅ →
 04 authentication ✅ → 05 RBAC ✅ → 06 React + ENTERPRISE-UI shell ✅ → 07 provider
-engine ✅ → 08 model registry ✅ → **09 routing engine** → 10 request gateway →
+engine ✅ → 08 model registry ✅ → 09 routing engine ✅ → **10 request gateway** →
 11 streaming / retry / failover → 12 API keys / rate limiting → 13 requests / usage →
 14 WebSocket / events → 15 health / logs / audit → 16 administration → 17 security
 hardening → 18 performance → 19 production packaging.

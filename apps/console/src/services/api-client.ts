@@ -8,8 +8,10 @@ export class ApiClientError extends Error {
   readonly issues: FieldIssue[];
   /** Seconds to wait before retrying (429 responses). */
   readonly retryAfter: number | null;
+  /** Other client-safe details from the server (e.g. `excluded` for routing errors). */
+  readonly details: Record<string, unknown>;
 
-  constructor(code: ApiClientError['code'], message: string, status: number, requestId: string | null, issues: FieldIssue[] = [], retryAfter: number | null = null) {
+  constructor(code: ApiClientError['code'], message: string, status: number, requestId: string | null, issues: FieldIssue[] = [], retryAfter: number | null = null, details: Record<string, unknown> = {}) {
     super(message);
     this.name = 'ApiClientError';
     this.code = code;
@@ -17,6 +19,7 @@ export class ApiClientError extends Error {
     this.requestId = requestId;
     this.issues = issues;
     this.retryAfter = retryAfter;
+    this.details = details;
   }
 }
 
@@ -79,7 +82,7 @@ export async function requestEnvelope<T>(method: string, path: string, body: unk
     const retry = Number(response.headers.get('retry-after'));
     if (isApiErrorBody(parsed)) {
       const { code, message, requestId: rid, details } = parsed.error;
-      throw new ApiClientError(code, message, response.status, rid, details?.issues ?? [], Number.isFinite(retry) && retry > 0 ? retry : null);
+      throw new ApiClientError(code, message, response.status, rid, details?.issues ?? [], Number.isFinite(retry) && retry > 0 ? retry : null, details ?? {});
     }
     throw new ApiClientError('INVALID_RESPONSE', `Request failed (HTTP ${response.status}).`, response.status, requestId);
   }

@@ -53,7 +53,7 @@ export const NAVIGATION: readonly NavGroup[] = [
     items: [
       { id: 'providers', permission: 'providers.read', label: 'Providers', path: '/providers', icon: 'connected', summary: 'OpenAI, Anthropic, Google and local providers: configuration, credentials, connection tests and status.' },
       { id: 'models', permission: 'models.read', label: 'Models', path: '/models', icon: 'it-instance', summary: 'The model registry: capabilities, context length, availability and cost metadata.' },
-      { id: 'routing', permission: 'routing.read', label: 'Routing', path: '/routing', icon: 'split', plannedPhase: 7, summary: 'Aliases, priorities, weights, fallbacks and retry policies that decide where requests go.' },
+      { id: 'routing', permission: 'routing.read', label: 'Routing', path: '/routing', icon: 'split', summary: 'Aliases, priorities, weights, fallbacks and retry policies that decide where requests go.' },
     ],
   },
   {

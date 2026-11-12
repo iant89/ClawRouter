@@ -79,3 +79,14 @@ manage sessions. That notice is gone now that the page requires
 | ![Edit](06-models/edit.png) | Editing capabilities, context length and prices |
 | ![Provider disabled](06-models/provider-disabled.png) | A model is unusable while its provider is disabled. Shows the old formatting ("125K", "$0.6") |
 | ![Models, final](06-models/list-final.png) | Same list after the formatting fix ("128K", "$0.60") |
+
+## 07 · Routing
+
+Taken after the rename: these show **ClawRouter**.
+
+| | |
+|---|---|
+| ![Empty](07-routing/empty.png) | **Routing** before any alias: the default failover policy and the route tester |
+| ![Alias dialog](07-routing/alias-dialog.png) | Adding `fast-code`: a primary at priority 0, two fallbacks sharing priority 1 by weight (3:1), CODING required |
+| ![Aliases and preview](07-routing/aliases-and-preview.png) | A target alias and a capability alias (`embed`); the route tester showing the attempt sequence (retry, then fail over, capped at 3) |
+| ![Problems](07-routing/problems.png) | All providers disabled: both aliases reported as not routable. The Policy column was later widened so "Default" no longer wraps |

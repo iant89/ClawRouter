@@ -17,14 +17,16 @@ usage tracking and an administration console built on
   **authorization** (ADMIN / OPERATOR / VIEWER roles enforced on every route), and
   phase 4, the **console shell** with notifications, phase 5, the **provider
   engine** (OpenAI, Anthropic, Google, local / OpenAI-compatible, with encrypted
-  credentials), and phase 6, the **model registry** (discovery, availability,
-  capabilities, prices).
-  The AI gateway itself (`/v1/*`) is not built yet.
+  credentials), phase 6, the **model registry** (discovery, availability,
+  capabilities, prices), and phase 7, the **routing engine** (aliases, priorities,
+  weights, health-aware fallback, failover policies).
+  The AI gateway itself (`/v1/*`) is next (phase 8).
 - **Architecture:** [`docs/architecture.md`](docs/architecture.md) ·
   **Security model:** [`docs/authentication.md`](docs/authentication.md),
   [`docs/authorization.md`](docs/authorization.md) · **Console:**
   [`docs/console-shell.md`](docs/console-shell.md) · **Providers:**
-  [`docs/providers.md`](docs/providers.md) · **Models:** [`docs/models.md`](docs/models.md)
+  [`docs/providers.md`](docs/providers.md) · **Models:** [`docs/models.md`](docs/models.md) ·
+  **Routing:** [`docs/routing.md`](docs/routing.md)
 - **Screenshots:** [`docs/screenshots/`](docs/screenshots/README.md)
 - **Working on the code:** [`AGENTS.md`](AGENTS.md) (rules, commands, definition
   of done) and [`MEMORY.md`](MEMORY.md) (important notes carried between sessions).
@@ -119,6 +121,7 @@ clawrouter/
     notifications/   per-user and per-permission notifications, event producers
     providers/   provider adapters (OpenAI, Anthropic, Google, OpenAI-compatible), encrypted credentials, status
     models/      model registry: discovery, availability, capabilities, cost metadata
+    routing/     routing engine (pure), routing configuration, failure tracker
     audit/       append-only audit log
     health/      health checks and aggregation service
     api/         router, middleware (CSRF, sessions), response conventions, controllers
@@ -128,7 +131,7 @@ clawrouter/
   vendor/        ENTERPRISE-UI package tarball (committed; see vendor/README.md)
 ```
 
-The remaining packages from spec §4 (`gateway`, `routing`,
+The remaining packages from spec §4 (`gateway`,
 `observability`) are added by the phase
 that implements them, so the tree never contains empty placeholders.
 
