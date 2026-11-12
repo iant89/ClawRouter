@@ -9,6 +9,7 @@
   "dependencies": {
     "@clawapi/core": "workspace:*",
     "@clawapi/shared": "workspace:*",
-    "@clawapi/health": "workspace:*"
+    "@clawapi/health": "workspace:*",
+    "@clawapi/authentication": "workspace:*"
   }
 }

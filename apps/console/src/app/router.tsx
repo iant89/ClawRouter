@@ -7,27 +7,32 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
  */
 interface RouterValue {
   pathname: string;
-  navigate: (path: string) => void;
+  search: string;
+  /** Navigates to `path` (may include a query string). */
+  navigate: (path: string, options?: { replace?: boolean }) => void;
 }
 
 const RouterContext = createContext<RouterValue | null>(null);
 
+const current = () => ({ pathname: window.location.pathname, search: window.location.search });
+
 export function RouterProvider({ children }: { children: ReactNode }) {
-  const [pathname, setPathname] = useState(() => window.location.pathname);
+  const [location, setLocation] = useState(current);
 
   useEffect(() => {
-    const onPop = () => setPathname(window.location.pathname);
+    const onPop = () => setLocation(current());
     window.addEventListener('popstate', onPop);
     return () => window.removeEventListener('popstate', onPop);
   }, []);
 
-  const navigate = useCallback((path: string) => {
-    if (path === window.location.pathname) return;
-    window.history.pushState(null, '', path);
-    setPathname(path);
+  const navigate = useCallback((path: string, options: { replace?: boolean } = {}) => {
+    if (path === window.location.pathname + window.location.search) return;
+    if (options.replace) window.history.replaceState(null, '', path);
+    else window.history.pushState(null, '', path);
+    setLocation(current());
   }, []);
 
-  const value = useMemo(() => ({ pathname, navigate }), [pathname, navigate]);
+  const value = useMemo(() => ({ ...location, navigate }), [location, navigate]);
   return <RouterContext.Provider value={value}>{children}</RouterContext.Provider>;
 }
 

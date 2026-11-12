@@ -3,16 +3,26 @@ import type { Handler } from './context.ts';
 
 export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 
+export interface RouteOptions {
+  /**
+   * Reachable without a session. Routes are protected by default so a
+   * forgotten flag fails closed.
+   */
+  public?: boolean;
+}
+
 interface Route {
   method: HttpMethod;
   pattern: string;
   segments: string[];
   handler: Handler;
+  public: boolean;
 }
 
 export interface RouteMatch {
   handler: Handler;
   params: Record<string, string>;
+  public: boolean;
 }
 
 const split = (path: string) => path.split('/').filter(Boolean);
@@ -43,15 +53,15 @@ function matchSegments(pattern: string[], path: string[]): Record<string, string
 export class Router {
   private readonly routes: Route[] = [];
 
-  add(method: HttpMethod, pattern: string, handler: Handler): this {
-    this.routes.push({ method, pattern, segments: split(pattern), handler });
+  add(method: HttpMethod, pattern: string, handler: Handler, options: RouteOptions = {}): this {
+    this.routes.push({ method, pattern, segments: split(pattern), handler, public: options.public ?? false });
     return this;
   }
-  get(pattern: string, handler: Handler) { return this.add('GET', pattern, handler); }
-  post(pattern: string, handler: Handler) { return this.add('POST', pattern, handler); }
-  put(pattern: string, handler: Handler) { return this.add('PUT', pattern, handler); }
-  patch(pattern: string, handler: Handler) { return this.add('PATCH', pattern, handler); }
-  delete(pattern: string, handler: Handler) { return this.add('DELETE', pattern, handler); }
+  get(pattern: string, handler: Handler, options?: RouteOptions) { return this.add('GET', pattern, handler, options); }
+  post(pattern: string, handler: Handler, options?: RouteOptions) { return this.add('POST', pattern, handler, options); }
+  put(pattern: string, handler: Handler, options?: RouteOptions) { return this.add('PUT', pattern, handler, options); }
+  patch(pattern: string, handler: Handler, options?: RouteOptions) { return this.add('PATCH', pattern, handler, options); }
+  delete(pattern: string, handler: Handler, options?: RouteOptions) { return this.add('DELETE', pattern, handler, options); }
 
   match(method: string, pathname: string): RouteMatch {
     const path = split(pathname);
@@ -59,7 +69,7 @@ export class Router {
     for (const route of this.routes) {
       const params = matchSegments(route.segments, path);
       if (!params) continue;
-      if (route.method === method || (method === 'HEAD' && route.method === 'GET')) return { handler: route.handler, params };
+      if (route.method === method || (method === 'HEAD' && route.method === 'GET')) return { handler: route.handler, params, public: route.public };
       allowed.add(route.method);
     }
     if (allowed.size) {
@@ -69,7 +79,7 @@ export class Router {
     throw errors.notFound();
   }
 
-  list(): { method: HttpMethod; pattern: string }[] {
-    return this.routes.map(({ method, pattern }) => ({ method, pattern }));
+  list(): { method: HttpMethod; pattern: string; public: boolean }[] {
+    return this.routes.map(({ method, pattern, public: isPublic }) => ({ method, pattern, public: isPublic }));
   }
 }

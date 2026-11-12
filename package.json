@@ -26,7 +26,12 @@
     "typescript": "6.0.2"
   },
   "dependencies": {
+    "@clawapi/api": "workspace:*",
+    "@clawapi/audit": "workspace:*",
+    "@clawapi/authentication": "workspace:*",
     "@clawapi/core": "workspace:*",
-    "@clawapi/database": "workspace:*"
+    "@clawapi/database": "workspace:*",
+    "@clawapi/health": "workspace:*",
+    "@clawapi/shared": "workspace:*"
   }
 }

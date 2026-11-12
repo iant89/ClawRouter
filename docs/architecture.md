@@ -8,7 +8,7 @@ How the code maps onto the spec, and the decisions taken while bootstrapping.
 HTTP (Bun.serve)                       apps/server/src/server.ts
   └─ API app: middleware + router      packages/api
        └─ controllers (thin)           packages/api/src/controllers
-            └─ application services    packages/health (HealthService)
+            └─ application services    packages/health, packages/authentication, packages/audit
                  └─ domain             packages/shared, packages/core
                       └─ infrastructure packages/database (SQLite adapter, repositories)
 ```
@@ -26,15 +26,21 @@ HTTP (Bun.serve)                       apps/server/src/server.ts
 ```
 Bun.serve routes
   /api/*, /v1/*  -> ApiApp.handle
-                      requestIdHeader -> securityHeaders -> accessLog -> errorBoundary -> router -> controller
+                      requestIdHeader -> securityHeaders -> accessLog -> applyResponseHeaders
+                        -> errorBoundary -> csrfProtection -> sessionAuthentication -> router -> controller
   /*             -> console index.html (when CLAWAPI_CONSOLE_ENABLED and bundled)
 ```
 
 - `errorBoundary` turns every thrown value into an `AppError` and the error envelope.
   Unknown errors become `INTERNAL_ERROR` with a generic message; the cause is logged.
 - `accessLog` logs method, path (no query string), status and duration only.
-- Auth middleware slots in before the router in phase 2; `RequestContext.state` is
-  reserved for the session/principal.
+- `sessionAuthentication` sets `ctx.auth` on `/api/*` only. The dispatcher rejects
+  non-public routes without it (fail closed). Authorization (phase 3) will check
+  permissions on `ctx.auth` the same way.
+- Handlers add cookies through `ctx.responseHeaders`, which is applied even to error
+  responses (e.g. clearing an invalid cookie on a 401).
+- Domain packages own their repository interfaces and SQLite implementations
+  (`packages/authentication/src/sqlite/*`). Services depend only on the interfaces.
 
 ## Decisions
 
@@ -48,6 +54,10 @@ Bun.serve routes
 | Migrations as TS modules with checksums | Ship inside the bundle (no file lookups at runtime). Edited or unknown migrations stop startup instead of drifting. |
 | `/api/health` is public and returns 503 when OFFLINE | Load balancers and uptime checks can use it. It contains no configuration or secrets. Detailed provider health (`/api/health/providers`) will require auth. |
 | Loopback bind by default | Nothing is exposed before authentication exists. |
+| argon2id via `Bun.password` | Memory-hard, built into the runtime, no native modules. |
+| Session tokens stored as SHA-256 hashes | A database leak does not leak usable sessions. |
+| One-time setup token on first start | A fresh, reachable instance cannot be claimed by a stranger. |
+| Console auth state is a pure reducer plus `redirectFor` | Unit-testable without a DOM; the UI only decides what to render, never what is allowed. |
 | Polling (10 s) for live health in the console | The WebSocket event system is phase 11. `usePolling` pauses when the tab is hidden. |
 | Tiny history router in the console | Pages are flat; a routing library is unnecessary for now. |
 | Dark theme, compact density | Spec §18: dark graphite, dense. Uses ENTERPRISE-UI's `dark` theme and tokens only. |

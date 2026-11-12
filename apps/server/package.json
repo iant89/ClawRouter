@@ -5,6 +5,8 @@
   "type": "module",
   "dependencies": {
     "@clawapi/api": "workspace:*",
+    "@clawapi/audit": "workspace:*",
+    "@clawapi/authentication": "workspace:*",
     "@clawapi/console": "workspace:*",
     "@clawapi/core": "workspace:*",
     "@clawapi/database": "workspace:*",

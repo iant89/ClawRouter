@@ -1,6 +1,8 @@
 import type { HealthState } from '@clawapi/shared';
 import type { Logger } from './logger.ts';
 
+export type SessionRevokeReason = 'LOGOUT' | 'REVOKED' | 'USER_DISABLED' | 'PASSWORD_CHANGED';
+
 /**
  * Every internal event and its payload (spec §25). Later phases extend this map
  * (provider.status, request.completed, ...). Payloads must never carry secrets:
@@ -9,6 +11,8 @@ import type { Logger } from './logger.ts';
 export interface EventMap {
   'health.changed': { previous: HealthState; current: HealthState; checkedAt: string };
   'settings.changed': { key: string };
+  'session.revoked': { sessionId: string; userId: string; reason: SessionRevokeReason };
+  'user.signed_in': { userId: string };
 }
 
 export type EventName = keyof EventMap;

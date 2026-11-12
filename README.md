@@ -6,14 +6,16 @@ usage tracking and an administration console built on
 [ENTERPRISE-UI](../README.md).
 
 - **Spec:** [`specs/clawapi-design-spec.md`](specs/clawapi-design-spec.md)
-- **Status:** [`docs/roadmap-status.md`](docs/roadmap-status.md). This is the
-  **first working milestone** (spec §44): Bun server, SQLite with migrations,
-  `/api/health`, and the console shell. The AI gateway itself (`/v1/*`) and
-  authentication are not built yet.
-- **Architecture:** [`docs/architecture.md`](docs/architecture.md)
+- **Status:** [`docs/roadmap-status.md`](docs/roadmap-status.md). Done so far: the
+  first working milestone (Bun server, SQLite with migrations, `/api/health`,
+  console shell) and phase 2, **authentication** (server-side sessions, initial
+  setup, login throttling, audit). The AI gateway itself (`/v1/*`) and RBAC
+  (phase 3) are not built yet.
+- **Architecture:** [`docs/architecture.md`](docs/architecture.md) ·
+  **Security model:** [`docs/authentication.md`](docs/authentication.md)
 
-> ⚠️ There is no authentication yet (phase 2). The server binds to `127.0.0.1` by
-> default. Do not expose it to untrusted networks.
+> Every signed-in user currently has full access: roles and permissions arrive in
+> phase 3. Serve ClawAPI over HTTPS (behind a reverse proxy) before exposing it.
 
 ## Requirements
 
@@ -28,11 +30,16 @@ bun run setup        # builds ENTERPRISE-UI, packs it to vendor/, runs bun insta
 bun run dev          # http://127.0.0.1:8080, with hot reload
 ```
 
+On first start there are no users. The server writes a one-time **setup token**
+to `data/setup-token` (mode 0600) and logs that path. Open the console, which
+redirects to `/setup`, paste the token, and create the first administrator.
+The token file is deleted and `/setup` closes for good once setup succeeds.
+
 `bun run dev` starts one process that serves:
 
 | Path | What |
 |---|---|
-| `/api/*` | Administration API (JSON). Today: `GET /api/health` |
+| `/api/*` | Administration API (JSON, session cookie). See [authentication](docs/authentication.md#endpoints) |
 | `/v1/*` | External AI gateway API. Reserved; returns normalized 404 until phase 8 |
 | everything else | The console (React + ENTERPRISE-UI), bundled on the fly by Bun with HMR |
 
@@ -70,6 +77,10 @@ Invalid values stop the server with a message listing every problem.
 | `CLAWAPI_LOG_LEVEL` | `debug` (dev), `info` | `debug`, `info`, `warn`, `error`, `fatal` |
 | `CLAWAPI_LOG_FORMAT` | `pretty` (dev), `json` | |
 | `CLAWAPI_CONSOLE_ENABLED` | `true` | `false` runs the server headless (API only) |
+| `CLAWAPI_SESSION_IDLE_MINUTES` | `60` | A session ends after this long without activity |
+| `CLAWAPI_SESSION_MAX_HOURS` | `12` | A session ends this long after sign-in, regardless of activity |
+| `CLAWAPI_COOKIE_SECURE` | `true` in production | Marks the session cookie `Secure` and uses the `__Host-` prefix. Requires HTTPS |
+| `CLAWAPI_SETUP_TOKEN` | generated | Pre-chosen initial setup token (≥ 16 chars), e.g. for automated installs |
 
 ## Layout
 
@@ -80,18 +91,21 @@ clawapi/
     console/     React + ENTERPRISE-UI admin console
   packages/
     shared/      browser-safe types: API envelope, error codes, health vocabulary
-    core/        config, errors, logger (with redaction), typed event bus, ids
-    database/    data-access interface, SQLite adapter, migrations, repositories
+    core/        config, errors, validation, logger (with redaction), typed event bus, ids
+    database/    data-access interface, SQLite adapter, migrations, settings repository
+    authentication/  users, sessions, password hashing, login throttling, initial setup
+    audit/       append-only audit log
     health/      health checks and aggregation service
-    api/         router, middleware pipeline, response conventions, controllers
+    api/         router, middleware (CSRF, sessions), response conventions, controllers
   specs/         design specification
   docs/          architecture and status
   scripts/       build-ui, migrate, start
+  tests/support/ shared test harness (in-memory, fast hashing, fake clock)
   vendor/        packed ENTERPRISE-UI (generated, git-ignored)
 ```
 
 The remaining packages from spec §4 (`gateway`, `providers`, `models`, `routing`,
-`authentication`, `authorization`, `audit`, `observability`) are added by the phase
+`authorization`, `observability`) are added by the phase
 that implements them, so the tree never contains empty placeholders.
 
 ## Adding a migration
@@ -113,3 +127,15 @@ that implements them, so the tree never contains empty placeholders.
 
 Every response has an `x-request-id` header that matches the server's log lines.
 5xx messages are always generic; details stay in the server log.
+
+Every `/api/*` route requires a session unless it is registered with
+`{ public: true }`, so a new route fails closed. State-changing requests need a JSON
+body and, when they carry the session cookie, the `x-clawapi-csrf` header.
+
+```bash
+# API from the command line
+curl -s -c jar -H 'content-type: application/json' \
+  -d '{"username":"admin","password":"…"}' http://127.0.0.1:8080/api/auth/login
+curl -s -b jar http://127.0.0.1:8080/api/auth/session
+curl -s -b jar -X POST -H 'x-clawapi-csrf: 1' http://127.0.0.1:8080/api/auth/logout
+```

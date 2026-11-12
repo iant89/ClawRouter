@@ -1,5 +1,5 @@
 /** Keys whose values are never written to logs, audit metadata or responses. */
-const SENSITIVE_KEY = /pass(word)?|secret|token|authorization|cookie|api[-_]?key|credential|private[-_]?key|session/i;
+const SENSITIVE_KEY = /pass(word)?|secret|token|authorization|cookie|api[-_]?key|credential|private[-_]?key/i;
 export const REDACTED = '[REDACTED]';
 
 /**

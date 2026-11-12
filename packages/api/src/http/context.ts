@@ -1,4 +1,12 @@
 import type { Logger } from '@clawapi/core';
+import type { SessionInfo, UserSummary } from '@clawapi/shared';
+
+/** The authenticated console user for this request (session cookie). */
+export interface AuthContext {
+  user: UserSummary;
+  session: SessionInfo;
+  sessionId: string;
+}
 
 /** Per-request context passed through middleware and handlers. */
 export interface RequestContext {
@@ -12,7 +20,11 @@ export interface RequestContext {
   readonly ip: string | null;
   /** Request-scoped logger, bound to the request id. */
   log: Logger;
-  /** Typed slots filled by middleware in later phases (session, principal, apiKey...). */
+  /** Set by the session middleware on `/api/*` when a valid session cookie is present. */
+  auth: AuthContext | null;
+  /** Headers to add to the response (e.g. Set-Cookie), applied after the handler runs. */
+  readonly responseHeaders: Headers;
+  /** Free-form slots for later phases. */
   state: Record<string, unknown>;
 }
 

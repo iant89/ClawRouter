@@ -1,0 +1,13 @@
+{
+  "name": "@clawapi/authentication",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": { ".": "./src/index.ts" },
+  "dependencies": {
+    "@clawapi/audit": "workspace:*",
+    "@clawapi/core": "workspace:*",
+    "@clawapi/database": "workspace:*",
+    "@clawapi/shared": "workspace:*"
+  }
+}

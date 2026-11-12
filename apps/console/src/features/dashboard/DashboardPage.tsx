@@ -13,7 +13,7 @@ const PENDING_METRICS = [
   { term: 'Provider availability', description: 'Provider engine — phase 5' },
   { term: 'Model availability', description: 'Model registry — phase 6' },
   { term: 'Token usage / cost', description: 'Requests + usage — phase 10' },
-  { term: 'Active sessions', description: 'Authentication — phase 2' },
+  { term: 'Active sessions', description: 'Administration — phase 14' },
 ];
 
 export function DashboardPage() {
@@ -28,9 +28,6 @@ export function DashboardPage() {
       subtitle="Is the AI gateway working?"
       actions={<RefreshControl onRefresh={refresh} refreshing={loading} lastUpdated={lastUpdated} intervals={[]} />}
     >
-      <MessageStrip tone="warning" title="Development milestone">
-        Authentication is not implemented yet (phase 2). The server binds to loopback by default; do not expose it to untrusted networks.
-      </MessageStrip>
       {error && (
         <MessageStrip tone="error" title="Cannot load system health">
           {error.message}

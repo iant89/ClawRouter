@@ -5,8 +5,13 @@
     "": {
       "name": "clawapi",
       "dependencies": {
+        "@clawapi/api": "workspace:*",
+        "@clawapi/audit": "workspace:*",
+        "@clawapi/authentication": "workspace:*",
         "@clawapi/core": "workspace:*",
         "@clawapi/database": "workspace:*",
+        "@clawapi/health": "workspace:*",
+        "@clawapi/shared": "workspace:*",
       },
       "devDependencies": {
         "@types/bun": "1.4.4",
@@ -30,6 +35,8 @@
       "version": "0.1.0",
       "dependencies": {
         "@clawapi/api": "workspace:*",
+        "@clawapi/audit": "workspace:*",
+        "@clawapi/authentication": "workspace:*",
         "@clawapi/console": "workspace:*",
         "@clawapi/core": "workspace:*",
         "@clawapi/database": "workspace:*",
@@ -41,8 +48,28 @@
       "name": "@clawapi/api",
       "version": "0.1.0",
       "dependencies": {
+        "@clawapi/authentication": "workspace:*",
         "@clawapi/core": "workspace:*",
         "@clawapi/health": "workspace:*",
+        "@clawapi/shared": "workspace:*",
+      },
+    },
+    "packages/audit": {
+      "name": "@clawapi/audit",
+      "version": "0.1.0",
+      "dependencies": {
+        "@clawapi/core": "workspace:*",
+        "@clawapi/database": "workspace:*",
+        "@clawapi/shared": "workspace:*",
+      },
+    },
+    "packages/authentication": {
+      "name": "@clawapi/authentication",
+      "version": "0.1.0",
+      "dependencies": {
+        "@clawapi/audit": "workspace:*",
+        "@clawapi/core": "workspace:*",
+        "@clawapi/database": "workspace:*",
         "@clawapi/shared": "workspace:*",
       },
     },
@@ -75,6 +102,10 @@
   },
   "packages": {
     "@clawapi/api": ["@clawapi/api@workspace:packages/api"],
+
+    "@clawapi/audit": ["@clawapi/audit@workspace:packages/audit"],
+
+    "@clawapi/authentication": ["@clawapi/authentication@workspace:packages/authentication"],
 
     "@clawapi/console": ["@clawapi/console@workspace:apps/console"],
 

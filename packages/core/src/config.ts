@@ -22,6 +22,19 @@ export interface Config {
     /** Serve the web console from this process. The gateway works without it. */
     enabled: boolean;
   };
+  auth: {
+    /** A session ends after this long without activity. */
+    sessionIdleMinutes: number;
+    /** A session ends this long after sign-in, regardless of activity. */
+    sessionMaxHours: number;
+    /** Mark the session cookie `Secure` (HTTPS only). Defaults to true in production. */
+    cookieSecure: boolean;
+    /**
+     * Operator-chosen initial setup token. When unset, a random token is
+     * generated at startup and written to a file next to the database.
+     */
+    setupToken: string | null;
+  };
 }
 
 type Env = Record<string, string | undefined>;
@@ -86,7 +99,16 @@ export function loadConfig(env: Env = process.env): Config {
     console: {
       enabled: bool('CLAWAPI_CONSOLE_ENABLED', true),
     },
+    auth: {
+      sessionIdleMinutes: int('CLAWAPI_SESSION_IDLE_MINUTES', 60, 1, 7 * 24 * 60),
+      sessionMaxHours: int('CLAWAPI_SESSION_MAX_HOURS', 12, 1, 30 * 24),
+      cookieSecure: bool('CLAWAPI_COOKIE_SECURE', envName === 'production'),
+      setupToken: env.CLAWAPI_SETUP_TOKEN?.trim() || null,
+    },
   };
+  if (config.auth.setupToken !== null && config.auth.setupToken.length < 16) {
+    issues.push({ key: 'CLAWAPI_SETUP_TOKEN', message: 'must be at least 16 characters' });
+  }
 
   if (issues.length) {
     const summary = issues.map((i) => `${i.key} ${i.message}`).join('; ');
@@ -94,5 +116,6 @@ export function loadConfig(env: Env = process.env): Config {
       details: { issues: issues.map((i) => ({ path: i.key, message: i.message })) },
     });
   }
+    for (const section of Object.values(config)) if (typeof section === 'object') Object.freeze(section);
   return Object.freeze(config);
 }
