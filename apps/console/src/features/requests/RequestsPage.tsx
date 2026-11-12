@@ -10,6 +10,7 @@ import { formatDuration, formatRelative, formatUsd } from '../../services/format
 import { usePermissions } from '../auth/AuthContext.tsx';
 import { describeAttempts, describeTokens, STATUS } from './request-format.ts';
 import { RequestDetailDialog } from './RequestDetailDialog.tsx';
+import { useActivity, useLive } from '../realtime/RealtimeContext.tsx';
 
 const PAGE_SIZE = 50;
 const PERIODS = [
@@ -60,6 +61,10 @@ export function RequestsPage() {
   }, [page, status, problemsOnly, apiKeyId, model, period, reloadKey]);
 
   const reload = useCallback(() => setReloadKey((k) => k + 1), []);
+  const live = useLive();
+  const [follow, setFollow] = useState(true);
+  // New requests appear as they happen, on the first page only (other pages would shift under the reader).
+  useActivity(() => { if (follow && page === 1) reload(); }, 2000);
   /** Any filter change starts again at page 1. */
   const filter = <T,>(set: (v: T) => void) => (v: T) => { set(v); setPage(1); };
 
@@ -107,6 +112,8 @@ export function RequestsPage() {
           onBlur={() => filter(setModel)(modelDraft.trim())}
           onKeyDown={(e) => { if (e.key === 'Enter') filter(setModel)(modelDraft.trim()); }} />
         <Switch label="Problems only" checked={problemsOnly} onChange={filter(setProblemsOnly)} />
+        <Switch label="Show new requests as they arrive" checked={follow && live} disabled={!live} onChange={setFollow}
+          description={live ? (page === 1 ? undefined : 'Only on the first page.') : 'Needs the live connection.'} />
       </div>
       <SegmentedButton aria-label="Period" size="sm" selectionMode="single" value={[period]}
         onChange={(v) => v[0] && filter(setPeriod)(v[0] as Period)} items={PERIODS.map((p) => ({ value: p.value, label: p.label }))} />

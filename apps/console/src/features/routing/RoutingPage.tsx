@@ -4,6 +4,7 @@ import {
 } from '@enterprise-ui/react';
 import type { ModelAlias, ModelInfo, PutRoutingRequest, RoutingConfigView, RoutingPolicy } from '@clawrouter/shared';
 import { useResource } from '../../hooks/useResource.ts';
+import { useRealtimeEvent } from '../realtime/RealtimeContext.tsx';
 import { ApiClientError } from '../../services/api-client.ts';
 import { fetchModels } from '../../services/models.ts';
 import { fetchRouting, saveRouting } from '../../services/routing.ts';
@@ -22,7 +23,9 @@ export function RoutingPage() {
   const toast = useToast();
   const canWrite = usePermissions().can('routing.write');
   const { data: config, error, loading, lastUpdated, reload } = useResource(fetchRouting);
-  const { data: models } = useResource(loadModels);
+  const { data: models, reload: reloadModels } = useResource(loadModels);
+  useRealtimeEvent('routing.changed', reload, 500);
+  useRealtimeEvent(['model.changed', 'model.availability'], () => { reload(); reloadModels(); }, 1000);
 
   const [editing, setEditing] = useState<ModelAlias | null>(null);
   const [adding, setAdding] = useState(false);

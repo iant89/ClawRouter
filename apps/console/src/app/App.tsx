@@ -3,6 +3,7 @@ import { BusyIndicator, Button, EmptyState, ThemeProvider, ToastProvider, useMed
 import { DashboardPage } from '../features/dashboard/DashboardPage.tsx';
 import { HealthPage } from '../features/health/HealthPage.tsx';
 import { HealthProvider } from '../features/health/HealthContext.tsx';
+import { RealtimeProvider } from '../features/realtime/RealtimeContext.tsx';
 import { SessionsPage } from '../features/sessions/SessionsPage.tsx';
 import { RolesPage } from '../features/roles/RolesPage.tsx';
 import { UsersPage } from '../features/users/UsersPage.tsx';
@@ -55,6 +56,7 @@ function Console() {
     document.title = item ? `${item.label} · ClawRouter` : 'Not found · ClawRouter';
   }, [item]);
   return (
+    <RealtimeProvider>
     <HealthProvider>
       <NotificationsProvider>
         <ConsoleLayout activeId={item?.id}>
@@ -64,6 +66,7 @@ function Console() {
         </ConsoleLayout>
       </NotificationsProvider>
     </HealthProvider>
+    </RealtimeProvider>
   );
 }
 

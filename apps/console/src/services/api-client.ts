@@ -39,6 +39,11 @@ export function setUnauthorizedHandler(handler: UnauthorizedHandler | null): voi
   onUnauthorized = handler;
 }
 
+/** For other channels (the live connection) that learn the session has ended. */
+export function reportUnauthorized(): void {
+  onUnauthorized?.();
+}
+
 /**
  * Thin fetch wrapper for the administration API. The session lives in an
  * HttpOnly cookie the console cannot read; no credentials are stored in the

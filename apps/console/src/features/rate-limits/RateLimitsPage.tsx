@@ -5,6 +5,7 @@ import {
 import type { FieldIssue, RateLimitScope, RateLimitSettings, RateLimitUsageEntry } from '@clawrouter/shared';
 import { usePolling } from '../../hooks/usePolling.ts';
 import { useResource } from '../../hooks/useResource.ts';
+import { useActivity, useLive, useRealtimeEvent } from '../realtime/RealtimeContext.tsx';
 import { ApiClientError } from '../../services/api-client.ts';
 import { fetchModels } from '../../services/models.ts';
 import { fetchRateLimits, fetchRateLimitUsage, saveRateLimits } from '../../services/rate-limits.ts';
@@ -32,7 +33,10 @@ export function RateLimitsPage() {
   const canWrite = perms.can('rate_limits.write');
   const canModels = perms.can('models.read');
   const { data: config, error, loading, lastUpdated, reload } = useResource(fetchRateLimits);
-  const usage = usePolling(fetchRateLimitUsage, USAGE_POLL_MS);
+  const live = useLive();
+  const usage = usePolling(fetchRateLimitUsage, live ? 30_000 : USAGE_POLL_MS);
+  useActivity(() => void usage.refresh(), 2000);
+  useRealtimeEvent('ratelimits.changed', reload, 500);
   const { data: models } = useResource(async (signal) => (canModels ? (await fetchModels({ page: 1, pageSize: 200 }, signal)).items : []));
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -133,7 +137,7 @@ export function RateLimitsPage() {
         emptyState="No gateway requests in the last minute."
       />
       {usage.error && <MessageStrip tone="error" title="Cannot load current usage">{usage.error.message}</MessageStrip>}
-      <Text size="sm" tone="secondary">Counters are kept in memory and start again from zero when the server restarts. Refreshes every 5 seconds.</Text>
+      <Text size="sm" tone="secondary">Counters are kept in memory and start again from zero when the server restarts. {live ? 'Updates live.' : 'Refreshes every 5 seconds.'}</Text>
 
       <RateLimitsDialog open={editing} value={config ? settingsOf(config) : null} models={models ?? []} onClose={() => setEditing(false)} onSave={save}
         saving={saving} serverIssues={serverIssues} serverError={serverError} />

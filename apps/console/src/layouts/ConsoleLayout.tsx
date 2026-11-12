@@ -3,6 +3,7 @@ import { AppShell, ApplicationHeader, Icon, NavigationGroup, NavigationItem, Sid
 import { itemById, visibleNavigation, type NavItem } from '../app/navigation.ts';
 import { useRouter } from '../app/router.tsx';
 import { HealthStateIndicator } from '../components/custom/HealthStateIndicator.tsx';
+import { LiveIndicator } from '../components/custom/LiveIndicator.tsx';
 import { useAuth, usePermissions, useSession } from '../features/auth/AuthContext.tsx';
 import { useHealth } from '../features/health/HealthContext.tsx';
 import { MySessionsDialog } from '../features/sessions/MySessionsDialog.tsx';
@@ -34,7 +35,10 @@ export function ConsoleLayout({ activeId, children }: { activeId: string | undef
           secondaryTitle="AI Gateway Control Plane"
           logo={<Icon name="it-host" color="var(--eui-color-primary)" />}
           homeHref="/"
-          context={[{ id: 'gateway', content: <HealthStateIndicator state={gatewayState} label="System" size="sm" />, priority: 1 }]}
+          context={[
+            { id: 'gateway', content: <HealthStateIndicator state={gatewayState} label="System" size="sm" />, priority: 1 },
+            { id: 'live', content: <LiveIndicator />, priority: 2 },
+          ]}
           notificationCount={unread}
           notifications={<NotificationsPanel />}
           user={{ name: user.displayName, email: user.username, role: roles.length ? roles.map(roleLabel).join(', ') : 'No role' }}

@@ -6,6 +6,7 @@ import type { ProviderInfo, ProviderKindInfo } from '@clawrouter/shared';
 import { ProviderStatus } from '../../components/custom/ProviderStatus.tsx';
 import { EmptyStateFor } from './EmptyStateFor.tsx';
 import { useResource } from '../../hooks/useResource.ts';
+import { useLive, useRealtimeEvent } from '../realtime/RealtimeContext.tsx';
 import { formatRelative } from '../../services/format.ts';
 import { deleteProvider, fetchProviderKinds, fetchProviders, testProvider, updateProvider } from '../../services/providers.ts';
 import { usePermissions } from '../auth/AuthContext.tsx';
@@ -36,10 +37,13 @@ export function ProvidersPage() {
   const [testing, setTesting] = useState<Set<string>>(new Set());
   const kindName = useMemo(() => new Map((data?.kinds ?? []).map((k: ProviderKindInfo) => [k.kind, k.displayName])), [data]);
 
+  const live = useLive();
+  useRealtimeEvent(['provider.changed', 'provider.status', 'provider.test.completed', 'provider.test.failed', 'model.changed'], reload, 1000);
+
   useEffect(() => {
-    const id = window.setInterval(() => document.visibilityState === 'visible' && reload(), REFRESH_MS);
+    const id = window.setInterval(() => document.visibilityState === 'visible' && reload(), live ? 4 * REFRESH_MS : REFRESH_MS);
     return () => window.clearInterval(id);
-  }, [reload]);
+  }, [reload, live]);
 
   const runTest = async (p: ProviderInfo) => {
     setTesting((s) => new Set(s).add(p.id));

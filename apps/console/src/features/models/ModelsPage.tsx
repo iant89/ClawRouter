@@ -14,6 +14,7 @@ import { fetchProviders } from '../../services/providers.ts';
 import { usePermissions } from '../auth/AuthContext.tsx';
 import { DiscoverDialog } from './DiscoverDialog.tsx';
 import { CAPABILITY_LABEL, ModelDialog } from './ModelDialog.tsx';
+import { useRealtimeEvent } from '../realtime/RealtimeContext.tsx';
 
 const PAGE_SIZE = 25;
 
@@ -41,6 +42,7 @@ export function ModelsPage() {
   const [page, setPage] = useState(1);
   const [reloadKey, setReloadKey] = useState(0);
   const reload = () => setReloadKey((k) => k + 1);
+  useRealtimeEvent(['model.changed', 'model.availability', 'provider.changed', 'provider.status'], reload, 1000);
 
   const [providers, setProviders] = useState<ProviderInfo[]>([]);
   const [result, setResult] = useState<PagedResult<ModelInfo> | null>(null);

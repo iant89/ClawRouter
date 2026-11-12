@@ -1,5 +1,5 @@
-import { useCallback } from 'react';
-import { Card, Dashboard, DashboardWidget, DescriptionList, List, MessageStrip, MetricCard, StatusIndicator } from '@enterprise-ui/react';
+import { useCallback, useState } from 'react';
+import { Dashboard, DashboardWidget, List, MessageStrip, MetricCard, StatusIndicator } from '@enterprise-ui/react';
 import type { GatewayMetrics } from '@clawrouter/shared';
 import { usePolling } from '../../hooks/usePolling.ts';
 import { fetchGatewayMetrics } from '../../services/gateway.ts';
@@ -7,8 +7,10 @@ import { formatRelative, formatTokens, formatUsd } from '../../services/format.t
 import { fetchRequests, fetchUsage } from '../../services/requests.ts';
 import { useRouter } from '../../app/router.tsx';
 import { STATUS } from '../requests/request-format.ts';
+import { useActivity, useLive } from '../realtime/RealtimeContext.tsx';
 
 export const GATEWAY_POLL_MS = 5_000;
+export const GATEWAY_LIVE_POLL_MS = 30_000;
 
 const errorRate = (m: GatewayMetrics) => (m.requestsLastMinute ? Math.round((m.errorsLastMinute / m.requestsLastMinute) * 1000) / 10 : 0);
 
@@ -19,14 +21,24 @@ const errorRate = (m: GatewayMetrics) => (m.requestsLastMinute ? Math.round((m.e
  */
 export function GatewayActivity({ canUsage }: { canUsage: boolean }) {
   const { navigate } = useRouter();
+  const live = useLive();
   const usage = usePolling(useCallback((signal: AbortSignal) => (canUsage ? fetchUsage({}, signal) : Promise.resolve(null)), [canUsage]), 60_000);
-  const failures = usePolling(useCallback((signal: AbortSignal) => fetchRequests({ problemsOnly: true, pageSize: 5 }, signal), []), 30_000);
+  const failures = usePolling(useCallback((signal: AbortSignal) => fetchRequests({ problemsOnly: true, pageSize: 5 }, signal), []), live ? 120_000 : 30_000);
   const day = usage.data?.totals;
-  const { data: m, error, loading } = usePolling(fetchGatewayMetrics, GATEWAY_POLL_MS);
+  // Polled slowly when live (per-minute figures still change without traffic); activity messages carry fresh metrics.
+  const polled = usePolling(fetchGatewayMetrics, live ? GATEWAY_LIVE_POLL_MS : GATEWAY_POLL_MS);
+  const [pushed, setPushed] = useState<{ metrics: GatewayMetrics; at: number } | null>(null);
+  useActivity((a) => {
+    if (a?.metrics) setPushed({ metrics: a.metrics, at: Date.now() });
+    if (!a || a.failed || a.rateLimited) void failures.refresh();
+  }, 1000);
+  useActivity(() => void usage.refresh(), 15_000);
+  const m = pushed && (!polled.lastUpdated || pushed.at > polled.lastUpdated.getTime()) ? pushed.metrics : polled.data;
+  const { error, loading } = polled;
   const wait = !m && loading;
   const rate = m ? errorRate(m) : 0;
   return (
-    <Dashboard title="Gateway activity" description={m ? `Since the server started, ${new Date(m.startedAt).toLocaleString()}. Refreshes every 5 seconds.` : undefined} columns={{ base: 1, sm: 2, lg: 4 }}>
+    <Dashboard title="Gateway activity" description={m ? `Since the server started, ${new Date(m.startedAt).toLocaleString()}. ${live ? 'Updates live.' : 'Refreshes every 5 seconds.'}` : undefined} columns={{ base: 1, sm: 2, lg: 4 }}>
       {error && <MessageStrip tone="error" title="Cannot load gateway metrics">{error.message}</MessageStrip>}
       <MetricCard title="Active requests" value={m ? String(m.activeRequests) : '—'} icon="activity-items" loading={wait} footer={m ? `${m.totalRequests} completed in total` : undefined} />
       <MetricCard title="Requests / minute" value={m ? String(m.requestsLastMinute) : '—'} icon="line-chart" loading={wait}
@@ -60,9 +72,6 @@ export function GatewayActivity({ canUsage }: { canUsage: boolean }) {
           }))}
         />
       </DashboardWidget>
-      <Card title="Coming later" headingLevel={3}>
-        <DescriptionList columns={1} items={[{ term: 'Live updates without polling', description: 'Event system — phase 11' }]} />
-      </Card>
     </Dashboard>
   );
 }

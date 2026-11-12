@@ -3,6 +3,7 @@ import { useToast } from '@enterprise-ui/react';
 import type { NotificationInfo } from '@clawrouter/shared';
 import * as api from '../../services/notifications.ts';
 import { newAlerts } from './notification-utils.ts';
+import { useLive, useRealtimeEvent } from '../realtime/RealtimeContext.tsx';
 
 interface NotificationsValue {
   items: NotificationInfo[];
@@ -17,8 +18,9 @@ interface NotificationsValue {
 
 const NotificationsContext = createContext<NotificationsValue | null>(null);
 
-/** Live push replaces polling with the WebSocket event system (phase 11). */
+/** Polling is the fallback; with the live connection, new notifications are fetched as they are created. */
 export const NOTIFICATION_POLL_MS = 30_000;
+export const NOTIFICATION_LIVE_POLL_MS = 120_000;
 
 export function NotificationsProvider({ children }: { children: ReactNode }) {
   const toast = useToast();
@@ -49,11 +51,14 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     }
   }, [toast]);
 
+  const live = useLive();
+  useRealtimeEvent('notification.created', () => void refresh(), 300);
+
   useEffect(() => {
     void refresh();
     const id = window.setInterval(() => {
       if (document.visibilityState === 'visible') void refresh();
-    }, NOTIFICATION_POLL_MS);
+    }, live ? NOTIFICATION_LIVE_POLL_MS : NOTIFICATION_POLL_MS);
     const onVisible = () => {
       if (document.visibilityState === 'visible') void refresh();
     };
@@ -62,7 +67,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
       window.clearInterval(id);
       document.removeEventListener('visibilitychange', onVisible);
     };
-  }, [refresh]);
+  }, [refresh, live]);
 
   const value = useMemo<NotificationsValue>(() => {
     // Optimistic updates keep the panel responsive; the next refresh reconciles with the server.
