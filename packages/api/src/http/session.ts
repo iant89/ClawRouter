@@ -2,6 +2,7 @@ import { AppError } from '@clawrouter/core';
 import type { AuthService } from '@clawrouter/authentication';
 import type { AuthorizationService } from '@clawrouter/authorization';
 import type { ApiKeyService } from '@clawrouter/gateway';
+import type { RateLimitService } from '@clawrouter/rate-limits';
 import { CSRF_HEADER } from '@clawrouter/shared';
 import type { Middleware } from './context.ts';
 import { parseCookies, serializeCookie } from './cookies.ts';
@@ -101,12 +102,20 @@ export const applyResponseHeaders: Middleware = async (ctx, next) => {
  * `Authorization: Bearer <key>` (OpenAI clients) or `x-api-key: <key>`. Console
  * sessions are never consulted here (spec §32).
  */
-export function apiKeyAuthentication(apiKeys: ApiKeyService): Middleware {
-  return (ctx, next) => {
+export function apiKeyAuthentication(apiKeys: ApiKeyService, limits?: RateLimitService): Middleware {
+  return async (ctx, next) => {
     if (!ctx.url.pathname.startsWith('/v1/')) return next();
     const header = ctx.request.headers.get('authorization');
     const presented = header?.toLowerCase().startsWith('bearer ') ? header.slice(7).trim() : ctx.request.headers.get('x-api-key')?.trim();
-    if (presented) ctx.apiKey = apiKeys.authenticate(presented);
+    if (!presented) return next();
+    // An address that keeps presenting invalid keys is refused before any key is
+    // checked, valid or not, so it cannot keep probing (spec §12, per-IP limit).
+    if (limits) {
+      const wait = await limits.ipBlockedFor(ctx.ip);
+      if (wait > 0) throw limits.ipBlocked(ctx.ip, wait, ctx.requestId);
+    }
+    ctx.apiKey = apiKeys.authenticate(presented);
+    if (!ctx.apiKey && limits) await limits.invalidKey(ctx.ip);
     return next();
   };
 }

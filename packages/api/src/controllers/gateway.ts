@@ -1,6 +1,6 @@
-import { AppError, errors, v } from '@clawrouter/core';
+import { AppError, errors, v, type Validator } from '@clawrouter/core';
 import type { ApiKeyService, GatewayResult, GatewayService } from '@clawrouter/gateway';
-import type { ApiKeyInfo, CreatedApiKey, GatewayMetrics } from '@clawrouter/shared';
+import type { ApiKeyInfo, CreatedApiKey, GatewayMetrics, RateLimit } from '@clawrouter/shared';
 import { readJson } from '../http/body.ts';
 import type { Handler, RequestContext } from '../http/context.ts';
 import { created, json, ok } from '../http/responses.ts';
@@ -42,19 +42,43 @@ export function gatewayController(gateway: GatewayService) {
   return { models, chat, embeddings, responses, metrics };
 }
 
+const modelList = v.optional<string[]>((value, path, issues) => {
+  if (Array.isArray(value) && value.every((m) => typeof m === 'string')) return value as string[];
+  issues.push({ path, message: 'must be a list of model names' });
+  return undefined;
+});
+
+/** `{ requestsPerMinute, tokensPerMinute }` or null (shape only; the service checks the values). */
+const keyLimit: Validator<RateLimit | null | undefined> = (value, path, issues) => {
+  if (value === undefined) return undefined;
+  if (value === null) return null;
+  const isLimitValue = (x: unknown) => x === undefined || x === null || typeof x === 'number';
+  if (typeof value === 'object' && !Array.isArray(value)) {
+    const l = value as Record<string, unknown>;
+    if (Object.keys(l).every((k) => k === 'requestsPerMinute' || k === 'tokensPerMinute') && isLimitValue(l.requestsPerMinute) && isLimitValue(l.tokensPerMinute)) {
+      return { requestsPerMinute: (l.requestsPerMinute as number | null | undefined) ?? null, tokensPerMinute: (l.tokensPerMinute as number | null | undefined) ?? null };
+    }
+  }
+  issues.push({ path, message: 'must be { requestsPerMinute, tokensPerMinute } (numbers or null), or null for the default limit' });
+  return undefined;
+};
+
 const createKeyBody = v.object({
   name: v.string({ min: 1, max: 100 }),
-  allowedModels: v.optional<string[]>((value, path, issues) => {
-    if (Array.isArray(value) && value.every((m) => typeof m === 'string')) return value as string[];
-    issues.push({ path, message: 'must be a list of model names' });
-    return undefined;
-  }),
+  allowedModels: modelList,
   expiresAt: (value, path, issues) => {
     if (value === undefined || value === null) return null;
     if (typeof value === 'string') return value;
     issues.push({ path, message: 'must be an ISO date-time or null' });
     return undefined;
   },
+  rateLimit: keyLimit,
+});
+
+const updateKeyBody = v.object({
+  name: v.optional(v.string({ min: 1, max: 100 })),
+  allowedModels: modelList,
+  rateLimit: keyLimit,
 });
 
 const actor = (ctx: RequestContext) => ({ id: ctx.auth!.user.id, username: ctx.auth!.user.username });
@@ -74,5 +98,10 @@ export function apiKeysController(apiKeys: ApiKeyService) {
     if (!ctx.params.id) throw errors.notFound();
     return ok<ApiKeyInfo>(apiKeys.revoke(actor(ctx), ctx.params.id, { ip: ctx.ip, requestId: ctx.requestId }));
   };
-  return { list, create, revoke };
+  const update: Handler = async (ctx) => {
+    if (!ctx.params.id) throw errors.notFound();
+    const body = await readJson(ctx, updateKeyBody);
+    return ok<ApiKeyInfo>(apiKeys.update(actor(ctx), ctx.params.id, body, { ip: ctx.ip, requestId: ctx.requestId }));
+  };
+  return { list, create, update, revoke };
 }

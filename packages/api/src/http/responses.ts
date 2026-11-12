@@ -42,7 +42,7 @@ const OPENAI_TYPE: Partial<Record<AppError['code'], string>> = {
 export function openAiErrorResponse(error: AppError, requestId: string): Response {
   const details = (error.expose ? error.details : undefined) as { param?: string | null; code?: string } | undefined;
   const code = details?.code
-    ?? (error.code === 'AUTHENTICATION_ERROR' ? 'invalid_api_key' : error.code === 'NOT_FOUND' ? 'not_found' : error.code.toLowerCase());
+    ?? (error.code === 'AUTHENTICATION_ERROR' ? 'invalid_api_key' : error.code === 'NOT_FOUND' ? 'not_found' : error.code === 'RATE_LIMITED' ? 'rate_limit_exceeded' : error.code.toLowerCase());
   return json(
     { error: { message: error.publicMessage, type: OPENAI_TYPE[error.code] ?? 'api_error', param: details?.param ?? null, code, request_id: requestId } },
     { status: error.status, headers: error.headers },

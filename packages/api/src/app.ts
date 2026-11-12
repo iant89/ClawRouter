@@ -6,6 +6,7 @@ import type { ProviderService } from '@clawrouter/providers';
 import type { ModelService } from '@clawrouter/models';
 import type { RoutingService } from '@clawrouter/routing';
 import type { ApiKeyService, GatewayService } from '@clawrouter/gateway';
+import type { RateLimitService } from '@clawrouter/rate-limits';
 import type { HealthService } from '@clawrouter/health';
 import { compose, type Handler, type Middleware, type RequestContext } from './http/context.ts';
 import { accessLog, errorBoundary, requestIdHeader, securityHeaders } from './http/middleware.ts';
@@ -19,6 +20,7 @@ import { providersController } from './controllers/providers.ts';
 import { modelsController } from './controllers/models.ts';
 import { routingController } from './controllers/routing.ts';
 import { apiKeysController, gatewayController } from './controllers/gateway.ts';
+import { rateLimitsController } from './controllers/rate-limits.ts';
 
 export interface ApiDependencies {
   log: Logger;
@@ -31,6 +33,7 @@ export interface ApiDependencies {
   routing: RoutingService;
   apiKeys: ApiKeyService;
   gateway: GatewayService;
+  limits: RateLimitService;
   setup: SetupService;
   cookie: SessionCookieConfig;
 }
@@ -59,6 +62,7 @@ export function createApiApp(deps: ApiDependencies): ApiApp {
   const rt = routingController(deps.routing);
   const keys = apiKeysController(deps.apiKeys);
   const gw = gatewayController(deps.gateway);
+  const rl = rateLimitsController(deps.limits);
 
   // Public: health for load balancers, setup and sign-in.
   router.get('/api/health', 'public', healthHandler(deps.health));
@@ -114,8 +118,12 @@ export function createApiApp(deps: ApiDependencies): ApiApp {
   // Gateway administration: API keys (spec §14, §31) and live metrics.
   router.get('/api/api-keys', 'api_keys.read', keys.list);
   router.post('/api/api-keys', 'api_keys.write', keys.create);
+  router.patch('/api/api-keys/:id', 'api_keys.write', keys.update);
   router.delete('/api/api-keys/:id', 'api_keys.write', keys.revoke);
   router.get('/api/gateway/metrics', 'requests.read', gw.metrics);
+  router.get('/api/rate-limits', 'rate_limits.read', rl.get);
+  router.put('/api/rate-limits', 'rate_limits.write', rl.put);
+  router.get('/api/rate-limits/usage', 'rate_limits.read', rl.usage);
 
   // External AI API (spec §7, §32): API keys only, OpenAI-compatible.
   router.get('/v1/models', 'api_key', gw.models);
@@ -149,7 +157,7 @@ export function createApiApp(deps: ApiDependencies): ApiApp {
     errorBoundary,
     csrfProtection(deps.cookie),
     sessionAuthentication(deps.auth, deps.authz, deps.cookie),
-    apiKeyAuthentication(deps.apiKeys),
+    apiKeyAuthentication(deps.apiKeys, deps.limits),
   ];
   const handler = compose(pipeline, dispatch);
 
