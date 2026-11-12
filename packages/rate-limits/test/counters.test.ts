@@ -102,3 +102,19 @@ describe('validateRateLimits', () => {
     ]);
   });
 });
+
+describe('retry times', () => {
+  test('a window filled at its start: the wait is the rest of the window plus the decay needed', async () => {
+    const clock = { t: 0 };
+    const s = new MemoryCounterStore(() => clock.t);
+    for (let i = 0; i < 5; i++) await s.consume('k', 1, 5, W);
+    clock.t = 10_000;
+    const refused = await s.consume('k', 1, 5, W);
+    // 50 s to the boundary, then 5 × (1 − x) + 1 ≤ 5 → x = 0.2 → 12 s more.
+    expect(refused.retryAfterMs).toBe(62_000);
+    clock.t += refused.retryAfterMs - 1_000;
+    expect((await s.consume('k', 1, 5, W)).allowed).toBe(false);
+    clock.t += 1_000;
+    expect((await s.consume('k', 1, 5, W)).allowed).toBe(true);
+  });
+});

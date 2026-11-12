@@ -87,7 +87,14 @@ export class MemoryCounterStore implements CounterStore {
       const excess = used + cost - limit;
       const decayPerMs = w.previous / windowMs;
       const fromPrevious = decayPerMs > 0 ? excess / decayPerMs : Infinity;
-      retryAfterMs = Math.ceil(fromPrevious <= resetMs ? fromPrevious : resetMs + (w.current + cost > limit ? windowMs : 0));
+      if (fromPrevious <= resetMs) {
+        retryAfterMs = Math.ceil(fromPrevious);
+      } else {
+        // After the boundary the current count becomes the decaying previous one:
+        // wait until current × (1 − x) + cost ≤ limit, x being the share of the next window.
+        const x = w.current > 0 ? Math.max(0, 1 - (limit - cost) / w.current) : 0;
+        retryAfterMs = Math.ceil(resetMs + Math.min(1, x) * windowMs);
+      }
     }
     return { used: Math.round(used * 100) / 100, retryAfterMs, resetMs };
   }
