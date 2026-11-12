@@ -57,7 +57,7 @@ describe('conventions', () => {
 
   test('internal errors are logged but never leak to the client', async () => {
     const h = createHarness();
-    h.api.router.get('/api/explode', () => { throw new Error('secret internal detail: password=hunter2'); }, { public: true });
+    h.api.router.get('/api/explode', 'public', () => { throw new Error('secret internal detail: password=hunter2'); });
     const res = await h.request('/api/explode');
     expect(res.status).toBe(500);
     const text = await res.text();

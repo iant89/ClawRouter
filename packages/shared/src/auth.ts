@@ -29,6 +29,10 @@ export interface SessionInfo {
 export interface AuthSession {
   user: UserSummary;
   session: SessionInfo;
+  /** Role ids held by the user (phase 3). */
+  roles: string[];
+  /** Effective permissions, for showing and hiding UI. The server re-checks every request. */
+  permissions: string[];
 }
 
 /** GET /api/setup/status */

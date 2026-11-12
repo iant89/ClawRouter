@@ -6,16 +6,17 @@ const h = (name: string): Handler => () => new Response(name);
 
 describe('Router', () => {
   const router = new Router()
-    .get('/api/providers', h('list'))
-    .post('/api/providers', h('create'))
-    .get('/api/providers/:id', h('get'))
-    .post('/api/providers/:id/test', h('test'))
-    .get('/files/*', h('files'));
+    .get('/api/providers', 'providers.read', h('list'))
+    .post('/api/providers', 'providers.write', h('create'))
+    .get('/api/providers/:id', 'providers.read', h('get'))
+    .post('/api/providers/:id/test', 'providers.write', h('test'))
+    .get('/files/*', 'public', h('files'));
 
   test('matches static and parameter routes', async () => {
     expect(await (await router.match('GET', '/api/providers').handler({} as never)).text()).toBe('list');
     const m = router.match('POST', '/api/providers/p%201/test');
     expect(m.params).toEqual({ id: 'p 1' });
+    expect(m.access).toBe('providers.write');
   });
 
   test('trailing slashes are ignored', () => {

@@ -8,8 +8,7 @@ How the console signs people in, and why it is built this way. Spec §14, §15, 
   session**. The browser only holds an opaque, HttpOnly cookie.
 - **External AI clients** (`/v1/*`) will use API keys (phase 8). A console session
   never authenticates `/v1/*`; the session middleware only runs on `/api/*`.
-- **Authorization** (who may do what) is phase 3. Until then, any signed-in user can
-  use every endpoint.
+- **Authorization** (who may do what) is described in [authorization](authorization.md).
 
 ## Endpoints
 
@@ -27,8 +26,8 @@ How the console signs people in, and why it is built this way. Spec §14, §15, 
 | DELETE | `/api/sessions/:id` | session ¹ | Revoke any session (404 if unknown or already ended). Revoking your own current one also clears your cookie |
 | POST | `/api/sessions/revoke` | session ¹ | `{ userId, keepCurrent? }`: revoke all of a user's sessions → `{ revoked }` |
 
-¹ Administration endpoints. Until RBAC (phase 3) every signed-in user may call them;
-phase 3 restricts them to administrators.
+¹ Administration endpoints: `sessions.read` to list, `sessions.revoke` to revoke
+(administrators). See [authorization](authorization.md).
 
 ## Initial setup
 
@@ -127,7 +126,6 @@ and request id. The audit UI is phase 13.
 
 ## Not yet
 
-- Roles/permissions and permission-aware navigation (phase 3).
 - User management, disabling users, password change/reset (phase 14).
 - Admin password recovery CLI, trusted proxies (phase 17).
 - MFA, SSO (future).

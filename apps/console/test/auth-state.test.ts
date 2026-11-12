@@ -60,3 +60,22 @@ describe('safeNext', () => {
     expect(safeNext(input)).toBe(out);
   });
 });
+
+describe('refreshed', () => {
+  const base = { user: { id: 'u', displayName: 'U' }, session: { id: 's' }, roles: ['VIEWER'], permissions: ['models.read'] } as unknown as AuthSession;
+  const state: AuthState = { status: 'signed-in', session: base };
+
+  test('keeps the same state object when nothing changed', () => {
+    expect(authReducer(state, { type: 'refreshed', session: { ...base } })).toBe(state);
+  });
+
+  test('applies role and permission changes', () => {
+    const next = { ...base, roles: ['ADMIN'], permissions: ['models.read', 'users.read'] };
+    expect(authReducer(state, { type: 'refreshed', session: next })).toEqual({ status: 'signed-in', session: next });
+  });
+
+  test('never signs anyone in', () => {
+    const out: AuthState = { status: 'signed-out', reason: 'none' };
+    expect(authReducer(out, { type: 'refreshed', session: base })).toBe(out);
+  });
+});

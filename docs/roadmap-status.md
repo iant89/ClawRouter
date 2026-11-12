@@ -25,12 +25,12 @@ Tracks implementation against [the spec](../specs/clawapi-design-spec.md) §40/�
 | 0 Project bootstrap | ✅ Done | |
 | 1 Core backend | ✅ Done | Router, middleware, errors, config, validation, logging, event bus, repositories, migration runner, response conventions. |
 | 2 Authentication | ✅ Done | See below. |
-| 3 Authorization | ⬜ Next | |
-| 4 Application shell | 🟡 Started | Shell, header, navigation, responsive layout, loading/error states, user menu (my sessions, sign out). Missing: notifications, permission-aware navigation (needs 3). |
+| 3 Authorization | ✅ Done | See below. |
+| 4 Application shell | 🟡 Mostly done | Shell, header with roles, permission-aware navigation, no-access page, responsive layout, loading/error states, user menu. Missing: notifications. |
 | 5–17 | ⬜ | Console pages for these areas show a "not available yet" placeholder. |
 | 12 Health + operations | 🟡 Started | Platform and database health, health page. |
 | 13 Logging + audit | 🟡 Started | Audit repository and service; authentication events audited. |
-| 14 Administration | 🟡 Started | Session management (Administration → Sessions): list all live sessions, revoke one or all of a user's. |
+| 14 Administration | 🟡 Started | Session management; Users page (list, role assignment); Roles page (permission matrix). Missing: creating/disabling users, password reset, settings. |
 
 ## Phase 2: authentication
 
@@ -49,3 +49,16 @@ Tracks implementation against [the spec](../specs/clawapi-design-spec.md) §40/�
 Exit criteria: users sign in and out securely ✅; sessions are server-side ✅; no
 admin action is possible without authentication ✅ (every `/api` route except
 health, setup and sign-in requires a session; enforced by tests).
+
+## Phase 3: authorization
+
+| Task | Status | Where |
+|---|---|---|
+| Roles | ✅ | `roles` table, built-in ADMIN / OPERATOR / VIEWER (migration `0004_roles`) |
+| Permissions | ✅ | `packages/shared/src/authorization.ts` (21 permissions) |
+| User-role assignments | ✅ | `user_roles`, `PUT /api/users/:id/roles`, console Users page |
+| Authorization middleware | ✅ | required `access` on every route, enforced in the dispatcher |
+| Permission service | ✅ | `packages/authorization` |
+| Authorization tests | ✅ | every protected route is called anonymously (401), without the permission (403) and with it |
+
+Exit criterion: every protected endpoint enforces permissions server-side ✅.

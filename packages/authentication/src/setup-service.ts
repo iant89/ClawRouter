@@ -27,6 +27,11 @@ export interface SetupServiceOptions {
   setupToken: string;
   log?: Logger;
   now?: () => Date;
+  /**
+   * Called inside the user-creation transaction to give the first user the
+   * administrator role, so a failure leaves no role-less administrator behind.
+   */
+  grantAdministrator: (userId: string) => void;
   onCompleted?: () => void;
 }
 
@@ -69,12 +74,15 @@ export function createSetupService(options: SetupServiceOptions) {
       // Re-check inside the transaction: two concurrent setups cannot both succeed.
       const user = users.transaction((tx) => {
         if (tx.count() > 0) throw new AppError('CONFLICT', 'Initial setup has already been completed.');
-        return tx.insert({ id: newId(), username: input.username, displayName: input.displayName, passwordHash, status: 'ACTIVE', now: at });
+        const created = tx.insert({ id: newId(), username: input.username, displayName: input.displayName, passwordHash, status: 'ACTIVE', now: at });
+        options.grantAdministrator(created.id);
+        return created;
       });
 
       const actor = { id: user.id, name: user.username };
       const base = { ip: client.ip, requestId: client.requestId ?? null, actor };
       audit.record({ ...base, action: 'USER_CREATED', result: 'SUCCESS', resource: 'user', resourceId: user.id, metadata: { via: 'setup' } });
+      audit.record({ ...base, action: 'ROLE_CHANGED', result: 'SUCCESS', resource: 'user', resourceId: user.id, metadata: { username: user.username, before: [], after: ['ADMIN'], via: 'setup' } });
       audit.record({ ...base, action: 'SETUP_COMPLETED', result: 'SUCCESS', resource: 'system' });
       log?.info('initial setup completed', { component: 'setup', userId: user.id });
       options.onCompleted?.();

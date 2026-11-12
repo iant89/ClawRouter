@@ -10,7 +10,7 @@ describe('initial setup', () => {
     const result = await h.setup.complete({ setupToken: SETUP_TOKEN, ...ADMIN }, client);
     expect(result.user.username).toBe(ADMIN.username);
     expect(h.setup.isRequired()).toBe(false);
-    expect(h.audit.list().map((r) => r.action).sort()).toEqual(['LOGIN', 'SETUP_COMPLETED', 'USER_CREATED']);
+    expect(h.audit.list().map((r) => r.action).sort()).toEqual(['LOGIN', 'ROLE_CHANGED', 'SETUP_COMPLETED', 'USER_CREATED']);
   });
 
   test('cannot run twice', async () => {

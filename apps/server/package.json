@@ -7,6 +7,7 @@
     "@clawapi/api": "workspace:*",
     "@clawapi/audit": "workspace:*",
     "@clawapi/authentication": "workspace:*",
+    "@clawapi/authorization": "workspace:*",
     "@clawapi/console": "workspace:*",
     "@clawapi/core": "workspace:*",
     "@clawapi/database": "workspace:*",

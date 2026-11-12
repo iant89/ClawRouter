@@ -1,5 +1,6 @@
 import { AppError } from '@clawapi/core';
 import type { AuthService } from '@clawapi/authentication';
+import type { AuthorizationService } from '@clawapi/authorization';
 import { CSRF_HEADER } from '@clawapi/shared';
 import type { Middleware } from './context.ts';
 import { parseCookies, serializeCookie } from './cookies.ts';
@@ -70,13 +71,13 @@ export function csrfProtection(config: SessionCookieConfig): Middleware {
  * Resolves the session cookie on `/api/*`. The external gateway (`/v1/*`)
  * never accepts console sessions (spec §32). An invalid cookie is cleared.
  */
-export function sessionAuthentication(auth: AuthService, config: SessionCookieConfig): Middleware {
+export function sessionAuthentication(auth: AuthService, authz: AuthorizationService, config: SessionCookieConfig): Middleware {
   return (ctx, next) => {
     if (!ctx.url.pathname.startsWith('/api/')) return next();
     const token = readSessionToken(ctx.request, config);
     if (token !== null) {
       const resolved = auth.resolve(token);
-      if (resolved) ctx.auth = resolved;
+      if (resolved) ctx.auth = { ...resolved, ...authz.principalFor(resolved.user.id) };
       else clearSessionCookie(ctx.responseHeaders, config);
     }
     return next();

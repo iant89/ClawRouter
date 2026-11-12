@@ -8,7 +8,7 @@ How the code maps onto the spec, and the decisions taken while bootstrapping.
 HTTP (Bun.serve)                       apps/server/src/server.ts
   └─ API app: middleware + router      packages/api
        └─ controllers (thin)           packages/api/src/controllers
-            └─ application services    packages/health, packages/authentication, packages/audit
+            └─ application services    packages/health, packages/authentication, packages/authorization, packages/audit
                  └─ domain             packages/shared, packages/core
                       └─ infrastructure packages/database (SQLite adapter, repositories)
 ```
@@ -34,9 +34,9 @@ Bun.serve routes
 - `errorBoundary` turns every thrown value into an `AppError` and the error envelope.
   Unknown errors become `INTERNAL_ERROR` with a generic message; the cause is logged.
 - `accessLog` logs method, path (no query string), status and duration only.
-- `sessionAuthentication` sets `ctx.auth` on `/api/*` only. The dispatcher rejects
-  non-public routes without it (fail closed). Authorization (phase 3) will check
-  permissions on `ctx.auth` the same way.
+- `sessionAuthentication` sets `ctx.auth` (user, session, roles, permissions) on
+  `/api/*` only. The dispatcher enforces each route's declared access: 401 without
+  a session, 403 without the permission.
 - Handlers add cookies through `ctx.responseHeaders`, which is applied even to error
   responses (e.g. clearing an invalid cookie on a 401).
 - Domain packages own their repository interfaces and SQLite implementations

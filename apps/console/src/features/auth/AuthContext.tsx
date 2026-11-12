@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useReducer, type ReactNode } from 'react';
-import type { LoginRequest, SetupRequest } from '@clawapi/shared';
+import type { LoginRequest, Permission, SetupRequest } from '@clawapi/shared';
 import { setUnauthorizedHandler } from '../../services/api-client.ts';
 import * as authApi from '../../services/auth.ts';
 import { authReducer, type AuthState } from './auth-state.ts';
@@ -10,6 +10,8 @@ interface AuthValue {
   completeSetup(body: SetupRequest): Promise<void>;
   signOut(): Promise<void>;
   retry(): void;
+  /** Re-reads the session (e.g. after the user's roles changed). */
+  refresh(): Promise<void>;
 }
 
 const AuthContext = createContext<AuthValue | null>(null);
@@ -42,6 +44,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (document.visibilityState !== 'visible') return;
       const session = await authApi.fetchSession().catch(() => undefined);
       if (session === null) dispatch({ type: 'expired' });
+      // Picks up role changes made by an administrator while this console is open.
+      else if (session) dispatch({ type: 'refreshed', session });
     }, SESSION_CHECK_MS);
     return () => window.clearInterval(id);
   }, [signedIn]);
@@ -62,6 +66,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     },
     retry: () => void resolve(),
+    async refresh() {
+      const session = await authApi.fetchSession();
+      dispatch(session ? { type: 'refreshed', session } : { type: 'expired' });
+    },
   }), [state, resolve]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
@@ -78,4 +86,16 @@ export function useSession() {
   const { state } = useAuth();
   if (state.status !== 'signed-in') throw new Error('useSession requires a signed-in user');
   return state.session;
+}
+
+/**
+ * The signed-in user's permissions, for showing and hiding UI only. Every
+ * request is still authorized by the server.
+ */
+export function usePermissions() {
+  const { permissions } = useSession();
+  return useMemo(() => {
+    const set = new Set(permissions);
+    return { set, can: (permission: Permission) => set.has(permission) };
+  }, [permissions]);
 }

@@ -13,6 +13,7 @@ export interface EventMap {
   'settings.changed': { key: string };
   'session.revoked': { sessionId: string; userId: string; reason: SessionRevokeReason };
   'user.signed_in': { userId: string };
+  'user.roles_changed': { userId: string; roles: string[] };
 }
 
 export type EventName = keyof EventMap;

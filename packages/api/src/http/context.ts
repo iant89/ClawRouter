@@ -1,11 +1,14 @@
 import type { Logger } from '@clawapi/core';
-import type { SessionInfo, UserSummary } from '@clawapi/shared';
+import type { Permission, SessionInfo, UserSummary } from '@clawapi/shared';
 
 /** The authenticated console user for this request (session cookie). */
 export interface AuthContext {
   user: UserSummary;
   session: SessionInfo;
   sessionId: string;
+  /** Role ids, resolved from the database for this request. */
+  roles: string[];
+  permissions: ReadonlySet<Permission>;
 }
 
 /** Per-request context passed through middleware and handlers. */

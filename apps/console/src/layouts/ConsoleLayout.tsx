@@ -1,9 +1,9 @@
 import { useState, type ReactNode } from 'react';
 import { AppShell, ApplicationHeader, Icon, NavigationGroup, NavigationItem, SideNavigation } from '@enterprise-ui/react';
-import { NAVIGATION, itemById, type NavItem } from '../app/navigation.ts';
+import { itemById, visibleNavigation, type NavItem } from '../app/navigation.ts';
 import { useRouter } from '../app/router.tsx';
 import { HealthStateIndicator } from '../components/custom/HealthStateIndicator.tsx';
-import { useAuth, useSession } from '../features/auth/AuthContext.tsx';
+import { useAuth, usePermissions, useSession } from '../features/auth/AuthContext.tsx';
 import { useHealth } from '../features/health/HealthContext.tsx';
 import { MySessionsDialog } from '../features/sessions/MySessionsDialog.tsx';
 
@@ -11,10 +11,14 @@ function NavLink({ item }: { item: NavItem }) {
   return <NavigationItem id={item.id} label={item.label} icon={<Icon name={item.icon} />} href={item.path} />;
 }
 
+const ROLE_LABELS: Record<string, string> = { ADMIN: 'Administrator', OPERATOR: 'Operator', VIEWER: 'Viewer' };
+const roleLabel = (id: string) => ROLE_LABELS[id] ?? id;
+
 export function ConsoleLayout({ activeId, children }: { activeId: string | undefined; children: ReactNode }) {
   const { navigate } = useRouter();
   const { signOut } = useAuth();
-  const { user } = useSession();
+  const { user, roles } = useSession();
+  const { set: permissions } = usePermissions();
   const { data, error } = useHealth();
   const [sessionsOpen, setSessionsOpen] = useState(false);
   const gatewayState = error ? 'OFFLINE' : (data?.status ?? 'UNKNOWN');
@@ -28,8 +32,7 @@ export function ConsoleLayout({ activeId, children }: { activeId: string | undef
           logo={<Icon name="it-host" color="var(--eui-color-primary)" />}
           homeHref="/"
           context={[{ id: 'gateway', content: <HealthStateIndicator state={gatewayState} label="System" size="sm" />, priority: 1 }]}
-          // Roles arrive with RBAC (phase 3).
-          user={{ name: user.displayName, email: user.username }}
+          user={{ name: user.displayName, email: user.username, role: roles.length ? roles.map(roleLabel).join(', ') : 'No role' }}
           userMenuItems={[
             { id: 'sessions', label: 'My sessions', icon: 'user-settings' },
             { type: 'separator' },
@@ -52,7 +55,7 @@ export function ConsoleLayout({ activeId, children }: { activeId: string | undef
             navigate(item.path);
           }}
         >
-          {NAVIGATION.map((group) =>
+          {visibleNavigation(permissions).map((group) =>
             group.label === null ? (
               group.items.map((item) => <NavLink key={item.id} item={item} />)
             ) : (

@@ -3,6 +3,7 @@ import { HEALTH_LABEL, HEALTH_TONE, HealthStateIndicator } from '../../component
 import { componentLabel, formatTime, formatUptime } from '../../services/format.ts';
 import { useRouter } from '../../app/router.tsx';
 import { useHealth } from '../health/HealthContext.tsx';
+import { usePermissions, useSession } from '../auth/AuthContext.tsx';
 
 /** Metrics that need the gateway (Phase 8+) are listed honestly rather than faked. */
 const PENDING_METRICS = [
@@ -19,6 +20,8 @@ const PENDING_METRICS = [
 export function DashboardPage() {
   const { data, error, loading, lastUpdated, refresh } = useHealth();
   const { navigate } = useRouter();
+  const { roles } = useSession();
+  const canHealth = usePermissions().can('health.read');
   const database = data?.checks.find((c) => c.component === 'database');
   const issues = data?.checks.filter((c) => c.status !== 'HEALTHY' && c.status !== 'DISABLED') ?? [];
 
@@ -28,6 +31,11 @@ export function DashboardPage() {
       subtitle="Is the AI gateway working?"
       actions={<RefreshControl onRefresh={refresh} refreshing={loading} lastUpdated={lastUpdated} intervals={[]} />}
     >
+      {roles.length === 0 && (
+        <MessageStrip tone="information" title="No role assigned">
+          You are signed in, but no role has been assigned to you yet, so there is nothing else you can open. Ask an administrator for access.
+        </MessageStrip>
+      )}
       {error && (
         <MessageStrip tone="error" title="Cannot load system health">
           {error.message}
@@ -42,7 +50,7 @@ export function DashboardPage() {
           icon="electrocardiogram"
           loading={!data && loading}
           footer={data ? `${data.checks.length} checks · ${formatTime(data.checkedAt)}` : undefined}
-          onClick={() => navigate('/health')}
+          onClick={canHealth ? () => navigate('/health') : undefined}
         />
         <MetricCard
           title="Database"
@@ -58,7 +66,7 @@ export function DashboardPage() {
         <DashboardWidget span={2}>
           <List
             header="Component status"
-            onItemClick={() => navigate('/health')}
+            onItemClick={canHealth ? () => navigate('/health') : undefined}
             emptyState={loading ? 'Loading…' : 'No components reported'}
             items={(data?.checks ?? []).map((c) => ({
               id: c.component,

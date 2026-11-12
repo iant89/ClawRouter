@@ -12,6 +12,7 @@ export type AuthEvent =
   | { type: 'resolved'; setupRequired: boolean; session: AuthSession | null }
   | { type: 'failed'; message: string }
   | { type: 'signed-in'; session: AuthSession }
+  | { type: 'refreshed'; session: AuthSession }
   | { type: 'signed-out' }
   | { type: 'expired' };
 
@@ -24,6 +25,11 @@ export function authReducer(state: AuthState, event: AuthEvent): AuthState {
       return { status: 'error', message: event.message };
     case 'signed-in':
       return { status: 'signed-in', session: event.session };
+    case 'refreshed':
+      // Only updates an existing sign-in, and keeps the same object when nothing
+      // changed so the console does not re-render every minute.
+      if (state.status !== 'signed-in') return state;
+      return sameSession(state.session, event.session) ? state : { status: 'signed-in', session: event.session };
     case 'signed-out':
       return { status: 'signed-out', reason: 'signed-out' };
     case 'expired':
@@ -60,4 +66,14 @@ export function safeNext(next: string | null): string {
   if (!next || !next.startsWith('/') || next.startsWith('//') || next.startsWith('/\\')) return '/';
   if (next === '/login' || next === '/setup') return '/';
   return next;
+}
+
+function sameSession(a: AuthSession, b: AuthSession): boolean {
+  return (
+    a.user.id === b.user.id &&
+    a.user.displayName === b.user.displayName &&
+    a.session.id === b.session.id &&
+    a.roles.join() === b.roles.join() &&
+    a.permissions.join() === b.permissions.join()
+  );
 }

@@ -4,23 +4,30 @@ import { DashboardPage } from '../features/dashboard/DashboardPage.tsx';
 import { HealthPage } from '../features/health/HealthPage.tsx';
 import { HealthProvider } from '../features/health/HealthContext.tsx';
 import { SessionsPage } from '../features/sessions/SessionsPage.tsx';
-import { AuthProvider, useAuth } from '../features/auth/AuthContext.tsx';
+import { RolesPage } from '../features/roles/RolesPage.tsx';
+import { UsersPage } from '../features/users/UsersPage.tsx';
+import { NoAccessPage } from '../pages/NoAccessPage.tsx';
+import { AuthProvider, useAuth, usePermissions } from '../features/auth/AuthContext.tsx';
 import { redirectFor } from '../features/auth/auth-state.ts';
 import { LoginPage } from '../features/auth/LoginPage.tsx';
 import { SetupPage } from '../features/auth/SetupPage.tsx';
 import { PlannedFeature } from '../components/custom/PlannedFeature.tsx';
 import { ConsoleLayout } from '../layouts/ConsoleLayout.tsx';
 import { NotFoundPage } from '../pages/NotFoundPage.tsx';
-import { resolvePath, type NavItem } from './navigation.ts';
+import { canSee, resolvePath, type NavItem } from './navigation.ts';
 import { RouterProvider, useRouter } from './router.tsx';
 
 function PageFor({ item }: { item: NavItem | undefined }) {
+  const { set } = usePermissions();
   if (!item) return <NotFoundPage />;
+  if (!canSee(item, set)) return <NoAccessPage item={item} />;
   if (item.plannedPhase !== undefined) return <PlannedFeature item={item} />;
   switch (item.id) {
     case 'dashboard': return <DashboardPage />;
     case 'health': return <HealthPage />;
     case 'sessions': return <SessionsPage />;
+    case 'users': return <UsersPage />;
+    case 'roles': return <RolesPage />;
     default: return <NotFoundPage />;
   }
 }

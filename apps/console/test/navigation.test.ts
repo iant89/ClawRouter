@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { NAV_ITEMS, NAVIGATION, resolvePath } from '../src/app/navigation.ts';
+import { NAV_ITEMS, NAVIGATION, resolvePath, visibleNavigation } from '../src/app/navigation.ts';
 import { describeUserAgent, formatRelative, formatUptime } from '../src/services/format.ts';
 
 describe('console navigation', () => {
@@ -27,7 +27,7 @@ describe('console navigation', () => {
   });
 
   test('only implemented pages lack a planned phase', () => {
-    expect(NAV_ITEMS.filter((i) => i.plannedPhase === undefined).map((i) => i.id)).toEqual(['dashboard', 'health', 'sessions']);
+    expect(NAV_ITEMS.filter((i) => i.plannedPhase === undefined).map((i) => i.id)).toEqual(['dashboard', 'health', 'users', 'roles', 'sessions']);
   });
 });
 
@@ -59,5 +59,22 @@ describe('formatRelative', () => {
     ['2025-12-30T12:00:00Z', '2 d ago'],
   ])('%s -> %s', (iso, out) => {
     expect(formatRelative(iso, now)).toBe(out);
+  });
+});
+
+describe('visibleNavigation', () => {
+  test('a user without roles sees only the dashboard', () => {
+    expect(visibleNavigation(new Set()).flatMap((g) => g.items.map((i) => i.id))).toEqual(['dashboard']);
+  });
+
+  test('a viewer sees read-only gateway areas and no administration', () => {
+    const viewer = new Set(['providers.read', 'models.read', 'routing.read', 'requests.read', 'usage.read', 'health.read']);
+    const groups = visibleNavigation(viewer);
+    expect(groups.map((g) => g.label)).toEqual([null, 'Gateway', 'AI Infrastructure', 'System']);
+    expect(groups.flatMap((g) => g.items.map((i) => i.id))).not.toContain('logs');
+  });
+
+  test('every page except the dashboard requires a permission', () => {
+    expect(NAV_ITEMS.filter((i) => !i.permission).map((i) => i.id)).toEqual(['dashboard']);
   });
 });

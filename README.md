@@ -8,14 +8,15 @@ usage tracking and an administration console built on
 - **Spec:** [`specs/clawapi-design-spec.md`](specs/clawapi-design-spec.md)
 - **Status:** [`docs/roadmap-status.md`](docs/roadmap-status.md). Done so far: the
   first working milestone (Bun server, SQLite with migrations, `/api/health`,
-  console shell) and phase 2, **authentication** (server-side sessions, initial
-  setup, login throttling, audit). The AI gateway itself (`/v1/*`) and RBAC
-  (phase 3) are not built yet.
+  console shell), phase 2 **authentication** (server-side sessions, initial
+  setup, login throttling, audit, session revocation) and phase 3
+  **authorization** (ADMIN / OPERATOR / VIEWER roles enforced on every route).
+  The AI gateway itself (`/v1/*`) is not built yet.
 - **Architecture:** [`docs/architecture.md`](docs/architecture.md) ·
-  **Security model:** [`docs/authentication.md`](docs/authentication.md)
+  **Security model:** [`docs/authentication.md`](docs/authentication.md),
+  [`docs/authorization.md`](docs/authorization.md)
 
-> Every signed-in user currently has full access: roles and permissions arrive in
-> phase 3. Serve ClawAPI over HTTPS (behind a reverse proxy) before exposing it.
+> Serve ClawAPI over HTTPS (behind a reverse proxy) before exposing it.
 
 ## Requirements
 
@@ -94,6 +95,7 @@ clawapi/
     core/        config, errors, validation, logger (with redaction), typed event bus, ids
     database/    data-access interface, SQLite adapter, migrations, settings repository
     authentication/  users, sessions, password hashing, login throttling, initial setup
+    authorization/   roles, permissions, role assignment
     audit/       append-only audit log
     health/      health checks and aggregation service
     api/         router, middleware (CSRF, sessions), response conventions, controllers
@@ -105,7 +107,7 @@ clawapi/
 ```
 
 The remaining packages from spec §4 (`gateway`, `providers`, `models`, `routing`,
-`authorization`, `observability`) are added by the phase
+`observability`) are added by the phase
 that implements them, so the tree never contains empty placeholders.
 
 ## Adding a migration
@@ -128,8 +130,9 @@ that implements them, so the tree never contains empty placeholders.
 Every response has an `x-request-id` header that matches the server's log lines.
 5xx messages are always generic; details stay in the server log.
 
-Every `/api/*` route requires a session unless it is registered with
-`{ public: true }`, so a new route fails closed. State-changing requests need a JSON
+Every route declares its access when it is registered (`'public'`,
+`'authenticated'` or a permission), and the server enforces it before the handler
+runs. See [authorization](docs/authorization.md). State-changing requests need a JSON
 body and, when they carry the session cookie, the `x-clawapi-csrf` header.
 
 ```bash

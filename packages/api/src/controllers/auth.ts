@@ -1,5 +1,6 @@
 import { AppError, errors, v } from '@clawapi/core';
 import type { AuthService, ClientInfo, SetupService } from '@clawapi/authentication';
+import type { AuthorizationService } from '@clawapi/authorization';
 import type { AdminSessionInfo, AuthSession, RevokeResult, SetupStatus } from '@clawapi/shared';
 import { readJson } from '../http/body.ts';
 import type { Handler, RequestContext } from '../http/context.ts';
@@ -49,16 +50,23 @@ function requireAuth(ctx: RequestContext) {
 
 export interface AuthControllerDeps {
   auth: AuthService;
+  authz: AuthorizationService;
   setup: SetupService;
   cookie: SessionCookieConfig;
 }
 
-export function authController({ auth, setup, cookie }: AuthControllerDeps) {
+export function authController({ auth, authz, setup, cookie }: AuthControllerDeps) {
+  /** The session body, with the roles and permissions the console uses to adapt its UI. */
+  const sessionBody = (user: AuthSession['user'], info: AuthSession['session']): AuthSession => {
+    const principal = authz.principalFor(user.id);
+    return { user, session: info, roles: principal.roles, permissions: [...principal.permissions].sort() };
+  };
+
   const login: Handler = async (ctx) => {
     const body = await readJson(ctx, loginBody);
     const result = await auth.login(body.username, body.password, client(ctx));
     setSessionCookie(ctx.responseHeaders, cookie, result.token, result.session);
-    return ok<AuthSession>({ user: result.user, session: result.session });
+    return ok<AuthSession>(sessionBody(result.user, result.session));
   };
 
   /** Always succeeds and clears the cookie, even if the session already ended. */
@@ -71,7 +79,7 @@ export function authController({ auth, setup, cookie }: AuthControllerDeps) {
 
   const session: Handler = (ctx) => {
     const { user, session: info } = requireAuth(ctx);
-    return ok<AuthSession>({ user, session: info });
+    return ok<AuthSession>(sessionBody(user, info));
   };
 
   const listSessions: Handler = (ctx) => {
@@ -94,8 +102,7 @@ export function authController({ auth, setup, cookie }: AuthControllerDeps) {
     return ok<RevokeResult>({ revoked });
   };
 
-  // Administration. Every signed-in user may use these until RBAC (phase 3)
-  // restricts them to administrators.
+  // Administration: sessions.read / sessions.revoke (enforced by the router).
   const listAllSessions: Handler = (ctx) => {
     const current = requireAuth(ctx);
     const { page, pageSize } = pageQuery(ctx.url);
@@ -128,7 +135,7 @@ export function authController({ auth, setup, cookie }: AuthControllerDeps) {
     const body = await readJson(ctx, setupBody);
     const result = await setup.complete(body, client(ctx));
     setSessionCookie(ctx.responseHeaders, cookie, result.token, result.session);
-    return ok<AuthSession>({ user: result.user, session: result.session }, { status: 201 });
+    return ok<AuthSession>(sessionBody(result.user, result.session), { status: 201 });
   };
 
   return { login, logout, session, listSessions, revokeSession, revokeOtherSessions, listAllSessions, revokeAnySession, revokeUserSessions, setupStatus, completeSetup };

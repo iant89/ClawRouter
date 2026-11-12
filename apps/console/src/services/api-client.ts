@@ -105,4 +105,5 @@ export async function apiGetPage<T>(path: string, options?: RequestOptions): Pro
 
 export const apiGet = <T>(path: string, options?: RequestOptions) => request<T>('GET', path, undefined, options);
 export const apiPost = <T>(path: string, body?: unknown, options?: RequestOptions) => request<T>('POST', path, body ?? {}, options);
+export const apiPut = <T>(path: string, body: unknown, options?: RequestOptions) => request<T>('PUT', path, body, options);
 export const apiDelete = <T = void>(path: string, options?: RequestOptions) => request<T>('DELETE', path, undefined, options);

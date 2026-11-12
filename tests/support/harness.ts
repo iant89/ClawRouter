@@ -8,6 +8,7 @@ import {
   createArgon2Hasher, createAuthService, createSetupService, createSqliteSessionRepository, createSqliteUserRepository,
   type AuthService, type PasswordHasher, type SetupService, type UserRepository,
 } from '@clawapi/authentication';
+import { createAuthorizationService, createSqliteRoleRepository, type AuthorizationService } from '@clawapi/authorization';
 import { createEventBus, createLogger, type EventBus, type LogRecord } from '@clawapi/core';
 import { migrations, openSqlite, runMigrations, type Database } from '@clawapi/database';
 import { createDatabaseCheck, createHealthService, type HealthService } from '@clawapi/health';
@@ -34,6 +35,7 @@ export interface Harness {
   users: UserRepository;
   audit: AuditService;
   auth: AuthService;
+  authz: AuthorizationService;
   setup: SetupService;
   health: HealthService;
   api: ApiApp;
@@ -44,8 +46,8 @@ export interface Harness {
   completeSetup(): Promise<string>;
   /** Signs in and returns the session cookie. */
   login(username?: string, password?: string): Promise<string>;
-  /** Inserts an extra ACTIVE user directly (user management is phase 14). */
-  addUser(username: string, password?: string): Promise<{ id: string }>;
+  /** Inserts an extra ACTIVE user directly (user management is phase 14), with optional roles. */
+  addUser(username: string, roles?: string[], password?: string): Promise<{ id: string }>;
 }
 
 export function cookieFrom(response: Response): string {
@@ -73,12 +75,16 @@ export function createHarness(options: { idleMinutes?: number; maxHours?: number
     log,
     now: clock.now,
   });
-  const setup = createSetupService({ users, hasher: fastHasher, auth, audit, setupToken: SETUP_TOKEN, log, now: clock.now });
+  const authz = createAuthorizationService({ roles: createSqliteRoleRepository(db), audit, events, log, now: clock.now });
+  const setup = createSetupService({
+    users, hasher: fastHasher, auth, audit, setupToken: SETUP_TOKEN, log, now: clock.now,
+    grantAdministrator: (userId) => authz.grantInitialAdministrator(userId),
+  });
   const health = createHealthService({ checks: [createDatabaseCheck(db)], version: 'test', environment: 'test', now: clock.now });
-  const api = createApiApp({ log, health, auth, setup, cookie: { secure: options.secureCookie ?? false } });
+  const api = createApiApp({ log, health, auth, authz, setup, cookie: { secure: options.secureCookie ?? false } });
 
   const h: Harness = {
-    db, clock, events, users, audit, auth, setup, health, api, logs,
+    db, clock, events, users, audit, auth, authz, setup, health, api, logs,
     request(path, init = {}) {
       const { json, cookie, csrf = true, ip = '203.0.113.7', ...rest } = init;
       const headers = new Headers(rest.headers);
@@ -94,9 +100,10 @@ export function createHarness(options: { idleMinutes?: number; maxHours?: number
       const res = await h.request('/api/setup', { method: 'POST', json: { setupToken: SETUP_TOKEN, ...ADMIN } });
       return cookieFrom(res);
     },
-    async addUser(username, password = ADMIN.password) {
+    async addUser(username, roles = [], password = ADMIN.password) {
       const id = crypto.randomUUID();
       users.insert({ id, username, displayName: username, passwordHash: await fastHasher.hash(password), status: 'ACTIVE', now: clock.now().toISOString() });
+      if (roles.length) createSqliteRoleRepository(db).setUserRoles(id, roles, clock.now().toISOString(), null);
       return { id };
     },
     async login(username = ADMIN.username, password = ADMIN.password) {

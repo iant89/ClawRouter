@@ -127,9 +127,9 @@ describe('own sessions', () => {
 });
 
 describe('protection', () => {
-  test('routes are protected by default; only the intended ones are public', () => {
+  test('only the intended routes are public', () => {
     const h = createHarness();
-    const publicRoutes = h.api.router.list().filter((r) => r.public).map((r) => `${r.method} ${r.pattern}`);
+    const publicRoutes = h.api.router.list().filter((r) => r.access === 'public').map((r) => `${r.method} ${r.pattern}`);
     expect(publicRoutes.sort()).toEqual([
       'GET /api/health', 'GET /api/setup/status', 'POST /api/auth/login', 'POST /api/auth/logout', 'POST /api/setup',
     ]);
@@ -148,7 +148,7 @@ describe('protection', () => {
     const h = createHarness();
     const cookie = await h.completeSetup();
     let sawAuth: unknown = 'unset';
-    h.api.router.get('/v1/probe', (ctx) => { sawAuth = ctx.auth; return new Response('ok'); }, { public: true });
+    h.api.router.get('/v1/probe', 'public', (ctx) => { sawAuth = ctx.auth; return new Response('ok'); });
     await h.request('/v1/probe', { cookie });
     expect(sawAuth).toBeNull();
   });

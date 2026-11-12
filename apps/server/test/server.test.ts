@@ -31,7 +31,7 @@ describe('ClawAPI server', () => {
 
   test('migrations ran on startup', () => {
     const ids = app.db.all<{ id: string }>('SELECT id FROM schema_migrations ORDER BY id').map((r) => r.id);
-    expect(ids).toEqual(['0001_settings', '0002_users_sessions', '0003_audit_log']);
+    expect(ids).toEqual(['0001_settings', '0002_users_sessions', '0003_audit_log', '0004_roles']);
   });
 
   test('admin API requires a session', async () => {

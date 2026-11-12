@@ -7,9 +7,10 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
+    "@clawapi/authentication": "workspace:*",
+    "@clawapi/authorization": "workspace:*",
     "@clawapi/core": "workspace:*",
-    "@clawapi/shared": "workspace:*",
     "@clawapi/health": "workspace:*",
-    "@clawapi/authentication": "workspace:*"
+    "@clawapi/shared": "workspace:*"
   }
 }

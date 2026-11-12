@@ -7,7 +7,7 @@ import type { AdminSessionInfo } from '@clawapi/shared';
 import { ApiClientError, type PagedResult } from '../../services/api-client.ts';
 import { fetchAllSessions, onSessionsChanged, revokeSession, revokeUserSessions } from '../../services/auth.ts';
 import { describeUserAgent, formatRelative } from '../../services/format.ts';
-import { useAuth, useSession } from '../auth/AuthContext.tsx';
+import { useAuth, usePermissions, useSession } from '../auth/AuthContext.tsx';
 
 type Pending =
   | { kind: 'one'; session: AdminSessionInfo }
@@ -25,6 +25,7 @@ export function SessionsPage() {
   const toast = useToast();
   const { signOut } = useAuth();
   const { user: me } = useSession();
+  const canRevoke = usePermissions().can('sessions.revoke');
   const [page, setPage] = useState(1);
   const [userFilter, setUserFilter] = useState<{ id: string; name: string } | null>(null);
   const [result, setResult] = useState<PagedResult<AdminSessionInfo> | null>(null);
@@ -106,6 +107,7 @@ export function SessionsPage() {
     {
       id: 'actions', header: 'Actions', align: 'end',
       cell: (s) => {
+        if (!canRevoke) return null;
         const own = s.user.id === me.id;
         return (
           <OverflowMenu
@@ -137,9 +139,6 @@ export function SessionsPage() {
       subtitle="Signed-in console sessions across all users"
       actions={<RefreshControl onRefresh={reload} refreshing={loading} lastUpdated={lastUpdated} intervals={[]} />}
     >
-      <MessageStrip tone="information">
-        Every signed-in user can manage sessions until roles arrive in phase 3, when this page becomes administrator-only.
-      </MessageStrip>
       {error && <MessageStrip tone="error" title="Cannot load sessions">{error}</MessageStrip>}
       {userFilter && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--eui-space-2, 0.5rem)', flexWrap: 'wrap' }}>
