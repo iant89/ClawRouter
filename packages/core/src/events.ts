@@ -25,6 +25,7 @@ export interface EventMap {
   'provider.models_listed': { providerId: string; models: { id: string; displayName: string | null; contextLength: number | null; maxOutputTokens: number | null; kind: 'chat' | 'embedding' | 'other' }[] };
   'model.changed': { modelId: string; providerId: string; action: 'created' | 'updated' | 'deleted' | 'enabled' | 'disabled' | 'availability' };
   'model.availability': { modelId: string; ref: string; displayName: string; previous: 'AVAILABLE' | 'UNAVAILABLE' | 'UNKNOWN'; current: 'AVAILABLE' | 'UNAVAILABLE' | 'UNKNOWN' };
+  'routing.changed': { version: number; updatedBy: string | null };
   'notification.created': { id: string; userId: string | null; audiencePermission: string | null };
 }
 

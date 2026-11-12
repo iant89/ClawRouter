@@ -15,6 +15,7 @@
         "@clawrouter/models": "workspace:*",
         "@clawrouter/notifications": "workspace:*",
         "@clawrouter/providers": "workspace:*",
+        "@clawrouter/routing": "workspace:*",
         "@clawrouter/shared": "workspace:*",
       },
       "devDependencies": {
@@ -49,6 +50,7 @@
         "@clawrouter/models": "workspace:*",
         "@clawrouter/notifications": "workspace:*",
         "@clawrouter/providers": "workspace:*",
+        "@clawrouter/routing": "workspace:*",
         "@clawrouter/shared": "workspace:*",
       },
     },
@@ -63,6 +65,7 @@
         "@clawrouter/models": "workspace:*",
         "@clawrouter/notifications": "workspace:*",
         "@clawrouter/providers": "workspace:*",
+        "@clawrouter/routing": "workspace:*",
         "@clawrouter/shared": "workspace:*",
       },
     },
@@ -147,6 +150,18 @@
         "@clawrouter/shared": "workspace:*",
       },
     },
+    "packages/routing": {
+      "name": "@clawrouter/routing",
+      "version": "0.1.0",
+      "dependencies": {
+        "@clawrouter/audit": "workspace:*",
+        "@clawrouter/core": "workspace:*",
+        "@clawrouter/database": "workspace:*",
+        "@clawrouter/models": "workspace:*",
+        "@clawrouter/providers": "workspace:*",
+        "@clawrouter/shared": "workspace:*",
+      },
+    },
     "packages/shared": {
       "name": "@clawrouter/shared",
       "version": "0.1.0",
@@ -174,6 +189,8 @@
     "@clawrouter/notifications": ["@clawrouter/notifications@workspace:packages/notifications"],
 
     "@clawrouter/providers": ["@clawrouter/providers@workspace:packages/providers"],
+
+    "@clawrouter/routing": ["@clawrouter/routing@workspace:packages/routing"],
 
     "@clawrouter/server": ["@clawrouter/server@workspace:apps/server"],
 

@@ -4,6 +4,7 @@ import type { AuthorizationService } from '@clawrouter/authorization';
 import type { NotificationService } from '@clawrouter/notifications';
 import type { ProviderService } from '@clawrouter/providers';
 import type { ModelService } from '@clawrouter/models';
+import type { RoutingService } from '@clawrouter/routing';
 import type { HealthService } from '@clawrouter/health';
 import { compose, type Handler, type Middleware, type RequestContext } from './http/context.ts';
 import { accessLog, errorBoundary, requestIdHeader, securityHeaders } from './http/middleware.ts';
@@ -15,6 +16,7 @@ import { accessController } from './controllers/access.ts';
 import { notificationsController } from './controllers/notifications.ts';
 import { providersController } from './controllers/providers.ts';
 import { modelsController } from './controllers/models.ts';
+import { routingController } from './controllers/routing.ts';
 
 export interface ApiDependencies {
   log: Logger;
@@ -24,6 +26,7 @@ export interface ApiDependencies {
   notifications: NotificationService;
   providers: ProviderService;
   models: ModelService;
+  routing: RoutingService;
   setup: SetupService;
   cookie: SessionCookieConfig;
 }
@@ -49,6 +52,7 @@ export function createApiApp(deps: ApiDependencies): ApiApp {
   const notes = notificationsController(deps.notifications);
   const prov = providersController(deps.providers);
   const mod = modelsController(deps.models);
+  const rt = routingController(deps.routing);
 
   // Public: health for load balancers, setup and sign-in.
   router.get('/api/health', 'public', healthHandler(deps.health));
@@ -87,6 +91,11 @@ export function createApiApp(deps: ApiDependencies): ApiApp {
   router.get('/api/models/:id', 'models.read', mod.get);
   router.patch('/api/models/:id', 'models.write', mod.update);
   router.delete('/api/models/:id', 'models.write', mod.remove);
+
+  // AI infrastructure: routing (spec §10, §31). The preview is a dry run: nothing is sent to a provider.
+  router.get('/api/routing', 'routing.read', rt.get);
+  router.put('/api/routing', 'routing.write', rt.put);
+  router.post('/api/routing/preview', 'routing.read', rt.preview);
 
   // Administration
   router.get('/api/sessions', 'sessions.read', authRoutes.listAllSessions);

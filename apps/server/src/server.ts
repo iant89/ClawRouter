@@ -10,6 +10,7 @@ import { createEventBus, type Config, type EventBus, type Logger } from '@clawro
 import { createNotificationService, createSqliteNotificationRepository, type NotificationService } from '@clawrouter/notifications';
 import { createDefaultRegistry, createProviderService, createSqliteProviderRepository, type ProviderService } from '@clawrouter/providers';
 import { createModelService, createSqliteModelRepository, type ModelService } from '@clawrouter/models';
+import { createRoutingService, createSqliteRoutingStore, type RoutingService } from '@clawrouter/routing';
 import { migrations, openSqlite, runMigrations, type Database } from '@clawrouter/database';
 import { createDatabaseCheck, createHealthService, createPlatformCheck, createProvidersCheck, type HealthService } from '@clawrouter/health';
 import { loadSecretBox } from './secret-key.ts';
@@ -37,6 +38,7 @@ export interface ClawRouter {
   notifications: NotificationService;
   providers: ProviderService;
   models: ModelService;
+  routing: RoutingService;
   setup: SetupService;
   audit: AuditService;
   /** Present while initial setup is pending. */
@@ -68,6 +70,7 @@ export async function startClawRouter({ config, log, version, consoleHtml, hashe
   });
   const models = createModelService({ repo: createSqliteModelRepository(db), providers, audit, events, log });
   const unsubscribeModels = models.subscribe(events);
+  const routing = createRoutingService({ store: createSqliteRoutingStore(db), models, providers, audit, events, log });
   const health = createHealthService({
     checks: [createPlatformCheck(), createDatabaseCheck(db), createProvidersCheck(providers)],
     version,
@@ -131,7 +134,7 @@ export async function startClawRouter({ config, log, version, consoleHtml, hashe
   providerKickoff?.unref();
   providerTimer?.unref();
 
-  const api = createApiApp({ log, health, auth, authz, notifications, providers, models, setup, cookie: { secure: config.auth.cookieSecure } });
+  const api = createApiApp({ log, health, auth, authz, notifications, providers, models, routing, setup, cookie: { secure: config.auth.cookieSecure } });
 
   const handle = (request: Request, srv: Server<undefined>) => api.handle(request, srv.requestIP(request)?.address ?? null);
   const serveConsole = config.console.enabled && consoleHtml !== undefined;
@@ -160,7 +163,7 @@ export async function startClawRouter({ config, log, version, consoleHtml, hashe
 
   let stopped = false;
   return {
-    server, db, events, health, auth, authz, notifications, providers, models, setup, audit, api, url,
+    server, db, events, health, auth, authz, notifications, providers, models, routing, setup, audit, api, url,
     get setupToken() {
       return setupToken;
     },

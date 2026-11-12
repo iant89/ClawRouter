@@ -257,7 +257,12 @@ export function createModelService(options: {
       });
     },
 
-    /** Usable models, optionally with a capability: the input to routing (phase 7). */
+    /** Every registered model, usable or not: the routing snapshot (unusable ones are reported as excluded). */
+    listAll(): ModelInfo[] {
+      return repo.query({ limit: 100_000, offset: 0 }).items;
+    },
+
+    /** Usable models, optionally with a capability. */
     listUsable(capability?: Capability): ModelInfo[] {
       return repo.query({ capability, usableOnly: true, limit: 10_000, offset: 0 }).items;
     },

@@ -12,6 +12,7 @@ import { createAuthorizationService, createSqliteRoleRepository, type Authorizat
 import { createEventBus, createLogger, createSecretBox, generateSecretKey, parseSecretKey, type EventBus, type LogRecord, type SecretBox } from '@clawrouter/core';
 import { createDefaultRegistry, createProviderService, createSqliteProviderRepository, type ProviderService } from '@clawrouter/providers';
 import { createModelService, createSqliteModelRepository, type ModelService } from '@clawrouter/models';
+import { createRoutingService, createSqliteRoutingStore, seededRandom, type RoutingService } from '@clawrouter/routing';
 import { createNotificationService, createSqliteNotificationRepository, type NotificationService } from '@clawrouter/notifications';
 import { migrations, openSqlite, runMigrations, type Database } from '@clawrouter/database';
 import { createDatabaseCheck, createHealthService, type HealthService } from '@clawrouter/health';
@@ -42,6 +43,7 @@ export interface Harness {
   notifications: NotificationService;
   providers: ProviderService;
   models: ModelService;
+  routing: RoutingService;
   secrets: SecretBox;
   /** Replaces the fetch used for provider calls. */
   setProviderFetch(fn: typeof fetch): void;
@@ -99,11 +101,13 @@ export function createHarness(options: { idleMinutes?: number; maxHours?: number
   });
   const models = createModelService({ repo: createSqliteModelRepository(db), providers, audit, events, log, now: clock.now });
   models.subscribe(events);
+  // Seeded randomness: weighted routing choices are reproducible in tests.
+  const routing = createRoutingService({ store: createSqliteRoutingStore(db), models, providers, audit, events, log, now: clock.now, random: seededRandom(42) });
   const health = createHealthService({ checks: [createDatabaseCheck(db)], version: 'test', environment: 'test', now: clock.now });
-  const api = createApiApp({ log, health, auth, authz, notifications, providers, models, setup, cookie: { secure: options.secureCookie ?? false } });
+  const api = createApiApp({ log, health, auth, authz, notifications, providers, models, routing, setup, cookie: { secure: options.secureCookie ?? false } });
 
   const h: Harness = {
-    db, clock, events, users, audit, auth, authz, notifications, providers, models, secrets, setup, health, api, logs,
+    db, clock, events, users, audit, auth, authz, notifications, providers, models, routing, secrets, setup, health, api, logs,
     setProviderFetch(fn) {
       providerFetch = fn;
     },
