@@ -248,7 +248,7 @@ describe('streaming (spec §13)', () => {
     const res = await v1(h, key, '/chat/completions', chat('openai/gpt-4o-mini', { stream: true }));
     const events = await sseEvents(res);
     expect(events.at(-1)).toMatchObject({ error: { type: 'api_error', code: 'stream_interrupted' } });
-    expect(failed).toEqual(['PROVIDER_ERROR']);
+    expect(failed).toEqual(['STREAM_INTERRUPTED']);
   });
 
   test('a client disconnect stops the provider stream', async () => {

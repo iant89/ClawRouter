@@ -1,7 +1,7 @@
 import { AppError, type Logger } from '@clawrouter/core';
 import { ProviderCallError } from '@clawrouter/providers';
 import type { FailureTracker } from '@clawrouter/routing';
-import type { RouteCandidate, RoutePlan } from '@clawrouter/shared';
+import type { RequestAttempt, RouteCandidate, RoutePlan } from '@clawrouter/shared';
 
 /**
  * Executes a route plan (spec §6 steps 9–12, §11): tries the plan's attempts in
@@ -83,6 +83,8 @@ export async function runAttempts<T>(
     log?: Logger;
     /** Checks a model's rate limit before it is tried; a denied model is skipped without calling the provider. */
     checkModel?: (candidate: RouteCandidate) => Promise<ModelLimitDenial | null>;
+    /** Receives one entry per attempt (and per model skipped for its rate limit), for request history. */
+    trace?: RequestAttempt[];
     /** Delay before a retry of the same model, times the try number (ms). */
     backoffMs?: number;
   },
@@ -103,6 +105,7 @@ export async function runAttempts<T>(
     if (denial) {
       skipped.add(attempt.candidate);
       if (!limited || denial.retryAfterMs < limited.denial.retryAfterMs) limited = { modelRef: candidate.modelRef, denial };
+      options.trace?.push({ modelRef: candidate.modelRef, providerId: candidate.providerId, outcome: 'rate_limited', durationMs: 0 });
       log?.info('model skipped: rate limit', { component: 'gateway', model: candidate.modelRef, kind: denial.kind });
       continue;
     }
@@ -110,7 +113,13 @@ export async function runAttempts<T>(
     made += 1;
     tried.add(attempt.candidate);
     try {
-      const value = await call(candidate, signal);
+      const t0 = performance.now();
+      const took = () => Math.round(performance.now() - t0);
+      const value = await call(candidate, signal).catch((error: unknown) => {
+        options.trace?.push({ modelRef: candidate.modelRef, providerId: candidate.providerId, outcome: classify(error).kind, durationMs: took() });
+        throw error;
+      });
+      options.trace?.push({ modelRef: candidate.modelRef, providerId: candidate.providerId, outcome: 'ok', durationMs: took() });
       failures.recordSuccess(candidate.providerId);
       return { value, candidate, attempts: made, failovers: tried.size - 1, retries: made - tried.size };
     } catch (error) {

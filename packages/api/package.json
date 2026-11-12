@@ -17,6 +17,7 @@
     "@clawrouter/providers": "workspace:*",
     "@clawrouter/routing": "workspace:*",
     "@clawrouter/rate-limits": "workspace:*",
+    "@clawrouter/requests": "workspace:*",
     "@clawrouter/shared": "workspace:*"
   }
 }

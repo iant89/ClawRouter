@@ -28,7 +28,7 @@ export interface EventMap {
   'routing.changed': { version: number; updatedBy: string | null };
   /** Gateway request lifecycle (spec §25). Never carries prompts, completions or keys. */
   'request.started': { requestId: string; apiKeyId: string; model: string; stream: boolean };
-  'request.completed': { requestId: string; apiKeyId: string; model: string; modelRef: string; providerId: string; stream: boolean; durationMs: number; attempts: number; failovers: number; usage: { inputTokens: number | null; outputTokens: number | null; source: 'provider' | 'none' } };
+  'request.completed': { requestId: string; apiKeyId: string; model: string; modelRef: string; providerId: string; stream: boolean; durationMs: number; attempts: number; failovers: number; usage: { inputTokens: number | null; outputTokens: number | null; source: 'provider' | 'estimated' | 'none' } };
   'request.failed': { requestId: string; apiKeyId: string | null; model: string; stream: boolean; durationMs: number; attempts: number; code: string; status: number };
   /** Rate limiting (spec §12). `subject` is a key id, user id, model reference, "global" or an IP. */
   'ratelimit.exceeded': { scope: 'key' | 'user' | 'model' | 'global' | 'ip'; subject: string; kind: 'requests' | 'tokens' | 'concurrency' | 'invalid_keys'; limit: number; retryAfterSeconds: number; requestId: string | null };

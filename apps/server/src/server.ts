@@ -13,6 +13,7 @@ import { createModelService, createSqliteModelRepository, type ModelService } fr
 import { createRoutingService, createSqliteRoutingStore, type RoutingService } from '@clawrouter/routing';
 import { createApiKeyService, createGatewayService, type ApiKeyService, type GatewayService } from '@clawrouter/gateway';
 import { createRateLimitService, createSqliteRateLimitConfigStore, MemoryCounterStore, type RateLimitService } from '@clawrouter/rate-limits';
+import { createRequestLogService, createSqliteRequestRepository, type RequestLogService } from '@clawrouter/requests';
 import { migrations, openSqlite, runMigrations, type Database } from '@clawrouter/database';
 import { createDatabaseCheck, createHealthService, createPlatformCheck, createProvidersCheck, type HealthService } from '@clawrouter/health';
 import { loadSecretBox } from './secret-key.ts';
@@ -44,6 +45,7 @@ export interface ClawRouter {
   apiKeys: ApiKeyService;
   gateway: GatewayService;
   limits: RateLimitService;
+  requests: RequestLogService;
   setup: SetupService;
   audit: AuditService;
   /** Present while initial setup is pending. */
@@ -82,7 +84,13 @@ export async function startClawRouter({ config, log, version, consoleHtml, hashe
     store: createSqliteRateLimitConfigStore(db), counters: new MemoryCounterStore(), audit, events, log,
     knownModels: () => models.listAll().map((m) => m.ref), directory: apiKeys,
   });
-  const gateway = createGatewayService({ routing, providers, models, events, log, limits });
+  const requests = createRequestLogService({
+    repo: createSqliteRequestRepository(db), models, log,
+    retention: { requestDays: config.requests.retentionDays, usageDays: config.requests.usageRetentionDays },
+  });
+  // Requests a previous process left in progress can never finish.
+  requests.recoverInterrupted();
+  const gateway = createGatewayService({ routing, providers, models, events, log, limits, requests });
   const health = createHealthService({
     checks: [createPlatformCheck(), createDatabaseCheck(db), createProvidersCheck(providers)],
     version,
@@ -124,7 +132,10 @@ export async function startClawRouter({ config, log, version, consoleHtml, hashe
       const removed = auth.purgeExpired();
       const notes = notifications.purgeOld();
       const checks = providers.pruneHistory();
-      if (removed || notes || checks) log.debug('housekeeping', { component: 'server', sessionsPurged: removed, notificationsPurged: notes, providerChecksPruned: checks });
+      const history = requests.prune();
+      if (removed || notes || checks || history.requests || history.usageRecords) {
+        log.debug('housekeeping', { component: 'server', sessionsPurged: removed, notificationsPurged: notes, providerChecksPruned: checks, requestsPruned: history.requests, usageRecordsPruned: history.usageRecords });
+      }
     } catch (error) {
       log.error('housekeeping failed', { component: 'server', error });
     }
@@ -146,7 +157,7 @@ export async function startClawRouter({ config, log, version, consoleHtml, hashe
   providerKickoff?.unref();
   providerTimer?.unref();
 
-  const api = createApiApp({ log, health, auth, authz, notifications, providers, models, routing, apiKeys, gateway, limits, setup, cookie: { secure: config.auth.cookieSecure } });
+  const api = createApiApp({ log, health, auth, authz, notifications, providers, models, routing, apiKeys, gateway, limits, requests, setup, cookie: { secure: config.auth.cookieSecure } });
 
   const handle = (request: Request, srv: Server<undefined>) => api.handle(request, srv.requestIP(request)?.address ?? null);
   const serveConsole = config.console.enabled && consoleHtml !== undefined;
@@ -178,7 +189,7 @@ export async function startClawRouter({ config, log, version, consoleHtml, hashe
 
   let stopped = false;
   return {
-    server, db, events, health, auth, authz, notifications, providers, models, routing, apiKeys, gateway, limits, setup, audit, api, url,
+    server, db, events, health, auth, authz, notifications, providers, models, routing, apiKeys, gateway, limits, requests, setup, audit, api, url,
     get setupToken() {
       return setupToken;
     },

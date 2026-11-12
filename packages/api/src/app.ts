@@ -7,6 +7,7 @@ import type { ModelService } from '@clawrouter/models';
 import type { RoutingService } from '@clawrouter/routing';
 import type { ApiKeyService, GatewayService } from '@clawrouter/gateway';
 import type { RateLimitService } from '@clawrouter/rate-limits';
+import type { RequestLogService } from '@clawrouter/requests';
 import type { HealthService } from '@clawrouter/health';
 import { compose, type Handler, type Middleware, type RequestContext } from './http/context.ts';
 import { accessLog, errorBoundary, requestIdHeader, securityHeaders } from './http/middleware.ts';
@@ -21,6 +22,7 @@ import { modelsController } from './controllers/models.ts';
 import { routingController } from './controllers/routing.ts';
 import { apiKeysController, gatewayController } from './controllers/gateway.ts';
 import { rateLimitsController } from './controllers/rate-limits.ts';
+import { requestsController } from './controllers/requests.ts';
 
 export interface ApiDependencies {
   log: Logger;
@@ -34,6 +36,7 @@ export interface ApiDependencies {
   apiKeys: ApiKeyService;
   gateway: GatewayService;
   limits: RateLimitService;
+  requests: RequestLogService;
   setup: SetupService;
   cookie: SessionCookieConfig;
 }
@@ -63,6 +66,7 @@ export function createApiApp(deps: ApiDependencies): ApiApp {
   const keys = apiKeysController(deps.apiKeys);
   const gw = gatewayController(deps.gateway);
   const rl = rateLimitsController(deps.limits);
+  const rq = requestsController(deps.requests);
 
   // Public: health for load balancers, setup and sign-in.
   router.get('/api/health', 'public', healthHandler(deps.health));
@@ -124,6 +128,11 @@ export function createApiApp(deps: ApiDependencies): ApiApp {
   router.get('/api/rate-limits', 'rate_limits.read', rl.get);
   router.put('/api/rate-limits', 'rate_limits.write', rl.put);
   router.get('/api/rate-limits/usage', 'rate_limits.read', rl.usage);
+
+  // Request history and usage (spec §22, §23). Metadata only: prompts and completions are never stored.
+  router.get('/api/requests', 'requests.read', rq.list);
+  router.get('/api/requests/:id', 'requests.read', rq.get);
+  router.get('/api/usage', 'usage.read', rq.usage);
 
   // External AI API (spec §7, §32): API keys only, OpenAI-compatible.
   router.get('/v1/models', 'api_key', gw.models);

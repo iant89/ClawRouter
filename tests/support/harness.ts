@@ -15,6 +15,7 @@ import { createModelService, createSqliteModelRepository, type ModelService } fr
 import { createRoutingService, createSqliteRoutingStore, seededRandom, type RoutingService } from '@clawrouter/routing';
 import { createApiKeyService, createGatewayService, type ApiKeyService, type GatewayService } from '@clawrouter/gateway';
 import { createRateLimitService, createSqliteRateLimitConfigStore, MemoryCounterStore, type RateLimitService } from '@clawrouter/rate-limits';
+import { createRequestLogService, createSqliteRequestRepository, type RequestLogService } from '@clawrouter/requests';
 import { createNotificationService, createSqliteNotificationRepository, type NotificationService } from '@clawrouter/notifications';
 import { migrations, openSqlite, runMigrations, type Database } from '@clawrouter/database';
 import { createDatabaseCheck, createHealthService, type HealthService } from '@clawrouter/health';
@@ -49,6 +50,7 @@ export interface Harness {
   apiKeys: ApiKeyService;
   gateway: GatewayService;
   limits: RateLimitService;
+  requests: RequestLogService;
   secrets: SecretBox;
   /** Replaces the fetch used for provider calls. */
   setProviderFetch(fn: typeof fetch): void;
@@ -114,12 +116,13 @@ export function createHarness(options: { idleMinutes?: number; maxHours?: number
     store: createSqliteRateLimitConfigStore(db), counters: new MemoryCounterStore(() => clock.now().getTime()), audit, events, log, now: clock.now,
     knownModels: () => models.listAll().map((m) => m.ref), directory: apiKeys,
   });
-  const gateway = createGatewayService({ routing, providers, models, events, log, now: clock.now, backoffMs: 0, limits });
+  const requests = createRequestLogService({ repo: createSqliteRequestRepository(db), models, log, now: clock.now });
+  const gateway = createGatewayService({ routing, providers, models, events, log, now: clock.now, backoffMs: 0, limits, requests });
   const health = createHealthService({ checks: [createDatabaseCheck(db)], version: 'test', environment: 'test', now: clock.now });
-  const api = createApiApp({ log, health, auth, authz, notifications, providers, models, routing, apiKeys, gateway, limits, setup, cookie: { secure: options.secureCookie ?? false } });
+  const api = createApiApp({ log, health, auth, authz, notifications, providers, models, routing, apiKeys, gateway, limits, requests, setup, cookie: { secure: options.secureCookie ?? false } });
 
   const h: Harness = {
-    db, clock, events, users, audit, auth, authz, notifications, providers, models, routing, apiKeys, gateway, limits, secrets, setup, health, api, logs,
+    db, clock, events, users, audit, auth, authz, notifications, providers, models, routing, apiKeys, gateway, limits, requests, secrets, setup, health, api, logs,
     setProviderFetch(fn) {
       providerFetch = fn;
     },
