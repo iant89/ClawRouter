@@ -22,14 +22,16 @@ usage tracking and an administration console built on
   weights, health-aware fallback, failover policies), and phase 8, the **request
   gateway**: an OpenAI-compatible `/v1` API (chat completions with streaming,
   embeddings, models) authenticated by API keys, with retries and failover, and
-  phase 9, **rate limiting** (per key, user, model and gateway, with live usage).
-  Request history and usage are next (phase 10).
+  phase 9, **rate limiting** (per key, user, model and gateway, with live usage),
+  and phase 10, **requests and usage** (request history with attempts, tokens and
+  estimated cost; usage reports by model, provider, key and user).
+  Live updates over WebSocket are next (phase 11).
 - **Architecture:** [`docs/architecture.md`](docs/architecture.md) ·
   **Security model:** [`docs/authentication.md`](docs/authentication.md),
   [`docs/authorization.md`](docs/authorization.md) · **Console:**
   [`docs/console-shell.md`](docs/console-shell.md) · **Providers:**
   [`docs/providers.md`](docs/providers.md) · **Models:** [`docs/models.md`](docs/models.md) ·
-  **Routing:** [`docs/routing.md`](docs/routing.md) · **Gateway:** [`docs/gateway.md`](docs/gateway.md) · **Rate limits:** [`docs/rate-limits.md`](docs/rate-limits.md)
+  **Routing:** [`docs/routing.md`](docs/routing.md) · **Gateway:** [`docs/gateway.md`](docs/gateway.md) · **Rate limits:** [`docs/rate-limits.md`](docs/rate-limits.md) · **Requests and usage:** [`docs/requests-usage.md`](docs/requests-usage.md)
 - **Screenshots:** [`docs/screenshots/`](docs/screenshots/README.md)
 - **Working on the code:** [`AGENTS.md`](AGENTS.md) (rules, commands, definition
   of done) and [`MEMORY.md`](MEMORY.md) (important notes carried between sessions).
@@ -106,6 +108,8 @@ Invalid values stop the server with a message listing every problem.
 | `CLAWROUTER_SECRET_KEY` | generated in dev | 32-byte key (base64 or hex) that encrypts provider credentials. **Required in production.** `openssl rand -base64 32` |
 | `CLAWROUTER_SECRET_KEY_FILE` | | File containing the key, instead of `CLAWROUTER_SECRET_KEY` |
 | `CLAWROUTER_PROVIDER_HEALTH_INTERVAL_SECONDS` | `300` | Background provider checks; `0` turns them off |
+| `CLAWROUTER_REQUEST_RETENTION_DAYS` | `30` | Days to keep gateway request history; `0` keeps it forever |
+| `CLAWROUTER_USAGE_RETENTION_DAYS` | `400` | Days to keep hourly usage records; `0` keeps them forever |
 | `CLAWROUTER_SETUP_TOKEN` | generated | Pre-chosen initial setup token (≥ 16 chars), e.g. for automated installs |
 
 ## Layout

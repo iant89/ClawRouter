@@ -77,10 +77,13 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
   - Rate-limit counters are in memory, per process: they reset on restart, and
     several ClawRouter nodes would each enforce the limits separately. A shared
     `CounterStore` (e.g. Redis) is needed before running more than one node.
-  - Token limits charge provider-reported usage after the response, so one large
+  - Token limits charge usage (reported, or estimated) after the response, so one large
     request can overshoot a token limit (documented in `docs/rate-limits.md`).
-  - Gateway metrics are in memory and reset on restart; request history and usage
-    are only emitted as events (`request.completed`), not stored: phase 10.
+  - Gateway metrics on the dashboard are in memory and reset on restart; request
+    history and usage are stored (phase 10) and survive restarts.
+  - Request history stores metadata only; there is no payload storage at all, so
+    there is nothing to configure for payload retention (spec §22). Keep it that
+    way unless the owner asks for opt-in payload logging.
   - `/v1/responses`, tools, images and `n > 1` are rejected with 400 (see
     `docs/gateway.md`). Agent clients that need tools will not work yet.
   - No CORS on `/v1`; browser apps must call it from their backend.
@@ -124,22 +127,38 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
     click on the input (see the API Access create dialog). Worth checking by hand.
   - GitHub says the repository moved to `iant89/ClawRouter`; pushes to the
     lower-case `origin` URL still work through the redirect.
+  - ENTERPRISE-UI charts (`LineChart`, `BarChart`) measure their width when they
+    mount. Mounted while loading, they keep a narrow default width: mount them once
+    the data is there (see `UsagePage.tsx`).
+  - In `sed`, do not combine the `|` delimiter with `\|` alternation; use `#` as the
+    delimiter. Large heredocs in one command were once rejected by the command safety
+    check (it could not parse them); write such files with the editor tools.
+  - Attempt outcome `skipped_rate_limit` is our own model limit (no provider call);
+    `rate_limited` is a provider's 429. Do not merge them.
+  - Phase 10 test harness: advancing the fake clock past 60 minutes expires console
+    sessions; sign in again (`h.login()`) after big clock jumps.
   - The session worker can restart mid-task. Commit and push in steps, so work is
     never lost.
 
 ### Messages
 
-- **MESSAGE** · 2026-11-12 · Phase 9 waits for review; then phase 10
-  Phase 8 was merged on the owner's word ("Merge 8"): `main` = `56004b9`. Phase 9
-  is on `claude/phase-9-rate-limiting`, built on top of it, so merging it is a
-  fast-forward of `main`. Merge only when the owner says so.
-  Next: phase 10, requests + usage: persist `request.completed` / `request.failed`
-  (and refusals) as request history with tokens and cost, server-side paging and
-  filtering, the Requests and Usage pages.
+- **MESSAGE** · 2026-11-12 · Phase 10 waits for review; then phase 11
+  Phase 9 was merged on the owner's word ("Merge 9"): `main` = `701bb12`. Phase 10
+  (requests + usage) is on `claude/phase-10-requests-usage`, built on top of it,
+  so merging is a fast-forward. Merge only when the owner says so.
+  Next: phase 11, the real-time system: a session-authenticated WebSocket at
+  `/api/ws` carrying the typed events that already exist (provider, health,
+  request, routing, notifications, rate limits), console subscriptions instead of
+  polling (dashboard, notifications, Rate Limits usage), and reconnection. Never
+  send secrets or request content over it; filter events by the user's permissions.
 
 ---
 
 ## Resolved
+
+- **MESSAGE** · 2026-11-12 · Phase 9 waits for review; then phase 10. Resolved 2026-11-12:
+  phase 9 merged; phase 10 built on `claude/phase-10-requests-usage` (see
+  `docs/requests-usage.md`).
 
 - **MESSAGE** · 2026-11-12 · Phase 8 waits for review; then phase 9. Resolved 2026-11-12:
   phase 9 built on `claude/phase-9-rate-limiting` (see `docs/rate-limits.md`); the

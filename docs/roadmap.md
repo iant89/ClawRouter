@@ -240,25 +240,29 @@ Goal: protect the gateway. See [rate limits](rate-limits.md).
 
 Exit: abusive or excessive clients cannot overwhelm the gateway ✅ (single node; counters reset on restart).
 
-## Phase 10: Requests + usage ⬜ next
+## Phase 10: Requests + usage ✅
 
-Goal: make gateway activity observable.
+Goal: make gateway activity observable. See [requests and usage](requests-usage.md).
 
-- [ ] Request persistence
-- [ ] Request status
-- [ ] Request duration
-- [ ] Provider/model recording
-- [ ] Retry count
-- [ ] Failover count
-- [ ] Usage records
-- [ ] Token accounting (groundwork: provider-reported usage is normalized)
-- [ ] Cost estimation (groundwork: model prices)
-- [ ] Request history UI
-- [ ] Usage dashboard
+- [x] Request persistence: every request with a valid API key, from arrival to end (migration `0011_requests`); metadata only, never content
+- [x] Request status: `EXECUTING`, `STREAMING`, `COMPLETED`, `FAILED`, `TIMEOUT`, `CANCELLED`; interrupted requests recovered at startup
+- [x] Request duration
+- [x] Provider/model recording: requested model, answering model and provider
+- [x] Retry count, with the attempt log (each try's model, outcome and duration)
+- [x] Failover count
+- [x] Usage records: hourly totals per key, model and provider, kept longer than request rows
+- [x] Token accounting: provider-reported, or estimated locally and marked as such
+- [x] Cost estimation: from model prices at the time; unknown (not zero) without prices
+- [x] Request history UI: **Requests** page with server-side filters and paging, request detail
+- [x] Usage dashboard: **Usage** page (totals, charts, breakdowns) and dashboard tiles
+- [x] Retention: `CLAWROUTER_REQUEST_RETENTION_DAYS` (30), `CLAWROUTER_USAGE_RETENTION_DAYS` (400)
 
-Exit: administrators can understand what the gateway is doing.
+The spec's `RECEIVED`, `AUTHENTICATING` and `ROUTING` states are not stored: they
+last microseconds and happen before the row is written or within the same step.
 
-## Phase 11: Real-time system 🟡
+Exit: administrators can understand what the gateway is doing ✅
+
+## Phase 11: Real-time system 🟡 next
 
 Goal: provide live operational state.
 

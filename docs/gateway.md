@@ -121,13 +121,13 @@ capabilities the normalized model does not have yet.
   retried and failed-over requests. In memory: they reset when the server restarts.
   The dashboard polls it every 5 s.
 - Events `request.started`, `request.completed` (usage, attempts, failovers, model,
-  provider) and `request.failed` (code, status, attempts). Persisting them as
-  request history and usage is phase 10.
+  provider) and `request.failed` (code, status, attempts). Since phase 10 every
+  request is also stored as history and usage ([requests and usage](requests-usage.md)).
 
 ## Not yet
 
 - `/v1/responses`, tools, images, `n > 1` (see above).
 - Rate limits: see [rate limits](rate-limits.md) (phase 9). A refused request gets 429 `rate_limit_error` with `Retry-After`.
-- Request history, usage and cost: phase 10.
+- Request history, usage and cost: see [requests and usage](requests-usage.md) (phase 10).
 - CORS: none. Browser apps should call ClawRouter from their backend.
 - Never tested against real provider APIs (see `MEMORY.md`).

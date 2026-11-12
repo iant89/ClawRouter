@@ -118,3 +118,19 @@ local server second).
 | ![Key limit](09-rate-limits/key-limit-dialog.png) | Giving one key its own limit on the API Access page |
 | ![Dashboard](09-rate-limits/dashboard.png) | Dashboard: the **Refused by rate limits** tile |
 | ![Phone](09-rate-limits/phone.png) | Rate Limits at phone width |
+
+## 10 · Requests and usage
+
+Mock providers: OpenAI (priced), a local server (no prices) and Google embeddings
+(no reported usage), with the alias `fast-chat` (OpenAI first, local second). For a
+few requests OpenAI was made to fail, to show retries and failover.
+
+| | |
+|---|---|
+| ![Requests](10-requests-usage/requests.png) | **Requests**: status, requested → answering model, attempts with retries and failovers, tokens (≈ when estimated), estimated cost |
+| ![Detail](10-requests-usage/request-detail.png) | One request: two provider errors on OpenAI, then the local model answered; unknown cost because that model has no prices |
+| ![Problems](10-requests-usage/problems-only.png) | **Problems only**: an unknown model (404) and a request every provider failed (502) |
+| ![Usage](10-requests-usage/usage.png) | **Usage** for 24 hours: totals and requests over time |
+| ![By key](10-requests-usage/usage-by-key.png) | Usage broken down by API key; `+?` marks costs that leave out unpriced requests |
+| ![Dashboard](10-requests-usage/dashboard.png) | Dashboard: estimated cost (24 h) and recent failed requests |
+| ![Phone](10-requests-usage/phone.png) | Requests at phone width |
