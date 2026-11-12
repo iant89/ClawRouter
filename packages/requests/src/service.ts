@@ -142,8 +142,10 @@ export function createRequestLogService(options: {
       if (end - start > MAX_USAGE_RANGE_DAYS * DAY) throw errors.validation([{ path: 'from', message: `the period can be at most ${MAX_USAGE_RANGE_DAYS} days` }]);
       const bucket = q.bucket ?? (end - start <= 2 * DAY ? 'hour' : 'day');
       const size = bucket === 'hour' ? HOUR : DAY;
-      const from = Math.floor(start / size) * size;
-      const to = Math.ceil(end / size) * size;
+      // Without "to", the period ends now: always include the bucket in progress
+      // (even exactly on a boundary), and by default cover the 24 hours up to it.
+      const to = q.to ? Math.ceil(end / size) * size : Math.floor(end / size) * size + size;
+      const from = q.from ? Math.floor(start / size) * size : Math.min(to - size, Math.floor((to - DAY) / size) * size);
       const range = { from: new Date(from).toISOString(), to: new Date(to).toISOString(), bucket, groupBy: q.groupBy ?? 'model' } as const;
       if ((to - from) / size > 1000) throw errors.validation([{ path: 'bucket', message: 'too many buckets: use days for long periods' }]);
 
