@@ -42,10 +42,10 @@ export const NAVIGATION: readonly NavGroup[] = [
     id: 'gateway',
     label: 'Gateway',
     items: [
-      { id: 'requests', permission: 'requests.read', label: 'Requests', path: '/requests', icon: 'activity-items', plannedPhase: 10, summary: 'Every gateway request with its routing decision, retries, failovers, duration and tokens.' },
+      { id: 'requests', permission: 'requests.read', label: 'Requests', path: '/requests', icon: 'activity-items', summary: 'Every gateway request with its routing decision, retries, failovers, duration and tokens.' },
       { id: 'api-access', permission: 'api_keys.read', label: 'API Access', path: '/api-access', icon: 'key', summary: 'API keys for external AI clients: scopes, allowed models, limits, expiry and revocation.' },
       { id: 'rate-limits', permission: 'rate_limits.read', label: 'Rate Limits', path: '/rate-limits', icon: 'performance', summary: 'Requests and tokens per minute per key, user, model and gateway, and live usage.' },
-      { id: 'usage', permission: 'usage.read', label: 'Usage', path: '/usage', icon: 'line-chart', plannedPhase: 10, summary: 'Token usage and estimated cost by provider, model, client and user.' },
+      { id: 'usage', permission: 'usage.read', label: 'Usage', path: '/usage', icon: 'line-chart', summary: 'Token usage and estimated cost by provider, model, client and user.' },
     ],
   },
   {

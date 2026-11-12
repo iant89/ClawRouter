@@ -105,7 +105,7 @@ export function createGatewayService(options: {
 
     /** Attempts and model switches as the trace saw them (models skipped for their rate limit are not attempts). */
     const counts = () => {
-      const made = trace.filter((t) => t.outcome !== 'rate_limited');
+      const made = trace.filter((t) => t.outcome !== 'skipped_rate_limit');
       const models = new Set(made.map((t) => t.modelRef));
       const last = made.at(-1) ?? trace.at(-1) ?? null;
       return { attempts: made.length, failovers: Math.max(0, models.size - 1), retries: made.length - models.size, last };

@@ -94,3 +94,22 @@ export function formatPrice(n: number | null): string {
   const wholeCents = Math.round(n * 100) === n * 100;
   return `$${wholeCents ? n.toFixed(2) : String(Number(n.toFixed(4)))}`;
 }
+
+/** Estimated cost in USD: small amounts keep two significant digits ($0.000058), larger ones cents ($12.40). */
+export function formatUsd(n: number | null): string {
+  if (n === null) return '—';
+  if (n === 0) return '$0.00';
+  if (n < 0.01) return `$${String(Number(n.toPrecision(2)))}`;
+  return `$${n.toFixed(2)}`;
+}
+
+/** 240 ms, 1.4 s, 2 min 5 s */
+export function formatDuration(ms: number | null): string {
+  if (ms === null) return '—';
+  if (ms < 1000) return `${ms} ms`;
+  if (ms < 60_000) return `${(ms / 1000).toFixed(1)} s`;
+  return `${Math.floor(ms / 60_000)} min ${Math.round((ms % 60_000) / 1000)} s`;
+}
+
+/** A plain count with thousands separators (1,234,567). */
+export const formatCount = (n: number) => n.toLocaleString('en-US');

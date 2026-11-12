@@ -28,7 +28,7 @@ describe('console navigation', () => {
   });
 
   test('only implemented pages lack a planned phase', () => {
-    expect(NAV_ITEMS.filter((i) => i.plannedPhase === undefined).map((i) => i.id)).toEqual(['dashboard', 'api-access', 'rate-limits', 'providers', 'models', 'routing', 'health', 'users', 'roles', 'sessions']);
+    expect(NAV_ITEMS.filter((i) => i.plannedPhase === undefined).map((i) => i.id)).toEqual(['dashboard', 'requests', 'api-access', 'rate-limits', 'usage', 'providers', 'models', 'routing', 'health', 'users', 'roles', 'sessions']);
   });
 });
 

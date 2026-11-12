@@ -81,7 +81,7 @@ export function DashboardPage() {
       </Dashboard>
 
       {canRequests ? (
-        <GatewayActivity />
+        <GatewayActivity canUsage={perms.can('usage.read')} />
       ) : (
         <MessageStrip tone="information" title="Gateway activity">Request metrics need the requests.read permission.</MessageStrip>
       )}

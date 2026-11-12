@@ -105,7 +105,7 @@ export async function runAttempts<T>(
     if (denial) {
       skipped.add(attempt.candidate);
       if (!limited || denial.retryAfterMs < limited.denial.retryAfterMs) limited = { modelRef: candidate.modelRef, denial };
-      options.trace?.push({ modelRef: candidate.modelRef, providerId: candidate.providerId, outcome: 'rate_limited', durationMs: 0 });
+      options.trace?.push({ modelRef: candidate.modelRef, providerId: candidate.providerId, outcome: 'skipped_rate_limit', durationMs: 0 });
       log?.info('model skipped: rate limit', { component: 'gateway', model: candidate.modelRef, kind: denial.kind });
       continue;
     }

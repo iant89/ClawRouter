@@ -17,7 +17,7 @@ export type UsageSource = 'provider' | 'estimated' | 'none';
 export interface RequestAttempt {
   modelRef: string;
   providerId: string;
-  /** 'ok', or the failure kind: timeout, server_error, rate_limited, auth, bad_request, cancelled… */
+  /** 'ok', 'skipped_rate_limit' (our model limit; no provider call), or the provider failure kind: timeout, server_error, rate_limited (the provider's 429), auth… */
   outcome: string;
   durationMs: number;
 }
