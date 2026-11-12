@@ -26,9 +26,9 @@ Tracks implementation against [the spec](../specs/clawapi-design-spec.md) §40/�
 | 1 Core backend | ✅ Done | Router, middleware, errors, config, validation, logging, event bus, repositories, migration runner, response conventions. |
 | 2 Authentication | ✅ Done | See below. |
 | 3 Authorization | ✅ Done | See below. |
-| 4 Application shell | 🟡 Mostly done | Shell, header with roles, permission-aware navigation, no-access page, responsive layout, loading/error states, user menu. Missing: notifications. |
+| 4 Application shell | ✅ Done | See below. |
 | 5–17 | ⬜ | Console pages for these areas show a "not available yet" placeholder. |
-| 12 Health + operations | 🟡 Started | Platform and database health, health page. |
+| 12 Health + operations | 🟡 Started | Platform and database health, background health checks, health page. |
 | 13 Logging + audit | 🟡 Started | Audit repository and service; authentication events audited. |
 | 14 Administration | 🟡 Started | Session management; Users page (list, role assignment); Roles page (permission matrix). Missing: creating/disabling users, password reset, settings. |
 
@@ -62,3 +62,19 @@ health, setup and sign-in requires a session; enforced by tests).
 | Authorization tests | ✅ | every protected route is called anonymously (401), without the permission (403) and with it |
 
 Exit criterion: every protected endpoint enforces permissions server-side ✅.
+
+## Phase 4: application shell
+
+| Task | Status | Where |
+|---|---|---|
+| Application shell, sidebar, header | ✅ | `layouts/ConsoleLayout.tsx` (ENTERPRISE-UI AppShell, ApplicationHeader, SideNavigation) |
+| Routing | ✅ | `app/router.tsx`, deep links, return-to after sign-in |
+| Page layout | ✅ | ENTERPRISE-UI `Page` on every page |
+| Responsive layout | ✅ | drawer on phones, icons on tablets; ~44px touch targets on coarse pointers |
+| Notifications | ✅ | `packages/notifications`, `/api/notifications`, header bell + panel + toasts |
+| User menu | ✅ | name, roles, My sessions, Sign out |
+| Permission-aware navigation | ✅ | `visibleNavigation`, no-access page |
+| Loading states | ✅ | busy indicator, table skeletons, refresh controls |
+| Error states | ✅ | message strips, server-unreachable screen, `PageErrorBoundary` |
+
+Exit criterion: authenticated users have a functional enterprise application shell ✅.

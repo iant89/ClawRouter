@@ -44,3 +44,11 @@ describe('FailureThrottle', () => {
     expect(th.size).toBeLessThanOrEqual(100);
   });
 });
+
+describe('FailureThrottle.fail', () => {
+  test('returns true only for the failure that starts a block', () => {
+    const th = new FailureThrottle({ limit: 2, windowMs: 1000, blockMs: 1000, now: () => 0 });
+    expect(th.fail('k')).toBe(false);
+    expect(th.fail('k')).toBe(true);
+  });
+});

@@ -14,6 +14,9 @@ export interface EventMap {
   'session.revoked': { sessionId: string; userId: string; reason: SessionRevokeReason };
   'user.signed_in': { userId: string };
   'user.roles_changed': { userId: string; roles: string[] };
+  /** A username was blocked after repeated failed sign-ins (emitted once per block). */
+  'auth.login_throttled': { username: string; ip: string | null; scope: 'username' | 'ip'; retryAfterSeconds: number };
+  'notification.created': { id: string; userId: string | null; audiencePermission: string | null };
 }
 
 export type EventName = keyof EventMap;

@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'bun:test';
+import { displayTitle, newAlerts } from '../src/features/notifications/notification-utils.ts';
 import type { AuthSession } from '@clawapi/shared';
 import { authReducer, redirectFor, safeNext, type AuthState } from '../src/features/auth/auth-state.ts';
 
@@ -77,5 +78,19 @@ describe('refreshed', () => {
   test('never signs anyone in', () => {
     const out: AuthState = { status: 'signed-out', reason: 'none' };
     expect(authReducer(out, { type: 'refreshed', session: base })).toBe(out);
+  });
+});
+
+describe('notification helpers', () => {
+  const n = (id: string, severity: 'INFO' | 'WARNING' | 'ERROR', read = false) =>
+    ({ id, severity, title: 't', body: null, link: null, source: 's', createdAt: '', read }) as const;
+
+  test('titles carry the severity in words', () => {
+    expect(displayTitle({ severity: 'ERROR', title: 'Platform health: Offline' })).toBe('Error: Platform health: Offline');
+  });
+
+  test('newAlerts returns only new, unread warnings and errors', () => {
+    const items = [n('a', 'ERROR'), n('b', 'WARNING'), n('c', 'INFO'), n('d', 'ERROR', true)];
+    expect(newAlerts(items, new Set(['a'])).map((x) => x.id)).toEqual(['b']);
   });
 });

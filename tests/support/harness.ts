@@ -10,6 +10,7 @@ import {
 } from '@clawapi/authentication';
 import { createAuthorizationService, createSqliteRoleRepository, type AuthorizationService } from '@clawapi/authorization';
 import { createEventBus, createLogger, type EventBus, type LogRecord } from '@clawapi/core';
+import { createNotificationService, createSqliteNotificationRepository, type NotificationService } from '@clawapi/notifications';
 import { migrations, openSqlite, runMigrations, type Database } from '@clawapi/database';
 import { createDatabaseCheck, createHealthService, type HealthService } from '@clawapi/health';
 import { CSRF_HEADER } from '@clawapi/shared';
@@ -36,6 +37,7 @@ export interface Harness {
   audit: AuditService;
   auth: AuthService;
   authz: AuthorizationService;
+  notifications: NotificationService;
   setup: SetupService;
   health: HealthService;
   api: ApiApp;
@@ -76,15 +78,17 @@ export function createHarness(options: { idleMinutes?: number; maxHours?: number
     now: clock.now,
   });
   const authz = createAuthorizationService({ roles: createSqliteRoleRepository(db), audit, events, log, now: clock.now });
+  const notifications = createNotificationService({ repo: createSqliteNotificationRepository(db), events, log, now: clock.now });
+  notifications.subscribe(events);
   const setup = createSetupService({
     users, hasher: fastHasher, auth, audit, setupToken: SETUP_TOKEN, log, now: clock.now,
     grantAdministrator: (userId) => authz.grantInitialAdministrator(userId),
   });
   const health = createHealthService({ checks: [createDatabaseCheck(db)], version: 'test', environment: 'test', now: clock.now });
-  const api = createApiApp({ log, health, auth, authz, setup, cookie: { secure: options.secureCookie ?? false } });
+  const api = createApiApp({ log, health, auth, authz, notifications, setup, cookie: { secure: options.secureCookie ?? false } });
 
   const h: Harness = {
-    db, clock, events, users, audit, auth, authz, setup, health, api, logs,
+    db, clock, events, users, audit, auth, authz, notifications, setup, health, api, logs,
     request(path, init = {}) {
       const { json, cookie, csrf = true, ip = '203.0.113.7', ...rest } = init;
       const headers = new Headers(rest.headers);

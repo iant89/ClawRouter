@@ -45,7 +45,7 @@ async function request<T>(method: string, path: string, body: unknown, options: 
   return (await requestEnvelope<T>(method, path, body, options)).data;
 }
 
-async function requestEnvelope<T>(method: string, path: string, body: unknown, options: RequestOptions = {}): Promise<ApiSuccess<T>> {
+export async function requestEnvelope<T>(method: string, path: string, body: unknown, options: RequestOptions = {}): Promise<ApiSuccess<T>> {
   const headers: Record<string, string> = { accept: 'application/json' };
   if (body !== undefined) headers['content-type'] = 'application/json';
   if (method !== 'GET') headers[CSRF_HEADER] = '1';

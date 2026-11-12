@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { BusyIndicator, Button, EmptyState, ThemeProvider, ToastProvider } from '@enterprise-ui/react';
+import { BusyIndicator, Button, EmptyState, ThemeProvider, ToastProvider, useMediaQuery } from '@enterprise-ui/react';
 import { DashboardPage } from '../features/dashboard/DashboardPage.tsx';
 import { HealthPage } from '../features/health/HealthPage.tsx';
 import { HealthProvider } from '../features/health/HealthContext.tsx';
@@ -12,6 +12,8 @@ import { redirectFor } from '../features/auth/auth-state.ts';
 import { LoginPage } from '../features/auth/LoginPage.tsx';
 import { SetupPage } from '../features/auth/SetupPage.tsx';
 import { PlannedFeature } from '../components/custom/PlannedFeature.tsx';
+import { PageErrorBoundary } from '../components/custom/PageErrorBoundary.tsx';
+import { NotificationsProvider } from '../features/notifications/NotificationsContext.tsx';
 import { ConsoleLayout } from '../layouts/ConsoleLayout.tsx';
 import { NotFoundPage } from '../pages/NotFoundPage.tsx';
 import { canSee, resolvePath, type NavItem } from './navigation.ts';
@@ -40,9 +42,13 @@ function Console() {
   }, [item]);
   return (
     <HealthProvider>
-      <ConsoleLayout activeId={item?.id}>
-        <PageFor item={item} />
-      </ConsoleLayout>
+      <NotificationsProvider>
+        <ConsoleLayout activeId={item?.id}>
+          <PageErrorBoundary resetKey={pathname}>
+            <PageFor item={item} />
+          </PageErrorBoundary>
+        </ConsoleLayout>
+      </NotificationsProvider>
     </HealthProvider>
   );
 }
@@ -80,10 +86,14 @@ function Gate() {
   }
 }
 
-/** Spec §18: dark graphite, dense. */
+/**
+ * Spec §18: dark graphite, dense. Spec §20: touch targets of about 44px, so
+ * touch screens get the cozy density while mouse users keep compact.
+ */
 export function App() {
+  const touch = useMediaQuery('(pointer: coarse)');
   return (
-    <ThemeProvider theme="dark" density="compact" style={{ height: '100%' }}>
+    <ThemeProvider theme="dark" density={touch ? 'cozy' : 'compact'} style={{ height: '100%' }}>
       <ToastProvider>
         <RouterProvider>
           <AuthProvider>

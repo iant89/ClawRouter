@@ -1,6 +1,7 @@
 import { AppError, newRequestId, type Logger } from '@clawapi/core';
 import type { AuthService, SetupService } from '@clawapi/authentication';
 import type { AuthorizationService } from '@clawapi/authorization';
+import type { NotificationService } from '@clawapi/notifications';
 import type { HealthService } from '@clawapi/health';
 import { compose, type Handler, type Middleware, type RequestContext } from './http/context.ts';
 import { accessLog, errorBoundary, requestIdHeader, securityHeaders } from './http/middleware.ts';
@@ -9,12 +10,14 @@ import { applyResponseHeaders, csrfProtection, sessionAuthentication, type Sessi
 import { healthHandler } from './controllers/health.ts';
 import { authController } from './controllers/auth.ts';
 import { accessController } from './controllers/access.ts';
+import { notificationsController } from './controllers/notifications.ts';
 
 export interface ApiDependencies {
   log: Logger;
   health: HealthService;
   auth: AuthService;
   authz: AuthorizationService;
+  notifications: NotificationService;
   setup: SetupService;
   cookie: SessionCookieConfig;
 }
@@ -37,6 +40,7 @@ export function createApiApp(deps: ApiDependencies): ApiApp {
   const router = new Router();
   const authRoutes = authController(deps);
   const access = accessController(deps.authz);
+  const notes = notificationsController(deps.notifications);
 
   // Public: health for load balancers, setup and sign-in.
   router.get('/api/health', 'public', healthHandler(deps.health));
@@ -50,6 +54,10 @@ export function createApiApp(deps: ApiDependencies): ApiApp {
   router.get('/api/auth/sessions', 'authenticated', authRoutes.listSessions);
   router.post('/api/auth/sessions/revoke-others', 'authenticated', authRoutes.revokeOtherSessions);
   router.delete('/api/auth/sessions/:id', 'authenticated', authRoutes.revokeSession);
+  router.get('/api/notifications', 'authenticated', notes.list);
+  router.post('/api/notifications/read-all', 'authenticated', notes.markAllRead);
+  router.post('/api/notifications/:id/read', 'authenticated', notes.markRead);
+  router.delete('/api/notifications/:id', 'authenticated', notes.dismiss);
 
   // Administration
   router.get('/api/sessions', 'sessions.read', authRoutes.listAllSessions);

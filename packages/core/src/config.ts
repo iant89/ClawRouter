@@ -22,6 +22,10 @@ export interface Config {
     /** Serve the web console from this process. The gateway works without it. */
     enabled: boolean;
   };
+  health: {
+    /** How often the server checks its own health in the background. */
+    intervalSeconds: number;
+  };
   auth: {
     /** A session ends after this long without activity. */
     sessionIdleMinutes: number;
@@ -98,6 +102,9 @@ export function loadConfig(env: Env = process.env): Config {
     },
     console: {
       enabled: bool('CLAWAPI_CONSOLE_ENABLED', true),
+    },
+    health: {
+      intervalSeconds: int('CLAWAPI_HEALTH_INTERVAL_SECONDS', 30, 5, 3600),
     },
     auth: {
       sessionIdleMinutes: int('CLAWAPI_SESSION_IDLE_MINUTES', 60, 1, 7 * 24 * 60),

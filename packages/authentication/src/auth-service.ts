@@ -122,8 +122,12 @@ export function createAuthService(options: AuthServiceOptions) {
       const valid = await hasher.verify(password, user?.passwordHash ?? (await dummy()));
 
       if (!user || !valid) {
-        usernameThrottle.fail(userKey);
-        ipThrottle.fail(ipKey);
+        if (usernameThrottle.fail(userKey)) {
+          events?.emit('auth.login_throttled', { username, ip: client.ip, scope: 'username', retryAfterSeconds: Math.ceil(usernameThrottle.retryAfter(userKey) / 1000) });
+        }
+        if (ipThrottle.fail(ipKey)) {
+          events?.emit('auth.login_throttled', { username, ip: client.ip, scope: 'ip', retryAfterSeconds: Math.ceil(ipThrottle.retryAfter(ipKey) / 1000) });
+        }
         audit.record({ ...auditBase, action: 'LOGIN_FAILED', result: 'FAILURE', resourceId: user?.id, metadata: { username, reason: 'invalid_credentials' } });
         log?.info('sign-in failed', { component: 'auth', reason: 'invalid_credentials', ip: client.ip });
         throw new AppError('AUTHENTICATION_ERROR', INVALID_CREDENTIALS);

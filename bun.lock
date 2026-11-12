@@ -12,6 +12,7 @@
         "@clawapi/core": "workspace:*",
         "@clawapi/database": "workspace:*",
         "@clawapi/health": "workspace:*",
+        "@clawapi/notifications": "workspace:*",
         "@clawapi/shared": "workspace:*",
       },
       "devDependencies": {
@@ -43,6 +44,7 @@
         "@clawapi/core": "workspace:*",
         "@clawapi/database": "workspace:*",
         "@clawapi/health": "workspace:*",
+        "@clawapi/notifications": "workspace:*",
         "@clawapi/shared": "workspace:*",
       },
     },
@@ -54,6 +56,7 @@
         "@clawapi/authorization": "workspace:*",
         "@clawapi/core": "workspace:*",
         "@clawapi/health": "workspace:*",
+        "@clawapi/notifications": "workspace:*",
         "@clawapi/shared": "workspace:*",
       },
     },
@@ -108,6 +111,15 @@
         "@clawapi/shared": "workspace:*",
       },
     },
+    "packages/notifications": {
+      "name": "@clawapi/notifications",
+      "version": "0.1.0",
+      "dependencies": {
+        "@clawapi/core": "workspace:*",
+        "@clawapi/database": "workspace:*",
+        "@clawapi/shared": "workspace:*",
+      },
+    },
     "packages/shared": {
       "name": "@clawapi/shared",
       "version": "0.1.0",
@@ -129,6 +141,8 @@
     "@clawapi/database": ["@clawapi/database@workspace:packages/database"],
 
     "@clawapi/health": ["@clawapi/health@workspace:packages/health"],
+
+    "@clawapi/notifications": ["@clawapi/notifications@workspace:packages/notifications"],
 
     "@clawapi/server": ["@clawapi/server@workspace:apps/server"],
 

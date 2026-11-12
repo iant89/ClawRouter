@@ -7,6 +7,7 @@ import {
 } from '@clawapi/authentication';
 import { createAuthorizationService, createSqliteRoleRepository, type AuthorizationService } from '@clawapi/authorization';
 import { createEventBus, type Config, type EventBus, type Logger } from '@clawapi/core';
+import { createNotificationService, createSqliteNotificationRepository, type NotificationService } from '@clawapi/notifications';
 import { migrations, openSqlite, runMigrations, type Database } from '@clawapi/database';
 import { createDatabaseCheck, createHealthService, createPlatformCheck, type HealthService } from '@clawapi/health';
 import { provisionSetupToken, type SetupToken } from './setup-token.ts';
@@ -28,6 +29,7 @@ export interface ClawApi {
   health: HealthService;
   auth: AuthService;
   authz: AuthorizationService;
+  notifications: NotificationService;
   setup: SetupService;
   audit: AuditService;
   /** Present while initial setup is pending. */
@@ -72,6 +74,8 @@ export async function startClawApi({ config, log, version, consoleHtml, hasher =
     log,
   });
   const authz = createAuthorizationService({ roles: createSqliteRoleRepository(db), audit, events, log });
+  const notifications = createNotificationService({ repo: createSqliteNotificationRepository(db), events, log });
+  const unsubscribeNotifications = notifications.subscribe(events);
   let setupToken: SetupToken | null = users.count() === 0 ? provisionSetupToken(config, log) : null;
   const setup = createSetupService({
     users,
@@ -90,14 +94,22 @@ export async function startClawApi({ config, log, version, consoleHtml, hasher =
   const purgeTimer = setInterval(() => {
     try {
       const removed = auth.purgeExpired();
-      if (removed) log.debug('expired sessions purged', { component: 'auth', removed });
+      const notes = notifications.purgeOld();
+      if (removed || notes) log.debug('housekeeping', { component: 'server', sessionsPurged: removed, notificationsPurged: notes });
     } catch (error) {
-      log.error('session purge failed', { component: 'auth', error });
+      log.error('housekeeping failed', { component: 'server', error });
     }
   }, 60 * 60_000);
   purgeTimer.unref();
 
-  const api = createApiApp({ log, health, auth, authz, setup, cookie: { secure: config.auth.cookieSecure } });
+  // Background health checks, so health changes are noticed (and notified)
+  // even when nobody has the console open. History arrives in phase 12.
+  const runHealth = () => void health.report().catch((error: unknown) => log.error('scheduled health check failed', { component: 'health', error }));
+  runHealth();
+  const healthTimer = setInterval(runHealth, config.health.intervalSeconds * 1000);
+  healthTimer.unref();
+
+  const api = createApiApp({ log, health, auth, authz, notifications, setup, cookie: { secure: config.auth.cookieSecure } });
 
   const handle = (request: Request, srv: Server<undefined>) => api.handle(request, srv.requestIP(request)?.address ?? null);
   const serveConsole = config.console.enabled && consoleHtml !== undefined;
@@ -126,7 +138,7 @@ export async function startClawApi({ config, log, version, consoleHtml, hasher =
 
   let stopped = false;
   return {
-    server, db, events, health, auth, authz, setup, audit, api, url,
+    server, db, events, health, auth, authz, notifications, setup, audit, api, url,
     get setupToken() {
       return setupToken;
     },
@@ -134,6 +146,8 @@ export async function startClawApi({ config, log, version, consoleHtml, hasher =
       if (stopped) return;
       stopped = true;
       clearInterval(purgeTimer);
+      clearInterval(healthTimer);
+      unsubscribeNotifications();
       await server.stop();
       db.close();
       log.info('ClawAPI stopped', { component: 'server' });

@@ -10,11 +10,13 @@ usage tracking and an administration console built on
   first working milestone (Bun server, SQLite with migrations, `/api/health`,
   console shell), phase 2 **authentication** (server-side sessions, initial
   setup, login throttling, audit, session revocation) and phase 3
-  **authorization** (ADMIN / OPERATOR / VIEWER roles enforced on every route).
+  **authorization** (ADMIN / OPERATOR / VIEWER roles enforced on every route), and
+  phase 4, the **console shell** with notifications.
   The AI gateway itself (`/v1/*`) is not built yet.
 - **Architecture:** [`docs/architecture.md`](docs/architecture.md) ·
   **Security model:** [`docs/authentication.md`](docs/authentication.md),
-  [`docs/authorization.md`](docs/authorization.md)
+  [`docs/authorization.md`](docs/authorization.md) · **Console:**
+  [`docs/console-shell.md`](docs/console-shell.md)
 
 > Serve ClawAPI over HTTPS (behind a reverse proxy) before exposing it.
 
@@ -81,6 +83,7 @@ Invalid values stop the server with a message listing every problem.
 | `CLAWAPI_SESSION_IDLE_MINUTES` | `60` | A session ends after this long without activity |
 | `CLAWAPI_SESSION_MAX_HOURS` | `12` | A session ends this long after sign-in, regardless of activity |
 | `CLAWAPI_COOKIE_SECURE` | `true` in production | Marks the session cookie `Secure` and uses the `__Host-` prefix. Requires HTTPS |
+| `CLAWAPI_HEALTH_INTERVAL_SECONDS` | `30` | Background health checks (5–3600) |
 | `CLAWAPI_SETUP_TOKEN` | generated | Pre-chosen initial setup token (≥ 16 chars), e.g. for automated installs |
 
 ## Layout
@@ -96,6 +99,7 @@ clawapi/
     database/    data-access interface, SQLite adapter, migrations, settings repository
     authentication/  users, sessions, password hashing, login throttling, initial setup
     authorization/   roles, permissions, role assignment
+    notifications/   per-user and per-permission notifications, event producers
     audit/       append-only audit log
     health/      health checks and aggregation service
     api/         router, middleware (CSRF, sessions), response conventions, controllers

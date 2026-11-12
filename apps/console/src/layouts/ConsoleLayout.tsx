@@ -6,6 +6,8 @@ import { HealthStateIndicator } from '../components/custom/HealthStateIndicator.
 import { useAuth, usePermissions, useSession } from '../features/auth/AuthContext.tsx';
 import { useHealth } from '../features/health/HealthContext.tsx';
 import { MySessionsDialog } from '../features/sessions/MySessionsDialog.tsx';
+import { NotificationsPanel } from '../features/notifications/NotificationsPanel.tsx';
+import { useNotifications } from '../features/notifications/NotificationsContext.tsx';
 
 function NavLink({ item }: { item: NavItem }) {
   return <NavigationItem id={item.id} label={item.label} icon={<Icon name={item.icon} />} href={item.path} />;
@@ -21,6 +23,7 @@ export function ConsoleLayout({ activeId, children }: { activeId: string | undef
   const { set: permissions } = usePermissions();
   const { data, error } = useHealth();
   const [sessionsOpen, setSessionsOpen] = useState(false);
+  const { unread } = useNotifications();
   const gatewayState = error ? 'OFFLINE' : (data?.status ?? 'UNKNOWN');
 
   return (
@@ -32,6 +35,8 @@ export function ConsoleLayout({ activeId, children }: { activeId: string | undef
           logo={<Icon name="it-host" color="var(--eui-color-primary)" />}
           homeHref="/"
           context={[{ id: 'gateway', content: <HealthStateIndicator state={gatewayState} label="System" size="sm" />, priority: 1 }]}
+          notificationCount={unread}
+          notifications={<NotificationsPanel />}
           user={{ name: user.displayName, email: user.username, role: roles.length ? roles.map(roleLabel).join(', ') : 'No role' }}
           userMenuItems={[
             { id: 'sessions', label: 'My sessions', icon: 'user-settings' },

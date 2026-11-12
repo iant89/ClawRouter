@@ -33,7 +33,8 @@ export class FailureThrottle {
     return Math.max(0, entry.blockedUntil - this.now());
   }
 
-  fail(key: string): void {
+  /** Records a failure. Returns true when this failure started a block. */
+  fail(key: string): boolean {
     const now = this.now();
     let entry = this.entries.get(key);
     if (!entry) {
@@ -46,7 +47,9 @@ export class FailureThrottle {
     if (entry.failures.length >= this.options.limit) {
       entry.blockedUntil = now + this.options.blockMs;
       entry.failures = [];
+      return true;
     }
+    return false;
   }
 
   reset(key: string): void {
