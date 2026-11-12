@@ -1,3 +1,5 @@
+import type { RateLimit } from './rate-limits.ts';
+
 /**
  * Gateway vocabulary (spec §6, §7, §14). API keys authenticate external AI
  * clients on /v1/*; they are separate from console sessions.
@@ -21,6 +23,8 @@ export interface ApiKeyInfo {
   expiresAt: string | null;
   lastUsedAt: string | null;
   revokedAt: string | null;
+  /** This key's own limits; null uses the default per-key limit. */
+  rateLimit: RateLimit | null;
 }
 
 /** POST /api/api-keys */
@@ -29,6 +33,15 @@ export interface CreateApiKeyRequest {
   allowedModels?: string[];
   /** ISO date-time, or null for no expiry. */
   expiresAt?: string | null;
+  /** Own limits for this key; omit or null for the default. */
+  rateLimit?: RateLimit | null;
+}
+
+/** PATCH /api/api-keys/:id */
+export interface UpdateApiKeyRequest {
+  name?: string;
+  allowedModels?: string[];
+  rateLimit?: RateLimit | null;
 }
 
 /** The only response that ever contains the full key. */
@@ -52,4 +65,7 @@ export interface GatewayMetrics {
   /** Requests that needed a retry or a failover, since start. */
   retriedRequests: number;
   failedOverRequests: number;
+  /** Requests refused with 429 (any limit). */
+  rateLimitedLastMinute: number;
+  rateLimitedTotal: number;
 }

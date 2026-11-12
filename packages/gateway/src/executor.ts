@@ -60,6 +60,20 @@ function pause(ms: number, signal: AbortSignal): Promise<void> {
 
 export const cancelled = () => new ProviderCallError('cancelled', 'The request was cancelled.');
 
+/** A model refused by its rate limit before any provider call. */
+export interface ModelLimitDenial {
+  retryAfterMs: number;
+  kind: 'requests' | 'tokens';
+  limit: number;
+}
+
+/** Thrown when every candidate model was skipped because of its rate limit. */
+export class ModelsRateLimitedError extends Error {
+  constructor(readonly modelRef: string, readonly denial: ModelLimitDenial) {
+    super(`Every model for this request is at its rate limit (${modelRef}).`);
+  }
+}
+
 export async function runAttempts<T>(
   plan: RoutePlan,
   options: {
@@ -67,6 +81,8 @@ export async function runAttempts<T>(
     failures: FailureTracker;
     call: (candidate: RouteCandidate, signal: AbortSignal) => Promise<T>;
     log?: Logger;
+    /** Checks a model's rate limit before it is tried; a denied model is skipped without calling the provider. */
+    checkModel?: (candidate: RouteCandidate) => Promise<ModelLimitDenial | null>;
     /** Delay before a retry of the same model, times the try number (ms). */
     backoffMs?: number;
   },
@@ -77,11 +93,19 @@ export async function runAttempts<T>(
   const tried = new Set<number>();
   let made = 0;
   let last: { kind: string; error: unknown } | null = null;
+  let limited: { modelRef: string; denial: ModelLimitDenial } | null = null;
 
   for (const attempt of plan.attempts) {
     if (skipped.has(attempt.candidate)) continue;
     if (signal.aborted) throw cancelled();
     const candidate = plan.candidates[attempt.candidate]!;
+    const denial = options.checkModel ? await options.checkModel(candidate) : null;
+    if (denial) {
+      skipped.add(attempt.candidate);
+      if (!limited || denial.retryAfterMs < limited.denial.retryAfterMs) limited = { modelRef: candidate.modelRef, denial };
+      log?.info('model skipped: rate limit', { component: 'gateway', model: candidate.modelRef, kind: denial.kind });
+      continue;
+    }
     if (attempt.try > 1) await pause(Math.min(backoff * (attempt.try - 1), 2_000), signal);
     made += 1;
     tried.add(attempt.candidate);
@@ -108,6 +132,7 @@ export async function runAttempts<T>(
     }
   }
 
+  if (made === 0 && limited) throw new ModelsRateLimitedError(limited.modelRef, limited.denial);
   const n = made;
   if (last?.kind === 'timeout') {
     throw new AppError('PROVIDER_TIMEOUT', `The model provider did not respond in time (${n} attempt${n === 1 ? '' : 's'}).`, { expose: true, details: { attempts: n } });

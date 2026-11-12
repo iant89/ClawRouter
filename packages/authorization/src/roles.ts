@@ -8,11 +8,12 @@ import { PERMISSIONS, type BuiltInRoleId, type Permission } from '@clawrouter/sh
 export const BUILT_IN_ROLE_PERMISSIONS: Record<BuiltInRoleId, readonly Permission[]> = {
   /** Full access. */
   ADMIN: PERMISSIONS,
-  /** Providers, models, routing, health, logs, audit, requests, usage. */
+  /** Providers, models, routing, rate limits, health, logs, audit, requests, usage. */
   OPERATOR: [
     'providers.read', 'providers.write',
     'models.read', 'models.write',
     'routing.read', 'routing.write',
+    'rate_limits.read', 'rate_limits.write',
     'health.read',
     'logs.read',
     'audit.read',
@@ -24,7 +25,7 @@ export const BUILT_IN_ROLE_PERMISSIONS: Record<BuiltInRoleId, readonly Permissio
    * logs and audit (they can reveal security-relevant detail) and everything
    * under Administration.
    */
-  VIEWER: ['providers.read', 'models.read', 'routing.read', 'requests.read', 'usage.read', 'health.read'],
+  VIEWER: ['providers.read', 'models.read', 'routing.read', 'rate_limits.read', 'requests.read', 'usage.read', 'health.read'],
 };
 
 export function permissionsOfRole(roleId: string): readonly Permission[] {

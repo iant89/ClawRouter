@@ -10,6 +10,7 @@
     "@clawrouter/database": "workspace:*",
     "@clawrouter/models": "workspace:*",
     "@clawrouter/providers": "workspace:*",
+    "@clawrouter/rate-limits": "workspace:*",
     "@clawrouter/routing": "workspace:*",
     "@clawrouter/shared": "workspace:*"
   }

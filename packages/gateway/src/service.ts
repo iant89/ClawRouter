@@ -4,7 +4,8 @@ import type { ProviderService, StreamEvent } from '@clawrouter/providers';
 import type { RoutingService } from '@clawrouter/routing';
 import type { Capability, RouteCandidate, RoutePlan } from '@clawrouter/shared';
 import { modelAllowed, type ApiKeyPrincipal } from './api-keys.ts';
-import { cancelled, runAttempts, type AttemptOutcome } from './executor.ts';
+import type { Admission, RateLimitService } from '@clawrouter/rate-limits';
+import { cancelled, ModelsRateLimitedError, runAttempts, type AttemptOutcome } from './executor.ts';
 import { GatewayMetricsRecorder } from './metrics.ts';
 import { finishReason, invalid, parseChatRequest, parseEmbeddingRequest, sse, unixTime, usageBlock } from './openai.ts';
 
@@ -32,14 +33,18 @@ export function createGatewayService(options: {
   models: ModelService;
   events?: EventBus;
   log?: Logger;
+  /** Rate limits (phase 9). Without it nothing is limited (unit tests). */
+  limits?: RateLimitService;
   metrics?: GatewayMetricsRecorder;
   now?: () => Date;
   backoffMs?: number;
 }) {
-  const { routing, providers, models, events, log } = options;
+  const { routing, providers, models, events, log, limits } = options;
   const now = options.now ?? (() => new Date());
-  const metrics = options.metrics ?? new GatewayMetricsRecorder(() => now().getTime());
+  const metrics = options.metrics ?? new GatewayMetricsRecorder(() => now().getTime(), () => limits?.rejections() ?? { lastMinute: 0, total: 0 });
   const encoder = new TextEncoder();
+  const unlimited: Admission = { headers: {}, charge: async () => {}, release: async () => {} };
+  const checkModel = limits ? (c: RouteCandidate) => limits.useModel(c.modelRef) : undefined;
 
   /** Route, translating "nothing to route to" into client-facing errors. */
   function plan(key: ApiKeyPrincipal, model: string, capability: Capability): RoutePlan {
@@ -60,14 +65,27 @@ export function createGatewayService(options: {
     'x-clawrouter-attempts': String(o.attempts),
   });
 
-  /** Common bookkeeping around one gateway request. */
-  async function track<T>(key: ApiKeyPrincipal, model: string, stream: boolean, ctx: GatewayRequestContext, run: () => Promise<T>): Promise<T> {
+  /**
+   * Common bookkeeping around one gateway request: rate-limit admission (a refused
+   * request never starts), events, metrics, and the x-ratelimit-* headers. A JSON
+   * result releases its concurrency slot here; a stream releases it when it ends.
+   */
+  async function track(key: ApiKeyPrincipal, model: string, stream: boolean, ctx: GatewayRequestContext, run: (admission: Admission) => Promise<GatewayResult>): Promise<GatewayResult> {
+    const admission = limits ? await limits.admit({ keyId: key.id, ownerId: key.ownerId, keyLimit: key.rateLimit }, ctx.requestId) : unlimited;
     metrics.started();
     events?.emit('request.started', { requestId: ctx.requestId, apiKeyId: key.id, model, stream });
     const started = performance.now();
     try {
-      return await run();
-    } catch (error) {
+      const result = await run(admission);
+      result.headers = { ...admission.headers, ...result.headers };
+      if (result.kind === 'json') await admission.release();
+      return result;
+    } catch (caught) {
+      await admission.release();
+      let error = caught;
+      if (caught instanceof ModelsRateLimitedError && limits) {
+        error = limits.modelsExhausted(caught.modelRef, caught.denial.retryAfterMs, caught.denial.kind, caught.denial.limit, ctx.requestId);
+      }
       const e = error instanceof AppError ? error : null;
       const durationMs = Math.round(performance.now() - started);
       metrics.finished({ ok: false, latencyMs: durationMs });
@@ -80,7 +98,11 @@ export function createGatewayService(options: {
   }
 
   function completed(key: ApiKeyPrincipal, model: string, stream: boolean, ctx: GatewayRequestContext, o: AttemptOutcome<unknown>, startedAt: number,
-    usage: { inputTokens: number | null; outputTokens: number | null; source: 'provider' | 'none' }) {
+    usage: { inputTokens: number | null; outputTokens: number | null; source: 'provider' | 'none' }, admission: Admission) {
+    const tokens = (usage.inputTokens ?? 0) + (usage.outputTokens ?? 0);
+    // Token limits are charged after the fact, with what the provider reported.
+    void admission.charge(tokens).catch((error: unknown) => log?.error('rate-limit charge failed', { component: 'gateway', error }));
+    if (limits) void limits.chargeModel(o.candidate.modelRef, tokens).catch((error: unknown) => log?.error('rate-limit charge failed', { component: 'gateway', error }));
     const durationMs = Math.round(performance.now() - startedAt);
     metrics.finished({ ok: true, latencyMs: durationMs, inputTokens: usage.inputTokens, outputTokens: usage.outputTokens, retries: o.retries, failovers: o.failovers });
     events?.emit('request.completed', {
@@ -112,13 +134,13 @@ export function createGatewayService(options: {
       });
 
       if (!req.stream) {
-        return track(key, req.model, false, ctx, async () => {
+        return track(key, req.model, false, ctx, async (admission) => {
           const startedAt = performance.now();
           const o = await runAttempts(route, {
-            signal: ctx.signal, failures: routing.failures, log, backoffMs: options.backoffMs,
+            signal: ctx.signal, failures: routing.failures, log, backoffMs: options.backoffMs, checkModel,
             call: (c, signal) => providers.chat(c.providerId, chatRequest(c), signal),
           });
-          completed(key, req.model, false, ctx, o, startedAt, o.value.usage);
+          completed(key, req.model, false, ctx, o, startedAt, o.value.usage, admission);
           const usage = usageBlock(o.value.usage);
           return {
             kind: 'json', status: 200, headers: routeHeaders(o),
@@ -136,10 +158,10 @@ export function createGatewayService(options: {
       const abort = new AbortController();
       const onClientGone = () => abort.abort();
       ctx.signal.addEventListener('abort', onClientGone, { once: true });
-      return track(key, req.model, true, ctx, async () => {
+      return track(key, req.model, true, ctx, async (admission) => {
         const startedAt = performance.now();
         const o = await runAttempts(route, {
-          signal: abort.signal, failures: routing.failures, log, backoffMs: options.backoffMs,
+          signal: abort.signal, failures: routing.failures, log, backoffMs: options.backoffMs, checkModel,
           call: async (c, signal) => {
             const it = providers.chatStream(c.providerId, chatRequest(c), signal)[Symbol.asyncIterator]();
             const first = await it.next();
@@ -155,7 +177,8 @@ export function createGatewayService(options: {
           if (done) return;
           done = true;
           ctx.signal.removeEventListener('abort', onClientGone);
-          if (ok && usage) completed(key, req.model, true, ctx, o, startedAt, usage);
+          void admission.release();
+          if (ok && usage) completed(key, req.model, true, ctx, o, startedAt, usage, admission);
           else {
             const durationMs = Math.round(performance.now() - startedAt);
             metrics.finished({ ok: false, latencyMs: durationMs });
@@ -226,13 +249,13 @@ export function createGatewayService(options: {
     async embeddings(key: ApiKeyPrincipal, body: unknown, ctx: GatewayRequestContext): Promise<GatewayResult> {
       const req = parseEmbeddingRequest(body);
       const route = plan(key, req.model, 'EMBEDDINGS');
-      return track(key, req.model, false, ctx, async () => {
+      return track(key, req.model, false, ctx, async (admission) => {
         const startedAt = performance.now();
         const o = await runAttempts(route, {
-          signal: ctx.signal, failures: routing.failures, log, backoffMs: options.backoffMs,
+          signal: ctx.signal, failures: routing.failures, log, backoffMs: options.backoffMs, checkModel,
           call: (c, signal) => providers.embed(c.providerId, { model: c.providerModelId, input: req.input }, signal),
         });
-        completed(key, req.model, false, ctx, o, startedAt, { inputTokens: o.value.usage.inputTokens, outputTokens: 0, source: o.value.usage.source });
+        completed(key, req.model, false, ctx, o, startedAt, { inputTokens: o.value.usage.inputTokens, outputTokens: 0, source: o.value.usage.source }, admission);
         const prompt = o.value.usage.inputTokens;
         return {
           kind: 'json', status: 200, headers: routeHeaders(o),

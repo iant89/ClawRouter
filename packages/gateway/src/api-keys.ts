@@ -1,7 +1,8 @@
 import { errors, newId, type Logger } from '@clawrouter/core';
 import type { AuditService } from '@clawrouter/audit';
 import type { Database } from '@clawrouter/database';
-import { API_KEY_PREFIX, type ApiKeyInfo, type ApiKeyStatus, type CreateApiKeyRequest, type CreatedApiKey } from '@clawrouter/shared';
+import { checkRateLimit, normalizeLimit } from '@clawrouter/rate-limits';
+import { API_KEY_PREFIX, type ApiKeyInfo, type ApiKeyStatus, type CreateApiKeyRequest, type CreatedApiKey, type FieldIssue, type RateLimit, type UpdateApiKeyRequest } from '@clawrouter/shared';
 
 /** The identity of an authenticated external client for one request. */
 export interface ApiKeyPrincipal {
@@ -9,6 +10,10 @@ export interface ApiKeyPrincipal {
   name: string;
   prefix: string;
   allowedModels: string[];
+  /** The user who created the key (per-user limits), if still present. */
+  ownerId: string | null;
+  /** Own limit, or null for the default per-key limit. */
+  rateLimit: RateLimit | null;
 }
 
 interface Row {
@@ -23,6 +28,7 @@ interface Row {
   expires_at: string | null;
   last_used_at: string | null;
   revoked_at: string | null;
+  rate_limit: string | null;
 }
 
 const sha256 = (text: string) => new Bun.CryptoHasher('sha256').update(text).digest('hex');
@@ -65,6 +71,7 @@ export function createApiKeyService(options: { db: Database; audit: AuditService
     expiresAt: r.expires_at,
     lastUsedAt: r.last_used_at,
     revokedAt: r.revoked_at,
+    rateLimit: r.rate_limit ? (JSON.parse(r.rate_limit) as RateLimit) : null,
   });
 
   return {
@@ -72,12 +79,22 @@ export function createApiKeyService(options: { db: Database; audit: AuditService
       return db.all<Row>(`${SELECT} ORDER BY k.revoked_at IS NOT NULL, k.created_at DESC`).map(toInfo);
     },
 
+    /** Name and limit of a key, for the rate-limit usage view. */
+    describeKey(id: string): { label: string; limit: RateLimit | null } | null {
+      const r = db.get<Row>(`${SELECT} WHERE k.id = ?`, [id]);
+      return r ? { label: `${r.name} (${r.prefix}…)`, limit: r.rate_limit ? (JSON.parse(r.rate_limit) as RateLimit) : null } : null;
+    },
+
+    /** Username of a key owner, for the rate-limit usage view. */
+    describeUser(userId: string): string | null {
+      return db.get<{ username: string }>('SELECT username FROM users WHERE id = ?', [userId])?.username ?? null;
+    },
+
     create(actor: { id: string; username: string }, input: CreateApiKeyRequest, client: { ip: string | null; requestId?: string | null }): CreatedApiKey {
-      const name = input.name.trim();
-      const allowedModels = [...new Set((input.allowedModels ?? []).map((m) => m.trim()).filter(Boolean))];
-      const issues = [];
-      if (!name || name.length > 100) issues.push({ path: 'name', message: 'must be 1–100 characters' });
-      if (allowedModels.length > 100 || allowedModels.some((m) => m.length > 300)) issues.push({ path: 'allowedModels', message: 'at most 100 model names of up to 300 characters' });
+      const issues: FieldIssue[] = [];
+      const name = checkName(input.name, issues);
+      const allowedModels = checkModels(input.allowedModels ?? [], issues);
+      const rateLimit = checkKeyLimit(input.rateLimit, issues);
       let expiresAt: string | null = null;
       if (input.expiresAt) {
         const t = Date.parse(input.expiresAt);
@@ -93,15 +110,41 @@ export function createApiKeyService(options: { db: Database; audit: AuditService
       const prefix = `${API_KEY_PREFIX}${publicId}`;
       const at = now().toISOString();
       db.run(
-        `INSERT INTO api_keys (id, name, prefix, secret_hash, allowed_models, created_by, created_at, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-        [id, name, prefix, sha256(secret), JSON.stringify(allowedModels), actor.id, at, expiresAt],
+        `INSERT INTO api_keys (id, name, prefix, secret_hash, allowed_models, created_by, created_at, expires_at, rate_limit) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [id, name, prefix, sha256(secret), JSON.stringify(allowedModels), actor.id, at, expiresAt, rateLimit ? JSON.stringify(rateLimit) : null],
       );
       audit.record({
         action: 'API_KEY_CREATED', result: 'SUCCESS', resource: 'api_key', resourceId: id,
         actor: { id: actor.id, name: actor.username }, ip: client.ip, requestId: client.requestId ?? null,
-        metadata: { name, prefix, allowedModels, expiresAt },
+        metadata: { name, prefix, allowedModels, expiresAt, rateLimit },
       });
       return { key: toInfo(db.get<Row>(`${SELECT} WHERE k.id = ?`, [id])!), secret };
+    },
+
+    /** Changes a key's name, allowed models or limit. The secret never changes. */
+    update(actor: { id: string; username: string }, id: string, input: UpdateApiKeyRequest, client: { ip: string | null; requestId?: string | null }): ApiKeyInfo {
+      const row = db.get<Row>(`${SELECT} WHERE k.id = ?`, [id]);
+      if (!row) throw errors.notFound('API key not found.');
+      const issues: FieldIssue[] = [];
+      const before = toInfo(row);
+      const name = input.name === undefined ? before.name : checkName(input.name, issues);
+      const allowedModels = input.allowedModels === undefined ? before.allowedModels : checkModels(input.allowedModels, issues);
+      const rateLimit = input.rateLimit === undefined ? before.rateLimit : checkKeyLimit(input.rateLimit, issues);
+      if (issues.length) throw errors.validation(issues);
+      if (row.revoked_at) throw errors.conflict('A revoked API key cannot be changed.');
+      const changes: Record<string, unknown> = {};
+      if (name !== before.name) changes.name = { from: before.name, to: name };
+      if (JSON.stringify(allowedModels) !== JSON.stringify(before.allowedModels)) changes.allowedModels = { from: before.allowedModels, to: allowedModels };
+      if (JSON.stringify(rateLimit) !== JSON.stringify(before.rateLimit)) changes.rateLimit = { from: before.rateLimit, to: rateLimit };
+      if (Object.keys(changes).length) {
+        db.run('UPDATE api_keys SET name = ?, allowed_models = ?, rate_limit = ? WHERE id = ?', [name, JSON.stringify(allowedModels), rateLimit ? JSON.stringify(rateLimit) : null, id]);
+        audit.record({
+          action: 'API_KEY_UPDATED', result: 'SUCCESS', resource: 'api_key', resourceId: id,
+          actor: { id: actor.id, name: actor.username }, ip: client.ip, requestId: client.requestId ?? null,
+          metadata: { prefix: row.prefix, ...changes },
+        });
+      }
+      return toInfo(db.get<Row>(`${SELECT} WHERE k.id = ?`, [id])!);
     },
 
     revoke(actor: { id: string; username: string }, id: string, client: { ip: string | null; requestId?: string | null }): ApiKeyInfo {
@@ -136,9 +179,31 @@ export function createApiKeyService(options: { db: Database; audit: AuditService
       if (!row.last_used_at || at.getTime() - Date.parse(row.last_used_at) >= LAST_USED_INTERVAL_MS) {
         db.run('UPDATE api_keys SET last_used_at = ? WHERE id = ?', [at.toISOString(), row.id]);
       }
-      return { id: row.id, name: row.name, prefix: row.prefix, allowedModels: JSON.parse(row.allowed_models) as string[] };
+      return {
+        id: row.id, name: row.name, prefix: row.prefix, allowedModels: JSON.parse(row.allowed_models) as string[],
+        ownerId: row.created_by, rateLimit: row.rate_limit ? (JSON.parse(row.rate_limit) as RateLimit) : null,
+      };
     },
   };
+}
+
+function checkName(value: string, issues: FieldIssue[]): string {
+  const name = value.trim();
+  if (!name || name.length > 100) issues.push({ path: 'name', message: 'must be 1–100 characters' });
+  return name;
+}
+
+function checkModels(value: string[], issues: FieldIssue[]): string[] {
+  const models = [...new Set(value.map((m) => m.trim()).filter(Boolean))];
+  if (models.length > 100 || models.some((m) => m.length > 300)) issues.push({ path: 'allowedModels', message: 'at most 100 model names of up to 300 characters' });
+  return models;
+}
+
+/** A key's own limit: null means "use the default"; a limit with both values null means "no per-key limit". */
+function checkKeyLimit(value: RateLimit | null | undefined, issues: FieldIssue[]): RateLimit | null {
+  if (value === undefined || value === null) return null;
+  if (!checkRateLimit(value, 'rateLimit', issues)) return null;
+  return normalizeLimit(value);
 }
 
 /** Whether a key may request `model`. Empty list: any model. Names compare case-insensitively. */

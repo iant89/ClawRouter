@@ -16,7 +16,11 @@ export class GatewayMetricsRecorder {
   private tokens: { at: number; input: number; output: number }[] = [];
   private readonly startedAt: string;
 
-  constructor(private readonly now: () => number = Date.now) {
+  constructor(
+    private readonly now: () => number = Date.now,
+    /** Requests refused with 429, counted by the rate limiter (they never become gateway requests). */
+    private readonly rejections: () => { lastMinute: number; total: number } = () => ({ lastMinute: 0, total: 0 }),
+  ) {
     this.startedAt = new Date(now()).toISOString();
   }
 
@@ -45,6 +49,7 @@ export class GatewayMetricsRecorder {
     this.starts = this.starts.filter((t) => at - t < 60_000);
     this.failuresAt = this.failuresAt.filter((t) => at - t < 60_000);
     this.tokens = this.tokens.filter((t) => at - t.at < 3_600_000);
+    const limited = this.rejections();
     return {
       startedAt: this.startedAt,
       activeRequests: this.active,
@@ -56,6 +61,8 @@ export class GatewayMetricsRecorder {
       tokensLastHour: this.tokens.reduce((s, t) => ({ input: s.input + t.input, output: s.output + t.output }), { input: 0, output: 0 }),
       retriedRequests: this.retried,
       failedOverRequests: this.failedOver,
+      rateLimitedLastMinute: limited.lastMinute,
+      rateLimitedTotal: limited.total,
     };
   }
 }
