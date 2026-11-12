@@ -90,3 +90,17 @@ Taken after the rename: these show **ClawRouter**.
 | ![Alias dialog](07-routing/alias-dialog.png) | Adding `fast-code`: a primary at priority 0, two fallbacks sharing priority 1 by weight (3:1), CODING required |
 | ![Aliases and preview](07-routing/aliases-and-preview.png) | A target alias and a capability alias (`embed`); the route tester showing the attempt sequence (retry, then fail over, capped at 3) |
 | ![Problems](07-routing/problems.png) | All providers disabled: both aliases reported as not routable. The Policy column was later widened so "Default" no longer wraps |
+
+## 08 · Gateway
+
+A local OpenAI-compatible mock provider behind the alias `fast-chat`. The key in
+these screenshots was masked before capture.
+
+| | |
+|---|---|
+| ![Create key](08-gateway/create-dialog.png) | **Create API key**, limited to the `fast-chat` alias |
+| ![Key shown once](08-gateway/key-shown-once.png) | The key is shown once, with copy buttons and a curl example |
+| ![Key list](08-gateway/key-list.png) | **API Access** after the key was used: prefix, status, allowed models, last use |
+| ![Dashboard](08-gateway/dashboard-metrics.png) | Dashboard **Gateway activity** after 7 requests (live, in memory) |
+| ![Revoke](08-gateway/revoke-confirm.png) | Revoking a key; clients get 401 immediately |
+| ![Phone](08-gateway/phone.png) | API Access at phone width after revocation |

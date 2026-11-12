@@ -67,11 +67,14 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
   says "ClawAPI". From 07 (routing) on they show ClawRouter. Retake older ones as
   phases revisit those screens.
 
-- **WARNING** · 2026-11-12 · Routing plans are not executed yet
-  Phase 7 only plans routes. Nothing sends requests through a plan, and nothing
-  records failures in `RoutingService.failures` (the `FailureTracker`) until the
-  gateway exists (phase 8). The gateway must call `recordFailure` /
-  `recordSuccess` per attempt, or failure demotion never takes effect.
+- **WARNING** · 2026-11-12 · Gateway limits until later phases
+  - No rate limits at all on `/v1` yet, including repeated invalid keys: phase 9.
+    Do not expose the gateway publicly before then.
+  - Gateway metrics are in memory and reset on restart; request history and usage
+    are only emitted as events (`request.completed`), not stored: phase 10.
+  - `/v1/responses`, tools, images and `n > 1` are rejected with 400 (see
+    `docs/gateway.md`). Agent clients that need tools will not work yet.
+  - No CORS on `/v1`; browser apps must call it from their backend.
 
 - **WARNING** · 2026-11-12 · Behind a reverse proxy, login throttling is shared
   Client IPs come from the socket. Behind a proxy, every client has the proxy's
@@ -103,25 +106,34 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
     harness uses seed 42), so they are reproducible; production uses `Math.random`.
   - The alias dialog offers the first 200 models (by provider priority). A
     searchable model picker is needed for very large registries.
+  - Mock-provider streams: `controller.error()` right after `enqueue()` drops the
+    queued chunk in Bun, so `streamBreak` sleeps 30 ms first. Keep that if you
+    touch `tests/support/mock-providers.ts`.
+  - In Playwright, ENTERPRISE-UI's `MultiSelect` opened with ArrowDown, not with a
+    click on the input (see the API Access create dialog). Worth checking by hand.
+  - GitHub says the repository moved to `iant89/ClawRouter`; pushes to the
+    lower-case `origin` URL still work through the redirect.
   - The session worker can restart mid-task. Commit and push in steps, so work is
     never lost.
 
 ### Messages
 
-- **MESSAGE** · 2026-11-12 · Next: phase 8, the request gateway
-  Phases 0–7 are done (see `docs/roadmap.md`). Phase 8 is the `/v1/*`
-  OpenAI-compatible API:
-  - API keys (hashed, shown once) for external clients, never console sessions;
-  - request validation and normalization;
-  - `RoutingService.plan()` → execute the attempts with `ProviderService.chat` /
-    `chatStream`, with timeouts, cancellation on client disconnect, and
-    `FailureTracker` updates;
-  - streaming SSE passthrough without buffering (spec §13);
-  - request IDs and usage accounting hooks.
+- **MESSAGE** · 2026-11-12 · Phase 8 waits for review; then phase 9, rate limiting
+  Phase 8 (request gateway) is on `claude/phase-8-gateway`, pushed, not merged.
+  Merge only when the owner says so (fast-forward `main`). Phase 9 next: a
+  rate-limit abstraction (the login throttle is groundwork), per API key, per
+  user, per model and global limits, `x-ratelimit-*` / `retry-after` headers,
+  events, admin configuration, and throttling of invalid API keys per IP.
 
 ---
 
 ## Resolved
+
+- **MESSAGE** · 2026-11-12 · Next: phase 8, the request gateway. Resolved 2026-11-12:
+  built on `claude/phase-8-gateway` (see `docs/gateway.md`).
+
+- **WARNING** · 2026-11-12 · Routing plans are not executed yet. Resolved 2026-11-12:
+  the phase 8 gateway executes plans and records every attempt in the `FailureTracker`.
 
 - **MESSAGE** · 2026-11-12 · Next: phase 7, the routing engine. Resolved 2026-11-12:
   phase 7 built on `claude/phase-7-routing` (see `docs/routing.md`).

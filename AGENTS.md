@@ -33,7 +33,7 @@ bun install            # everything, including the vendored ENTERPRISE-UI
 bun run dev            # server + console with hot reload on http://127.0.0.1:8080
 bun run check          # typecheck + all tests: must pass before every commit
 bun run typecheck
-bun test               # ~360 tests, about a second
+bun test               # ~390 tests, about a second
 bun run build          # production bundle in dist/ (server + console)
 bun run start          # run the production bundle
 bun run migrate        # apply migrations (--status to list)
@@ -52,7 +52,7 @@ packages/shared/    browser-safe types shared by server and console
 packages/core/      config, errors, validation, logger + redaction, event bus, secret box
 packages/database/  Database interface, SQLite adapter, migrations (append-only)
 packages/api/       router, middleware, controllers
-packages/<domain>/  authentication, authorization, audit, notifications, health, providers, models, routing
+packages/<domain>/  authentication, authorization, audit, notifications, health, providers, models, routing, gateway
 tests/support/      harness.ts (fully wired in-memory app), mock-providers.ts (fake provider APIs)
 docs/               design specification, roadmap, per-area docs, screenshots/
 vendor/             ENTERPRISE-UI tarball (committed)
@@ -60,7 +60,7 @@ vendor/             ENTERPRISE-UI tarball (committed)
 
 Area docs: [architecture](docs/architecture.md) · [authentication](docs/authentication.md) ·
 [authorization](docs/authorization.md) · [console shell](docs/console-shell.md) ·
-[providers](docs/providers.md) · [models](docs/models.md) · [routing](docs/routing.md) · [screenshots](docs/screenshots/README.md)
+[providers](docs/providers.md) · [models](docs/models.md) · [routing](docs/routing.md) · [gateway](docs/gateway.md) · [screenshots](docs/screenshots/README.md)
 
 ## Rules
 
@@ -73,7 +73,7 @@ From the specification (§2, §39), plus conventions established while building:
 3. **Database code stays in repositories.** Domain packages own a repository
    interface plus a SQLite implementation. Nothing else imports `bun:sqlite`.
 4. **Every route declares its access:** `router.get(path, access, handler)` with
-   `'public'`, `'authenticated'` (own data only) or a permission. It is a required
+   `'public'`, `'authenticated'` (own data only), `'api_key'` (`/v1` only) or a permission. It is a required
    argument. Never add a public route without a reason in the code.
 5. **Migrations are append-only.** Never edit or rename an applied migration: the
    runner checks checksums and refuses to start. Add `NNNN_name.ts` and append it to

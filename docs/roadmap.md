@@ -191,39 +191,40 @@ Goal: implement provider/model selection. See [routing](routing.md).
 Exit: given a request, ClawRouter deterministically selects the best eligible provider/model ✅
 (`POST /api/routing/preview`; reproducible with a seeded random source).
 
-## Phase 8: Request gateway ⬜ next
+## Phase 8: Request gateway ✅
 
-Goal: build the actual AI gateway.
+Goal: build the actual AI gateway. See [gateway](gateway.md).
 
-- [ ] Gateway request pipeline
-- [ ] External API authentication
-- [ ] API key management
-- [ ] Request validation
-- [ ] Request normalization (groundwork: normalized `ChatRequest` types)
-- [ ] Model resolution (groundwork: `resolveRef`)
-- [ ] Routing integration
-- [ ] Provider execution (groundwork: `ProviderService.chat` / `chatStream`)
-- [ ] Response normalization
-- [ ] Error normalization
-- [ ] Timeout handling (groundwork: per-provider timeouts)
-- [ ] Retry handling
-- [ ] Failover handling
-- [ ] Request cancellation (groundwork: provider calls take an `AbortSignal`)
-- [ ] Streaming (groundwork: normalized provider stream events)
-- [ ] Request IDs (groundwork: every admin API response has one)
-- [ ] Request metrics
-- [ ] Usage accounting
+- [x] Gateway request pipeline: `packages/gateway` (validate → allowed models → plan → execute → format)
+- [x] External API authentication: API keys only on `/v1` (`Authorization: Bearer` or `x-api-key`); sessions never
+- [x] API key management: hashed, shown once, allowed models, expiry, revocation, audited; **API Access** console page
+- [x] Request validation: OpenAI-style errors naming the `param`; unsupported features rejected, not ignored
+- [x] Request normalization: OpenAI request → normalized `ChatRequest` / `EmbeddingRequest`
+- [x] Model resolution: alias, `provider/model` reference or model id (routing engine)
+- [x] Routing integration: `RoutingService.plan()` per request
+- [x] Provider execution: `ProviderService.chat` / `chatStream` / `embed`
+- [x] Response normalization: OpenAI `chat.completion`, `chat.completion.chunk` and embedding lists
+- [x] Error normalization: OpenAI error format on `/v1`; provider details stay in the server log
+- [x] Timeout handling: per-provider timeouts; all attempts timing out gives 504
+- [x] Retry handling: transient failures retried with backoff, as the policy allows
+- [x] Failover handling: next model on failure; streams fail over only before the first token
+- [x] Request cancellation: a client disconnect aborts the provider call
+- [x] Streaming: SSE passthrough without buffering, `include_usage`, error event when a stream breaks
+- [x] Request IDs: `x-request-id`, completion ids derived from it
+- [x] Request metrics: in memory, `GET /api/gateway/metrics`, dashboard tiles (history: phase 10)
+- [x] Usage accounting: provider-reported tokens in `request.completed` events (persistence: phase 10)
 
 Initial external API:
 
-- [ ] `/v1/models`
-- [ ] `/v1/chat/completions`
-- [ ] `/v1/embeddings`
-- [ ] `/v1/responses` if supported by the normalized model
+- [x] `/v1/models`
+- [x] `/v1/chat/completions`
+- [x] `/v1/embeddings` (OpenAI, OpenAI-compatible, Google)
+- [ ] `/v1/responses`: not supported by the normalized model yet; answers 400 pointing to chat completions
 
-Exit: an external AI client can point directly at ClawRouter and make an AI request without knowing which provider handled it.
+Exit: an external AI client can point directly at ClawRouter and make an AI request without knowing which provider handled it ✅
+(tested with the mock providers and in the browser; real providers not yet tried).
 
-## Phase 9: Rate limiting ⬜
+## Phase 9: Rate limiting ⬜ next
 
 Goal: protect the gateway.
 

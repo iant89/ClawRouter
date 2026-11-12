@@ -19,14 +19,16 @@ usage tracking and an administration console built on
   engine** (OpenAI, Anthropic, Google, local / OpenAI-compatible, with encrypted
   credentials), phase 6, the **model registry** (discovery, availability,
   capabilities, prices), and phase 7, the **routing engine** (aliases, priorities,
-  weights, health-aware fallback, failover policies).
-  The AI gateway itself (`/v1/*`) is next (phase 8).
+  weights, health-aware fallback, failover policies), and phase 8, the **request
+  gateway**: an OpenAI-compatible `/v1` API (chat completions with streaming,
+  embeddings, models) authenticated by API keys, with retries and failover.
+  Rate limiting is next (phase 9).
 - **Architecture:** [`docs/architecture.md`](docs/architecture.md) ·
   **Security model:** [`docs/authentication.md`](docs/authentication.md),
   [`docs/authorization.md`](docs/authorization.md) · **Console:**
   [`docs/console-shell.md`](docs/console-shell.md) · **Providers:**
   [`docs/providers.md`](docs/providers.md) · **Models:** [`docs/models.md`](docs/models.md) ·
-  **Routing:** [`docs/routing.md`](docs/routing.md)
+  **Routing:** [`docs/routing.md`](docs/routing.md) · **Gateway:** [`docs/gateway.md`](docs/gateway.md)
 - **Screenshots:** [`docs/screenshots/`](docs/screenshots/README.md)
 - **Working on the code:** [`AGENTS.md`](AGENTS.md) (rules, commands, definition
   of done) and [`MEMORY.md`](MEMORY.md) (important notes carried between sessions).
@@ -59,7 +61,7 @@ Keep it with the database: without it, stored keys cannot be decrypted.
 | Path | What |
 |---|---|
 | `/api/*` | Administration API (JSON, session cookie). See [authentication](docs/authentication.md#endpoints) |
-| `/v1/*` | External AI gateway API. Reserved; returns normalized 404 until phase 8 |
+| `/v1/*` | External AI gateway API, OpenAI-compatible, API keys only. See [gateway](docs/gateway.md) |
 | everything else | The console (React + ENTERPRISE-UI), bundled on the fly by Bun with HMR |
 
 ```bash

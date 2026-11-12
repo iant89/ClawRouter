@@ -26,6 +26,8 @@ export function ApiAccessPage() {
   const toast = useToast();
   const perms = usePermissions();
   const canWrite = perms.can('api_keys.write');
+  const canRouting = perms.can('routing.read');
+  const canModels = perms.can('models.read');
   const [keys, setKeys] = useState<ApiKeyInfo[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -53,11 +55,11 @@ export function ApiAccessPage() {
   useEffect(() => {
     if (!dialogOpen || modelOptions.length) return;
     const controller = new AbortController();
-    const aliases = perms.can('routing.read') ? fetchRouting(controller.signal).then((r) => r.aliases.map((a) => ({ value: a.name, label: a.name, description: `Alias${a.description ? ` · ${a.description}` : ''}` }))).catch(() => []) : Promise.resolve([]);
-    const models = perms.can('models.read') ? fetchModels({ page: 1, pageSize: 200 }, controller.signal).then((r) => r.items.map((m) => ({ value: m.ref, label: m.ref, description: m.displayName }))).catch(() => []) : Promise.resolve([]);
+    const aliases = canRouting ? fetchRouting(controller.signal).then((r) => r.aliases.map((a) => ({ value: a.name, label: a.name, description: `Alias${a.description ? ` · ${a.description}` : ''}` }))).catch(() => []) : Promise.resolve([]);
+    const models = canModels ? fetchModels({ page: 1, pageSize: 200 }, controller.signal).then((r) => r.items.map((m) => ({ value: m.ref, label: m.ref, description: m.displayName }))).catch(() => []) : Promise.resolve([]);
     void Promise.all([aliases, models]).then(([a, m]) => { if (!controller.signal.aborted) setModelOptions([...a, ...m]); });
     return () => controller.abort();
-  }, [dialogOpen, modelOptions.length, perms]);
+  }, [dialogOpen, modelOptions.length, canRouting, canModels]);
 
   const create = async (body: CreateApiKeyRequest) => {
     setSaving(true);
