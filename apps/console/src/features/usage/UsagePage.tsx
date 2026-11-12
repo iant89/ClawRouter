@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
-  BarChart, Dashboard, LineChart, MessageStrip, MetricCard, Page, RefreshControl, SegmentedButton, Select, Table, Text, type TableColumn,
+  BarChart, Dashboard, DashboardWidget, LineChart, MessageStrip, MetricCard, Page, RefreshControl, SegmentedButton, Select, Table, Text, type TableColumn,
 } from '@enterprise-ui/react';
 import { USAGE_GROUPS, type UsageBreakdownRow, type UsageGroup, type UsageReport } from '@clawrouter/shared';
 import { fetchUsage } from '../../services/requests.ts';
@@ -43,7 +43,7 @@ export function UsagePage() {
   const t = report?.totals;
   const wait = !report && loading;
   const label = (iso: string) => (report?.bucket === 'hour'
-    ? new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    ? new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
     : new Date(iso).toLocaleDateString([], { month: 'short', day: 'numeric' }));
   const series = (report?.series ?? []).map((b) => ({
     at: label(b.start), requests: b.requests, errors: b.errors, input: b.inputTokens, output: b.outputTokens,
@@ -88,11 +88,20 @@ export function UsagePage() {
         <MetricCard title="Average duration" value={t ? formatDuration(t.averageDurationMs) : '—'} loading={wait} icon="past" />
       </Dashboard>
 
-      <LineChart label={`Requests per ${report?.bucket ?? 'hour'}`} data={series} categoryKey="at" categoryLabel="Time"
-        series={[{ key: 'requests', label: 'Requests' }, { key: 'errors', label: 'Did not complete' }]} height={220} includeZero tableToggle loading={wait} />
+      {/* Charts measure their width when they mount: mount them once there is data. */}
+      {report && (
+      <Dashboard title="Over time" columns={{ base: 1, lg: 2 }}>
+        <DashboardWidget>
+          <LineChart label={`Requests per ${report?.bucket ?? 'hour'}`} data={series} categoryKey="at" categoryLabel="Time"
+        series={[{ key: 'requests', label: 'Requests' }, { key: 'errors', label: 'Did not complete' }]} height={220} includeZero tableToggle />
+        </DashboardWidget>
+        <DashboardWidget>
       <BarChart label={`Tokens per ${report?.bucket ?? 'hour'}`} data={series} categoryKey="at" categoryLabel="Time" stacked
-        series={[{ key: 'input', label: 'Input tokens' }, { key: 'output', label: 'Output tokens' }]} height={220} tableToggle loading={wait}
+        series={[{ key: 'input', label: 'Input tokens' }, { key: 'output', label: 'Output tokens' }]} height={220} tableToggle
         formatValue={(v) => formatTokens(v)} />
+        </DashboardWidget>
+      </Dashboard>
+      )}
 
       <Table
         caption={`By ${GROUP_LABEL[groupBy].toLowerCase()}`}
