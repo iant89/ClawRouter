@@ -1,6 +1,6 @@
 import { AppError, newId, type EventBus, type Logger, type SessionRevokeReason } from '@clawapi/core';
 import type { AuditService } from '@clawapi/audit';
-import type { SessionInfo, UserSummary } from '@clawapi/shared';
+import type { AdminSessionInfo, SessionInfo, UserSummary } from '@clawapi/shared';
 import type { PasswordHasher } from './password.ts';
 import type { Session, SessionRepository } from './sessions.ts';
 import { FailureThrottle } from './throttle.ts';
@@ -206,6 +206,70 @@ export function createAuthService(options: AuthServiceOptions) {
     revokeAllSessions(userId: string, reason: SessionRevokeReason, exceptSessionId?: string): number {
       const ids = sessions.revokeAllForUser(userId, now().toISOString(), reason, exceptSessionId);
       for (const id of ids) events?.emit('session.revoked', { sessionId: id, userId, reason });
+      return ids.length;
+    },
+
+    /**
+     * Live sessions of every user (administration), paginated server-side.
+     * `currentSessionId` marks the caller's own session.
+     */
+    listAllSessions(query: { page: number; pageSize: number; userId?: string; currentSessionId?: string }): { items: AdminSessionInfo[]; total: number } {
+      const at = now();
+      const { items, total } = sessions.listActive({
+        now: at.toISOString(),
+        idleCutoff: new Date(at.getTime() - idleMs).toISOString(),
+        userId: query.userId,
+        limit: query.pageSize,
+        offset: (query.page - 1) * query.pageSize,
+      });
+      const owners = new Map<string, User | undefined>();
+      const owner = (id: string) => {
+        if (!owners.has(id)) owners.set(id, users.findById(id));
+        return owners.get(id);
+      };
+      return {
+        total,
+        items: items.map((s) => {
+          const u = owner(s.userId);
+          return {
+            ...toInfo(s, query.currentSessionId),
+            user: { id: s.userId, username: u?.username ?? '(deleted user)', displayName: u?.displayName ?? '(deleted user)' },
+          };
+        }),
+      };
+    },
+
+    /**
+     * Revokes any user's session (administration). Returns false when the
+     * session does not exist or has already ended.
+     */
+    revokeSession(actor: UserSummary, sessionId: string, client: ClientInfo): boolean {
+      const session = sessions.findById(sessionId);
+      if (!session || session.revokedAt) return false;
+      if (!sessions.revoke(session.id, now().toISOString(), 'REVOKED')) return false;
+      audit.record({
+        action: 'SESSION_REVOKED', result: 'SUCCESS', resource: 'session', resourceId: session.id,
+        actor: { id: actor.id, name: actor.username }, ip: client.ip, requestId: client.requestId ?? null,
+        metadata: { userId: session.userId, scope: 'single', own: session.userId === actor.id },
+      });
+      events?.emit('session.revoked', { sessionId: session.id, userId: session.userId, reason: 'REVOKED' });
+      return true;
+    },
+
+    /**
+     * Revokes every live session of `userId` (administration, or a user signing
+     * out everywhere else). One audit record covers the whole operation.
+     */
+    revokeUserSessions(actor: UserSummary, userId: string, client: ClientInfo, exceptSessionId?: string): number {
+      const ids = sessions.revokeAllForUser(userId, now().toISOString(), 'REVOKED', exceptSessionId);
+      if (ids.length) {
+        audit.record({
+          action: 'SESSION_REVOKED', result: 'SUCCESS', resource: 'user', resourceId: userId,
+          actor: { id: actor.id, name: actor.username }, ip: client.ip, requestId: client.requestId ?? null,
+          metadata: { scope: exceptSessionId ? 'all_except_current' : 'all', count: ids.length, sessionIds: ids, own: userId === actor.id },
+        });
+      }
+      for (const id of ids) events?.emit('session.revoked', { sessionId: id, userId, reason: 'REVOKED' });
       return ids.length;
     },
 

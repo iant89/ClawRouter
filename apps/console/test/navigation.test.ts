@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { NAV_ITEMS, NAVIGATION, resolvePath } from '../src/app/navigation.ts';
-import { formatUptime } from '../src/services/format.ts';
+import { describeUserAgent, formatRelative, formatUptime } from '../src/services/format.ts';
 
 describe('console navigation', () => {
   test('matches the spec §17 structure', () => {
@@ -27,12 +27,37 @@ describe('console navigation', () => {
   });
 
   test('only implemented pages lack a planned phase', () => {
-    expect(NAV_ITEMS.filter((i) => i.plannedPhase === undefined).map((i) => i.id)).toEqual(['dashboard', 'health']);
+    expect(NAV_ITEMS.filter((i) => i.plannedPhase === undefined).map((i) => i.id)).toEqual(['dashboard', 'health', 'sessions']);
   });
 });
 
 describe('formatUptime', () => {
   test.each([[5, '5s'], [65, '1m 5s'], [3_700, '1h 1m'], [90_000, '1d 1h']])('%d -> %s', (s, out) => {
     expect(formatUptime(s)).toBe(out);
+  });
+});
+
+describe('describeUserAgent', () => {
+  test.each([
+    ['Mozilla/5.0 (Macintosh; Intel Mac OS X 14_5) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Safari/605.1.15', 'Safari on macOS'],
+    ['Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36 Edg/126.0', 'Edge on Windows'],
+    ['Mozilla/5.0 (X11; Linux x86_64; rv:128.0) Gecko/20100101 Firefox/128.0', 'Firefox on Linux'],
+    ['Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Mobile Safari/537.36', 'Chrome on Android'],
+    ['curl/8.5.0', 'curl'],
+    [null, 'Unknown device'],
+  ])('%p -> %s', (ua, out) => {
+    expect(describeUserAgent(ua)).toBe(out);
+  });
+});
+
+describe('formatRelative', () => {
+  const now = Date.parse('2026-01-01T12:00:00Z');
+  test.each([
+    ['2026-01-01T11:59:40Z', 'just now'],
+    ['2026-01-01T11:55:00Z', '5 min ago'],
+    ['2026-01-01T09:00:00Z', '3 h ago'],
+    ['2025-12-30T12:00:00Z', '2 d ago'],
+  ])('%s -> %s', (iso, out) => {
+    expect(formatRelative(iso, now)).toBe(out);
   });
 });

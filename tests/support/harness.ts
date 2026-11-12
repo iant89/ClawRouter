@@ -44,6 +44,8 @@ export interface Harness {
   completeSetup(): Promise<string>;
   /** Signs in and returns the session cookie. */
   login(username?: string, password?: string): Promise<string>;
+  /** Inserts an extra ACTIVE user directly (user management is phase 14). */
+  addUser(username: string, password?: string): Promise<{ id: string }>;
 }
 
 export function cookieFrom(response: Response): string {
@@ -91,6 +93,11 @@ export function createHarness(options: { idleMinutes?: number; maxHours?: number
     async completeSetup() {
       const res = await h.request('/api/setup', { method: 'POST', json: { setupToken: SETUP_TOKEN, ...ADMIN } });
       return cookieFrom(res);
+    },
+    async addUser(username, password = ADMIN.password) {
+      const id = crypto.randomUUID();
+      users.insert({ id, username, displayName: username, passwordHash: await fastHasher.hash(password), status: 'ACTIVE', now: clock.now().toISOString() });
+      return { id };
     },
     async login(username = ADMIN.username, password = ADMIN.password) {
       const res = await h.request('/api/auth/login', { method: 'POST', json: { username, password } });

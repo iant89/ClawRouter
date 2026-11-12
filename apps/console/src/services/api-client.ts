@@ -1,4 +1,4 @@
-import { CSRF_HEADER, isApiErrorBody, REQUEST_ID_HEADER, type ApiSuccess, type ErrorCode, type FieldIssue } from '@clawapi/shared';
+import { CSRF_HEADER, isApiErrorBody, REQUEST_ID_HEADER, type ApiSuccess, type ErrorCode, type FieldIssue, type PageMeta } from '@clawapi/shared';
 
 /** Error raised for any failed API call, carrying the server's normalized error. */
 export class ApiClientError extends Error {
@@ -42,6 +42,10 @@ export function setUnauthorizedHandler(handler: UnauthorizedHandler | null): voi
  * browser. State-changing requests carry the CSRF header.
  */
 async function request<T>(method: string, path: string, body: unknown, options: RequestOptions = {}): Promise<T> {
+  return (await requestEnvelope<T>(method, path, body, options)).data;
+}
+
+async function requestEnvelope<T>(method: string, path: string, body: unknown, options: RequestOptions = {}): Promise<ApiSuccess<T>> {
   const headers: Record<string, string> = { accept: 'application/json' };
   if (body !== undefined) headers['content-type'] = 'application/json';
   if (method !== 'GET') headers[CSRF_HEADER] = '1';
@@ -62,7 +66,7 @@ async function request<T>(method: string, path: string, body: unknown, options: 
 
   const requestId = response.headers.get(REQUEST_ID_HEADER);
   if (response.status === 401 && !options.ignoreUnauthorized) onUnauthorized?.();
-  if (response.status === 204) return undefined as T;
+  if (response.status === 204) return { data: undefined as T };
 
   let parsed: unknown;
   try {
@@ -82,7 +86,21 @@ async function request<T>(method: string, path: string, body: unknown, options: 
   if (typeof parsed !== 'object' || parsed === null || !('data' in parsed)) {
     throw new ApiClientError('INVALID_RESPONSE', 'Response is missing data.', response.status, requestId);
   }
-  return (parsed as ApiSuccess<T>).data;
+  return parsed as ApiSuccess<T>;
+}
+
+export interface PagedResult<T> {
+  items: T[];
+  page: number;
+  pageSize: number;
+  total: number;
+}
+
+/** GET a paginated list (server-side pagination, spec §35). */
+export async function apiGetPage<T>(path: string, options?: RequestOptions): Promise<PagedResult<T>> {
+  const envelope = await requestEnvelope<T[]>('GET', path, undefined, options);
+  const meta = envelope.meta as Partial<PageMeta> | undefined;
+  return { items: envelope.data, page: meta?.page ?? 1, pageSize: meta?.pageSize ?? envelope.data.length, total: meta?.total ?? envelope.data.length };
 }
 
 export const apiGet = <T>(path: string, options?: RequestOptions) => request<T>('GET', path, undefined, options);

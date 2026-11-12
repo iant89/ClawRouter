@@ -22,6 +22,13 @@ How the console signs people in, and why it is built this way. Spec §14, §15, 
 | GET | `/api/auth/session` | session | Current `{ user, session }`, or 401 |
 | GET | `/api/auth/sessions` | session | The caller's live sessions |
 | DELETE | `/api/auth/sessions/:id` | session | Revoke one of the caller's sessions (404 if it is not theirs) |
+| POST | `/api/auth/sessions/revoke-others` | session | Sign out everywhere except this browser → `{ revoked }` |
+| GET | `/api/sessions?page=&pageSize=&userId=` | session ¹ | Live sessions of all users with their owner, paginated (`meta: { page, pageSize, total }`, max 100 per page) |
+| DELETE | `/api/sessions/:id` | session ¹ | Revoke any session (404 if unknown or already ended). Revoking your own current one also clears your cookie |
+| POST | `/api/sessions/revoke` | session ¹ | `{ userId, keepCurrent? }`: revoke all of a user's sessions → `{ revoked }` |
+
+¹ Administration endpoints. Until RBAC (phase 3) every signed-in user may call them;
+phase 3 restricts them to administrators.
 
 ## Initial setup
 
@@ -63,9 +70,19 @@ claim it.
   (`CLAWAPI_SESSION_MAX_HOURS`, default 12) never slides.
 - A session is rejected if it is revoked, past either expiry, or its user is not
   `ACTIVE` (disabled-user protection). An invalid cookie is cleared in the response.
-- Revocation: logout, "My sessions" in the console, and `revokeAllSessions` (for
-  disabling users and password changes in phase 14). Each emits `session.revoked`
-  on the event bus (phase 11 pushes it to the console).
+- Revocation takes effect on the session's **next request**: it is checked on every
+  call, nothing is cached. Ways to revoke:
+  - the user: sign out, or "My sessions" in the user menu (one session, or all others);
+  - administrators: **Administration → Sessions** (one session, or all sessions of
+    a user);
+  - the system: `revokeAllSessions` (for disabling users and password changes in
+    phase 14).
+
+  Each revocation is audited as `SESSION_REVOKED` (one record per bulk operation,
+  with the count and session ids) and emits `session.revoked` on the event bus. A
+  revoked user's open console notices within a minute (periodic session check) or
+  on its next API call. Phase 11 pushes the event to the console over WebSocket for
+  an instant sign-out.
 - Ended sessions are purged hourly, a day after they end.
 
 ## Login throttling
@@ -111,7 +128,6 @@ and request id. The audit UI is phase 13.
 ## Not yet
 
 - Roles/permissions and permission-aware navigation (phase 3).
-- User management, disabling users, password change/reset, admin session management
-  (phase 14).
+- User management, disabling users, password change/reset (phase 14).
 - Admin password recovery CLI, trusted proxies (phase 17).
 - MFA, SSO (future).

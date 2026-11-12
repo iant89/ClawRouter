@@ -44,7 +44,13 @@ export function createApiApp(deps: ApiDependencies): ApiApp {
   // Authenticated
   router.get('/api/auth/session', authRoutes.session);
   router.get('/api/auth/sessions', authRoutes.listSessions);
+  router.post('/api/auth/sessions/revoke-others', authRoutes.revokeOtherSessions);
   router.delete('/api/auth/sessions/:id', authRoutes.revokeSession);
+
+  // Session administration (all users)
+  router.get('/api/sessions', authRoutes.listAllSessions);
+  router.post('/api/sessions/revoke', authRoutes.revokeUserSessions);
+  router.delete('/api/sessions/:id', authRoutes.revokeAnySession);
 
   // External gateway API (/v1/*) is introduced in phase 8 with API-key authentication.
 

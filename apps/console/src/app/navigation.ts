@@ -68,7 +68,7 @@ export const NAVIGATION: readonly NavGroup[] = [
     items: [
       { id: 'users', label: 'Users', path: '/users', icon: 'group', plannedPhase: 14, summary: 'Console users, their status and role assignments.' },
       { id: 'roles', label: 'Roles', path: '/roles', icon: 'permission', plannedPhase: 3, summary: 'ADMIN, OPERATOR and VIEWER roles and their permissions.' },
-      { id: 'sessions', label: 'Sessions', path: '/sessions', icon: 'user-settings', plannedPhase: 14, summary: 'Active console sessions, with revocation.' },
+      { id: 'sessions', label: 'Sessions', path: '/sessions', icon: 'user-settings', summary: 'Active console sessions, with revocation.' },
       { id: 'settings', label: 'Settings', path: '/settings', icon: 'settings', plannedPhase: 14, summary: 'System and security settings.' },
     ],
   },

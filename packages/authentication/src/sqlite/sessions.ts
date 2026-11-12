@@ -64,6 +64,20 @@ export function createSqliteSessionRepository(db: Database): SessionRepository {
         .all<Row>('SELECT * FROM sessions WHERE user_id = ? AND revoked_at IS NULL AND expires_at > ? ORDER BY created_at DESC', [userId, now])
         .map(toSession);
     },
+    listActive({ now, idleCutoff, userId, limit, offset }) {
+      const where = ['revoked_at IS NULL', 'expires_at > ?', 'last_seen_at > ?'];
+      const params: string[] = [now, idleCutoff];
+      if (userId) {
+        where.push('user_id = ?');
+        params.push(userId);
+      }
+      const clause = where.join(' AND ');
+      const total = db.get<{ n: number }>(`SELECT COUNT(*) AS n FROM sessions WHERE ${clause}`, params)?.n ?? 0;
+      const items = db
+        .all<Row>(`SELECT * FROM sessions WHERE ${clause} ORDER BY created_at DESC, id LIMIT ? OFFSET ?`, [...params, limit, offset])
+        .map(toSession);
+      return { items, total };
+    },
     purge(cutoff) {
       return db.run('DELETE FROM sessions WHERE expires_at < ? OR (revoked_at IS NOT NULL AND revoked_at < ?)', [cutoff, cutoff]).changes;
     },

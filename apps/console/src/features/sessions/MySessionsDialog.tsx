@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Button, Dialog, MessageStrip, StatusIndicator, Table, VisuallyHidden, type TableColumn } from '@enterprise-ui/react';
 import type { SessionInfo } from '@clawapi/shared';
-import { fetchMySessions, revokeMySession } from '../../services/auth.ts';
+import { fetchMySessions, onSessionsChanged, revokeMyOtherSessions, revokeMySession } from '../../services/auth.ts';
+import { describeUserAgent } from '../../services/format.ts';
 
 const when = (iso: string) => new Date(iso).toLocaleString();
 
@@ -21,14 +22,15 @@ export function MySessionsDialog({ open, onClose }: { open: boolean; onClose: ()
   }, []);
 
   useEffect(() => {
-    if (open) void load();
+    if (!open) return;
+    void load();
+    return onSessionsChanged(() => void load());
   }, [open, load]);
 
   const revoke = async (id: string) => {
     setRevoking(id);
     try {
       await revokeMySession(id);
-      await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not sign out that session.');
     } finally {
@@ -36,10 +38,22 @@ export function MySessionsDialog({ open, onClose }: { open: boolean; onClose: ()
     }
   };
 
+  const revokeOthers = async () => {
+    setRevoking('others');
+    try {
+      await revokeMyOtherSessions();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not sign out your other sessions.');
+    } finally {
+      setRevoking(null);
+    }
+  };
+  const others = sessions?.filter((s) => !s.current).length ?? 0;
+
   const columns: TableColumn<SessionInfo>[] = [
-    { id: 'device', header: 'Device', rowHeader: true, wrap: true, accessor: (s) => s.userAgent ?? 'Unknown', cell: (s) => (
+    { id: 'device', header: 'Device', rowHeader: true, wrap: true, accessor: (s) => describeUserAgent(s.userAgent), cell: (s) => (
       <>
-        {s.userAgent ?? 'Unknown'} {s.current && <StatusIndicator tone="information" size="sm">This session</StatusIndicator>}
+        <span title={s.userAgent ?? undefined}>{describeUserAgent(s.userAgent)}</span> {s.current && <StatusIndicator tone="information" size="sm">This session</StatusIndicator>}
       </>
     ) },
     { id: 'ip', header: 'IP address', accessor: (s) => s.ip ?? '—', cell: (s) => <span className="claw-mono">{s.ip ?? '—'}</span> },
@@ -52,7 +66,14 @@ export function MySessionsDialog({ open, onClose }: { open: boolean; onClose: ()
   ];
 
   return (
-    <Dialog open={open} onClose={onClose} title="My sessions" size="lg" footer={<Button onClick={onClose}>Close</Button>}>
+    <Dialog open={open} onClose={onClose} title="My sessions" size="lg" footer={
+      <>
+        <Button variant="tertiary" disabled={others === 0} loading={revoking === 'others'} onClick={() => void revokeOthers()}>
+          Sign out all other sessions
+        </Button>
+        <Button onClick={onClose}>Close</Button>
+      </>
+    }>
       {error && <MessageStrip tone="error">{error}</MessageStrip>}
       <Table caption="Active sessions" hideCaption columns={columns} data={sessions ?? []} getRowId={(s) => s.id} loading={sessions === null && !error} emptyState="No active sessions." />
     </Dialog>

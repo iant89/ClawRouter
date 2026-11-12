@@ -3,6 +3,7 @@ import { BusyIndicator, Button, EmptyState, ThemeProvider, ToastProvider } from 
 import { DashboardPage } from '../features/dashboard/DashboardPage.tsx';
 import { HealthPage } from '../features/health/HealthPage.tsx';
 import { HealthProvider } from '../features/health/HealthContext.tsx';
+import { SessionsPage } from '../features/sessions/SessionsPage.tsx';
 import { AuthProvider, useAuth } from '../features/auth/AuthContext.tsx';
 import { redirectFor } from '../features/auth/auth-state.ts';
 import { LoginPage } from '../features/auth/LoginPage.tsx';
@@ -19,6 +20,7 @@ function PageFor({ item }: { item: NavItem | undefined }) {
   switch (item.id) {
     case 'dashboard': return <DashboardPage />;
     case 'health': return <HealthPage />;
+    case 'sessions': return <SessionsPage />;
     default: return <NotFoundPage />;
   }
 }

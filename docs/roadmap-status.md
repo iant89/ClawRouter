@@ -30,6 +30,7 @@ Tracks implementation against [the spec](../specs/clawapi-design-spec.md) §40/�
 | 5–17 | ⬜ | Console pages for these areas show a "not available yet" placeholder. |
 | 12 Health + operations | 🟡 Started | Platform and database health, health page. |
 | 13 Logging + audit | 🟡 Started | Audit repository and service; authentication events audited. |
+| 14 Administration | 🟡 Started | Session management (Administration → Sessions): list all live sessions, revoke one or all of a user's. |
 
 ## Phase 2: authentication
 
