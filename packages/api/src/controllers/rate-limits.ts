@@ -31,6 +31,13 @@ export function rateLimitsController(limits: RateLimitService) {
     const body = await readJson(ctx, putBody, 256 * 1024);
     return ok<RateLimitConfigView>(limits.update(actor(ctx), body, { ip: ctx.ip, requestId: ctx.requestId }));
   };
-  const usage: Handler = async () => ok<RateLimitUsage>(await limits.usage());
+  // Client addresses are personal data: only users who may read the audit log see them (Viewers do not).
+  const usage: Handler = async (ctx) => {
+    const result = await limits.usage();
+    if (ctx.auth?.permissions.has('audit.read')) return ok<RateLimitUsage>(result);
+    let n = 0;
+    const masked = result.entries.map((e) => (e.scope === 'ip' ? { ...e, subject: `hidden-${(n += 1)}`, label: '(hidden)' } : e));
+    return ok<RateLimitUsage>({ ...result, entries: masked });
+  };
   return { get, put, usage };
 }

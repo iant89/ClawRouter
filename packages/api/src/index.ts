@@ -6,3 +6,4 @@ export * from './http/router.ts';
 export * from './http/responses.ts';
 export * from './http/middleware.ts';
 export * from './http/session.ts';
+export * from './realtime/hub.ts';

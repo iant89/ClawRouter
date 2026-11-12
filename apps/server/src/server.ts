@@ -1,5 +1,5 @@
 import type { HTMLBundle, Server } from 'bun';
-import { createApiApp, type ApiApp } from '@clawrouter/api';
+import { createApiApp, createRealtimeHub, type ApiApp, type RealtimeHub, type SocketData } from '@clawrouter/api';
 import { createAuditService, createSqliteAuditRepository, type AuditService } from '@clawrouter/audit';
 import {
   createArgon2Hasher, createAuthService, createSetupService, createSqliteSessionRepository, createSqliteUserRepository,
@@ -7,6 +7,7 @@ import {
 } from '@clawrouter/authentication';
 import { createAuthorizationService, createSqliteRoleRepository, type AuthorizationService } from '@clawrouter/authorization';
 import { createEventBus, type Config, type EventBus, type Logger } from '@clawrouter/core';
+import { REALTIME_PATH } from '@clawrouter/shared';
 import { createNotificationService, createSqliteNotificationRepository, type NotificationService } from '@clawrouter/notifications';
 import { createDefaultRegistry, createProviderService, createSqliteProviderRepository, type ProviderService } from '@clawrouter/providers';
 import { createModelService, createSqliteModelRepository, type ModelService } from '@clawrouter/models';
@@ -32,7 +33,8 @@ export interface ClawRouterOptions {
 }
 
 export interface ClawRouter {
-  server: Server<undefined>;
+  server: Server<SocketData>;
+  realtime: RealtimeHub;
   db: Database;
   events: EventBus;
   health: HealthService;
@@ -159,7 +161,19 @@ export async function startClawRouter({ config, log, version, consoleHtml, hashe
 
   const api = createApiApp({ log, health, auth, authz, notifications, providers, models, routing, apiKeys, gateway, limits, requests, setup, cookie: { secure: config.auth.cookieSecure } });
 
-  const handle = (request: Request, srv: Server<undefined>) => api.handle(request, srv.requestIP(request)?.address ?? null);
+  // The console's live channel (spec §25): session-authenticated, same-origin only.
+  const realtime = createRealtimeHub({ events, auth, authz, cookie: { secure: config.auth.cookieSecure }, metrics: () => gateway.metrics.snapshot(), log });
+  realtime.start();
+
+  const handle = (request: Request, srv: Server<SocketData>): Response | Promise<Response> | undefined => {
+    if (new URL(request.url).pathname === REALTIME_PATH) {
+      const check = realtime.authorize(request);
+      if (!check.ok) return check.response;
+      if (srv.upgrade(request, { data: check.data })) return undefined;
+      return new Response('WebSocket upgrade failed', { status: 400 });
+    }
+    return api.handle(request, srv.requestIP(request)?.address ?? null);
+  };
   const serveConsole = config.console.enabled && consoleHtml !== undefined;
 
   const routes: Record<string, HTMLBundle | typeof handle> = { '/api/*': handle, '/v1/*': handle };
@@ -175,6 +189,14 @@ export async function startClawRouter({ config, log, version, consoleHtml, hashe
     development: config.env === 'development' && { hmr: true, console: false },
     routes,
     fetch: handle,
+    websocket: {
+      open: (ws) => realtime.open(ws),
+      message: (ws, message) => realtime.message(ws, message),
+      close: (ws) => realtime.close(ws),
+      // Bun pings idle connections, so dead peers are noticed; clients also send pings.
+      idleTimeout: 120,
+      maxPayloadLength: 4096,
+    },
     error(error) {
       log.error('unhandled server error', { component: 'server', error });
       return new Response('Internal Server Error', { status: 500 });
@@ -189,7 +211,7 @@ export async function startClawRouter({ config, log, version, consoleHtml, hashe
 
   let stopped = false;
   return {
-    server, db, events, health, auth, authz, notifications, providers, models, routing, apiKeys, gateway, limits, requests, setup, audit, api, url,
+    server, realtime, db, events, health, auth, authz, notifications, providers, models, routing, apiKeys, gateway, limits, requests, setup, audit, api, url,
     get setupToken() {
       return setupToken;
     },
@@ -198,6 +220,7 @@ export async function startClawRouter({ config, log, version, consoleHtml, hashe
       stopped = true;
       clearInterval(purgeTimer);
       clearInterval(healthTimer);
+      realtime.stop();
       if (providerKickoff) clearTimeout(providerKickoff);
       if (providerTimer) clearInterval(providerTimer);
       unsubscribeNotifications();

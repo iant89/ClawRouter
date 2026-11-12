@@ -156,16 +156,17 @@ export function createAuthService(options: AuthServiceOptions) {
 
     /**
      * Resolves a session token. Returns null for unknown, revoked, expired
-     * (idle or absolute) sessions and for disabled users. Slides the idle window.
+     * (idle or absolute) sessions and for disabled users. Slides the idle window
+     * unless `touch` is false (a check that is not user activity, e.g. an open WebSocket).
      */
-    resolve(token: string): (AuthenticatedSession & { sessionId: string }) | null {
+    resolve(token: string, options: { touch?: boolean } = {}): (AuthenticatedSession & { sessionId: string }) | null {
       if (!token || token.length > 128) return null;
       const session = sessions.findByTokenHash(hashToken(token));
       const at = now();
       if (!session || !isLive(session, at.getTime())) return null;
       const user = users.findById(session.userId);
       if (!user || user.status !== 'ACTIVE') return null;
-      if (at.getTime() - Date.parse(session.lastSeenAt) >= TOUCH_INTERVAL_MS) {
+      if (options.touch !== false && at.getTime() - Date.parse(session.lastSeenAt) >= TOUCH_INTERVAL_MS) {
         session.lastSeenAt = at.toISOString();
         sessions.touch(session.id, session.lastSeenAt);
       }
