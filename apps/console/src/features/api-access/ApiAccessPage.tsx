@@ -2,12 +2,15 @@ import { useCallback, useEffect, useState } from 'react';
 import {
   AlertDialog, Button, MessageStrip, OverflowMenu, Page, RefreshControl, StatusIndicator, Table, Text, useToast, type TableColumn,
 } from '@enterprise-ui/react';
-import type { ApiKeyInfo, ApiKeyStatus, CreateApiKeyRequest, CreatedApiKey } from '@clawrouter/shared';
+import type { ApiKeyInfo, ApiKeyStatus, CreateApiKeyRequest, CreatedApiKey, RateLimit } from '@clawrouter/shared';
 import { ApiClientError } from '../../services/api-client.ts';
 import { createApiKey, fetchApiKeys, revokeApiKey } from '../../services/gateway.ts';
 import { fetchModels } from '../../services/models.ts';
 import { fetchRouting } from '../../services/routing.ts';
 import { formatRelative } from '../../services/format.ts';
+import { updateApiKey } from '../../services/rate-limits.ts';
+import { describeLimit } from '../rate-limits/rate-limit-format.ts';
+import { KeyLimitDialog } from './KeyLimitDialog.tsx';
 import { usePermissions } from '../auth/AuthContext.tsx';
 import { CreateKeyDialog } from './CreateKeyDialog.tsx';
 
@@ -80,6 +83,25 @@ export function ApiAccessPage() {
     setServerError(null);
   };
 
+  const [limitKey, setLimitKey] = useState<ApiKeyInfo | null>(null);
+  const [limitSaving, setLimitSaving] = useState(false);
+  const [limitError, setLimitError] = useState<string | null>(null);
+  const saveLimit = async (rateLimit: RateLimit | null) => {
+    if (!limitKey) return;
+    setLimitSaving(true);
+    try {
+      await updateApiKey(limitKey.id, { rateLimit });
+      toast.show({ tone: 'success', title: 'Rate limit saved', description: `${limitKey.name}: ${rateLimit ? describeLimit(rateLimit) : 'default limit'}` });
+      setLimitKey(null);
+      setLimitError(null);
+      reload();
+    } catch (err) {
+      setLimitError(err instanceof ApiClientError && err.issues.length ? err.issues.map((i) => i.message).join(' ') : err instanceof Error ? err.message : 'Could not save the limit.');
+    } finally {
+      setLimitSaving(false);
+    }
+  };
+
   const confirmRevoke = async () => {
     if (!revoking) return;
     try {
@@ -101,13 +123,14 @@ export function ApiAccessPage() {
       id: 'models', header: 'Allowed models', accessor: (k) => k.allowedModels.join(', '), wrap: true,
       cell: (k) => (k.allowedModels.length ? <span className="claw-mono">{k.allowedModels.join(', ')}</span> : <Text tone="secondary">Any model</Text>),
     },
+    { id: 'limit', header: 'Rate limit', wrap: true, accessor: (k) => (k.rateLimit ? describeLimit(k.rateLimit) : ''), cell: (k) => (k.rateLimit ? describeLimit(k.rateLimit) : <Text tone="secondary">Default</Text>) },
     { id: 'used', header: 'Last used', accessor: (k) => k.lastUsedAt ?? '', cell: (k) => (k.lastUsedAt ? <span title={when(k.lastUsedAt)}>{formatRelative(k.lastUsedAt)}</span> : <Text tone="secondary">Never</Text>) },
     { id: 'expires', header: 'Expires', accessor: (k) => k.expiresAt ?? '', cell: (k) => (k.expiresAt ? when(k.expiresAt) : <Text tone="secondary">Never</Text>) },
     { id: 'created', header: 'Created', accessor: (k) => k.createdAt, cell: (k) => <span>{when(k.createdAt)}{k.createdBy && <Text size="sm" tone="secondary"> by {k.createdBy.username}</Text>}</span> },
     {
       id: 'actions', header: 'Actions', align: 'end',
       cell: (k) => (canWrite && k.status === 'ACTIVE'
-        ? <OverflowMenu label={`Actions for ${k.name}`} items={[{ id: 'revoke', label: 'Revoke key', destructive: true }]} onAction={() => setRevoking(k)} />
+        ? <OverflowMenu label={`Actions for ${k.name}`} items={[{ id: 'limit', label: 'Change rate limit' }, { type: 'separator' }, { id: 'revoke', label: 'Revoke key', destructive: true }]} onAction={(id) => (id === 'limit' ? (setLimitError(null), setLimitKey(k)) : setRevoking(k))} />
         : null),
     },
   ];
@@ -140,6 +163,7 @@ export function ApiAccessPage() {
       />
 
       <CreateKeyDialog open={dialogOpen} modelOptions={modelOptions} onClose={closeDialog} onCreate={create} created={created} saving={saving} serverError={serverError} />
+      <KeyLimitDialog apiKey={limitKey} onClose={() => setLimitKey(null)} onSave={saveLimit} saving={limitSaving} serverError={limitError} />
       <AlertDialog open={revoking !== null} tone="warning" title="Revoke this API key?" confirmLabel="Revoke" onCancel={() => setRevoking(null)} onConfirm={confirmRevoke}>
         {revoking && `Applications using "${revoking.name}" (${revoking.prefix}…) will get 401 errors immediately. This cannot be undone.`}
       </AlertDialog>

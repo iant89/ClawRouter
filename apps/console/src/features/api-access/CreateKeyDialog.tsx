@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Button, CopyButton, DatePicker, Dialog, Form, Input, MessageStrip, MultiSelect, Text } from '@enterprise-ui/react';
-import type { CreateApiKeyRequest, CreatedApiKey } from '@clawrouter/shared';
+import type { CreateApiKeyRequest, CreatedApiKey, RateLimit } from '@clawrouter/shared';
+import { KeyLimitFields } from './KeyLimitDialog.tsx';
 
 /**
  * Create an API key. After creation the dialog shows the key once, with a copy
@@ -19,6 +20,7 @@ export function CreateKeyDialog({ open, modelOptions, onClose, onCreate, created
   const [name, setName] = useState('');
   const [models, setModels] = useState<string[]>([]);
   const [expires, setExpires] = useState<Date | null>(null);
+  const [rateLimit, setRateLimit] = useState<RateLimit | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -26,6 +28,7 @@ export function CreateKeyDialog({ open, modelOptions, onClose, onCreate, created
     setName('');
     setModels([]);
     setExpires(null);
+    setRateLimit(null);
     setError(null);
   }, [open]);
 
@@ -40,7 +43,7 @@ export function CreateKeyDialog({ open, modelOptions, onClose, onCreate, created
       expiresAt = end.toISOString();
     }
     setError(null);
-    onCreate({ name: name.trim(), allowedModels: models, expiresAt });
+    onCreate({ name: name.trim(), allowedModels: models, expiresAt, rateLimit });
   };
 
   if (created) {
@@ -75,6 +78,7 @@ export function CreateKeyDialog({ open, modelOptions, onClose, onCreate, created
         <Input label="Name" required description="Who or what uses this key, e.g. ci-pipeline." value={name} onChange={(e) => setName(e.target.value)} maxLength={100} />
         <MultiSelect label="Allowed models" description="Leave empty to allow every model and alias." options={modelOptions} value={models} onChange={setModels} placeholder="Any model" />
         <DatePicker label="Expires" description="Optional. The key stops working after this day." value={expires} onChange={setExpires} min={new Date()} />
+        <KeyLimitFields value={rateLimit} onChange={setRateLimit} />
       </Form>
     </Dialog>
   );

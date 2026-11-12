@@ -6,7 +6,8 @@ describe('console navigation', () => {
   test('matches the spec §17 structure', () => {
     expect(NAVIGATION.map((g) => g.label)).toEqual([null, 'Gateway', 'AI Infrastructure', 'System', 'Administration']);
     expect(NAV_ITEMS.map((i) => i.label)).toEqual([
-      'Dashboard', 'Requests', 'API Access', 'Usage', 'Providers', 'Models', 'Routing',
+      // Rate Limits goes beyond the spec §17 list: phase 9 needs a page for its configuration.
+      'Dashboard', 'Requests', 'API Access', 'Rate Limits', 'Usage', 'Providers', 'Models', 'Routing',
       'Health', 'Logs', 'Audit', 'Users', 'Roles', 'Sessions', 'Settings',
     ]);
   });
@@ -27,7 +28,7 @@ describe('console navigation', () => {
   });
 
   test('only implemented pages lack a planned phase', () => {
-    expect(NAV_ITEMS.filter((i) => i.plannedPhase === undefined).map((i) => i.id)).toEqual(['dashboard', 'api-access', 'providers', 'models', 'routing', 'health', 'users', 'roles', 'sessions']);
+    expect(NAV_ITEMS.filter((i) => i.plannedPhase === undefined).map((i) => i.id)).toEqual(['dashboard', 'api-access', 'rate-limits', 'providers', 'models', 'routing', 'health', 'users', 'roles', 'sessions']);
   });
 });
 

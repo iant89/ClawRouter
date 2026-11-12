@@ -10,6 +10,7 @@ import { ProvidersPage } from '../features/providers/ProvidersPage.tsx';
 import { ModelsPage } from '../features/models/ModelsPage.tsx';
 import { RoutingPage } from '../features/routing/RoutingPage.tsx';
 import { ApiAccessPage } from '../features/api-access/ApiAccessPage.tsx';
+import { RateLimitsPage } from '../features/rate-limits/RateLimitsPage.tsx';
 import { NoAccessPage } from '../pages/NoAccessPage.tsx';
 import { AuthProvider, useAuth, usePermissions } from '../features/auth/AuthContext.tsx';
 import { redirectFor } from '../features/auth/auth-state.ts';
@@ -37,6 +38,7 @@ function PageFor({ item }: { item: NavItem | undefined }) {
     case 'models': return <ModelsPage />;
     case 'routing': return <RoutingPage />;
     case 'api-access': return <ApiAccessPage />;
+    case 'rate-limits': return <RateLimitsPage />;
     case 'roles': return <RolesPage />;
     default: return <NotFoundPage />;
   }

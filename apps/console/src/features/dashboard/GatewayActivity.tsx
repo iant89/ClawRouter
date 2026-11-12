@@ -36,6 +36,9 @@ export function GatewayActivity() {
         footer={m ? (m.averageLatencyMs == null ? 'No requests yet' : 'Last 100 requests') : undefined} />
       <MetricCard title="Tokens (1 hour)" value={m ? formatTokens(m.tokensLastHour.input + m.tokensLastHour.output) : '—'} loading={wait}
         footer={m ? `${formatTokens(m.tokensLastHour.input)} in · ${formatTokens(m.tokensLastHour.output)} out` : undefined} />
+      <MetricCard title="Refused by rate limits (1 min)" value={m ? String(m.rateLimitedLastMinute) : '—'} icon="performance" loading={wait}
+        tone={m && m.rateLimitedLastMinute > 0 ? 'warning' : undefined}
+        footer={m ? `${m.rateLimitedTotal} since the server started` : undefined} />
       <Card title="Coming later" headingLevel={3}>
         <DescriptionList columns={1} items={PENDING_METRICS} />
       </Card>
