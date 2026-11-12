@@ -129,12 +129,10 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 
 ### Messages
 
-- **MESSAGE** · 2026-11-12 · Phases 8 and 9 wait for review (stacked); then phase 10
-  The owner said "continue to next phase" without merging phase 8, so phase 9 was
-  built on `claude/phase-9-rate-limiting`, branched from the tip of
-  `claude/phase-8-gateway` (`56004b9`). Neither is merged. If the owner approves
-  both, fast-forward `main` to the phase 9 branch (it contains phase 8). If phase 8
-  needs changes first, make them on the phase 8 branch and rebase phase 9 onto it.
+- **MESSAGE** · 2026-11-12 · Phase 9 waits for review; then phase 10
+  Phase 8 was merged on the owner's word ("Merge 8"): `main` = `56004b9`. Phase 9
+  is on `claude/phase-9-rate-limiting`, built on top of it, so merging it is a
+  fast-forward of `main`. Merge only when the owner says so.
   Next: phase 10, requests + usage: persist `request.completed` / `request.failed`
   (and refusals) as request history with tokens and cost, server-side paging and
   filtering, the Requests and Usage pages.
@@ -145,7 +143,8 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 
 - **MESSAGE** · 2026-11-12 · Phase 8 waits for review; then phase 9. Resolved 2026-11-12:
   phase 9 built on `claude/phase-9-rate-limiting` (see `docs/rate-limits.md`); the
-  review hand-off is now the "Phases 8 and 9 wait for review" message.
+  review hand-off is now the "Phase 9 waits for review" message. Phase 8 merged
+  to `main` on 2026-11-12.
 
 - **WARNING** · 2026-11-12 · No rate limits on `/v1`. Resolved 2026-11-12: phase 9
   added per-key, per-user, per-model, global and invalid-key-per-address limits.
