@@ -225,3 +225,18 @@ describe('administration', () => {
     expect(metrics).toMatchObject({ totalRequests: 2, rateLimitedLastMinute: 1, rateLimitedTotal: 1 });
   });
 });
+
+describe('client addresses in usage', () => {
+  test('only users who may read the audit log see client addresses (Viewers see "hidden")', async () => {
+    const { h, key } = await world();
+    const wrong = `${key.secret.slice(0, -1)}${key.secret.endsWith('A') ? 'B' : 'A'}`;
+    await chat(h, wrong, {}, { ip: '198.51.100.77' });
+    await h.addUser('op', ['OPERATOR']);
+    await h.addUser('viewer', ['VIEWER']);
+    const ipRow = async (cookie: string) => (await data<RateLimitUsage>(await h.request('/api/rate-limits/usage', { cookie }))).entries.find((e) => e.scope === 'ip');
+    expect(await ipRow(await h.login('op'))).toMatchObject({ subject: '198.51.100.77', requestsLastMinute: 1 });
+    const hidden = await ipRow(await h.login('viewer'));
+    expect(hidden).toMatchObject({ label: '(hidden)', requestsLastMinute: 1 });
+    expect(JSON.stringify(hidden)).not.toContain('198.51.100.77');
+  });
+});
