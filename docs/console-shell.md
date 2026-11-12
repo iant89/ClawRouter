@@ -44,6 +44,7 @@ The server runs its own health check every `CLAWROUTER_HEALTH_INTERVAL_SECONDS`
 
 The header bell shows the unread count. The panel is ENTERPRISE-UI's
 `NotificationCenter` (with the severity spelled out in each title), plus *Mark all
-as read* and links to the related pages. The console polls every 30 seconds and
+as read* and links to the related pages. New notifications arrive over the live
+connection ([real-time](realtime.md)); without it the console polls every 30 seconds and
 when the tab becomes visible. A new warning or error also appears as a toast.
-WebSocket push replaces polling in phase 11.
+

@@ -262,24 +262,26 @@ last microseconds and happen before the row is written or within the same step.
 
 Exit: administrators can understand what the gateway is doing ✅
 
-## Phase 11: Real-time system 🟡 next
+## Phase 11: Real-time system ✅
 
-Goal: provide live operational state.
+Goal: provide live operational state. See [real-time system](realtime.md).
 
 - [x] Typed event bus
-- [ ] WebSocket server
-- [ ] Session-authenticated WebSocket
-- [ ] Provider events (groundwork: emitted internally)
-- [ ] Health events (groundwork: emitted internally)
-- [ ] Request events
-- [ ] Routing events (groundwork: `routing.changed` emitted internally)
-- [ ] Notification events (groundwork: emitted internally; the console polls)
-- [ ] UI subscriptions
-- [ ] Reconnection handling
+- [x] WebSocket server: `/api/ws`, with per-user and total connection limits, slow consumers closed
+- [x] Session-authenticated WebSocket: session cookie and same-origin check on upgrade; sessions re-checked without counting as activity; closed with 4401 when they end
+- [x] Provider events: status, changes, connection tests
+- [x] Health events
+- [x] Request events: coalesced into one activity message per second, with metrics for `requests.read`
+- [x] Routing events (and model and rate-limit configuration events)
+- [x] Notification events: id only, to recipients only
+- [x] UI subscriptions: dashboard, health, notifications, rate limits, requests, providers, models and routing update on events; slow polling only as a fallback
+- [x] Reconnection handling: backoff with jitter, heartbeat, resync after gaps, header indicator
+- [x] Role changes apply to open connections; a revoked session leaves the console at once
 
-Exit: the dashboard updates live without constant page refreshes.
+Exit: the dashboard updates live without constant page refreshes ✅
+(in the browser: no metrics polling while live; reconnect 0.5 s after a server restart; sign-out 0.1 s after revocation from another browser).
 
-## Phase 12: Health + operations 🟡
+## Phase 12: Health + operations 🟡 next
 
 Goal: build operational visibility.
 

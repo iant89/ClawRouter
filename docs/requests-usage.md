@@ -97,6 +97,6 @@ Buckets are UTC hours or days.
 
 ## Not yet
 
-- Live updates: the pages poll or refresh on demand (WebSocket events are phase 11).
+- Live updates: see [real-time system](realtime.md) (phase 11). The Requests page shows new requests as they arrive.
 - Export (CSV) and per-request search by text.
 - Currency other than USD.

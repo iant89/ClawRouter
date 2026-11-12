@@ -134,3 +134,13 @@ few requests OpenAI was made to fail, to show retries and failover.
 | ![By key](10-requests-usage/usage-by-key.png) | Usage broken down by API key; `+?` marks costs that leave out unpriced requests |
 | ![Dashboard](10-requests-usage/dashboard.png) | Dashboard: estimated cost (24 h) and recent failed requests |
 | ![Phone](10-requests-usage/phone.png) | Requests at phone width |
+
+## 11 · Real-time
+
+| | |
+|---|---|
+| ![Live](11-realtime/dashboard-live.png) | The header shows **Live** next to system health; the dashboard says it updates live |
+| ![Failure](11-realtime/failure-appeared.png) | Traffic and a failed request appear on the dashboard without a refresh (no polling while live) |
+| ![Reconnecting](11-realtime/reconnecting.png) | Server stopped: **Reconnecting**, and the dashboard falls back to refreshing every 5 seconds. It was live again 0.5 s after the restart |
+| ![Signed out](11-realtime/signed-out.png) | The session was revoked from another browser: this console was at the sign-in page 0.1 s later |
+| ![Rate limits](11-realtime/rate-limits-live.png) | Rate Limits usage following traffic |

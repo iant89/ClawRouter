@@ -52,6 +52,11 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
     requests; an address over the invalid-key limit is refused even with a valid
     key until the window passes; a rate-limited model is skipped (fail over) rather
     than refusing the request.
+  - Client IP addresses are shown only to users with `audit.read` (Administrators,
+    Operators): the rate-limit usage view masks them as "(hidden)" for Viewers, and
+    the live channel never forwards events that carry IPs.
+  - The live channel sends `health.changed` to every signed-in user (the header
+    shows system health to all); everything else is filtered by permission.
 
 ### Warnings
 
@@ -87,6 +92,10 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
   - `/v1/responses`, tools, images and `n > 1` are rejected with 400 (see
     `docs/gateway.md`). Agent clients that need tools will not work yet.
   - No CORS on `/v1`; browser apps must call it from their backend.
+  - Live events are in-process: with several ClawRouter nodes, consoles would only
+    see events from the node they are connected to (needs a shared channel, e.g.
+    Redis pub/sub). A reverse proxy must pass WebSocket upgrades on `/api/ws` and
+    keep the `Host` header (the origin check uses it).
 
 - **WARNING** · 2026-11-12 · Behind a reverse proxy, per-IP limits are shared
   Client IPs come from the socket. Behind a proxy, every client has the proxy's
@@ -137,24 +146,35 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
     `rate_limited` is a provider's 429. Do not merge them.
   - Phase 10 test harness: advancing the fake clock past 60 minutes expires console
     sessions; sign in again (`h.login()`) after big clock jumps.
+  - In browser checks, do not stop servers with `pkill -f "<pattern>"`: the pattern
+    also matches the shell running the command and kills the tool session. Record
+    the server PID (`echo $! > server.pid`, with `nohup bun main.js &` as its own
+    line) and `kill` that.
+  - Console pages subscribe with `useRealtimeEvent` / `useActivity`
+    (`features/realtime/RealtimeContext.tsx`); both also fire after a reconnect, so
+    a handler must refetch rather than apply a delta.
   - The session worker can restart mid-task. Commit and push in steps, so work is
     never lost.
 
 ### Messages
 
-- **MESSAGE** · 2026-11-12 · Phase 10 waits for review; then phase 11
-  Phase 9 was merged on the owner's word ("Merge 9"): `main` = `701bb12`. Phase 10
-  (requests + usage) is on `claude/phase-10-requests-usage`, built on top of it,
-  so merging is a fast-forward. Merge only when the owner says so.
-  Next: phase 11, the real-time system: a session-authenticated WebSocket at
-  `/api/ws` carrying the typed events that already exist (provider, health,
-  request, routing, notifications, rate limits), console subscriptions instead of
-  polling (dashboard, notifications, Rate Limits usage), and reconnection. Never
-  send secrets or request content over it; filter events by the user's permissions.
+- **MESSAGE** · 2026-11-12 · Phase 11 waits for review; then phase 12
+  Phase 10 was merged on the owner's word ("Merge 10"): `main` = `5605557`. Phase 11
+  (real-time system) is on `claude/phase-11-realtime`, built on top of it, so
+  merging is a fast-forward. Merge only when the owner says so.
+  Next: phase 12, health + operations: gateway and WebSocket health checks
+  (`RealtimeHub.size`, gateway error rate), health history (stored checks, like the
+  provider check history), and long-running operations (connection tests and model
+  discovery as cancellable operations with status in the UI, progress over the live
+  channel as `operation.progress`).
 
 ---
 
 ## Resolved
+
+- **MESSAGE** · 2026-11-12 · Phase 10 waits for review; then phase 11. Resolved 2026-11-12:
+  phase 10 merged (`5605557`); phase 11 built on `claude/phase-11-realtime` (see
+  `docs/realtime.md`).
 
 - **MESSAGE** · 2026-11-12 · Phase 9 waits for review; then phase 10. Resolved 2026-11-12:
   phase 9 merged; phase 10 built on `claude/phase-10-requests-usage` (see

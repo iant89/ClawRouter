@@ -24,14 +24,15 @@ usage tracking and an administration console built on
   embeddings, models) authenticated by API keys, with retries and failover, and
   phase 9, **rate limiting** (per key, user, model and gateway, with live usage),
   and phase 10, **requests and usage** (request history with attempts, tokens and
-  estimated cost; usage reports by model, provider, key and user).
-  Live updates over WebSocket are next (phase 11).
+  estimated cost; usage reports by model, provider, key and user), and phase 11,
+  the **real-time system** (a signed-in WebSocket that keeps the console live).
+  Health history and operations are next (phase 12).
 - **Architecture:** [`docs/architecture.md`](docs/architecture.md) ·
   **Security model:** [`docs/authentication.md`](docs/authentication.md),
   [`docs/authorization.md`](docs/authorization.md) · **Console:**
   [`docs/console-shell.md`](docs/console-shell.md) · **Providers:**
   [`docs/providers.md`](docs/providers.md) · **Models:** [`docs/models.md`](docs/models.md) ·
-  **Routing:** [`docs/routing.md`](docs/routing.md) · **Gateway:** [`docs/gateway.md`](docs/gateway.md) · **Rate limits:** [`docs/rate-limits.md`](docs/rate-limits.md) · **Requests and usage:** [`docs/requests-usage.md`](docs/requests-usage.md)
+  **Routing:** [`docs/routing.md`](docs/routing.md) · **Gateway:** [`docs/gateway.md`](docs/gateway.md) · **Rate limits:** [`docs/rate-limits.md`](docs/rate-limits.md) · **Requests and usage:** [`docs/requests-usage.md`](docs/requests-usage.md) · **Real-time:** [`docs/realtime.md`](docs/realtime.md)
 - **Screenshots:** [`docs/screenshots/`](docs/screenshots/README.md)
 - **Working on the code:** [`AGENTS.md`](AGENTS.md) (rules, commands, definition
   of done) and [`MEMORY.md`](MEMORY.md) (important notes carried between sessions).
@@ -64,6 +65,7 @@ Keep it with the database: without it, stored keys cannot be decrypted.
 | Path | What |
 |---|---|
 | `/api/*` | Administration API (JSON, session cookie). See [authentication](docs/authentication.md#endpoints) |
+| `/api/ws` | The console's live channel (WebSocket, session cookie, same origin). See [real-time](docs/realtime.md) |
 | `/v1/*` | External AI gateway API, OpenAI-compatible, API keys only. See [gateway](docs/gateway.md) |
 | everything else | The console (React + ENTERPRISE-UI), bundled on the fly by Bun with HMR |
 

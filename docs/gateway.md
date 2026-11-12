@@ -119,7 +119,7 @@ capabilities the normalized model does not have yet.
 - `GET /api/gateway/metrics` (`requests.read`): active requests, requests and errors
   in the last minute, totals, average latency (last 100), tokens in the last hour,
   retried and failed-over requests. In memory: they reset when the server restarts.
-  The dashboard polls it every 5 s.
+  The dashboard receives it live with each activity message (phase 11), polling every 5 s only without the live connection.
 - Events `request.started`, `request.completed` (usage, attempts, failovers, model,
   provider) and `request.failed` (code, status, attempts). Since phase 10 every
   request is also stored as history and usage ([requests and usage](requests-usage.md)).
