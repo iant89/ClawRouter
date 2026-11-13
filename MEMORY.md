@@ -252,31 +252,19 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 
 ### Messages
 
-- **MESSAGE** · 2026-11-13 · Phase 15 waits for review; then phase 16
-  Phase 14 was merged on the owner's word ("Merge, then start next phase"): `main` =
-  `20e0915`. Phase 15 (security hardening, report in `docs/security.md`) is on
-  `claude/phase-15-security-hardening`, built on top of it, so merging is a
-  fast-forward. Merge only when the owner says so.
-  Next: phase 16, performance (see `docs/roadmap.md`).
-
-- **MESSAGE** · 2026-11-13 · Self-service keys wait for review (branch on top of phase 15)
-  Built on `claude/api-key-self-service`, branched from the tip of
-  `claude/phase-15-security-hardening` (not yet merged). Merge order: phase 15
-  first, then this branch; both are fast-forwards. Merge only when the owner says so.
-  Includes the maximum key lifetime per provider/model. Interpretation calls to
-  confirm with the owner are listed at the end of `docs/self-service-keys.md`
-  (the owner confirmed the same-role rule and Operator getting `api_keys.own`;
-  still open: "maximum key length" read as lifetime).
-
-- **MESSAGE** · 2026-11-13 · Two-factor sign-in waits for review (branch on top of self-service keys)
-  Done on `claude/two-factor-auth`, built on `claude/api-key-self-service`. Merge
-  order: phase 15, self-service keys, then this; all fast-forwards. Merge only
-  when the owner says so. Browser-checked; screenshots in
-  `docs/screenshots/17-two-factor`. Details in `docs/two-factor.md`.
+- **MESSAGE** · 2026-11-13 · Next: phase 16, performance
+  Everything built so far is merged into `main` (see Resolved). Next is phase 16
+  (see `docs/roadmap.md`), on a new branch `claude/phase-16-performance`.
+  Still to confirm with the owner: "maximum key length" read as key lifetime.
 
 ---
 
 ## Resolved
+
+- **MESSAGE** · 2026-11-13 · Phase 15, self-service keys and two-factor sign-in wait for
+  review. Resolved 2026-11-13: the owner said "Start merging"; `main` was
+  fast-forwarded in order to phase 15 (`b73407e`), self-service keys (`3ce0e53`)
+  and two-factor sign-in (`e4b99cf`).
 
 - **MESSAGE** · 2026-11-13 · Two-factor sign-in in progress. Resolved 2026-11-13: finished
   on `claude/two-factor-auth` (see the review hand-off under Messages).
