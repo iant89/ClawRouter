@@ -1,8 +1,9 @@
 import { AppError, newRequestId, type LogBuffer, type Logger } from '@clawrouter/core';
 import type { AuditService } from '@clawrouter/audit';
-import type { AuthService, SetupService, UserAdminService } from '@clawrouter/authentication';
+import type { AuthService, SetupService, TwoFactorService, UserAdminService } from '@clawrouter/authentication';
+import type { MailService } from '@clawrouter/mail';
 import type { AuthorizationService } from '@clawrouter/authorization';
-import { PASSWORD_CHANGE_REQUIRED } from '@clawrouter/shared';
+import { PASSWORD_CHANGE_REQUIRED, TWO_FACTOR_SETUP_REQUIRED } from '@clawrouter/shared';
 import type { NotificationService } from '@clawrouter/notifications';
 import type { ProviderService } from '@clawrouter/providers';
 import type { ModelService } from '@clawrouter/models';
@@ -32,6 +33,7 @@ import { operationsController } from './controllers/operations.ts';
 import { logsController } from './controllers/logs.ts';
 import { auditController } from './controllers/audit.ts';
 import { keyRequestsController } from './controllers/key-requests.ts';
+import { twoFactorController } from './controllers/two-factor.ts';
 import { settingsController } from './controllers/settings.ts';
 
 /** What a user with a temporary password may still do: see their session, change the password, sign out. */
@@ -54,6 +56,8 @@ export interface ApiDependencies {
   routing: RoutingService;
   apiKeys: ApiKeyService;
   keyRequests: KeyRequestService;
+  twoFactor: TwoFactorService;
+  mail: MailService;
   gateway: GatewayService;
   limits: RateLimitService;
   requests: RequestLogService;
@@ -81,6 +85,7 @@ export function createApiApp(deps: ApiDependencies): ApiApp {
   const authRoutes = authController(deps);
   const access = accessController(deps.authz);
   const usersApi = usersController(deps.userAdmin, deps.auth);
+  const tf = twoFactorController(deps.twoFactor, deps.mail);
   const settingsApi = settingsController(deps.settings);
   const notes = notificationsController(deps.notifications);
   const prov = providersController(deps.providers, deps.operations);
@@ -107,6 +112,9 @@ export function createApiApp(deps: ApiDependencies): ApiApp {
   router.get('/api/setup/status', 'public', authRoutes.setupStatus);
   router.post('/api/setup', 'public', authRoutes.completeSetup);
   router.post('/api/auth/login', 'public', authRoutes.login);
+  // Second sign-in step: public, but useless without the challenge token from a correct password.
+  router.post('/api/auth/login/verify', 'public', authRoutes.verifySignIn);
+  router.post('/api/auth/login/email-code', 'public', authRoutes.sendSignInCode);
   router.post('/api/auth/logout', 'public', authRoutes.logout);
 
   // Any signed-in user, for their own session only.
@@ -115,6 +123,14 @@ export function createApiApp(deps: ApiDependencies): ApiApp {
   router.post('/api/auth/sessions/revoke-others', 'authenticated', authRoutes.revokeOtherSessions);
   router.delete('/api/auth/sessions/:id', 'authenticated', authRoutes.revokeSession);
   router.post('/api/auth/password', 'authenticated', usersApi.changeOwnPassword);
+  router.put('/api/auth/email', 'authenticated', tf.changeEmail);
+  router.get('/api/auth/2fa', 'authenticated', tf.status);
+  router.post('/api/auth/2fa/totp', 'authenticated', tf.startTotp);
+  router.post('/api/auth/2fa/totp/confirm', 'authenticated', tf.confirmTotp);
+  router.post('/api/auth/2fa/email', 'authenticated', tf.startEmail);
+  router.post('/api/auth/2fa/email/confirm', 'authenticated', tf.confirmEmail);
+  router.post('/api/auth/2fa/disable', 'authenticated', tf.disable);
+  router.post('/api/auth/2fa/recovery-codes', 'authenticated', tf.recoveryCodes);
   router.get('/api/notifications', 'authenticated', notes.list);
   router.post('/api/notifications/read-all', 'authenticated', notes.markAllRead);
   router.post('/api/notifications/:id/read', 'authenticated', notes.markRead);
@@ -164,6 +180,11 @@ export function createApiApp(deps: ApiDependencies): ApiApp {
 
   // System and security settings (spec §16).
   router.get('/api/settings', 'settings.read', settingsApi.list);
+  router.get('/api/settings/sign-in', 'settings.read', tf.signInSettings);
+  router.put('/api/settings/sign-in', 'settings.write', tf.updateSignInSettings);
+  router.get('/api/settings/mail', 'settings.read', tf.mailSettings);
+  router.put('/api/settings/mail', 'settings.write', tf.updateMailSettings);
+  router.post('/api/settings/mail/test', 'settings.write', tf.testMail);
   router.put('/api/settings', 'settings.write', settingsApi.update);
 
   // Gateway administration: API keys (spec §14, §31) and live metrics.
@@ -212,6 +233,11 @@ export function createApiApp(deps: ApiDependencies): ApiApp {
       // A temporary password (new account, administrator reset) must be replaced before anything else.
       if (ctx.auth.user.mustChangePassword && !ALLOWED_BEFORE_PASSWORD_CHANGE.has(`${ctx.method} ${ctx.url.pathname}`)) {
         throw new AppError('AUTHORIZATION_ERROR', 'Choose a new password before continuing.', { details: { reason: PASSWORD_CHANGE_REQUIRED } });
+      }
+      // Two-factor sign-in required by the administrator and not set up yet: only setting it up (and leaving) is allowed.
+      const route = `${ctx.method} ${ctx.url.pathname}`;
+      if (!ALLOWED_BEFORE_PASSWORD_CHANGE.has(route) && !ctx.url.pathname.startsWith('/api/auth/2fa') && route !== 'PUT /api/auth/email' && deps.twoFactor.setupRequired(ctx.auth.user.id)) {
+        throw new AppError('AUTHORIZATION_ERROR', 'Set up two-factor sign-in before continuing.', { details: { reason: TWO_FACTOR_SETUP_REQUIRED } });
       }
       if (match.access !== 'authenticated' && !ctx.auth.permissions.has(match.access)) {
         ctx.log.info('access denied', { component: 'authorization', userId: ctx.auth.user.id, permission: match.access, path: ctx.url.pathname });

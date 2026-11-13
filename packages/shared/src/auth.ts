@@ -11,6 +11,8 @@ export interface UserSummary {
   lastLoginAt: string | null;
   /** Set by an administrator reset or a new account: the user must choose a new password before doing anything else. */
   mustChangePassword: boolean;
+  /** Where sign-in codes and security mail go; null when not set. */
+  email: string | null;
 }
 
 /** A session as shown to its owner. The token never leaves the cookie. */
@@ -33,6 +35,8 @@ export interface AuthSession {
   session: SessionInfo;
   /** Role ids held by the user (phase 3). */
   roles: string[];
+  /** Two-factor sign-in is required for this user and not set up yet: only setting it up is allowed. */
+  twoFactorSetupRequired: boolean;
   /** Effective permissions, for showing and hiding UI. The server re-checks every request. */
   permissions: string[];
 }

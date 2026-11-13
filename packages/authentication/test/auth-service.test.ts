@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { AppError } from '@clawrouter/core';
-import { hashToken } from '../src/index.ts';
+import { hashToken, type LoginResult } from '../src/index.ts';
 import { ADMIN, createHarness } from '../../../tests/support/harness.ts';
 
 const client = { ip: '198.51.100.1', userAgent: 'test-agent', requestId: 'req_test' };
@@ -14,7 +14,7 @@ async function withAdmin(options?: Parameters<typeof createHarness>[0]) {
 describe('login', () => {
   test('creates a session and records LOGIN', async () => {
     const h = await withAdmin();
-    const result = await h.auth.login('ADMIN', ADMIN.password, client); // usernames are case-insensitive
+    const result = (await h.auth.login('ADMIN', ADMIN.password, client)) as LoginResult; // usernames are case-insensitive
     expect(result.user.username).toBe('admin');
     expect(result.user).not.toHaveProperty('passwordHash');
     expect(result.session.current).toBe(true);
@@ -23,7 +23,7 @@ describe('login', () => {
 
   test('stores only a hash of the session token', async () => {
     const h = await withAdmin();
-    const { token } = await h.auth.login(ADMIN.username, ADMIN.password, client);
+    const { token } = (await h.auth.login(ADMIN.username, ADMIN.password, client)) as LoginResult;
     const rows = h.db.all<{ token_hash: string }>('SELECT token_hash FROM sessions');
     expect(rows.some((r) => r.token_hash === hashToken(token))).toBe(true);
     expect(JSON.stringify(rows)).not.toContain(token);
@@ -75,7 +75,7 @@ describe('login', () => {
 describe('sessions', () => {
   test('resolve returns the user for a live session', async () => {
     const h = await withAdmin();
-    const { token } = await h.auth.login(ADMIN.username, ADMIN.password, client);
+    const { token } = (await h.auth.login(ADMIN.username, ADMIN.password, client)) as LoginResult;
     expect(h.auth.resolve(token)?.user.username).toBe('admin');
     expect(h.auth.resolve('garbage')).toBeNull();
     expect(h.auth.resolve('')).toBeNull();
@@ -83,7 +83,7 @@ describe('sessions', () => {
 
   test('expire after the idle timeout', async () => {
     const h = await withAdmin({ idleMinutes: 30 });
-    const { token } = await h.auth.login(ADMIN.username, ADMIN.password, client);
+    const { token } = (await h.auth.login(ADMIN.username, ADMIN.password, client)) as LoginResult;
     h.clock.advance(29 * 60_000);
     expect(h.auth.resolve(token)).not.toBeNull(); // activity slides the window
     h.clock.advance(29 * 60_000);
@@ -94,7 +94,7 @@ describe('sessions', () => {
 
   test('expire at the absolute lifetime even when active', async () => {
     const h = await withAdmin({ idleMinutes: 60, maxHours: 2 });
-    const { token } = await h.auth.login(ADMIN.username, ADMIN.password, client);
+    const { token } = (await h.auth.login(ADMIN.username, ADMIN.password, client)) as LoginResult;
     for (let i = 0; i < 3; i++) {
       h.clock.advance(50 * 60_000);
       h.auth.resolve(token);
@@ -104,7 +104,7 @@ describe('sessions', () => {
 
   test('end when the user is disabled', async () => {
     const h = await withAdmin();
-    const { token } = await h.auth.login(ADMIN.username, ADMIN.password, client);
+    const { token } = (await h.auth.login(ADMIN.username, ADMIN.password, client)) as LoginResult;
     h.db.run("UPDATE users SET status = 'DISABLED'");
     expect(h.auth.resolve(token)).toBeNull();
   });
@@ -113,7 +113,7 @@ describe('sessions', () => {
     const h = await withAdmin();
     const revoked: string[] = [];
     h.events.on('session.revoked', (e) => { revoked.push(e.reason); });
-    const { token } = await h.auth.login(ADMIN.username, ADMIN.password, client);
+    const { token } = (await h.auth.login(ADMIN.username, ADMIN.password, client)) as LoginResult;
     h.auth.logout(token, client);
     expect(h.auth.resolve(token)).toBeNull();
     expect(revoked).toEqual(['LOGOUT']);
@@ -124,8 +124,8 @@ describe('sessions', () => {
 
   test('users can list and revoke only their own sessions', async () => {
     const h = await withAdmin();
-    const a = await h.auth.login(ADMIN.username, ADMIN.password, client);
-    const b = await h.auth.login(ADMIN.username, ADMIN.password, { ...client, userAgent: 'other' });
+    const a = (await h.auth.login(ADMIN.username, ADMIN.password, client)) as LoginResult;
+    const b = (await h.auth.login(ADMIN.username, ADMIN.password, { ...client, userAgent: 'other' })) as LoginResult;
     const list = h.auth.listSessions(a.user.id, a.session.id);
     expect(list.length).toBe(3); // setup session + 2
     expect(list.filter((s) => s.current).map((s) => s.id)).toEqual([a.session.id]);
@@ -140,8 +140,8 @@ describe('sessions', () => {
 
   test('revokeAllSessions can keep the current one', async () => {
     const h = await withAdmin();
-    const a = await h.auth.login(ADMIN.username, ADMIN.password, client);
-    const b = await h.auth.login(ADMIN.username, ADMIN.password, client);
+    const a = (await h.auth.login(ADMIN.username, ADMIN.password, client)) as LoginResult;
+    const b = (await h.auth.login(ADMIN.username, ADMIN.password, client)) as LoginResult;
     expect(h.auth.revokeAllSessions(a.user.id, 'PASSWORD_CHANGED', a.session.id)).toBe(2);
     expect(h.auth.resolve(a.token)).not.toBeNull();
     expect(h.auth.resolve(b.token)).toBeNull();

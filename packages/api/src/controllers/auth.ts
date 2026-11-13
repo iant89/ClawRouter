@@ -1,7 +1,7 @@
 import { AppError, errors, v } from '@clawrouter/core';
-import type { AuthService, ClientInfo, SetupService } from '@clawrouter/authentication';
+import type { AuthService, ClientInfo, SetupService, TwoFactorService } from '@clawrouter/authentication';
 import type { AuthorizationService } from '@clawrouter/authorization';
-import type { AdminSessionInfo, AuthSession, RevokeResult, SetupStatus } from '@clawrouter/shared';
+import type { AdminSessionInfo, AuthSession, RevokeResult, SetupStatus, SignInChallenge } from '@clawrouter/shared';
 import { readJson } from '../http/body.ts';
 import type { Handler, RequestContext } from '../http/context.ts';
 import { noContent, ok } from '../http/responses.ts';
@@ -53,20 +53,46 @@ export interface AuthControllerDeps {
   authz: AuthorizationService;
   setup: SetupService;
   cookie: SessionCookieConfig;
+  twoFactor: TwoFactorService;
 }
 
-export function authController({ auth, authz, setup, cookie }: AuthControllerDeps) {
+const verifyBody = v.object({
+  challenge: v.string({ min: 1, max: 128 }),
+  method: v.oneOf(['totp', 'email', 'recovery'] as const),
+  code: v.string({ min: 1, max: 32 }),
+});
+
+const challengeBody = v.object({ challenge: v.string({ min: 1, max: 128 }) });
+
+export function authController({ auth, authz, setup, cookie, twoFactor }: AuthControllerDeps) {
   /** The session body, with the roles and permissions the console uses to adapt its UI. */
   const sessionBody = (user: AuthSession['user'], info: AuthSession['session']): AuthSession => {
     const principal = authz.principalFor(user.id);
-    return { user, session: info, roles: principal.roles, permissions: [...principal.permissions].sort() };
+    return { user, session: info, roles: principal.roles, permissions: [...principal.permissions].sort(), twoFactorSetupRequired: twoFactor.setupRequired(user.id) };
   };
 
+  /** Password step. With two-factor sign-in, answers a challenge for the second step instead of a session. */
   const login: Handler = async (ctx) => {
     const body = await readJson(ctx, loginBody);
     const result = await auth.login(body.username, body.password, client(ctx));
+    if ('secondStep' in result) return ok<SignInChallenge>({ twoFactor: twoFactor.beginSignIn(result.secondStep, client(ctx)) });
     setSessionCookie(ctx.responseHeaders, cookie, result.token, result.session);
     return ok<AuthSession>(sessionBody(result.user, result.session));
+  };
+
+  /** Second step: a code from the authenticator app or email, or a recovery code. Creates the session. */
+  const verifySignIn: Handler = async (ctx) => {
+    const body = await readJson(ctx, verifyBody);
+    const { user, method } = await twoFactor.completeSignIn(body.challenge, body.method, body.code, client(ctx));
+    const result = auth.finishSignIn(user, client(ctx), method);
+    setSessionCookie(ctx.responseHeaders, cookie, result.token, result.session);
+    return ok<AuthSession>(sessionBody(result.user, result.session));
+  };
+
+  /** Sends (or re-sends, after 30 s) the email code for a sign-in challenge. */
+  const sendSignInCode: Handler = async (ctx) => {
+    const body = await readJson(ctx, challengeBody);
+    return ok(await twoFactor.sendSignInCode(body.challenge));
   };
 
   /** Always succeeds and clears the cookie, even if the session already ended. */
@@ -138,5 +164,5 @@ export function authController({ auth, authz, setup, cookie }: AuthControllerDep
     return ok<AuthSession>(sessionBody(result.user, result.session), { status: 201 });
   };
 
-  return { login, logout, session, listSessions, revokeSession, revokeOtherSessions, listAllSessions, revokeAnySession, revokeUserSessions, setupStatus, completeSetup };
+  return { login, verifySignIn, sendSignInCode, logout, session, listSessions, revokeSession, revokeOtherSessions, listAllSessions, revokeAnySession, revokeUserSessions, setupStatus, completeSetup };
 }

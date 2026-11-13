@@ -70,6 +70,9 @@ export interface UserWithRoles {
   createdAt: string;
   lastLoginAt: string | null;
   mustChangePassword: boolean;
+  email: string | null;
+  /** Two-factor methods set up (for administrators' lists). */
+  twoFactor: ('totp' | 'email')[];
   roles: string[];
 }
 

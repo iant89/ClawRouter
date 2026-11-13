@@ -42,6 +42,8 @@ export interface AuthServiceOptions {
   /** Override throttles (tests). */
   usernameThrottle?: FailureThrottle;
   ipThrottle?: FailureThrottle;
+  /** After a correct password: whether a second sign-in step is needed (two-factor). */
+  secondStep?: (user: User) => boolean;
 }
 
 /** Writes to `last_seen_at` at most this often per session. */
@@ -110,7 +112,7 @@ export function createAuthService(options: AuthServiceOptions) {
   }
 
   return {
-    async login(username: string, password: string, client: ClientInfo): Promise<LoginResult> {
+    async login(username: string, password: string, client: ClientInfo): Promise<LoginResult | { secondStep: User }> {
       const userKey = `u:${username.toLowerCase()}`;
       const ipKey = `ip:${client.ip ?? 'unknown'}`;
       const auditBase = { ip: client.ip, requestId: client.requestId ?? null, resource: 'user' };
@@ -145,10 +147,17 @@ export function createAuthService(options: AuthServiceOptions) {
       }
 
       usernameThrottle.reset(userKey);
+      // Two-factor sign-in: the password was right, but no session until the second step.
+      if (options.secondStep?.(user)) return { secondStep: user };
+      return this.finishSignIn(user, client);
+    },
+
+    /** Creates the session after every step of sign-in succeeded (password, and the second step when there is one). */
+    finishSignIn(user: User, client: ClientInfo, via?: string): LoginResult {
       const result = createSession(user, client);
       users.recordLogin(user.id, result.session.createdAt);
       result.user.lastLoginAt = result.session.createdAt;
-      audit.record({ ...auditBase, action: 'LOGIN', result: 'SUCCESS', resourceId: user.id, actor: { id: user.id, name: user.username }, metadata: { sessionId: result.session.id } });
+      audit.record({ ip: client.ip, requestId: client.requestId ?? null, resource: 'user', action: 'LOGIN', result: 'SUCCESS', resourceId: user.id, actor: { id: user.id, name: user.username }, metadata: { sessionId: result.session.id, ...(via ? { secondFactor: via } : {}) } });
       events?.emit('user.signed_in', { userId: user.id });
       return result;
     },

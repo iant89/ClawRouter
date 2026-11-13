@@ -159,7 +159,9 @@
       "name": "@clawrouter/mail",
       "version": "0.1.0",
       "dependencies": {
+        "@clawrouter/audit": "workspace:*",
         "@clawrouter/core": "workspace:*",
+        "@clawrouter/database": "workspace:*",
         "@clawrouter/shared": "workspace:*",
       },
     },

@@ -7,8 +7,8 @@ import { operationHandlers } from '../../apps/server/src/operation-handlers.ts';
 import { createApiApp, type ApiApp } from '@clawrouter/api';
 import { createAuditService, createSqliteAuditRepository, type AuditService } from '@clawrouter/audit';
 import {
-  createArgon2Hasher, createAuthService, createSetupService, createSqliteSessionRepository, createSqliteUserRepository, createUserAdminService,
-  type AuthService, type PasswordHasher, type SetupService, type UserAdminService, type UserRepository,
+  createArgon2Hasher, createAuthService, createSetupService, createSqliteSessionRepository, createSqliteUserRepository, createTwoFactorService, createUserAdminService,
+  type AuthService, type PasswordHasher, type SetupService, type TwoFactorService, type UserAdminService, type UserRepository,
 } from '@clawrouter/authentication';
 import { createAuthorizationService, createSqliteRoleRepository, peopleDirectory, userAccessPolicy, type AuthorizationService } from '@clawrouter/authorization';
 import { createEventBus, createLogger, createSecretBox, generateSecretKey, LogBuffer, parseSecretKey, type EventBus, type LogRecord, type SecretBox } from '@clawrouter/core';
@@ -21,6 +21,7 @@ import { createRequestLogService, createSqliteRequestRepository, type RequestLog
 import { createNotificationService, createSqliteNotificationRepository, type NotificationService } from '@clawrouter/notifications';
 import { createSqliteSettingsRepository, migrations, openSqlite, runMigrations, type Database } from '@clawrouter/database';
 import { createSettingsService, type SettingsService } from '@clawrouter/settings';
+import { createMailService, type MailService } from '@clawrouter/mail';
 import {
   createDatabaseCheck, createGatewayCheck, createHealthHistoryService, createHealthService, createSqliteHealthHistoryRepository,
   type HealthHistoryService, type HealthService,
@@ -51,6 +52,10 @@ export interface Harness {
   authz: AuthorizationService;
   userAdmin: UserAdminService;
   settings: SettingsService;
+  twoFactor: TwoFactorService;
+  mail: MailService;
+  /** Messages "sent" by the mail service. */
+  outbox: { to: string; subject: string; text: string }[];
   notifications: NotificationService;
   providers: ProviderService;
   models: ModelService;
@@ -106,6 +111,7 @@ export function createHarness(options: { idleMinutes?: number; maxHours?: number
     hasher: fastHasher,
     audit,
     policy: { get idleMinutes() { return settings.get('sessionIdleMinutes'); }, get maxHours() { return settings.get('sessionMaxHours'); }, get maxFailures() { return settings.get('signInMaxFailures'); } },
+    secondStep: (user) => twoFactor.needsSecondStep(user.id),
     events,
     log,
     now: clock.now,
@@ -119,6 +125,13 @@ export function createHarness(options: { idleMinutes?: number; maxHours?: number
     grantAdministrator: (userId) => authz.grantInitialAdministrator(userId),
   });
   const secrets = createSecretBox(parseSecretKey(generateSecretKey()));
+  // Mail goes to an in-memory outbox (h.outbox); configure the server through /api/settings/mail as usual.
+  const outbox: { to: string; subject: string; text: string }[] = [];
+  const mail = createMailService({ settings: createSqliteSettingsRepository(db, clock.now), secrets, audit, events, log, send: async (_cfg, message) => { outbox.push(message); } });
+  const twoFactor = createTwoFactorService({
+    db, users, hasher: fastHasher, secrets, settings: createSqliteSettingsRepository(db, clock.now), mail, audit, events, log, now: clock.now,
+    isAdministrator: (userId) => authz.principalFor(userId).roles.includes('ADMIN'),
+  });
   let providerFetch: typeof fetch = (() => Promise.reject(new Error('no network in tests'))) as unknown as typeof fetch;
   const providers = createProviderService({
     repo: createSqliteProviderRepository(db), registry: createDefaultRegistry(), secrets, audit, events, log, now: clock.now,
@@ -149,10 +162,10 @@ export function createHarness(options: { idleMinutes?: number; maxHours?: number
   });
   const healthHistory = createHealthHistoryService({ repo: createSqliteHealthHistoryRepository(db), now: clock.now });
   const operations = createOperationService({ repo: createSqliteOperationRepository(db), handlers: operationHandlers({ providers, health }), audit, events, log, now: clock.now });
-  const api = createApiApp({ log, logBuffer, audit, health, healthHistory, auth, authz, userAdmin, settings, notifications, providers, models, routing, apiKeys, keyRequests, gateway, limits, requests, operations, setup, cookie: { secure: options.secureCookie ?? false } });
+  const api = createApiApp({ log, logBuffer, audit, health, healthHistory, auth, authz, userAdmin, settings, twoFactor, mail, notifications, providers, models, routing, apiKeys, keyRequests, gateway, limits, requests, operations, setup, cookie: { secure: options.secureCookie ?? false } });
 
   const h: Harness = {
-    db, clock, events, users, audit, auth, authz, userAdmin, settings, notifications, providers, models, routing, apiKeys, keyRequests, gateway, limits, requests, secrets, setup, health, healthHistory, operations, api, logs, logBuffer,
+    db, clock, events, users, audit, auth, authz, userAdmin, settings, twoFactor, mail, outbox, notifications, providers, models, routing, apiKeys, keyRequests, gateway, limits, requests, secrets, setup, health, healthHistory, operations, api, logs, logBuffer,
     setProviderFetch(fn) {
       providerFetch = fn;
     },

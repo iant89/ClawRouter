@@ -14,3 +14,4 @@ export * from './realtime.ts';
 export * from './operations.ts';
 export * from './logs.ts';
 export * from './settings.ts';
+export * from './two-factor.ts';

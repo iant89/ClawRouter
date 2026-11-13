@@ -37,11 +37,14 @@ interface UserRow {
   created_at: string;
   last_login_at: string | null;
   must_change_password: number;
+  email: string | null;
+  two_factor: string | null;
   roles: string | null;
 }
 
 const USERS_WITH_ROLES = `
-  SELECT u.id, u.username, u.display_name, u.status, u.created_at, u.last_login_at, u.must_change_password,
+  SELECT u.id, u.username, u.display_name, u.status, u.created_at, u.last_login_at, u.must_change_password, u.email,
+         (SELECT trim((CASE WHEN t.totp_confirmed_at IS NOT NULL THEN 'totp ' ELSE '' END) || (CASE WHEN t.email_enabled_at IS NOT NULL THEN 'email' ELSE '' END)) FROM user_two_factor t WHERE t.user_id = u.id) AS two_factor,
          (SELECT group_concat(role_id, ',') FROM (SELECT role_id FROM user_roles WHERE user_id = u.id ORDER BY role_id)) AS roles
   FROM users u`;
 
@@ -53,6 +56,8 @@ const toUser = (r: UserRow): UserWithRoles => ({
   createdAt: r.created_at,
   lastLoginAt: r.last_login_at,
   mustChangePassword: r.must_change_password === 1,
+  email: r.email,
+  twoFactor: (r.two_factor ? r.two_factor.split(' ').filter(Boolean) : []) as ('totp' | 'email')[],
   roles: r.roles ? r.roles.split(',') : [],
 });
 
