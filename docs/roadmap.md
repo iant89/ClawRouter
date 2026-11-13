@@ -372,6 +372,19 @@ Asked by the owner on 2026-11-13, built after phase 15. See [self-service keys](
 - [x] Console: My API keys page; Key requests tab on API Access
 - [x] Maximum key lifetime per provider and model: enforced when keys are created and when they are used
 
+## Owner request: two-factor sign-in ✅
+
+Asked by the owner on 2026-11-13 ("should be configured in settings by administrator"),
+built after self-service keys. See [two-factor sign-in](two-factor.md).
+
+- [x] Settings: allowed methods, who must use it (off / administrators / everyone), mail server (SMTP, write-only password, test message)
+- [x] Authenticator app (TOTP, RFC 6238) with replay prevention
+- [x] Email codes, with address confirmation
+- [x] Recovery codes (one-time, hashed)
+- [x] Two-step sign-in with expiring, attempt-limited challenges
+- [x] Forced setup when required; administrator and command-line reset
+- [x] Console: second sign-in step, Sign-in security, Settings, Users
+
 ## Phase 16: Performance ⬜ next
 
 Goal: optimize the gateway and console.
@@ -417,7 +430,7 @@ Exit: ClawRouter can be deployed as a standalone production AI gateway.
 - **Multi-server:** multiple installations, server registry, server health, server groups, remote management, version tracking, remote upgrades
 - **Advanced routing:** latency-, cost- and token-aware routing, geographic routing, provider quotas, model quality policies, load balancing, circuit breakers
 - **Advanced observability:** request analytics, provider and model performance, error, token and cost trends, availability percentages, latency percentiles
-- **Advanced security:** fine-grained permissions, API scopes, key and secret rotation, external identity providers, SSO, MFA, IP restrictions
+- **Advanced security:** fine-grained permissions, API scopes, key and secret rotation, external identity providers, SSO, MFA (two-factor sign-in done; passkeys not), IP restrictions
 - **Infrastructure:** PostgreSQL, Redis, distributed rate limiting, distributed event system, multiple gateway nodes
 - **AI features:** automatic model fallback, capability-based model selection, cost optimization, provider benchmarking, model health scoring, automatic routing optimization
 

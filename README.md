@@ -36,7 +36,9 @@ usage tracking and an administration console built on
   **self-service API keys** (an `api_keys.own` permission, key requests approved by
   others, keys that expire daily or after a set time, and a maximum key lifetime per provider
   and model; see
-  [self-service keys](docs/self-service-keys.md)).
+  [self-service keys](docs/self-service-keys.md)), and **two-factor sign-in**
+  configured by administrators (authenticator app, email codes over SMTP, recovery
+  codes; see [two-factor](docs/two-factor.md)).
   Performance is next (phase 16).
 - **Architecture:** [`docs/architecture.md`](docs/architecture.md) ·
   **Security model:** [`docs/authentication.md`](docs/authentication.md),

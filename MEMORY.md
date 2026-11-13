@@ -14,6 +14,15 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 
 ### Important
 
+- **IMPORTANT** · 2026-11-13 · Owner rule: two-factor sign-in is configured by administrators
+  "Should be configured in settings by administrator": allowed methods (authenticator
+  app, email codes) and who must use it (off / administrators / everyone) are
+  settings (`security.sign_in`), with the SMTP server (`mail.server`, password
+  encrypted, write-only). Required but not set up: 403 `two_factor_setup_required`
+  on everything but session, password, sign-out, `/api/auth/2fa*` and own email.
+  Your own email changes only with your password (user administration refuses it).
+  See `docs/two-factor.md`; tests in `packages/api/test/two-factor-api.test.ts`.
+
 - **IMPORTANT** · 2026-11-13 · Owner rule: maximum key lifetime per provider and model
   "Administrators when adding providers/models should have the option to choose
   maximum key length", read as **lifetime** (confirm with the owner). Optional
@@ -171,9 +180,15 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
   audit` needs the npm registry and could be flaky.
 
 - **WARNING** · 2026-11-13 · Accepted security risks (see `docs/security.md`)
-  No 2FA; a known username can be locked out by repeated wrong passwords (15 min);
-  the console CSP allows inline styles (design system needs them; scripts are
-  strict). Revisit with the owner's 2FA decision.
+  A known username can be locked out by repeated wrong passwords (15 min; two-factor
+  sign-in does not help, the password step comes first); the console CSP allows
+  inline styles (design system needs them; scripts are strict).
+
+- **WARNING** · 2026-11-13 · Two-factor mail and setup limits
+  The SMTP client (`packages/mail/src/smtp.ts`) was only tested against
+  `tests/support/mock-smtp.ts` without encryption: TLS and STARTTLS have not met a
+  real mail server. No QR code for the authenticator app (text key plus
+  `otpauth://` link). See `docs/two-factor.md`.
 
 ### Notes
 
@@ -250,22 +265,24 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
   first, then this branch; both are fast-forwards. Merge only when the owner says so.
   Includes the maximum key lifetime per provider/model. Interpretation calls to
   confirm with the owner are listed at the end of `docs/self-service-keys.md`
-  (same-role rule applies to notifications only; Operator/Viewer do not get
-  `api_keys.own`; "maximum key length" read as lifetime).
+  (the owner confirmed the same-role rule and Operator getting `api_keys.own`;
+  still open: "maximum key length" read as lifetime).
 
-- **MESSAGE** · 2026-11-13 · Two-factor sign-in in progress on `claude/two-factor-auth`
-  The owner answered "should be configured in settings by administrator": the
-  methods (authenticator app / email codes) and whether 2FA is required are admin
-  settings. Branch built on `claude/api-key-self-service` (merge order: phase 15,
-  self-service keys, then this). Plan: users get an email address; settings for
-  allowed methods, requirement (off / administrators / everyone) and the SMTP
-  server (password encrypted with the secret key); TOTP (RFC 6238) with recovery
-  codes; email codes; two-step sign-in; forced enrollment when required; admin
-  reset of a user's 2FA; console screens. Check `git log` on the branch for how far it got.
+- **MESSAGE** · 2026-11-13 · Two-factor sign-in waits for review (branch on top of self-service keys)
+  Done on `claude/two-factor-auth`, built on `claude/api-key-self-service`. Merge
+  order: phase 15, self-service keys, then this; all fast-forwards. Merge only
+  when the owner says so. Browser-checked; screenshots in
+  `docs/screenshots/17-two-factor`. Details in `docs/two-factor.md`.
 
 ---
 
 ## Resolved
+
+- **MESSAGE** · 2026-11-13 · Two-factor sign-in in progress. Resolved 2026-11-13: finished
+  on `claude/two-factor-auth` (see the review hand-off under Messages).
+
+- **WARNING** · 2026-11-13 · No two-factor authentication (accepted risk). Resolved
+  2026-11-13: two-factor sign-in built (`docs/two-factor.md`).
 
 - **MESSAGE** · 2026-11-13 · Open question: self-service API keys. Resolved 2026-11-13:
   the owner answered (see the owner rule under Important); built on

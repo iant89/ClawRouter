@@ -124,8 +124,13 @@ Recorded in `audit_log` (append-only repository; metadata passes through redacti
 `SESSION_REVOKED`, `USER_CREATED`, `SETUP_COMPLETED`. Each record has the actor, IP
 and request id. The audit UI is phase 13.
 
+## Two-factor sign-in
+
+Administrators can allow an authenticator app and/or emailed codes, and require
+them for administrators or everyone (Settings). A user with two-factor sign-in
+gets a challenge instead of a session from `POST /api/auth/login` and completes it
+with `POST /api/auth/login/verify`. See [two-factor sign-in](two-factor.md).
+
 ## Not yet
 
-- User management, disabling users, password change/reset (phase 14).
-- Admin password recovery CLI, trusted proxies (phase 17).
-- MFA, SSO (future).
+- SSO and passkeys (future).

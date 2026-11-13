@@ -23,7 +23,7 @@ guarded by tests, and the risks that remain. Area details live in
 
 | Item | Result |
 |---|---|
-| **Authentication** | argon2id password hashing; the same message and similar timing for unknown users (dummy hash); per-username and per-address throttling (configurable); disabled users cannot sign in; setup needs a one-time token compared in constant time and closes after first use; temporary passwords must be changed before anything else. No 2FA yet (see residual risks). |
+| **Authentication** | argon2id password hashing; the same message and similar timing for unknown users (dummy hash); per-username and per-address throttling (configurable); disabled users cannot sign in; setup needs a one-time token compared in constant time and closes after first use; temporary passwords must be changed before anything else; optional or required two-factor sign-in (authenticator app, email codes, recovery codes; see [two-factor](two-factor.md)). |
 | **Sessions** | 256-bit random tokens; only SHA-256 hashes stored; a new token at every sign-in (no fixation); idle and absolute expiry; revocation on sign-out, disable, password change and reset; `HttpOnly`, `SameSite=Strict`, `Secure` + `__Host-` prefix on HTTPS; invalid cookies are cleared. |
 | **Authorization** | Every route declares its access (a required argument). A sweep test calls every protected route anonymously (401), without the permission (403) and with it. No escalation through roles or user management (phase 14). Administrator is unique and fixed. |
 | **API keys** | 256-bit secrets shown once; only SHA-256 stored; constant-time comparison; prefix lookup; expiry, revocation, suspension; per-key, per-user, per-model and global limits; per-address invalid-key blocking. |
@@ -49,8 +49,7 @@ guarded by tests, and the risks that remain. Area details live in
 
 | Risk | Why accepted / what would fix it |
 |---|---|
-| **No two-factor authentication** | Planned when the owner decides the approach (authenticator app with optional email codes was proposed). Until then: strong password policy, throttling, short sessions. |
-| **Username lockout** | 10 wrong passwords (configurable) block a username for 15 minutes, so someone who knows an administrator's username can keep them out. The per-address limit and the server-side recovery command reduce the impact; 2FA plus a softer per-username delay would remove it. |
+| **Username lockout** | 10 wrong passwords (configurable) block a username for 15 minutes, so someone who knows an administrator's username can keep them out. The per-address limit and the server-side recovery command reduce the impact; a softer per-username delay would remove it (two-factor sign-in does not, since the password step comes first). |
 | **CSP allows inline styles** | The design system sets layout through `style` attributes. Scripts are strictly same-origin, so script injection is still blocked; inline styles only allow visual tampering. |
 | **Per-process counters and settings** | Rate-limit counters, live events and the settings cache live in one process. Running several nodes needs a shared store (spec §41, Redis). |
 | **Provider adapters untested against real APIs** | Only the mock providers were reachable; see the MEMORY warning. |

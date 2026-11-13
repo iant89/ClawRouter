@@ -236,3 +236,24 @@ before the screenshot.
 | ![Model limit](16-self-service-keys/12-2-model-key-lifetime.png) | A model with a stricter limit (7 days); the dialog notes the provider's |
 | ![Models](16-self-service-keys/12-3-models-key-lifetime.png) | The Models table shows the limit that applies |
 | ![Refused](16-self-service-keys/12-4-key-refused.png) | A never-expiring key for that model is refused, with the reason |
+
+## 17 · Two-factor sign-in
+
+The administrator adds an email address, sets up a mail server (a local test
+server) and requires two-factor sign-in for everyone. Both users must then set it
+up before anything else: Ada with an authenticator app, Olive with email codes.
+The setup key and codes in the pictures came from a throwaway test database.
+
+| | |
+|---|---|
+| ![Sign-in security](17-two-factor/1-sign-in-security-dialog.png) | User menu → **Sign-in security** |
+| ![Mail server](17-two-factor/2-mail-server.png) | **Settings → Mail server**, saved and tested |
+| ![Policy](17-two-factor/3-two-factor-policy.png) | **Settings → Two-factor sign-in**: allowed methods and who must use it |
+| ![Forced setup](17-two-factor/4-forced-setup-authenticator.png) | Required but not set up: only the setup screen (authenticator app) |
+| ![Recovery codes](17-two-factor/5-recovery-codes.png) | Recovery codes, shown once |
+| ![Email setup](17-two-factor/6-forced-setup-email.png) | Setting up email codes |
+| ![Email step](17-two-factor/7-second-step-email.png) | Signing in: a code by email |
+| ![App step](17-two-factor/8-second-step-app.png) | Signing in: a code from the app |
+| ![Users](17-two-factor/9-users-two-factor.png) | **Users** shows each user's methods |
+| ![Reset](17-two-factor/10-reset-two-factor.png) | Resetting a user's two-factor sign-in |
+| ![Phone](17-two-factor/11-second-step-phone.png) | The second step at phone width |

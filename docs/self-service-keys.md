@@ -13,8 +13,8 @@ keys and **does not share a role** with the requester.
 | `api_keys.write` | Create, change and revoke **any** key (API Access), and **approve or deny key requests**. |
 | any signed-in user | View and revoke keys they own; **request** a key if they hold neither permission above. |
 
-`api_keys.own` is a new permission. Administrator has it, like every permission.
-Operator and Viewer are fixed and do not, so grant it through a **custom role**
+`api_keys.own` is a new permission. Administrator has it, like every permission,
+and Operator has it too (owner confirmed 2026-11-13). Viewer does not, so grant it through a **custom role**
 (Administration → Roles), e.g. a "Developer" role with `models.read` and
 `api_keys.own`.
 

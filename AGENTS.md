@@ -33,11 +33,11 @@ bun install            # everything, including the vendored ENTERPRISE-UI
 bun run dev            # server + console with hot reload on http://127.0.0.1:8080
 bun run check          # typecheck + all tests: must pass before every commit
 bun run typecheck
-bun test               # ~530 tests, a few seconds
+bun test               # ~560 tests, a few seconds
 bun run build          # production bundle in dist/ (server + console)
 bun run start          # run the production bundle
 bun run migrate        # apply migrations (--status to list)
-bun run reset-password <user>  # lost password: prints a temporary one (--enable re-enables)
+bun run reset-password <user>  # lost password: prints a temporary one (--enable re-enables, --reset-2fa removes two-factor)
 bun run rotate-secret-key      # new encryption key for provider credentials (CLAWROUTER_NEW_SECRET_KEY)
 bun run scan-secrets           # no credential-shaped strings committed (CI runs it, plus bun audit)
 ```
@@ -55,7 +55,7 @@ packages/shared/    browser-safe types shared by server and console
 packages/core/      config, errors, validation, logger + redaction, event bus, secret box
 packages/database/  Database interface, SQLite adapter, migrations (append-only)
 packages/api/       router, middleware, controllers
-packages/<domain>/  authentication, authorization, audit, notifications, health, providers, models, routing, gateway, rate-limits, requests, operations, settings
+packages/<domain>/  authentication, authorization, audit, notifications, health, providers, models, routing, gateway, rate-limits, requests, operations, settings, mail
 tests/support/      harness.ts (fully wired in-memory app), mock-providers.ts (fake provider APIs)
 docs/               design specification, roadmap, per-area docs, screenshots/
 vendor/             ENTERPRISE-UI tarball (committed)
@@ -63,7 +63,7 @@ vendor/             ENTERPRISE-UI tarball (committed)
 
 Area docs: [architecture](docs/architecture.md) · [authentication](docs/authentication.md) ·
 [authorization](docs/authorization.md) · [console shell](docs/console-shell.md) ·
-[providers](docs/providers.md) · [models](docs/models.md) · [routing](docs/routing.md) · [gateway](docs/gateway.md) · [rate limits](docs/rate-limits.md) · [requests and usage](docs/requests-usage.md) · [real-time](docs/realtime.md) · [health and operations](docs/health-operations.md) · [logging and audit](docs/logging-audit.md) · [administration](docs/administration.md) · [security](docs/security.md) · [self-service keys](docs/self-service-keys.md) · [screenshots](docs/screenshots/README.md)
+[providers](docs/providers.md) · [models](docs/models.md) · [routing](docs/routing.md) · [gateway](docs/gateway.md) · [rate limits](docs/rate-limits.md) · [requests and usage](docs/requests-usage.md) · [real-time](docs/realtime.md) · [health and operations](docs/health-operations.md) · [logging and audit](docs/logging-audit.md) · [administration](docs/administration.md) · [security](docs/security.md) · [self-service keys](docs/self-service-keys.md) · [two-factor sign-in](docs/two-factor.md) · [screenshots](docs/screenshots/README.md)
 
 ## Rules
 
