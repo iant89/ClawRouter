@@ -28,8 +28,10 @@ usage tracking and an administration console built on
   the **real-time system** (a signed-in WebSocket that keeps the console live),
   and phase 12, **health and operations** (gateway and WebSocket checks, health
   history, cancellable long-running operations), and phase 13, **logging and
-  audit** (Logs and Audit pages, secret scrubbing by shape).
-  Administration (users, settings) is next (phase 14).
+  audit** (Logs and Audit pages, secret scrubbing by shape), and phase 14,
+  **administration** (custom roles, user management with temporary passwords and
+  command-line recovery, system and security settings).
+  Security hardening is next (phase 15).
 - **Architecture:** [`docs/architecture.md`](docs/architecture.md) ·
   **Security model:** [`docs/authentication.md`](docs/authentication.md),
   [`docs/authorization.md`](docs/authorization.md) · **Console:**
@@ -87,6 +89,7 @@ curl -s http://127.0.0.1:8080/api/health | jq
 | `bun run typecheck` | `tsc` in strict mode over every package and app |
 | `bun run check` | typecheck + tests |
 | `bun run migrate` | Apply pending migrations (`--status` to list only) |
+| `bun run reset-password <username>` | Lost password: sets and prints a temporary password, ends the user's sessions (`--enable` also re-enables the account) |
 | `bun run build` | Production bundle in `dist/` (server + console) |
 | `bun run start` | Run the production bundle (`CLAWROUTER_ENV=production`) |
 
@@ -118,6 +121,8 @@ Invalid values stop the server with a message listing every problem.
 | `CLAWROUTER_REQUEST_RETENTION_DAYS` | `30` | Days to keep gateway request history; `0` keeps it forever |
 | `CLAWROUTER_USAGE_RETENTION_DAYS` | `400` | Days to keep hourly usage records; `0` keeps them forever |
 | `CLAWROUTER_SETUP_TOKEN` | generated | Pre-chosen initial setup token (≥ 16 chars), e.g. for automated installs |
+
+Session lifetimes and the three retention periods are only **defaults**: Administration → Settings can change them while running, and a value set there wins until it is reset (see [administration](docs/administration.md#settings)).
 
 ## Layout
 

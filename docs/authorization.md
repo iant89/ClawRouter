@@ -39,7 +39,7 @@ exist; `user_roles` records who holds them.
 | `rate_limits.read` | ✔ | ✔ | ✔ |
 | `rate_limits.write` | ✔ | ✔ | |
 | `users.read` / `users.write` | ✔ | | |
-| `roles.read` / `roles.assign` | ✔ | | |
+| `roles.read` / `roles.write` / `roles.assign` | ✔ | | |
 | `sessions.read` / `sessions.revoke` | ✔ | | |
 | `settings.read` / `settings.write` | ✔ | | |
 
@@ -51,6 +51,9 @@ Decisions beyond the spec text:
 - **API keys** are administrator-only. The spec's Operator list does not include
   API access, and keys grant access to the data plane.
 - Users may hold several roles; permissions are the union.
+- **Custom roles** (phase 14) can hold any set of permissions except all of them:
+  Administrator is the only role with every permission, and it cannot be changed or
+  removed. See [administration](administration.md#custom-roles).
 
 ## Endpoints
 
@@ -59,6 +62,8 @@ Decisions beyond the spec text:
 | GET | `/api/roles` | `roles.read` | Roles with their permissions and member counts |
 | GET | `/api/users` | `users.read` | Users with their roles (never password hashes) |
 | PUT | `/api/users/:id/roles` | `roles.assign` | `{ roles: [...] }`: replace a user's roles |
+| POST, PATCH, DELETE | `/api/roles`, `/api/roles/:id` | `roles.write` | Custom roles ([administration](administration.md)) |
+| POST, PATCH | `/api/users`, `/api/users/:id`, `/api/users/:id/password` | `users.write` | User lifecycle ([administration](administration.md)) |
 | GET | `/api/sessions` | `sessions.read` | All live sessions |
 | DELETE | `/api/sessions/:id`, POST `/api/sessions/revoke` | `sessions.revoke` | Revoke sessions |
 
@@ -72,6 +77,8 @@ uses them to decide what to show.
   the last *active* administrator is refused with **409**. Disabled
   administrators do not count.
 - **Unknown roles** are rejected (400); duplicates are ignored.
+- **No escalation.** Roles added or removed must lie within the actor's own
+  permissions (403 naming the missing ones), so only administrators assign Administrator.
 - **Every change is audited** as `ROLE_CHANGED` with the before and after role
   lists and the actor. No-op saves are not audited. The event bus emits
   `user.roles_changed`.
@@ -91,11 +98,8 @@ oldest user if there is none. Any other existing user starts with **no role**
   groups. Opening a hidden page directly shows a "no access" page.
 - Administration → **Users**: users and their roles; *Edit roles* with
   `roles.assign`.
-- Administration → **Roles**: the roles and a permission matrix.
+- Administration → **Roles**: the roles and a permission matrix; with `roles.write`,
+  create, edit, duplicate and delete custom roles.
 - The header shows the user's roles; users without a role see a notice on the
   dashboard.
 
-## Not yet
-
-- Creating, disabling and deleting users, and password reset (phase 14).
-- Custom roles (future): the schema allows them, and they currently grant nothing.

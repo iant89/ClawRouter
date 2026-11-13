@@ -18,7 +18,9 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
   The owner asked for roles to be creatable with a chosen set of permissions.
   The built-in Operator and Viewer stay as default roles. **Administrator can never
   be removed, edited or replaced, and no other role may have every permission
-  enabled.** Keep this when touching roles (phase 14 implements it; tests guard it).
+  enabled.** Keep this when touching roles. Implemented in phase 14
+  (`AuthorizationService.validateRole`, built-in roles refused for edit/delete);
+  `packages/api/test/roles-api.test.ts` guards it. See `docs/administration.md`.
 
 - **IMPORTANT** · 2026-11-12 · Workflow: one branch per phase, merged when the owner says so
   Build each phase on a branch (`claude/phase-N-<name>`), push it, and report.
@@ -72,6 +74,19 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
     Logs are not stored in SQLite. Request ids link Requests, Logs and Audit.
   - The live channel sends `health.changed` to every signed-in user (the header
     shows system health to all); everything else is filtered by permission.
+  - Phase 14, no escalation: an actor may only create/edit/delete roles, assign or
+    remove roles, and disable/rename/reset users when every permission involved is
+    one they hold. Only administrators can assign Administrator or reset an
+    administrator's password. New permission `roles.write` (Administrator only).
+  - Phase 14, temporary passwords: new users and admin resets set
+    `must_change_password`; until changed, the API allows only session, password
+    change and logout (403 `password_change_required`), and the live channel refuses.
+    No web "forgot password": `bun run reset-password <user>` on the server.
+  - Phase 14, settings: environment variables are **defaults**; a value set in
+    Administration → Settings wins until reset. Services read settings at use time
+    (getter objects in `server.ts`), so no restart is needed. Stored as
+    `system.<snake_case>` keys; out-of-range stored values are ignored. The password
+    policy is not a setting.
 
 ### Warnings
 
@@ -107,6 +122,9 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
   - `/v1/responses`, tools, images and `n > 1` are rejected with 400 (see
     `docs/gateway.md`). Agent clients that need tools will not work yet.
   - No CORS on `/v1`; browser apps must call it from their backend.
+  - System settings (phase 14) are cached in memory per process: with several
+    nodes, a change made through one node reaches the others only after their
+    restart (needs a shared notification, like live events).
   - Live events are in-process: with several ClawRouter nodes, consoles would only
     see events from the node they are connected to (needs a shared channel, e.g.
     Redis pub/sub). A reverse proxy must pass WebSocket upgrades on `/api/ws` and
@@ -118,10 +136,6 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
   invalid-API-key limit (default 20 per minute, then every `/v1` request from that
   address is refused) apply to all clients together: one misconfigured client
   could block everyone. Trusted `X-Forwarded-For` handling is planned for phase 17.
-
-- **WARNING** · 2026-11-12 · No way to recover a lost administrator password
-  There is no user management yet (phase 14), so there is no reset. The intended
-  approach is a server-side CLI, never a web reset.
 
 - **WARNING** · 2026-11-12 · CI not yet observed
   `.github/workflows/ci.yml` (frozen install, typecheck, tests, build) was added
@@ -178,21 +192,27 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 
 ### Messages
 
-- **MESSAGE** · 2026-11-13 · Phase 13 waits for review; then phase 14
-  Phase 12 was merged on the owner's word ("Merge 12"): `main` = `4d3a728`. Phase 13
-  (logging + audit) is on `claude/phase-13-logging-audit`, built on top of it, so
-  merging is a fast-forward. Merge only when the owner says so.
-  Next: phase 14, administration. Open items: user management (create, disable,
-  reset password: the password reset should be a server-side CLI per the warning
-  above, plus "must change password at next sign-in"), role management (built-in
-  roles only today; decide with the owner whether custom roles are wanted), system
-  settings and security settings (the `settings` table exists; candidates:
-  session lifetimes, sign-in throttling, retention periods now in environment
-  variables). Settings changes must be audited (`SETTINGS_CHANGED`).
+- **MESSAGE** · 2026-11-13 · Phase 14 waits for review; then phase 15
+  Phase 13 was merged on the owner's word ("Merge 13"): `main` = `aad19fe`. Phase 14
+  (administration: custom roles, user management, password recovery CLI, settings)
+  is on `claude/phase-14-administration`, built on top of it, so merging is a
+  fast-forward. Merge only when the owner says so.
+  Next: phase 15, security hardening (reviews of authentication, authorization,
+  sessions, API keys, credential encryption, CSRF; see `docs/roadmap.md`). Trusted
+  `X-Forwarded-For` handling is also still open (see the reverse-proxy warning).
 
 ---
 
 ## Resolved
+
+- **MESSAGE** · 2026-11-13 · Phase 13 waits for review; then phase 14. Resolved 2026-11-13:
+  phase 13 merged (`aad19fe`); phase 14 built on `claude/phase-14-administration`
+  (see `docs/administration.md`). The owner asked for custom roles (see the owner
+  rule under Important).
+
+- **WARNING** · 2026-11-12 · No way to recover a lost administrator password. Resolved
+  2026-11-13: `bun run reset-password <username> [--enable]` (server-side only)
+  prints a temporary password that must be changed at the next sign-in.
 
 - **MESSAGE** · 2026-11-13 · Phase 12 waits for review; then phase 13. Resolved 2026-11-13:
   phase 12 merged (`4d3a728`); phase 13 built on `claude/phase-13-logging-audit`

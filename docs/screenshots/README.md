@@ -178,3 +178,26 @@ used both correctly and incorrectly. None of those secrets appear anywhere.
 | ![Audit](13-logging-audit/audit.png) | **Audit**: who did what, when and from where |
 | ![Audit detail](13-logging-audit/audit-detail.png) | A failed sign-in: username and reason, never the password; link to its logs |
 | ![Phone](13-logging-audit/phone-audit.png) | Audit at phone width |
+
+## 14 · Administration
+
+A real walkthrough: an administrator creates a custom **Support** role and a user
+holding it, the user signs in with the temporary password, then the
+administrator resets it and changes settings. None of the passwords appear in
+the audit log.
+
+| | |
+|---|---|
+| ![Roles](14-administration/1-roles.png) | **Roles**: built-in roles are locked; Administrator is the only one with every permission |
+| ![Create role](14-administration/2-create-role.png) | Creating a custom role with a permission checklist grouped by area |
+| ![All refused](14-administration/3-role-all-permissions-refused.png) | A role with every permission cannot be saved: that is the Administrator role |
+| ![Create user](14-administration/4-create-user.png) | **Users**: creating a user with a temporary password and a role |
+| ![Users](14-administration/5-users.png) | The new user, flagged as on a temporary password |
+| ![Forced](14-administration/7-forced-password-change.png) | First sign-in: the user must choose a new password before anything else |
+| ![Support console](14-administration/8-support-user-console.png) | The Support user's console: only the pages their role allows |
+| ![Reset](14-administration/9-reset-password.png) | Resetting a password (signs the user out everywhere) |
+| ![Invalid](14-administration/10-settings-invalid.png) | **Settings**: an out-of-range value is refused |
+| ![Settings](14-administration/11-settings.png) | Settings saved; changed values are marked and can be reset to the default |
+| ![Change password](14-administration/12-change-password.png) | User menu → Change password |
+| ![Phone](14-administration/13-settings-phone.png) | Settings at phone width |
+| ![Audit](14-administration/14-audit.png) | The audit trail of all of the above |

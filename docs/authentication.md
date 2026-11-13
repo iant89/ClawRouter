@@ -64,7 +64,7 @@ claim it.
 - Cookie: `HttpOnly; SameSite=Strict; Path=/`, and `Secure` with the `__Host-` name
   prefix when `CLAWROUTER_COOKIE_SECURE` is on (default in production). Max-Age equals
   the absolute session lifetime.
-- **Idle timeout** (`CLAWROUTER_SESSION_IDLE_MINUTES`, default 60) slides on activity.
+- **Idle timeout** (`CLAWROUTER_SESSION_IDLE_MINUTES`, default 60, or Administration → Settings) slides on activity.
   `last_seen_at` is written at most once a minute. **Absolute lifetime**
   (`CLAWROUTER_SESSION_MAX_HOURS`, default 12) never slides.
 - A session is rejected if it is revoked, past either expiry, or its user is not

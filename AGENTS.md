@@ -33,10 +33,11 @@ bun install            # everything, including the vendored ENTERPRISE-UI
 bun run dev            # server + console with hot reload on http://127.0.0.1:8080
 bun run check          # typecheck + all tests: must pass before every commit
 bun run typecheck
-bun test               # ~470 tests, about a second
+bun test               # ~500 tests, a few seconds
 bun run build          # production bundle in dist/ (server + console)
 bun run start          # run the production bundle
 bun run migrate        # apply migrations (--status to list)
+bun run reset-password <user>  # lost password: prints a temporary one (--enable re-enables)
 ```
 
 First start: the server writes `data/setup-token`. Open the console and create the
@@ -52,7 +53,7 @@ packages/shared/    browser-safe types shared by server and console
 packages/core/      config, errors, validation, logger + redaction, event bus, secret box
 packages/database/  Database interface, SQLite adapter, migrations (append-only)
 packages/api/       router, middleware, controllers
-packages/<domain>/  authentication, authorization, audit, notifications, health, providers, models, routing, gateway, rate-limits, requests, operations
+packages/<domain>/  authentication, authorization, audit, notifications, health, providers, models, routing, gateway, rate-limits, requests, operations, settings
 tests/support/      harness.ts (fully wired in-memory app), mock-providers.ts (fake provider APIs)
 docs/               design specification, roadmap, per-area docs, screenshots/
 vendor/             ENTERPRISE-UI tarball (committed)
@@ -60,7 +61,7 @@ vendor/             ENTERPRISE-UI tarball (committed)
 
 Area docs: [architecture](docs/architecture.md) · [authentication](docs/authentication.md) ·
 [authorization](docs/authorization.md) · [console shell](docs/console-shell.md) ·
-[providers](docs/providers.md) · [models](docs/models.md) · [routing](docs/routing.md) · [gateway](docs/gateway.md) · [rate limits](docs/rate-limits.md) · [requests and usage](docs/requests-usage.md) · [real-time](docs/realtime.md) · [health and operations](docs/health-operations.md) · [logging and audit](docs/logging-audit.md) · [screenshots](docs/screenshots/README.md)
+[providers](docs/providers.md) · [models](docs/models.md) · [routing](docs/routing.md) · [gateway](docs/gateway.md) · [rate limits](docs/rate-limits.md) · [requests and usage](docs/requests-usage.md) · [real-time](docs/realtime.md) · [health and operations](docs/health-operations.md) · [logging and audit](docs/logging-audit.md) · [administration](docs/administration.md) · [screenshots](docs/screenshots/README.md)
 
 ## Rules
 

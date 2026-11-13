@@ -16,14 +16,14 @@ Partly built items in later phases are marked "(groundwork: …)".
 | 5 Provider engine | ✅ |
 | 6 Model registry | ✅ |
 | 7 Routing engine | ✅ |
-| 8 Request gateway | ⬜ **next** |
-| 9 Rate limiting | ⬜ |
-| 10 Requests + usage | ⬜ |
-| 11 Real-time system | 🟡 groundwork only |
-| 12 Health + operations | 🟡 |
-| 13 Logging + audit | 🟡 |
-| 14 Administration | 🟡 |
-| 15 Security hardening | ⬜ |
+| 8 Request gateway | ✅ |
+| 9 Rate limiting | ✅ |
+| 10 Requests + usage | ✅ |
+| 11 Real-time system | ✅ |
+| 12 Health + operations | ✅ |
+| 13 Logging + audit | ✅ |
+| 14 Administration | ✅ |
+| 15 Security hardening | ⬜ **next** |
 | 16 Performance | ⬜ |
 | 17 Production | ⬜ |
 
@@ -321,23 +321,25 @@ Goal: provide operational and security traceability.
 Exit: important actions can be traced without exposing secrets ✅
 (tested end to end: no password, key or token reaches the logs; request ids link logs, requests and audit).
 
-## Phase 14: Administration 🟡 next
+## Phase 14: Administration ✅
 
 Goal: complete the control plane.
 
-- [ ] User management (groundwork: list users, assign roles; no create, disable or reset yet)
-- [ ] Role management (built-in roles and assignment only; no custom roles)
+See [administration](administration.md).
+
+- [x] User management: create with a temporary password, rename, enable/disable, reset password, forced change at next sign-in, change own password, command-line recovery (`bun run reset-password`)
+- [x] Role management: custom roles with chosen permissions; Administrator fixed and the only role with every permission; no escalation
 - [x] Session management
 - [x] API-key management (API Access page: create, revoke, allowed models, expiry, limits; phases 8 and 9)
 - [x] Provider management
 - [x] Model management
 - [x] Routing management (Routing page)
-- [ ] System settings (groundwork: `settings` table and repository)
-- [ ] Security settings
+- [x] System settings: retention of request history, usage records and health history
+- [x] Security settings: session idle and maximum length, failed sign-ins before blocking
 
 Exit: the entire platform can be administered through the console.
 
-## Phase 15: Security hardening ⬜
+## Phase 15: Security hardening ⬜ next
 
 Goal: prepare for real-world deployment.
 
