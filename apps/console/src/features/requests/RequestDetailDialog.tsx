@@ -4,6 +4,8 @@ import type { RequestAttempt, RequestDetail } from '@clawrouter/shared';
 import { fetchRequest } from '../../services/requests.ts';
 import { formatDuration, formatUsd } from '../../services/format.ts';
 import { describeAttempts, describeTokens, outcomeLabel, STATUS } from './request-format.ts';
+import { useRouter } from '../../app/router.tsx';
+import { usePermissions } from '../auth/AuthContext.tsx';
 
 const when = (iso: string | null) => (iso ? new Date(iso).toLocaleString() : 'â€”');
 
@@ -12,6 +14,8 @@ const when = (iso: string | null) => (iso ? new Date(iso).toLocaleString() : 'â€
  * attempt, and how it ended. Metadata only: prompts and answers are never stored.
  */
 export function RequestDetailDialog({ id, onClose }: { id: string | null; onClose: () => void }) {
+  const { navigate } = useRouter();
+  const canLogs = usePermissions().can('logs.read');
   const [request, setRequest] = useState<RequestDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -49,6 +53,7 @@ export function RequestDetailDialog({ id, onClose }: { id: string | null; onClos
             <StatusIndicator tone={STATUS[r.status].tone}>{STATUS[r.status].label}</StatusIndicator>
             <span className="claw-mono">{r.id}</span>
             <CopyButton value={r.id} label="Copy request ID" size="sm" />
+            {canLogs && <Button size="sm" variant="tertiary" onClick={() => navigate(`/logs?requestId=${encodeURIComponent(r.id)}`)}>Logs for this request</Button>}
           </div>
           {r.errorMessage && (
             <MessageStrip tone={r.status === 'CANCELLED' ? 'information' : 'error'} title={r.errorCode ?? undefined}>{r.errorMessage}</MessageStrip>
