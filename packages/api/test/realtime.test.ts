@@ -212,3 +212,18 @@ describe('gateway activity', () => {
     expect(ws.closed?.code).toBe(1009);
   });
 });
+
+describe('operations', () => {
+  test('operation progress reaches users who may see that operation type', async () => {
+    const h = createHarness();
+    const admin = await h.completeSetup();
+    await h.addUser('nobody', []);
+    const { connect } = setup(h);
+    const a = connect(admin);
+    const n = connect(await h.login('nobody'));
+    h.events.emit('operation.progress', { id: 'o1', type: 'provider.test', targetId: 'p', status: 'RUNNING', progress: 40, message: 'Contacting the provider' });
+    h.events.emit('operation.progress', { id: 'o2', type: 'unknown.type', targetId: null, status: 'RUNNING', progress: 0, message: null });
+    expect(a.events()).toEqual(['operation.progress']);
+    expect(n.events()).toEqual([]);
+  });
+});
