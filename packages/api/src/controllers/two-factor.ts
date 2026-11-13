@@ -85,7 +85,7 @@ export function twoFactorController(twoFactor: TwoFactorService, mail: MailServi
     /** Sends a test message to the administrator's own address. */
     testMail: (async (ctx) => {
       const to = ctx.auth!.user.email;
-      if (!to) return ok({ sent: false, reason: 'Add an email address to your account first (user menu → Account security).' });
+      if (!to) return ok({ sent: false, reason: 'Add an email address to your account first (user menu → Sign-in security).' });
       await mail.send({ to, subject: 'ClawRouter test message', text: `This is a test message from ClawRouter, sent by ${ctx.auth!.user.username}. Mail is working.` });
       return ok({ sent: true, to });
     }) satisfies Handler,

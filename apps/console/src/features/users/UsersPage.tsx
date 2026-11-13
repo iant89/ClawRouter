@@ -6,7 +6,9 @@ import type { RoleInfo, UserWithRoles } from '@clawrouter/shared';
 import { RoleTags } from '../../components/custom/RoleTags.tsx';
 import { useResource } from '../../hooks/useResource.ts';
 import { fetchRoles, fetchUsers, updateUser } from '../../services/access.ts';
+import { ApiClientError } from '../../services/api-client.ts';
 import { formatRelative } from '../../services/format.ts';
+import { resetUserTwoFactor } from '../../services/two-factor.ts';
 import { useAuth, usePermissions, useSession } from '../auth/AuthContext.tsx';
 import { useRealtimeEvent } from '../realtime/RealtimeContext.tsx';
 import { CreateUserDialog } from './CreateUserDialog.tsx';
@@ -35,6 +37,7 @@ export function UsersPage() {
   const [resetting, setResetting] = useState<UserWithRoles | null>(null);
   const [renaming, setRenaming] = useState<UserWithRoles | null>(null);
   const [disabling, setDisabling] = useState<UserWithRoles | null>(null);
+  const [resetting2fa, setResetting2fa] = useState<UserWithRoles | null>(null);
   useRealtimeEvent(['user.changed', 'role.changed'], () => reload(), 300);
   const names = useMemo(() => new Map((data?.roles ?? []).map((r) => [r.id, r.name])), [data]);
   const permissionsOf = useMemo(() => new Map((data?.roles ?? []).map((r) => [r.id, r.permissions])), [data]);
@@ -61,9 +64,10 @@ export function UsersPage() {
     const items: ({ id: string; label: string; destructive?: boolean; disabled?: boolean } | { type: 'separator' })[] = [];
     if (canAssign) items.push({ id: 'roles', label: 'Edit roles' });
     if (canWrite) {
-      items.push({ id: 'rename', label: 'Change display name', disabled: !self && !ok });
+      items.push({ id: 'rename', label: 'Edit details', disabled: !self && !ok });
       if (!self) {
         items.push({ id: 'reset', label: 'Reset password', disabled: !ok });
+        if (u.twoFactor.length) items.push({ id: 'reset2fa', label: 'Reset two-factor sign-in', disabled: !ok });
         items.push({ type: 'separator' });
         items.push(u.status === 'ACTIVE' ? { id: 'disable', label: 'Disable user', destructive: true, disabled: !ok } : { id: 'enable', label: 'Enable user', disabled: !ok });
       }
@@ -83,6 +87,7 @@ export function UsersPage() {
         <span style={{ display: 'inline-flex', gap: 'var(--eui-space-1, 0.25rem)', flexWrap: 'wrap' }}>
           <StatusIndicator tone={u.status === 'ACTIVE' ? 'success' : 'neutral'} size="sm">{u.status === 'ACTIVE' ? 'Active' : 'Disabled'}</StatusIndicator>
           {u.mustChangePassword && <StatusIndicator tone="warning" size="sm" icon="key">Temporary password</StatusIndicator>}
+          {u.twoFactor.length > 0 && <StatusIndicator tone="success" size="sm" icon="locked">Two-factor: {u.twoFactor.map((m) => (m === 'totp' ? 'app' : 'email')).join(', ')}</StatusIndicator>}
         </span>
       ),
     },
@@ -98,6 +103,7 @@ export function UsersPage() {
               if (id === 'roles') setEditingRoles(u);
               if (id === 'rename') setRenaming(u);
               if (id === 'reset') setResetting(u);
+              if (id === 'reset2fa') setResetting2fa(u);
               if (id === 'disable') setDisabling(u);
               if (id === 'enable') void setStatus(u, 'ACTIVE');
             }}
@@ -156,8 +162,9 @@ export function UsersPage() {
           reload();
         }}
       />
-      <RenameDialog
+      <EditDetailsDialog
         user={renaming}
+        isSelf={renaming?.id === me.id}
         onClose={() => setRenaming(null)}
         onDone={(u) => {
           setRenaming(null);
@@ -165,6 +172,27 @@ export function UsersPage() {
           if (u.id === me.id) void refresh();
         }}
       />
+      <AlertDialog
+        open={resetting2fa !== null}
+        tone="warning"
+        title="Reset two-factor sign-in?"
+        confirmLabel="Reset"
+        onCancel={() => setResetting2fa(null)}
+        onConfirm={async () => {
+          const u = resetting2fa;
+          setResetting2fa(null);
+          if (!u) return;
+          try {
+            await resetUserTwoFactor(u.id);
+            toast.show({ tone: 'success', title: 'Two-factor sign-in reset', description: `${u.displayName} signs in with the password only until they set it up again.` });
+            reload();
+          } catch (err) {
+            fail('Cannot reset two-factor sign-in', err);
+          }
+        }}
+      >
+        {resetting2fa && `Removes ${resetting2fa.displayName}'s authenticator app, email codes and recovery codes. Use it when they lost their phone. If two-factor sign-in is required, they must set it up again at the next sign-in.`}
+      </AlertDialog>
       <AlertDialog
         open={disabling !== null}
         tone="warning"
@@ -182,26 +210,37 @@ export function UsersPage() {
   );
 }
 
-function RenameDialog({ user, onClose, onDone }: { user: UserWithRoles | null; onClose: () => void; onDone: (u: UserWithRoles) => void }) {
+
+/**
+ * Display name, and for other users the email address (sign-in codes go there,
+ * so changing it turns email codes off until the user confirms the new one).
+ * Your own address is changed under Sign-in security, with your password.
+ */
+function EditDetailsDialog({ user, isSelf, onClose, onDone }: { user: UserWithRoles | null; isSelf: boolean; onClose: () => void; onDone: (u: UserWithRoles) => void }) {
   const [name, setName] = useState('');
-  const [error, setError] = useState<string | undefined>();
+  const [email, setEmail] = useState('');
+  const [errors, setErrors] = useState<{ name?: string; email?: string }>({});
   const [saving, setSaving] = useState(false);
   useEffect(() => {
     setName(user?.displayName ?? '');
-    setError(undefined);
+    setEmail(user?.email ?? '');
+    setErrors({});
   }, [user]);
 
+  const emailChanged = !isSelf && email.trim() !== (user?.email ?? '');
   const save = async () => {
     if (!user) return;
-    if (!name.trim()) {
-      setError('Enter a display name.');
-      return;
-    }
+    const local: { name?: string; email?: string } = {};
+    if (!name.trim()) local.name = 'Enter a display name.';
+    if (emailChanged && email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) local.email = 'Enter an email address, or leave it empty.';
+    setErrors(local);
+    if (Object.keys(local).length) return;
     setSaving(true);
     try {
-      onDone(await updateUser(user.id, { displayName: name.trim() }));
+      onDone(await updateUser(user.id, { displayName: name.trim(), ...(emailChanged ? { email: email.trim() || null } : {}) }));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not save.');
+      if (err instanceof ApiClientError && err.issues.some((i) => i.path === 'email')) setErrors({ email: `This ${err.issues.find((i) => i.path === 'email')!.message}.` });
+      else setErrors({ name: err instanceof Error ? err.message : 'Could not save.' });
     } finally {
       setSaving(false);
     }
@@ -211,15 +250,32 @@ function RenameDialog({ user, onClose, onDone }: { user: UserWithRoles | null; o
     <Dialog
       open={user !== null}
       onClose={onClose}
-      title="Change display name"
+      title="Edit details"
       footer={
         <>
-          <Button variant="primary" onClick={() => void save()} loading={saving} disabled={name.trim() === user?.displayName}>Save</Button>
+          <Button variant="primary" onClick={() => void save()} loading={saving} disabled={name.trim() === user?.displayName && !emailChanged}>Save</Button>
           <Button variant="tertiary" onClick={onClose}>Cancel</Button>
         </>
       }
     >
-      <Input label="Display name" required value={name} maxLength={128} onChange={(e) => setName(e.target.value)} error={error} description={user ? `Username: ${user.username}` : undefined} />
+      <div style={{ display: 'grid', gap: 'var(--eui-space-3, 0.75rem)' }}>
+        <Input label="Display name" required value={name} maxLength={128} onChange={(e) => setName(e.target.value)} error={errors.name} description={user ? `Username: ${user.username}` : undefined} />
+        {isSelf ? (
+          <Text size="sm" tone="secondary">Change your own email address under the user menu → Sign-in security.</Text>
+        ) : (
+          <Input
+            label="Email address"
+            type="email"
+            autoComplete="off"
+            spellCheck={false}
+            autoCapitalize="none"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            error={errors.email}
+            description={user?.twoFactor.includes('email') && emailChanged ? 'Email codes are turned off for this user until they confirm the new address.' : 'Optional. Sign-in codes by email go here.'}
+          />
+        )}
+      </div>
     </Dialog>
   );
 }

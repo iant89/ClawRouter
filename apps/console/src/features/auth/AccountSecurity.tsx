@@ -33,8 +33,15 @@ export function AccountSecurity({ onChanged }: { onChanged?: () => void }) {
   useEffect(() => { void load(); }, [load]);
 
   const changed = async (newCodes?: string[]) => {
-    if (newCodes?.length) setCodes(newCodes);
     await load();
+    // New recovery codes: refresh the session only once they are saved, because
+    // the refresh can end the forced-setup screen and hide them.
+    if (newCodes?.length) return setCodes(newCodes);
+    await refresh();
+    onChanged?.();
+  };
+  const codesSaved = async () => {
+    setCodes(null);
     await refresh();
     onChanged?.();
   };
@@ -48,7 +55,7 @@ export function AccountSecurity({ onChanged }: { onChanged?: () => void }) {
       {status.required && !status.enrolled.length && (
         <MessageStrip tone="warning" title="Two-factor sign-in is required">Your administrator requires it for your account. Set up one of the methods below to continue.</MessageStrip>
       )}
-      {codes && <RecoveryCodesCard codes={codes} onDone={() => setCodes(null)} />}
+      {codes && <RecoveryCodesCard codes={codes} onDone={() => void codesSaved()} />}
       <EmailCard status={status} onChanged={() => void changed()} />
       {status.allowed.includes('totp') || on('totp') ? <TotpCard enabled={on('totp')} onChanged={(c) => void changed(c)} /> : null}
       {status.allowed.includes('email') || on('email') ? <EmailCodesCard status={status} enabled={on('email')} onChanged={(c) => void changed(c)} /> : null}

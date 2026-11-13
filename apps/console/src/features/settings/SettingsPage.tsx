@@ -1,11 +1,12 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Button, Card, Input, MessageStrip, Page, RefreshControl, StatusIndicator, Text, useToast } from '@enterprise-ui/react';
-import type { SettingInfo, SettingKey } from '@clawrouter/shared';
+import type { MailServerSettings, SettingInfo, SettingKey } from '@clawrouter/shared';
 import { useResource } from '../../hooks/useResource.ts';
 import { ApiClientError } from '../../services/api-client.ts';
 import { fetchSettings, saveSettings } from '../../services/settings.ts';
 import { usePermissions } from '../auth/AuthContext.tsx';
 import { useRealtimeEvent } from '../realtime/RealtimeContext.tsx';
+import { MailServerCard, TwoFactorPolicyCard } from './SignInSecuritySettings.tsx';
 
 /** Draft values as typed (strings), keyed by setting. */
 type Draft = Partial<Record<SettingKey, string>>;
@@ -26,6 +27,8 @@ export function SettingsPage() {
   const [draft, setDraft] = useState<Draft>({});
   const [fieldErrors, setFieldErrors] = useState<Partial<Record<SettingKey, string>>>({});
   const [saving, setSaving] = useState(false);
+  const [mailConfigured, setMailConfigured] = useState<boolean>();
+  const mailLoaded = useCallback((s: MailServerSettings) => setMailConfigured(s.configured), []);
   useRealtimeEvent(['settings.changed'], () => reload(), 300);
 
   // Start from the server's values whenever they change (and nothing is being edited).
@@ -75,7 +78,7 @@ export function SettingsPage() {
   return (
     <Page
       title="Settings"
-      subtitle="Security and data retention. Changes apply without a restart and are recorded in the audit log."
+      subtitle="Security, sign-in and data retention. Changes apply without a restart and are recorded in the audit log."
       actions={<RefreshControl onRefresh={reload} refreshing={loading} lastUpdated={lastUpdated} intervals={[]} />}
     >
       {error && <MessageStrip tone="error" title="Cannot load settings">{error}</MessageStrip>}
@@ -120,6 +123,8 @@ export function SettingsPage() {
           <Text size="sm" tone="secondary" role="status">{changed.length ? `${changed.length} unsaved change${changed.length === 1 ? '' : 's'}` : 'No unsaved changes'}</Text>
         </div>
       )}
+      <TwoFactorPolicyCard canWrite={canWrite} mailConfigured={mailConfigured} />
+      <MailServerCard canWrite={canWrite} onLoaded={mailLoaded} />
     </Page>
   );
 }

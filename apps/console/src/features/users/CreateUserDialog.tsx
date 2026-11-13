@@ -5,7 +5,7 @@ import { createUser } from '../../services/access.ts';
 import { ApiClientError } from '../../services/api-client.ts';
 import { TemporaryPasswordField } from './TemporaryPasswordField.tsx';
 
-type Field = 'username' | 'displayName' | 'password';
+type Field = 'username' | 'displayName' | 'email' | 'password';
 
 export interface CreateUserDialogProps {
   open: boolean;
@@ -20,7 +20,7 @@ export interface CreateUserDialogProps {
 
 /** Creates a console user with a temporary password and, optionally, roles. */
 export function CreateUserDialog({ open, roles, own, canAssign, onClose, onCreated }: CreateUserDialogProps) {
-  const [values, setValues] = useState<Record<Field, string>>({ username: '', displayName: '', password: '' });
+  const [values, setValues] = useState<Record<Field, string>>({ username: '', displayName: '', email: '', password: '' });
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [errors, setErrors] = useState<Partial<Record<Field, string>>>({});
   const [error, setError] = useState<string | null>(null);
@@ -28,7 +28,7 @@ export function CreateUserDialog({ open, roles, own, canAssign, onClose, onCreat
 
   useEffect(() => {
     if (!open) return;
-    setValues({ username: '', displayName: '', password: '' });
+    setValues({ username: '', displayName: '', email: '', password: '' });
     setSelected(new Set(roles.some((r) => r.id === 'VIEWER') ? ['VIEWER'] : []));
     setErrors({});
     setError(null);
@@ -40,17 +40,18 @@ export function CreateUserDialog({ open, roles, own, canAssign, onClose, onCreat
     const local: Partial<Record<Field, string>> = {};
     if (!USERNAME_PATTERN.test(values.username.trim())) local.username = 'Use 2–64 letters, digits, dots, dashes or underscores, starting with a letter or digit.';
     if (!values.displayName.trim()) local.displayName = 'Enter a display name.';
+    if (values.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(values.email.trim())) local.email = 'Enter an email address, or leave it empty.';
     if (values.password.length < PASSWORD_POLICY.minLength) local.password = `Use at least ${PASSWORD_POLICY.minLength} characters.`;
     setErrors(local);
     setError(null);
     if (Object.keys(local).length) return;
     setSaving(true);
     try {
-      onCreated(await createUser({ username: values.username.trim(), displayName: values.displayName.trim(), password: values.password, roles: canAssign ? [...selected] : [] }));
+      onCreated(await createUser({ username: values.username.trim(), displayName: values.displayName.trim(), email: values.email.trim() || null, password: values.password, roles: canAssign ? [...selected] : [] }));
     } catch (err) {
-      if (err instanceof ApiClientError && err.issues.some((i) => i.path === 'username' || i.path === 'displayName' || i.path === 'password')) {
+      if (err instanceof ApiClientError && err.issues.some((i) => i.path === 'username' || i.path === 'displayName' || i.path === 'email' || i.path === 'password')) {
         const fromServer: Partial<Record<Field, string>> = {};
-        for (const i of err.issues) if (i.path === 'username' || i.path === 'displayName' || i.path === 'password') fromServer[i.path] = `This ${i.message}.`;
+        for (const i of err.issues) if (i.path === 'username' || i.path === 'displayName' || i.path === 'email' || i.path === 'password') fromServer[i.path] = `This ${i.message}.`;
         setErrors(fromServer);
       } else {
         setError(err instanceof Error ? err.message : 'Could not create the user.');
@@ -76,6 +77,7 @@ export function CreateUserDialog({ open, roles, own, canAssign, onClose, onCreat
         {error && <MessageStrip tone="error" announce="assertive">{error}</MessageStrip>}
         <Input label="Username" required autoCapitalize="none" spellCheck={false} value={values.username} onChange={(e) => set('username')(e.target.value)} error={errors.username} description="Used to sign in. Cannot be changed later." />
         <Input label="Display name" required value={values.displayName} onChange={(e) => set('displayName')(e.target.value)} error={errors.displayName} />
+        <Input label="Email address" type="email" autoComplete="off" spellCheck={false} autoCapitalize="none" value={values.email} onChange={(e) => set('email')(e.target.value)} error={errors.email} description="Optional. Needed for sign-in codes by email." />
         <TemporaryPasswordField value={values.password} onChange={set('password')} error={errors.password} />
         {canAssign ? (
           <fieldset style={{ border: 0, margin: 0, padding: 0, display: 'grid', gap: 'var(--eui-space-2, 0.5rem)' }}>

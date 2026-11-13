@@ -128,6 +128,8 @@ export function createUserAdminService(options: UserAdminOptions) {
       if (!status && !renamed && !emailChanged) return describe(userId);
 
       if (userId !== actor.id) policy.assertCanManageUser(actor, userId, 'change this user');
+      // Your own address carries your sign-in codes: change it with your password (PUT /api/auth/email).
+      if (userId === actor.id && emailChanged) throw new AppError('CONFLICT', 'Change your own email address under Sign-in security, with your password.');
       if (status === 'DISABLED') {
         if (userId === actor.id) throw new AppError('CONFLICT', 'You cannot disable your own account.');
         if (policy.isLastActiveAdministrator(userId)) throw new AppError('CONFLICT', 'This is the only active administrator. Give another user the Administrator role first.');

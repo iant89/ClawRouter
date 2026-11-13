@@ -5,7 +5,7 @@ import { Card, Icon, Text, Title } from '@enterprise-ui/react';
  * Signed-out frame: product identity above a single card. A composition of
  * ENTERPRISE-UI Card/Icon/Text with layout-only inline styles that use tokens.
  */
-export function AuthPanel({ title, subtitle, children }: { title: string; subtitle?: ReactNode; children: ReactNode }) {
+export function AuthPanel({ title, subtitle, wide, children }: { title: string; subtitle?: ReactNode; wide?: boolean; children: ReactNode }) {
   return (
     <main
       id="main-content"
@@ -17,7 +17,7 @@ export function AuthPanel({ title, subtitle, children }: { title: string; subtit
         boxSizing: 'border-box',
       }}
     >
-      <div style={{ width: '100%', maxWidth: '26rem', display: 'grid', gap: 'var(--eui-space-4, 1rem)' }}>
+      <div style={{ width: '100%', maxWidth: wide ? '40rem' : '26rem', display: 'grid', gap: 'var(--eui-space-4, 1rem)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--eui-space-2, 0.5rem)' }}>
           <Icon name="it-host" color="var(--eui-color-primary)" />
           <Title level={1} size="md">ClawRouter</Title>

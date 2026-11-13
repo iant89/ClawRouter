@@ -159,6 +159,11 @@ describe('email codes', () => {
     await h.request('/api/auth/2fa/email/confirm', { method: 'POST', cookie: admin, json: { code: /Your code: (\d{6})/.exec(h.outbox.at(-1)!.text)![1]! } });
     await h.request('/api/auth/email', { method: 'PUT', cookie: admin, json: { email: 'ada@other.test', password: PASSWORD } });
     expect((await data<TwoFactorStatus>(await h.request('/api/auth/2fa', { cookie: admin }))).enrolled).toEqual([]);
+    // Your own address changes only with your password, never through user administration.
+    const me = await data<{ user: { id: string } }>(await h.request('/api/auth/session', { cookie: admin }));
+    const self = await h.request(`/api/users/${me.user.id}`, { method: 'PATCH', cookie: admin, json: { email: 'stolen@example.test' } });
+    expect(self.status).toBe(409);
+    expect((await data<TwoFactorStatus>(await h.request('/api/auth/2fa', { cookie: admin }))).email).toBe('ada@other.test');
   });
 });
 

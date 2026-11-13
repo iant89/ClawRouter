@@ -25,6 +25,7 @@ import { redirectFor } from '../features/auth/auth-state.ts';
 import { LoginPage } from '../features/auth/LoginPage.tsx';
 import { SetupPage } from '../features/auth/SetupPage.tsx';
 import { ForcedPasswordChange } from '../features/auth/ForcedPasswordChange.tsx';
+import { ForcedTwoFactorSetup } from '../features/auth/ForcedTwoFactorSetup.tsx';
 import { PlannedFeature } from '../components/custom/PlannedFeature.tsx';
 import { PageErrorBoundary } from '../components/custom/PageErrorBoundary.tsx';
 import { NotificationsProvider } from '../features/notifications/NotificationsContext.tsx';
@@ -111,7 +112,8 @@ function Gate() {
       return target ? null : <LoginPage />;
     case 'signed-in':
       if (target) return null;
-      return state.session.user.mustChangePassword ? <ForcedPasswordChange /> : <Console />;
+      if (state.session.user.mustChangePassword) return <ForcedPasswordChange />;
+      return state.session.twoFactorSetupRequired ? <ForcedTwoFactorSetup /> : <Console />;
   }
 }
 

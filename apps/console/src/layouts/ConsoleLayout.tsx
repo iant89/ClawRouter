@@ -8,6 +8,7 @@ import { useAuth, usePermissions, useSession } from '../features/auth/AuthContex
 import { useHealth } from '../features/health/HealthContext.tsx';
 import { MySessionsDialog } from '../features/sessions/MySessionsDialog.tsx';
 import { ChangePasswordDialog } from '../features/auth/ChangePasswordDialog.tsx';
+import { AccountSecurityDialog } from '../features/auth/AccountSecurityDialog.tsx';
 import { NotificationsPanel } from '../features/notifications/NotificationsPanel.tsx';
 import { useNotifications } from '../features/notifications/NotificationsContext.tsx';
 
@@ -26,6 +27,7 @@ export function ConsoleLayout({ activeId, children }: { activeId: string | undef
   const { data, error } = useHealth();
   const [sessionsOpen, setSessionsOpen] = useState(false);
   const [passwordOpen, setPasswordOpen] = useState(false);
+  const [securityOpen, setSecurityOpen] = useState(false);
   const { unread } = useNotifications();
   const gatewayState = error ? 'OFFLINE' : (data?.status ?? 'UNKNOWN');
 
@@ -47,12 +49,14 @@ export function ConsoleLayout({ activeId, children }: { activeId: string | undef
           userMenuItems={[
             { id: 'sessions', label: 'My sessions', icon: 'user-settings' },
             { id: 'password', label: 'Change password', icon: 'key' },
+            { id: 'security', label: 'Sign-in security', icon: 'locked' },
             { type: 'separator' },
             { id: 'logout', label: 'Sign out', icon: 'log' },
           ]}
           onUserAction={(id) => {
             if (id === 'sessions') setSessionsOpen(true);
             if (id === 'password') setPasswordOpen(true);
+            if (id === 'security') setSecurityOpen(true);
             if (id === 'logout') void signOut();
           }}
         />
@@ -83,6 +87,7 @@ export function ConsoleLayout({ activeId, children }: { activeId: string | undef
       {children}
       <MySessionsDialog open={sessionsOpen} onClose={() => setSessionsOpen(false)} />
       <ChangePasswordDialog open={passwordOpen} onClose={() => setPasswordOpen(false)} />
+      <AccountSecurityDialog open={securityOpen} onClose={() => setSecurityOpen(false)} />
     </AppShell>
   );
 }
