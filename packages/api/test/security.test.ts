@@ -186,3 +186,41 @@ describe('hostile input is refused cleanly', () => {
     expect(cookieFrom(login)).not.toBe(first);
   });
 });
+
+describe('failure paths', () => {
+  test('a database failure is a generic 500: no SQL, table names or stack in the response, the cause in the log', async () => {
+    const h = createHarness();
+    const admin = await h.completeSetup();
+    h.db.exec('DROP TABLE audit_log');
+    const res = await h.request('/api/audit', { cookie: admin });
+    expect(res.status).toBe(500);
+    const text = await res.text();
+    expect(JSON.parse(text)).toMatchObject({ error: { code: 'DATABASE_ERROR', message: 'A database error occurred.' } });
+    expect(text).not.toMatch(/audit_log|SQLITE|no such table|\.ts:\d+/i);
+    expect(res.headers.get('x-request-id')).toBeTruthy();
+    // Operators can still find out what happened, by request id.
+    const logged = h.logs.find((r) => r.msg === 'request failed' && r.requestId === res.headers.get('x-request-id'));
+    expect(JSON.stringify(logged)).toContain('audit_log');
+  });
+
+  test('a provider that hangs or fails never leaks its error body or credentials to the client', async () => {
+    const h = createHarness();
+    const admin = await h.completeSetup();
+    h.setProviderFetch((async () => new Response(JSON.stringify({ error: { message: 'upstream secret detail sk-canaryPROVIDERkey0123456789abcdef' } }), { status: 500 })) as unknown as typeof fetch);
+    const p = await data<ProviderInfo>(await h.request('/api/providers', {
+      method: 'POST', cookie: admin, json: { name: 'Bad', identifier: 'bad', kind: 'openai', endpoint: 'https://api.example.test/v1', apiKey: CANARY.providerKey },
+    }));
+    const res = await h.request(`/api/providers/${p.id}/test`, { method: 'POST', cookie: admin, json: {} });
+    expect(await res.text()).not.toContain(CANARY.providerKey);
+    expect(JSON.stringify(h.logs)).not.toContain(CANARY.providerKey);
+  });
+
+  test('unknown routes and methods answer 404/405 without revealing anything', async () => {
+    const h = createHarness();
+    const admin = await h.completeSetup();
+    expect((await h.request('/api/does-not-exist', { cookie: admin })).status).toBe(404);
+    const wrong = await h.request('/api/settings', { method: 'DELETE', cookie: admin });
+    expect(wrong.status).toBe(405);
+    expect(wrong.headers.get('allow')).toContain('GET');
+  });
+});

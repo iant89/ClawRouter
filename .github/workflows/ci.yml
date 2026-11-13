@@ -18,6 +18,9 @@ jobs:
           bun-version: 1.4.4
       # ENTERPRISE-UI comes from the committed tarball in vendor/.
       - run: bun install --frozen-lockfile
+      # Spec §37: no committed credentials, no known-vulnerable dependencies.
+      - run: bun run scan-secrets
+      - run: bun audit
       - run: bun run typecheck
       - run: bun test
       - run: bun run build
