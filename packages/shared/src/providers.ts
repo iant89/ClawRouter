@@ -39,6 +39,8 @@ export interface ProviderInfo {
   enabled: boolean;
   priority: number;
   timeoutMs: number;
+  /** Longest an API key may live and still use this provider's models (hours); null: no limit. */
+  maxKeyLifetimeHours: number | null;
   status: ProviderState;
   statusDetail: string | null;
   statusCheckedAt: string | null;
@@ -83,6 +85,8 @@ export interface CreateProviderRequest {
   endpoint?: string;
   priority?: number;
   timeoutMs?: number;
+  /** Maximum API key lifetime for this provider's models, in hours; null removes the limit. */
+  maxKeyLifetimeHours?: number | null;
   enabled?: boolean;
   /** Write-only. */
   apiKey?: string;
@@ -93,6 +97,8 @@ export interface UpdateProviderRequest {
   endpoint?: string;
   priority?: number;
   timeoutMs?: number;
+  /** Maximum API key lifetime for this provider's models, in hours; null removes the limit. */
+  maxKeyLifetimeHours?: number | null;
   enabled?: boolean;
 }
 

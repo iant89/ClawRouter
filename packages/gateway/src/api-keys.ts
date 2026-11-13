@@ -2,8 +2,9 @@ import { errors, newId, type Logger } from '@clawrouter/core';
 import type { AuditService } from '@clawrouter/audit';
 import type { Database } from '@clawrouter/database';
 import { checkRateLimit, normalizeLimit } from '@clawrouter/rate-limits';
-import { API_KEY_PREFIX, type ApiKeyInfo, type ApiKeyStatus, type CreateApiKeyRequest, type CreatedApiKey, type FieldIssue, type RateLimit, type UpdateApiKeyRequest } from '@clawrouter/shared';
+import { API_KEY_PREFIX, type ApiKeyInfo, type ApiKeyStatus, type CreateApiKeyRequest, type CreatedApiKey, type FieldIssue, type KeyExpiry, type ModelAlias, type ModelInfo, type RateLimit, type UpdateApiKeyRequest } from '@clawrouter/shared';
 import { checkExpiry, resolveExpiry } from './expiry.ts';
+import { checkLifetime, strictestLifetime } from './key-lifetime.ts';
 
 /** The identity of an authenticated external client for one request. */
 export interface ApiKeyPrincipal {
@@ -13,6 +14,8 @@ export interface ApiKeyPrincipal {
   allowedModels: string[];
   /** The user who created the key (per-user limits), if still present. */
   ownerId: string | null;
+  /** When the key was created: models with a maximum key lifetime refuse older keys. */
+  createdAt: string;
   /** Own limit, or null for the default per-key limit. */
   rateLimit: RateLimit | null;
 }
@@ -54,8 +57,15 @@ export type ApiKeyService = ReturnType<typeof createApiKeyService>;
  * API keys for /v1/* (spec §14). The full key is returned once, at creation.
  * The database holds a SHA-256 hash, so a copy of it cannot call the gateway.
  */
-export function createApiKeyService(options: { db: Database; audit: AuditService; log?: Logger; now?: () => Date }) {
-  const { db, audit, log } = options;
+export function createApiKeyService(options: {
+  db: Database;
+  audit: AuditService;
+  log?: Logger;
+  now?: () => Date;
+  /** The registry and aliases, to check keys against models' maximum key lifetimes (read when a key is created). */
+  catalog?: () => { models: ModelInfo[]; aliases: ModelAlias[] };
+}) {
+  const { db, audit, log, catalog } = options;
   const now = options.now ?? (() => new Date());
   const SELECT = `SELECT k.*, u.username AS created_by_username, u.status AS created_by_status FROM api_keys k LEFT JOIN users u ON u.id = k.created_by`;
 
@@ -96,6 +106,19 @@ export function createApiKeyService(options: { db: Database; audit: AuditService
       return db.get<{ username: string }>('SELECT username FROM users WHERE id = ?', [userId])?.username ?? null;
     },
 
+    /**
+     * Would a key for these models with this expiry, created now, fit the models'
+     * maximum key lifetimes? (Key requests check early; the key is checked again when created.)
+     */
+    checkLifetimeFor(allowedModels: string[], expiry: KeyExpiry, path: string, issues: FieldIssue[]): void {
+      if (!catalog) return;
+      const own: FieldIssue[] = [];
+      const at = resolveExpiry(expiry, now(), path, own);
+      if (own.length) return; // a date in the past is reported elsewhere
+      const { models, aliases } = catalog();
+      checkLifetime(at, now(), strictestLifetime(allowedModels, models, aliases), path, issues);
+    },
+
     /** Keys owned by one user (their own keys page). */
     listOwned(userId: string): ApiKeyInfo[] {
       return db.all<Row>(`${SELECT} WHERE k.created_by = ? ORDER BY k.revoked_at IS NOT NULL, k.created_at DESC`, [userId]).map(toInfo);
@@ -125,6 +148,11 @@ export function createApiKeyService(options: { db: Database; audit: AuditService
         if (Number.isNaN(t)) issues.push({ path: 'expiresAt', message: 'must be an ISO date-time' });
         else if (t <= now().getTime()) issues.push({ path: 'expiresAt', message: 'must be in the future' });
         else expiresAt = new Date(t).toISOString();
+      }
+      // Keys for specific models must fit those models' maximum key lifetime.
+      if (!issues.length && catalog) {
+        const { models, aliases } = catalog();
+        checkLifetime(expiresAt, now(), strictestLifetime(allowedModels, models, aliases), input.expiry !== undefined ? 'expiry' : 'expiresAt', issues);
       }
       if (issues.length) throw errors.validation(issues);
       const owner = options.ownerId ?? actor.id;
@@ -213,7 +241,7 @@ export function createApiKeyService(options: { db: Database; audit: AuditService
       }
       return {
         id: row.id, name: row.name, prefix: row.prefix, allowedModels: JSON.parse(row.allowed_models) as string[],
-        ownerId: row.created_by, rateLimit: row.rate_limit ? (JSON.parse(row.rate_limit) as RateLimit) : null,
+        ownerId: row.created_by, createdAt: row.created_at, rateLimit: row.rate_limit ? (JSON.parse(row.rate_limit) as RateLimit) : null,
       };
     },
   };

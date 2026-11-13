@@ -10,6 +10,7 @@ export interface ProviderRecord {
   enabled: boolean;
   priority: number;
   timeoutMs: number;
+  maxKeyLifetimeHours: number | null;
   status: ProviderState;
   statusDetail: string | null;
   statusCheckedAt: string | null;
@@ -18,7 +19,7 @@ export interface ProviderRecord {
   updatedAt: string;
 }
 
-export type ProviderPatch = Partial<Pick<ProviderRecord, 'name' | 'endpoint' | 'enabled' | 'priority' | 'timeoutMs'>>;
+export type ProviderPatch = Partial<Pick<ProviderRecord, 'name' | 'endpoint' | 'enabled' | 'priority' | 'timeoutMs' | 'maxKeyLifetimeHours'>>;
 
 export interface StoredCredential {
   ciphertext: string;
@@ -63,6 +64,7 @@ interface Row {
   enabled: number;
   priority: number;
   timeout_ms: number;
+  max_key_lifetime_hours: number | null;
   status: ProviderState;
   status_detail: string | null;
   status_checked_at: string | null;
@@ -80,6 +82,7 @@ const toRecord = (r: Row): ProviderRecord => ({
   enabled: r.enabled === 1,
   priority: r.priority,
   timeoutMs: r.timeout_ms,
+  maxKeyLifetimeHours: r.max_key_lifetime_hours,
   status: r.status,
   statusDetail: r.status_detail,
   statusCheckedAt: r.status_checked_at,
@@ -88,7 +91,7 @@ const toRecord = (r: Row): ProviderRecord => ({
   updatedAt: r.updated_at,
 });
 
-const COLUMN: Record<keyof ProviderPatch, string> = { name: 'name', endpoint: 'endpoint', enabled: 'enabled', priority: 'priority', timeoutMs: 'timeout_ms' };
+const COLUMN: Record<keyof ProviderPatch, string> = { name: 'name', endpoint: 'endpoint', enabled: 'enabled', priority: 'priority', timeoutMs: 'timeout_ms', maxKeyLifetimeHours: 'max_key_lifetime_hours' };
 
 export function createSqliteProviderRepository(db: Database): ProviderRepository {
   return {
@@ -107,9 +110,9 @@ export function createSqliteProviderRepository(db: Database): ProviderRepository
     },
     insert(p) {
       db.run(
-        `INSERT INTO providers (id, name, identifier, kind, endpoint, enabled, priority, timeout_ms, status, status_detail, status_checked_at, latency_ms, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [p.id, p.name, p.identifier, p.kind, p.endpoint, p.enabled ? 1 : 0, p.priority, p.timeoutMs, p.status, p.statusDetail, p.statusCheckedAt, p.latencyMs, p.createdAt, p.updatedAt],
+        `INSERT INTO providers (id, name, identifier, kind, endpoint, enabled, priority, timeout_ms, status, status_detail, status_checked_at, latency_ms, created_at, updated_at, max_key_lifetime_hours)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [p.id, p.name, p.identifier, p.kind, p.endpoint, p.enabled ? 1 : 0, p.priority, p.timeoutMs, p.status, p.statusDetail, p.statusCheckedAt, p.latencyMs, p.createdAt, p.updatedAt, p.maxKeyLifetimeHours],
       );
     },
     update(id, patch, at) {

@@ -95,7 +95,8 @@ export async function startClawRouter({ config, log, logBuffer, version, console
   const models = createModelService({ repo: createSqliteModelRepository(db), providers, audit, events, log });
   const unsubscribeModels = models.subscribe(events);
   const routing = createRoutingService({ store: createSqliteRoutingStore(db), models, providers, audit, events, log });
-  const apiKeys = createApiKeyService({ db, audit, log });
+  // Keys for specific models must fit their maximum key lifetime: the service reads the registry and aliases.
+  const apiKeys = createApiKeyService({ db, audit, log, catalog: () => ({ models: models.listAll(), aliases: routing.get().aliases }) });
   // Counters live in memory (single node); the CounterStore interface allows a shared store later (spec §12).
   const limits = createRateLimitService({
     store: createSqliteRateLimitConfigStore(db), counters: new MemoryCounterStore(), audit, events, log,

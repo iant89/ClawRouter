@@ -8,7 +8,7 @@ function model(ref: string, opts: { status?: ProviderState; caps?: Capability[];
   return {
     id: `m-${ref}`, ref, providerId: `p-${identifier}`, providerModelId, displayName: providerModelId,
     capabilities: opts.caps ?? ['CHAT'], contextLength: null, maxOutputTokens: null, enabled: true, availability: 'AVAILABLE',
-    availabilityCheckedAt: null, source: 'MANUAL', cost: null,
+    availabilityCheckedAt: null, source: 'MANUAL', cost: null, maxKeyLifetimeHours: null, keyLifetimeLimit: null,
     provider: { id: `p-${identifier}`, name: identifier, identifier, kind: 'openai', enabled: true, status: opts.status ?? 'HEALTHY' },
     usable: opts.usable ?? true, unusableReason: opts.usable === false ? (opts.reason ?? 'Provider is offline') : null,
     createdAt: '', updatedAt: '',

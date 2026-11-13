@@ -1,4 +1,5 @@
 import { AppError, errors, v, type Validator } from '@clawrouter/core';
+import { keyLifetimeHours } from './fields.ts';
 import type { OperationService } from '@clawrouter/operations';
 import type { ProviderService } from '@clawrouter/providers';
 import { PROVIDER_KINDS, type ConnectionTestResult, type ProviderDetail, type ProviderInfo, type ProviderKind, type ProviderKindInfo } from '@clawrouter/shared';
@@ -30,6 +31,7 @@ const createBody = v.object({
   endpoint: v.optional(v.string({ min: 1, max: 2048 })),
   priority: v.optional(int(0, 10_000)),
   timeoutMs: v.optional(int(1_000, 600_000)),
+  maxKeyLifetimeHours: keyLifetimeHours,
   enabled: v.optional(v.boolean()),
   apiKey: v.optional(apiKey),
 });
@@ -39,6 +41,7 @@ const updateBody = v.object({
   endpoint: v.optional(v.string({ min: 1, max: 2048 })),
   priority: v.optional(int(0, 10_000)),
   timeoutMs: v.optional(int(1_000, 600_000)),
+  maxKeyLifetimeHours: keyLifetimeHours,
   enabled: v.optional(v.boolean()),
   apiKey: v.optional(apiKey),
 });

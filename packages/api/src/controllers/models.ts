@@ -1,4 +1,5 @@
 import { errors, v, type Validator } from '@clawrouter/core';
+import { keyLifetimeHours } from './fields.ts';
 import type { ModelService } from '@clawrouter/models';
 import { CAPABILITIES, type Capability, type DiscoveredModelInfo, type ImportModelsResult, type ModelInfo } from '@clawrouter/shared';
 import { readJson } from '../http/body.ts';
@@ -51,6 +52,7 @@ const createBody = v.object({
   contextLength: nullableTokens,
   maxOutputTokens: nullableTokens,
   enabled: v.optional(v.boolean()),
+  maxKeyLifetimeHours: keyLifetimeHours,
   cost,
 });
 
@@ -60,6 +62,7 @@ const updateBody = v.object({
   contextLength: nullableTokens,
   maxOutputTokens: nullableTokens,
   enabled: v.optional(v.boolean()),
+  maxKeyLifetimeHours: keyLifetimeHours,
   cost,
 });
 

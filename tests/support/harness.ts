@@ -128,7 +128,7 @@ export function createHarness(options: { idleMinutes?: number; maxHours?: number
   models.subscribe(events);
   // Seeded randomness: weighted routing choices are reproducible in tests.
   const routing = createRoutingService({ store: createSqliteRoutingStore(db), models, providers, audit, events, log, now: clock.now, random: seededRandom(42) });
-  const apiKeys = createApiKeyService({ db, audit, log, now: clock.now });
+  const apiKeys = createApiKeyService({ db, audit, log, now: clock.now, catalog: () => ({ models: models.listAll(), aliases: routing.get().aliases }) });
   const keyRequests = createKeyRequestService({ db, apiKeys, directory: peopleDirectory(authz), audit, events, log, now: clock.now });
   // No retry backoff in tests: they would only get slower.
   const limits = createRateLimitService({

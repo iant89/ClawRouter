@@ -5,3 +5,4 @@ export * from './openai.ts';
 export * from './service.ts';
 export * from './expiry.ts';
 export * from './key-requests.ts';
+export * from './key-lifetime.ts';

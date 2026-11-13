@@ -32,6 +32,10 @@ export interface ModelInfo {
   availabilityCheckedAt: string | null;
   source: ModelSource;
   cost: ModelCost | null;
+  /** This model's own maximum API key lifetime (hours); null: none of its own. */
+  maxKeyLifetimeHours: number | null;
+  /** The limit that applies: the stricter of the model's and its provider's, or null. */
+  keyLifetimeLimit: KeyLifetimeLimit | null;
   provider: { id: string; name: string; identifier: string; kind: ProviderKind; enabled: boolean; status: ProviderState };
   /** Enabled, offered by the provider, and the provider is enabled and reachable. */
   usable: boolean;
@@ -61,6 +65,8 @@ export interface CreateModelRequest {
   maxOutputTokens?: number | null;
   enabled?: boolean;
   cost?: { inputPerMTok: number | null; outputPerMTok: number | null } | null;
+  /** Maximum API key lifetime for this model, in hours; null removes the model's own limit. */
+  maxKeyLifetimeHours?: number | null;
 }
 
 export type UpdateModelRequest = Partial<Omit<CreateModelRequest, 'providerId' | 'providerModelId'>>;
@@ -83,4 +89,22 @@ export interface ModelQuery {
   capability?: Capability;
   q?: string;
   usableOnly?: boolean;
+}
+
+/** A maximum API key lifetime and where it was set. */
+export interface KeyLifetimeLimit {
+  hours: number;
+  source: 'model' | 'provider';
+}
+
+/** The stricter of a model's and its provider's limits. */
+export function effectiveKeyLifetime(modelHours: number | null, providerHours: number | null): KeyLifetimeLimit | null {
+  if (modelHours === null && providerHours === null) return null;
+  if (providerHours === null || (modelHours !== null && modelHours <= providerHours)) return { hours: modelHours!, source: 'model' };
+  return { hours: providerHours, source: 'provider' };
+}
+
+/** "36 hours", "7 days". */
+export function formatLifetime(hours: number): string {
+  return hours % 24 === 0 ? `${hours / 24} day${hours === 24 ? '' : 's'}` : `${hours} hour${hours === 1 ? '' : 's'}`;
 }

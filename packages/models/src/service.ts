@@ -2,7 +2,7 @@ import { errors, newId, type EventBus, type Logger } from '@clawrouter/core';
 import type { AuditService } from '@clawrouter/audit';
 import type { ProviderService } from '@clawrouter/providers';
 import {
-  CAPABILITIES, type Capability, type CreateModelRequest, type DiscoveredModelInfo, type FieldIssue, type ImportModelsResult,
+  CAPABILITIES, KEY_EXPIRY_MAX_HOURS, type Capability, type CreateModelRequest, type DiscoveredModelInfo, type FieldIssue, type ImportModelsResult,
   type ModelInfo, type ModelQuery, type UpdateModelRequest,
 } from '@clawrouter/shared';
 import type { ModelPatch, ModelRecord, ModelRepository } from './repository.ts';
@@ -65,6 +65,9 @@ export function createModelService(options: {
       const v = input[field];
       if (v !== undefined && v !== null && (!Number.isInteger(v) || v < 1 || v > MAX_TOKENS_LIMIT)) issues.push({ path: field, message: `must be a whole number from 1 to ${MAX_TOKENS_LIMIT}` });
     }
+    if (input.maxKeyLifetimeHours !== undefined && input.maxKeyLifetimeHours !== null && (!Number.isInteger(input.maxKeyLifetimeHours) || input.maxKeyLifetimeHours < 1 || input.maxKeyLifetimeHours > KEY_EXPIRY_MAX_HOURS)) {
+      issues.push({ path: 'maxKeyLifetimeHours', message: `must be a whole number of hours from 1 to ${KEY_EXPIRY_MAX_HOURS}, or null for no limit` });
+    }
     if (input.cost) {
       for (const field of ['inputPerMTok', 'outputPerMTok'] as const) {
         const v = input.cost[field];
@@ -118,6 +121,7 @@ export function createModelService(options: {
         source: 'MANUAL',
         costInputPerMTok: input.cost?.inputPerMTok ?? null,
         costOutputPerMTok: input.cost?.outputPerMTok ?? null,
+        maxKeyLifetimeHours: input.maxKeyLifetimeHours ?? null,
       });
     },
 
@@ -133,13 +137,14 @@ export function createModelService(options: {
         contextLength: input.contextLength,
         maxOutputTokens: input.maxOutputTokens,
         enabled: input.enabled,
+        maxKeyLifetimeHours: input.maxKeyLifetimeHours,
         ...(input.cost !== undefined
           ? { costInputPerMTok: input.cost?.inputPerMTok ?? null, costOutputPerMTok: input.cost?.outputPerMTok ?? null }
           : {}),
       };
       const before: Record<string, unknown> = {
         displayName: current.displayName, capabilities: current.capabilities, contextLength: current.contextLength, maxOutputTokens: current.maxOutputTokens,
-        enabled: current.enabled, costInputPerMTok: current.cost?.inputPerMTok ?? null, costOutputPerMTok: current.cost?.outputPerMTok ?? null,
+        enabled: current.enabled, costInputPerMTok: current.cost?.inputPerMTok ?? null, costOutputPerMTok: current.cost?.outputPerMTok ?? null, maxKeyLifetimeHours: current.maxKeyLifetimeHours,
       };
       const changes: Record<string, { from: unknown; to: unknown }> = {};
       for (const [key, value] of Object.entries(patch)) {
@@ -215,6 +220,7 @@ export function createModelService(options: {
             source: 'DISCOVERED',
             costInputPerMTok: null,
             costOutputPerMTok: null,
+            maxKeyLifetimeHours: null,
           });
         }),
       );

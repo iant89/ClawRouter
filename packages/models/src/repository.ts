@@ -1,5 +1,5 @@
 import type { Database } from '@clawrouter/database';
-import type { Capability, ModelAvailability, ModelInfo, ModelSource, ProviderKind, ProviderState } from '@clawrouter/shared';
+import { effectiveKeyLifetime, type Capability, type ModelAvailability, type ModelInfo, type ModelSource, type ProviderKind, type ProviderState } from '@clawrouter/shared';
 
 export interface ModelRecord {
   id: string;
@@ -15,11 +15,12 @@ export interface ModelRecord {
   source: ModelSource;
   costInputPerMTok: number | null;
   costOutputPerMTok: number | null;
+  maxKeyLifetimeHours: number | null;
   createdAt: string;
   updatedAt: string;
 }
 
-export type ModelPatch = Partial<Pick<ModelRecord, 'displayName' | 'capabilities' | 'contextLength' | 'maxOutputTokens' | 'enabled' | 'costInputPerMTok' | 'costOutputPerMTok'>>;
+export type ModelPatch = Partial<Pick<ModelRecord, 'displayName' | 'capabilities' | 'contextLength' | 'maxOutputTokens' | 'enabled' | 'costInputPerMTok' | 'costOutputPerMTok' | 'maxKeyLifetimeHours'>>;
 
 export interface ModelFilter {
   providerId?: string;
@@ -58,6 +59,7 @@ interface Row {
   source: ModelSource;
   cost_input_per_mtok: number | null;
   cost_output_per_mtok: number | null;
+  max_key_lifetime_hours: number | null;
   created_at: string;
   updated_at: string;
   p_name: string;
@@ -65,6 +67,7 @@ interface Row {
   p_kind: ProviderKind;
   p_enabled: number;
   p_status: ProviderState;
+  p_max_key_lifetime_hours: number | null;
 }
 
 /** The single definition of "usable", shared by filtering (SQL) and display (TS). */
@@ -80,7 +83,7 @@ export function unusableReason(m: { enabled: boolean; availability: ModelAvailab
 }
 
 const SELECT = `
-  SELECT m.*, p.name AS p_name, p.identifier AS p_identifier, p.kind AS p_kind, p.enabled AS p_enabled, p.status AS p_status
+  SELECT m.*, p.name AS p_name, p.identifier AS p_identifier, p.kind AS p_kind, p.enabled AS p_enabled, p.status AS p_status, p.max_key_lifetime_hours AS p_max_key_lifetime_hours
   FROM models m JOIN providers p ON p.id = m.provider_id`;
 
 function parseCaps(json: string): Capability[] {
@@ -92,7 +95,7 @@ function parseCaps(json: string): Capability[] {
   }
 }
 
-const toRecord = (r: Omit<Row, 'p_name' | 'p_identifier' | 'p_kind' | 'p_enabled' | 'p_status'>): ModelRecord => ({
+const toRecord = (r: Omit<Row, 'p_name' | 'p_identifier' | 'p_kind' | 'p_enabled' | 'p_status' | 'p_max_key_lifetime_hours'>): ModelRecord => ({
   id: r.id,
   providerId: r.provider_id,
   providerModelId: r.provider_model_id,
@@ -106,6 +109,7 @@ const toRecord = (r: Omit<Row, 'p_name' | 'p_identifier' | 'p_kind' | 'p_enabled
   source: r.source,
   costInputPerMTok: r.cost_input_per_mtok,
   costOutputPerMTok: r.cost_output_per_mtok,
+  maxKeyLifetimeHours: r.max_key_lifetime_hours,
   createdAt: r.created_at,
   updatedAt: r.updated_at,
 });
@@ -128,6 +132,8 @@ function toInfo(r: Row): ModelInfo {
     availabilityCheckedAt: m.availabilityCheckedAt,
     source: m.source,
     cost: m.costInputPerMTok === null && m.costOutputPerMTok === null ? null : { inputPerMTok: m.costInputPerMTok, outputPerMTok: m.costOutputPerMTok, currency: 'USD' },
+    maxKeyLifetimeHours: m.maxKeyLifetimeHours,
+    keyLifetimeLimit: effectiveKeyLifetime(m.maxKeyLifetimeHours, r.p_max_key_lifetime_hours),
     provider,
     usable: reason === null,
     unusableReason: reason,
@@ -138,7 +144,7 @@ function toInfo(r: Row): ModelInfo {
 
 const COLUMN: Record<keyof ModelPatch, string> = {
   displayName: 'display_name', capabilities: 'capabilities', contextLength: 'context_length', maxOutputTokens: 'max_output_tokens',
-  enabled: 'enabled', costInputPerMTok: 'cost_input_per_mtok', costOutputPerMTok: 'cost_output_per_mtok',
+  enabled: 'enabled', costInputPerMTok: 'cost_input_per_mtok', costOutputPerMTok: 'cost_output_per_mtok', maxKeyLifetimeHours: 'max_key_lifetime_hours',
 };
 
 const escapeLike = (s: string) => s.replace(/[\\%_]/g, (c) => `\\${c}`);
@@ -178,11 +184,11 @@ export function createSqliteModelRepository(db: Database): ModelRepository {
     insert(m) {
       db.run(
         `INSERT INTO models (id, provider_id, provider_model_id, display_name, capabilities, context_length, max_output_tokens, enabled, availability,
-           availability_checked_at, source, cost_input_per_mtok, cost_output_per_mtok, cost_currency, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+           availability_checked_at, source, cost_input_per_mtok, cost_output_per_mtok, cost_currency, created_at, updated_at, max_key_lifetime_hours)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [m.id, m.providerId, m.providerModelId, m.displayName, JSON.stringify(m.capabilities), m.contextLength, m.maxOutputTokens, m.enabled ? 1 : 0,
           m.availability, m.availabilityCheckedAt, m.source, m.costInputPerMTok, m.costOutputPerMTok,
-          m.costInputPerMTok === null && m.costOutputPerMTok === null ? null : 'USD', m.createdAt, m.updatedAt],
+          m.costInputPerMTok === null && m.costOutputPerMTok === null ? null : 'USD', m.createdAt, m.updatedAt, m.maxKeyLifetimeHours],
       );
     },
     update(id, patch, at) {

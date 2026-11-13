@@ -14,6 +14,11 @@ export interface RouteRequest {
   model: string;
   /** Capabilities the request needs (e.g. VISION for image input, EMBEDDINGS for /v1/embeddings). */
   capabilities?: Capability[];
+  /**
+   * Leaves models out for this request only, with the reason shown in the plan
+   * (e.g. the API key is older than the model's maximum key lifetime).
+   */
+  exclude?: (model: ModelInfo) => string | null;
 }
 
 export interface RoutingSnapshot {
@@ -84,6 +89,11 @@ export function planRoute(request: RouteRequest, snap: RoutingSnapshot): RouteRe
   for (const p of pending) {
     if (!p.model.usable) {
       excluded.push({ modelRef: p.model.ref, reason: p.model.unusableReason ?? 'Not usable' });
+      continue;
+    }
+    const veto = request.exclude?.(p.model);
+    if (veto) {
+      excluded.push({ modelRef: p.model.ref, reason: veto });
       continue;
     }
     const missing = required.filter((c) => !p.model.capabilities.includes(c));

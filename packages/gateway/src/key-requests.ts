@@ -162,6 +162,7 @@ export function createKeyRequestService(options: {
       const allowedModels = checkModels(body.allowedModels ?? [], issues);
       const expiry = body.expiry === undefined ? { type: 'never' as const } : checkExpiry(body.expiry, 'expiry', issues);
       if (expiry?.type === 'at' && Date.parse(expiry.at) <= now().getTime()) issues.push({ path: 'expiry', message: 'must be in the future' });
+      if (expiry && !issues.length) apiKeys.checkLifetimeFor(allowedModels, expiry, 'expiry', issues);
       if (issues.length || !expiry) throw errors.validation(issues);
       if (repo.countPending(actor.id) >= MAX_PENDING_REQUESTS) {
         throw errors.conflict(`You already have ${MAX_PENDING_REQUESTS} requests waiting. Cancel one or wait for a decision.`);
@@ -198,6 +199,7 @@ export function createKeyRequestService(options: {
       const expiry = body.expiry === undefined ? undefined : checkExpiry(body.expiry, 'expiry', issues);
       const note = body.note?.trim() || null;
       if (note && note.length > 500) issues.push({ path: 'note', message: 'must be at most 500 characters' });
+      if (!issues.length) apiKeys.checkLifetimeFor(allowedModels ?? r.allowedModels, expiry ?? r.expiry, 'expiry', issues);
       if (issues.length) throw errors.validation(issues);
       if (!repo.transition(id, 'PENDING', 'APPROVED', { decidedBy: actor.id, at: now().toISOString(), note, allowedModels, expiry })) {
         throw errors.conflict(`This request is already ${r.status.toLowerCase()}.`);

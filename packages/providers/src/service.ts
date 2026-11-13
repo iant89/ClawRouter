@@ -1,7 +1,7 @@
 import { AppError, errors, newId, type EventBus, type Logger, type SecretBox } from '@clawrouter/core';
 import type { AuditService } from '@clawrouter/audit';
 import {
-  IDENTIFIER_PATTERN, type ConnectionTestResult, type CreateProviderRequest, type FieldIssue, type ProviderDetail, type ProviderInfo,
+  IDENTIFIER_PATTERN, KEY_EXPIRY_MAX_HOURS, type ConnectionTestResult, type CreateProviderRequest, type FieldIssue, type ProviderDetail, type ProviderInfo,
   type ProviderKindInfo, type ProviderState, type UpdateProviderRequest,
 } from '@clawrouter/shared';
 import { checkEndpoint } from './endpoint.ts';
@@ -63,7 +63,7 @@ export function createProviderService(options: ProviderServiceOptions) {
     const cred = credentials.get(p.id);
     return {
       id: p.id, name: p.name, identifier: p.identifier, kind: p.kind, endpoint: p.endpoint, enabled: p.enabled,
-      priority: p.priority, timeoutMs: p.timeoutMs, status: p.status, statusDetail: p.statusDetail,
+      priority: p.priority, timeoutMs: p.timeoutMs, maxKeyLifetimeHours: p.maxKeyLifetimeHours, status: p.status, statusDetail: p.statusDetail,
       statusCheckedAt: p.statusCheckedAt, latencyMs: p.latencyMs,
       capabilities: registry.has(p.kind) ? [...registry.get(p.kind).capabilities] : [],
       credential: { configured: cred !== undefined, hint: cred?.hint ?? null, updatedAt: cred?.updatedAt ?? null },
@@ -189,6 +189,7 @@ export function createProviderService(options: ProviderServiceOptions) {
         endpoint = checked.url ?? '';
       }
       if (input.apiKey !== undefined) issues.push(...validateKey(input.apiKey));
+      issues.push(...checkLifetime(input.maxKeyLifetimeHours));
       if (issues.length) throw errors.validation(issues);
       if (repo.findByIdentifier(input.identifier)) throw errors.conflict(`A provider with identifier "${input.identifier}" already exists.`);
       if (repo.findByName(input.name)) throw errors.conflict(`A provider named "${input.name}" already exists.`);
@@ -197,7 +198,7 @@ export function createProviderService(options: ProviderServiceOptions) {
       const enabled = input.enabled ?? true;
       const record: ProviderRecord = {
         id: newId(), name: input.name, identifier: input.identifier, kind: input.kind, endpoint, enabled,
-        priority: input.priority ?? DEFAULT_PRIORITY, timeoutMs: input.timeoutMs ?? DEFAULT_TIMEOUT_MS,
+        priority: input.priority ?? DEFAULT_PRIORITY, timeoutMs: input.timeoutMs ?? DEFAULT_TIMEOUT_MS, maxKeyLifetimeHours: input.maxKeyLifetimeHours ?? null,
         status: enabled ? 'UNKNOWN' : 'DISABLED', statusDetail: enabled ? 'Not checked yet' : 'Disabled', statusCheckedAt: null, latencyMs: null,
         createdAt: at, updatedAt: at,
       };
@@ -218,6 +219,7 @@ export function createProviderService(options: ProviderServiceOptions) {
         endpoint = checked.url ?? undefined;
       }
       if (patch.apiKey !== undefined) issues.push(...validateKey(patch.apiKey));
+      issues.push(...checkLifetime(patch.maxKeyLifetimeHours));
       if (issues.length) throw errors.validation(issues);
       if (patch.name !== undefined && patch.name.toLowerCase() !== p.name.toLowerCase() && repo.findByName(patch.name)) {
         throw errors.conflict(`A provider named "${patch.name}" already exists.`);
@@ -232,7 +234,7 @@ export function createProviderService(options: ProviderServiceOptions) {
       }
 
       const changes: Record<string, { from: unknown; to: unknown }> = {};
-      const next = { name: patch.name, endpoint, priority: patch.priority, timeoutMs: patch.timeoutMs, enabled: patch.enabled };
+      const next = { name: patch.name, endpoint, priority: patch.priority, timeoutMs: patch.timeoutMs, enabled: patch.enabled, maxKeyLifetimeHours: patch.maxKeyLifetimeHours };
       for (const [key, value] of Object.entries(next)) {
         const current = p[key as keyof typeof next];
         if (value !== undefined && value !== current) changes[key] = { from: current, to: value };
@@ -380,4 +382,12 @@ export function createProviderService(options: ProviderServiceOptions) {
     },
   };
   return service;
+}
+
+/** Maximum API key lifetime: whole hours from 1 to ten years, or null for no limit. */
+function checkLifetime(hours: number | null | undefined): FieldIssue[] {
+  if (hours === undefined || hours === null) return [];
+  return Number.isInteger(hours) && hours >= 1 && hours <= KEY_EXPIRY_MAX_HOURS
+    ? []
+    : [{ path: 'maxKeyLifetimeHours', message: `must be a whole number of hours from 1 to ${KEY_EXPIRY_MAX_HOURS}, or null for no limit` }];
 }
