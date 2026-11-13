@@ -8,7 +8,7 @@ describe('console navigation', () => {
     expect(NAV_ITEMS.map((i) => i.label)).toEqual([
       // Rate Limits goes beyond the spec §17 list: phase 9 needs a page for its configuration.
       'Dashboard', 'Requests', 'API Access', 'Rate Limits', 'Usage', 'Providers', 'Models', 'Routing',
-      'Health', 'Logs', 'Audit', 'Users', 'Roles', 'Sessions', 'Settings',
+      'Health', 'Operations', 'Logs', 'Audit', 'Users', 'Roles', 'Sessions', 'Settings',
     ]);
   });
 
@@ -28,7 +28,7 @@ describe('console navigation', () => {
   });
 
   test('only implemented pages lack a planned phase', () => {
-    expect(NAV_ITEMS.filter((i) => i.plannedPhase === undefined).map((i) => i.id)).toEqual(['dashboard', 'requests', 'api-access', 'rate-limits', 'usage', 'providers', 'models', 'routing', 'health', 'users', 'roles', 'sessions']);
+    expect(NAV_ITEMS.filter((i) => i.plannedPhase === undefined).map((i) => i.id)).toEqual(['dashboard', 'requests', 'api-access', 'rate-limits', 'usage', 'providers', 'models', 'routing', 'health', 'operations', 'users', 'roles', 'sessions']);
   });
 });
 

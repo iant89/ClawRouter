@@ -57,3 +57,21 @@ body {
   overflow-wrap: anywhere;
   word-break: break-word;
 }
+
+/* Health history strip (HealthTimeline): one bar per time bucket. */
+.claw-timeline {
+  display: flex;
+  gap: 2px;
+  align-items: stretch;
+  height: 1.5rem;
+  min-width: 12rem;
+}
+.claw-timeline-bucket {
+  flex: 1 1 0;
+  min-width: 2px;
+  border-radius: 1px;
+  border: 1px solid var(--eui-color-border-subtle, rgba(255, 255, 255, 0.08));
+}
+.claw-timeline-bucket[data-status='none'] {
+  border-style: dashed;
+}

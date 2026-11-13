@@ -10,7 +10,7 @@ export type PageId =
   | 'dashboard'
   | 'requests' | 'api-access' | 'rate-limits' | 'usage'
   | 'providers' | 'models' | 'routing'
-  | 'health' | 'logs' | 'audit'
+  | 'health' | 'operations' | 'logs' | 'audit'
   | 'users' | 'roles' | 'sessions' | 'settings';
 
 export interface NavItem {
@@ -62,6 +62,7 @@ export const NAVIGATION: readonly NavGroup[] = [
     label: 'System',
     items: [
       { id: 'health', permission: 'health.read', label: 'Health', path: '/health', icon: 'electrocardiogram', summary: 'Health of every platform component.' },
+      { id: 'operations', permission: 'health.read', label: 'Operations', path: '/operations', icon: 'in-progress', summary: 'Long-running work such as connection tests and checks, with progress and cancellation.' },
       { id: 'logs', permission: 'logs.read', label: 'Logs', path: '/logs', icon: 'document-text', plannedPhase: 13, summary: 'Structured, redacted server logs with filtering by level, component, provider and request id.' },
       { id: 'audit', permission: 'audit.read', label: 'Audit', path: '/audit', icon: 'history', plannedPhase: 13, summary: 'Security-relevant actions: who changed what, when and from where.' },
     ],
