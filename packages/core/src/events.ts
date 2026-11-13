@@ -14,6 +14,8 @@ export interface EventMap {
   'session.revoked': { sessionId: string; userId: string; reason: SessionRevokeReason };
   'user.signed_in': { userId: string };
   'user.roles_changed': { userId: string; roles: string[] };
+  /** A console user was created, changed, enabled, disabled or had their password reset. */
+  'user.changed': { userId: string; action: 'created' | 'updated' | 'enabled' | 'disabled' | 'password_reset' };
   /** A custom role was created, changed or deleted (its members also get user.roles_changed). */
   'role.changed': { roleId: string; action: 'created' | 'updated' | 'deleted' };
   /** A username was blocked after repeated failed sign-ins (emitted once per block). */

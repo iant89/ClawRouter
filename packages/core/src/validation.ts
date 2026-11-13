@@ -42,6 +42,14 @@ export const v = {
     };
   },
 
+  oneOf<const T extends readonly string[]>(values: T): Validator<T[number]> {
+    return (value, path, issues) => {
+      if (typeof value === 'string' && (values as readonly string[]).includes(value)) return value as T[number];
+      issues.push({ path, message: value === undefined ? 'is required' : `must be one of ${values.join(', ')}` });
+      return undefined;
+    };
+  },
+
   optional<T>(inner: Validator<T>): Validator<T | undefined> {
     return (value, path, issues) => (value === undefined || value === null ? undefined : inner(value, path, issues));
   },

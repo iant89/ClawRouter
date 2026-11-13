@@ -123,6 +123,7 @@ export function createRealtimeHub(options: RealtimeOptions) {
   forward('routing.changed');
   forward('ratelimits.changed');
   forward('role.changed');
+  forward('user.changed');
 
   // Operations: to users who may see operations of that type.
   unsubscribe.push(events.on('operation.progress', (payload) => {
@@ -182,6 +183,7 @@ export function createRealtimeHub(options: RealtimeOptions) {
       const token = readSessionToken(request, options.cookie);
       const resolved = token ? auth.resolve(token) : null;
       if (!token || !resolved) return refuse(401, 'Sign in first.');
+      if (resolved.user.mustChangePassword) return refuse(403, 'Choose a new password first.');
       let mine = 0;
       for (const ws of sockets) if (ws.data.userId === resolved.user.id) mine += 1;
       if (mine >= maxPerUser || sockets.size >= maxTotal) return refuse(429, 'Too many open connections.');

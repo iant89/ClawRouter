@@ -68,6 +68,7 @@ export interface UserWithRoles {
   status: 'ACTIVE' | 'DISABLED';
   createdAt: string;
   lastLoginAt: string | null;
+  mustChangePassword: boolean;
   roles: string[];
 }
 

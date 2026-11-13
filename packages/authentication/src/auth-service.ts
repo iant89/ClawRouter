@@ -1,7 +1,7 @@
-import { AppError, newId, type EventBus, type Logger, type SessionRevokeReason } from '@clawrouter/core';
+import { AppError, errors, newId, type EventBus, type Logger, type SessionRevokeReason } from '@clawrouter/core';
 import type { AuditService } from '@clawrouter/audit';
 import type { AdminSessionInfo, SessionInfo, UserSummary } from '@clawrouter/shared';
-import type { PasswordHasher } from './password.ts';
+import { checkPasswordPolicy, type PasswordHasher } from './password.ts';
 import type { Session, SessionRepository } from './sessions.ts';
 import { FailureThrottle } from './throttle.ts';
 import { generateToken, hashToken } from './tokens.ts';
@@ -276,6 +276,39 @@ export function createAuthService(options: AuthServiceOptions) {
       }
       for (const id of ids) events?.emit('session.revoked', { sessionId: id, userId, reason: 'REVOKED' });
       return ids.length;
+    },
+
+    /**
+     * A signed-in user changes their own password. Needs the current one (a
+     * stolen session alone cannot lock the owner out); wrong guesses count
+     * towards the sign-in throttle. Other sessions are signed out; this one stays.
+     */
+    async changePassword(userId: string, currentSessionId: string, currentPassword: string, newPassword: string, client: ClientInfo): Promise<UserSummary> {
+      const user = users.findById(userId);
+      if (!user || user.status !== 'ACTIVE') throw new AppError('AUTHENTICATION_ERROR');
+      const userKey = `u:${user.username.toLowerCase()}`;
+      const retry = usernameThrottle.retryAfter(userKey);
+      if (retry > 0) throw throttled(retry);
+      if (!(await hasher.verify(currentPassword, user.passwordHash))) {
+        usernameThrottle.fail(userKey);
+        audit.record({
+          action: 'PASSWORD_CHANGED', result: 'FAILURE', resource: 'user', resourceId: user.id,
+          actor: { id: user.id, name: user.username }, ip: client.ip, requestId: client.requestId ?? null, metadata: { reason: 'wrong_current_password' },
+        });
+        throw errors.validation([{ path: 'currentPassword', message: 'is not correct' }]);
+      }
+      const issues = checkPasswordPolicy(newPassword, user.username, 'newPassword');
+      if (newPassword === currentPassword) issues.push({ path: 'newPassword', message: 'must be different from the current password' });
+      if (issues.length) throw errors.validation(issues);
+
+      users.setPassword(user.id, await hasher.hash(newPassword), false, now().toISOString());
+      const ended = this.revokeAllSessions(user.id, 'PASSWORD_CHANGED', currentSessionId);
+      audit.record({
+        action: 'PASSWORD_CHANGED', result: 'SUCCESS', resource: 'user', resourceId: user.id,
+        actor: { id: user.id, name: user.username }, ip: client.ip, requestId: client.requestId ?? null, metadata: { otherSessionsEnded: ended },
+      });
+      log?.info('password changed', { component: 'auth', userId: user.id });
+      return toUserSummary(users.findById(user.id)!);
     },
 
     /** Deletes sessions that ended more than a day ago. */

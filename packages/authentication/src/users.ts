@@ -10,6 +10,7 @@ export interface User {
   updatedAt: string;
   passwordChangedAt: string;
   lastLoginAt: string | null;
+  mustChangePassword: boolean;
 }
 
 export interface NewUser {
@@ -19,6 +20,8 @@ export interface NewUser {
   passwordHash: string;
   status: UserStatus;
   now: string;
+  /** New accounts made by an administrator start with a temporary password. */
+  mustChangePassword?: boolean;
 }
 
 export interface UserRepository {
@@ -28,6 +31,10 @@ export interface UserRepository {
   count(): number;
   insert(user: NewUser): User;
   recordLogin(id: string, at: string): void;
+  update(id: string, patch: { displayName?: string; status?: UserStatus }, at: string): void;
+  /** Replaces the password hash and stamps password_changed_at. */
+  setPassword(id: string, passwordHash: string, mustChange: boolean, at: string): void;
+  list(): User[];
   /** Runs `fn` atomically (used to make initial setup race-free). */
   transaction<T>(fn: (repo: UserRepository) => T): T;
 }
@@ -41,5 +48,6 @@ export function toUserSummary(user: User): UserSummary {
     status: user.status,
     createdAt: user.createdAt,
     lastLoginAt: user.lastLoginAt,
+    mustChangePassword: user.mustChangePassword,
   };
 }

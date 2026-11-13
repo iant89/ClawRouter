@@ -1,7 +1,8 @@
 import { AppError, newRequestId, type LogBuffer, type Logger } from '@clawrouter/core';
 import type { AuditService } from '@clawrouter/audit';
-import type { AuthService, SetupService } from '@clawrouter/authentication';
+import type { AuthService, SetupService, UserAdminService } from '@clawrouter/authentication';
 import type { AuthorizationService } from '@clawrouter/authorization';
+import { PASSWORD_CHANGE_REQUIRED } from '@clawrouter/shared';
 import type { NotificationService } from '@clawrouter/notifications';
 import type { ProviderService } from '@clawrouter/providers';
 import type { ModelService } from '@clawrouter/models';
@@ -18,6 +19,7 @@ import { apiKeyAuthentication, applyResponseHeaders, csrfProtection, sessionAuth
 import { healthHandler, healthHistoryHandler } from './controllers/health.ts';
 import { authController } from './controllers/auth.ts';
 import { accessController } from './controllers/access.ts';
+import { usersController } from './controllers/users.ts';
 import { notificationsController } from './controllers/notifications.ts';
 import { providersController } from './controllers/providers.ts';
 import { modelsController } from './controllers/models.ts';
@@ -29,6 +31,9 @@ import { operationsController } from './controllers/operations.ts';
 import { logsController } from './controllers/logs.ts';
 import { auditController } from './controllers/audit.ts';
 
+/** What a user with a temporary password may still do: see their session, change the password, sign out. */
+const ALLOWED_BEFORE_PASSWORD_CHANGE = new Set(['GET /api/auth/session', 'POST /api/auth/password', 'POST /api/auth/logout']);
+
 export interface ApiDependencies {
   log: Logger;
   /** Recent log records for the Logs page; null when the buffer is off. */
@@ -38,6 +43,7 @@ export interface ApiDependencies {
   healthHistory: HealthHistoryService;
   auth: AuthService;
   authz: AuthorizationService;
+  userAdmin: UserAdminService;
   notifications: NotificationService;
   providers: ProviderService;
   models: ModelService;
@@ -69,6 +75,7 @@ export function createApiApp(deps: ApiDependencies): ApiApp {
   const router = new Router();
   const authRoutes = authController(deps);
   const access = accessController(deps.authz);
+  const usersApi = usersController(deps.userAdmin, deps.auth);
   const notes = notificationsController(deps.notifications);
   const prov = providersController(deps.providers, deps.operations);
   const ops = operationsController(deps.operations);
@@ -100,6 +107,7 @@ export function createApiApp(deps: ApiDependencies): ApiApp {
   router.get('/api/auth/sessions', 'authenticated', authRoutes.listSessions);
   router.post('/api/auth/sessions/revoke-others', 'authenticated', authRoutes.revokeOtherSessions);
   router.delete('/api/auth/sessions/:id', 'authenticated', authRoutes.revokeSession);
+  router.post('/api/auth/password', 'authenticated', usersApi.changeOwnPassword);
   router.get('/api/notifications', 'authenticated', notes.list);
   router.post('/api/notifications/read-all', 'authenticated', notes.markAllRead);
   router.post('/api/notifications/:id/read', 'authenticated', notes.markRead);
@@ -142,6 +150,9 @@ export function createApiApp(deps: ApiDependencies): ApiApp {
   router.patch('/api/roles/:id', 'roles.write', access.updateRole);
   router.delete('/api/roles/:id', 'roles.write', access.deleteRole);
   router.get('/api/users', 'users.read', access.listUsers);
+  router.post('/api/users', 'users.write', usersApi.create);
+  router.patch('/api/users/:id', 'users.write', usersApi.update);
+  router.post('/api/users/:id/password', 'users.write', usersApi.resetPassword);
   router.put('/api/users/:id/roles', 'roles.assign', access.setUserRoles);
 
   // Gateway administration: API keys (spec §14, §31) and live metrics.
@@ -174,6 +185,10 @@ export function createApiApp(deps: ApiDependencies): ApiApp {
       }
     } else if (match.access !== 'public') {
       if (!ctx.auth) throw new AppError('AUTHENTICATION_ERROR');
+      // A temporary password (new account, administrator reset) must be replaced before anything else.
+      if (ctx.auth.user.mustChangePassword && !ALLOWED_BEFORE_PASSWORD_CHANGE.has(`${ctx.method} ${ctx.url.pathname}`)) {
+        throw new AppError('AUTHORIZATION_ERROR', 'Choose a new password before continuing.', { details: { reason: PASSWORD_CHANGE_REQUIRED } });
+      }
       if (match.access !== 'authenticated' && !ctx.auth.permissions.has(match.access)) {
         ctx.log.info('access denied', { component: 'authorization', userId: ctx.auth.user.id, permission: match.access, path: ctx.url.pathname });
         throw new AppError('AUTHORIZATION_ERROR');

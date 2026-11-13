@@ -2,10 +2,10 @@ import type { HTMLBundle, Server } from 'bun';
 import { createApiApp, createRealtimeHub, type ApiApp, type RealtimeHub, type SocketData } from '@clawrouter/api';
 import { createAuditService, createSqliteAuditRepository, type AuditService } from '@clawrouter/audit';
 import {
-  createArgon2Hasher, createAuthService, createSetupService, createSqliteSessionRepository, createSqliteUserRepository,
+  createArgon2Hasher, createAuthService, createSetupService, createSqliteSessionRepository, createSqliteUserRepository, createUserAdminService,
   type AuthService, type PasswordHasher, type SetupService,
 } from '@clawrouter/authentication';
-import { createAuthorizationService, createSqliteRoleRepository, type AuthorizationService } from '@clawrouter/authorization';
+import { createAuthorizationService, createSqliteRoleRepository, userAccessPolicy, type AuthorizationService } from '@clawrouter/authorization';
 import { createEventBus, type Config, type EventBus, type LogBuffer, type Logger } from '@clawrouter/core';
 import { REALTIME_PATH } from '@clawrouter/shared';
 import { createNotificationService, createSqliteNotificationRepository, type NotificationService } from '@clawrouter/notifications';
@@ -138,6 +138,7 @@ export async function startClawRouter({ config, log, logBuffer, version, console
     log,
   });
   const authz = createAuthorizationService({ roles: createSqliteRoleRepository(db), audit, events, log });
+  const userAdmin = createUserAdminService({ users, hasher, auth, audit, policy: userAccessPolicy(authz), events, log });
   const notifications = createNotificationService({ repo: createSqliteNotificationRepository(db), events, log });
   const unsubscribeNotifications = notifications.subscribe(events);
   let setupToken: SetupToken | null = users.count() === 0 ? provisionSetupToken(config, log) : null;
@@ -188,7 +189,7 @@ export async function startClawRouter({ config, log, logBuffer, version, console
   providerKickoff?.unref();
   providerTimer?.unref();
 
-  const api = createApiApp({ log, logBuffer, audit, health, healthHistory, auth, authz, notifications, providers, models, routing, apiKeys, gateway, limits, requests, operations, setup, cookie: { secure: config.auth.cookieSecure } });
+  const api = createApiApp({ log, logBuffer, audit, health, healthHistory, auth, authz, userAdmin, notifications, providers, models, routing, apiKeys, gateway, limits, requests, operations, setup, cookie: { secure: config.auth.cookieSecure } });
 
   // The console's live channel (spec §25): session-authenticated, same-origin only.
   const realtime = createRealtimeHub({ events, auth, authz, cookie: { secure: config.auth.cookieSecure }, metrics: () => gateway.metrics.snapshot(), log });

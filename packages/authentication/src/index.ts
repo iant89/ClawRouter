@@ -5,5 +5,6 @@ export * from './setup-service.ts';
 export * from './throttle.ts';
 export * from './tokens.ts';
 export * from './users.ts';
+export * from './user-admin.ts';
 export { createSqliteUserRepository } from './sqlite/users.ts';
 export { createSqliteSessionRepository } from './sqlite/sessions.ts';

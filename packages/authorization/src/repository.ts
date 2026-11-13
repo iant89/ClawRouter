@@ -36,11 +36,12 @@ interface UserRow {
   status: UserWithRoles['status'];
   created_at: string;
   last_login_at: string | null;
+  must_change_password: number;
   roles: string | null;
 }
 
 const USERS_WITH_ROLES = `
-  SELECT u.id, u.username, u.display_name, u.status, u.created_at, u.last_login_at,
+  SELECT u.id, u.username, u.display_name, u.status, u.created_at, u.last_login_at, u.must_change_password,
          (SELECT group_concat(role_id, ',') FROM (SELECT role_id FROM user_roles WHERE user_id = u.id ORDER BY role_id)) AS roles
   FROM users u`;
 
@@ -51,6 +52,7 @@ const toUser = (r: UserRow): UserWithRoles => ({
   status: r.status,
   createdAt: r.created_at,
   lastLoginAt: r.last_login_at,
+  mustChangePassword: r.must_change_password === 1,
   roles: r.roles ? r.roles.split(',') : [],
 });
 

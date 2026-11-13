@@ -9,6 +9,8 @@ export interface UserSummary {
   status: UserStatus;
   createdAt: string;
   lastLoginAt: string | null;
+  /** Set by an administrator reset or a new account: the user must choose a new password before doing anything else. */
+  mustChangePassword: boolean;
 }
 
 /** A session as shown to its owner. The token never leaves the cookie. */
@@ -51,6 +53,34 @@ export interface SetupRequest {
   displayName: string;
   password: string;
 }
+
+/** POST /api/users (users.write). The password is temporary: the user must change it at first sign-in. */
+export interface CreateUserRequest {
+  username: string;
+  displayName: string;
+  password: string;
+  roles: string[];
+}
+
+/** PATCH /api/users/:id (users.write). */
+export interface UpdateUserRequest {
+  displayName?: string;
+  status?: 'ACTIVE' | 'DISABLED';
+}
+
+/** POST /api/users/:id/password (users.write): sets a temporary password and signs the user out. */
+export interface ResetPasswordRequest {
+  password: string;
+}
+
+/** POST /api/auth/password: a signed-in user changes their own password. */
+export interface ChangePasswordRequest {
+  currentPassword: string;
+  newPassword: string;
+}
+
+/** Error details when a route is refused because the user must change their password first. */
+export const PASSWORD_CHANGE_REQUIRED = 'password_change_required';
 
 /** Password policy, enforced by the server and mirrored in the console for feedback. */
 export const PASSWORD_POLICY = { minLength: 12, maxLength: 256 } as const;

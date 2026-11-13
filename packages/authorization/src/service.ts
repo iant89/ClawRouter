@@ -12,7 +12,8 @@ export interface Principal {
 /** Who is acting. With `permissions`, the actor may only grant or assign what they hold (no escalation); without, it is the system. */
 export interface Actor {
   permissions?: ReadonlySet<string>;
-  id: string;
+  /** null for the system (the command line). */
+  id: string | null;
   username: string;
 }
 
@@ -72,6 +73,32 @@ export function createAuthorizationService(options: {
 
     listUsers(): UserWithRoles[] {
       return repo.listUsersWithRoles();
+    },
+
+    getUser(userId: string): UserWithRoles | undefined {
+      return repo.findUserWithRoles(userId);
+    },
+
+    /** Refuses unknown roles and roles beyond the actor's own permissions (before a user is created with them). */
+    assertCanAssign(actor: Actor, requested: string[]): void {
+      const known = new Set(repo.listRoles().map((r) => r.id));
+      const unknown = [...new Set(requested)].filter((r) => !known.has(r));
+      if (unknown.length) throw errors.validation(unknown.map((r) => ({ path: 'roles', message: `unknown role "${r}"` })));
+      assertWithin(actor, [...permissionsOf([...new Set(requested)]).values()].flat(), 'assign these roles');
+    },
+
+    /**
+     * Refuses to let an actor disable, edit or reset the password of a user who
+     * holds permissions the actor lacks (that would be a way to take over a more
+     * powerful account, e.g. an administrator's).
+     */
+    assertCanManageUser(actor: Actor, userId: string, doing: string): void {
+      assertWithin(actor, [...principalFromRoles(repo.rolesOf(userId)).permissions], doing);
+    },
+
+    /** True when the user is the only active holder of Administrator. */
+    isLastActiveAdministrator(userId: string): boolean {
+      return repo.rolesOf(userId).includes(ADMIN_ROLE_ID) && repo.countActiveHolders(ADMIN_ROLE_ID) <= 1;
     },
 
     /** Gives the user created by initial setup the ADMIN role. */
@@ -202,4 +229,15 @@ function assertWithin(actor: Actor, permissions: Permission[], doing: string) {
   if (!actor.permissions) return;
   const missing = [...new Set(permissions)].filter((p) => !actor.permissions!.has(p));
   if (missing.length) throw new AppError('AUTHORIZATION_ERROR', `You cannot ${doing}: it involves permissions you do not have yourself (${missing.join(', ')}).`, { expose: true });
+}
+
+/** The rules user administration relies on (see `UserAccessPolicy` in authentication). */
+export function userAccessPolicy(authz: AuthorizationService) {
+  return {
+    assertCanAssign: (actor: Actor, roles: string[]) => authz.assertCanAssign(actor, roles),
+    assertCanManageUser: (actor: Actor, userId: string, doing: string) => authz.assertCanManageUser(actor, userId, doing),
+    assignRoles: (actor: Actor, userId: string, roles: string[], client: ClientInfo) => { authz.setUserRoles(actor, userId, roles, client); },
+    isLastActiveAdministrator: (userId: string) => authz.isLastActiveAdministrator(userId),
+    getUser: (userId: string) => authz.getUser(userId),
+  };
 }
