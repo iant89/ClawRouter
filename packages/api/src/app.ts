@@ -12,6 +12,7 @@ import type { RateLimitService } from '@clawrouter/rate-limits';
 import type { RequestLogService } from '@clawrouter/requests';
 import type { OperationService } from '@clawrouter/operations';
 import type { HealthHistoryService, HealthService } from '@clawrouter/health';
+import type { SettingsService } from '@clawrouter/settings';
 import { compose, type Handler, type Middleware, type RequestContext } from './http/context.ts';
 import { accessLog, errorBoundary, requestIdHeader, securityHeaders } from './http/middleware.ts';
 import { Router } from './http/router.ts';
@@ -30,6 +31,7 @@ import { requestsController } from './controllers/requests.ts';
 import { operationsController } from './controllers/operations.ts';
 import { logsController } from './controllers/logs.ts';
 import { auditController } from './controllers/audit.ts';
+import { settingsController } from './controllers/settings.ts';
 
 /** What a user with a temporary password may still do: see their session, change the password, sign out. */
 const ALLOWED_BEFORE_PASSWORD_CHANGE = new Set(['GET /api/auth/session', 'POST /api/auth/password', 'POST /api/auth/logout']);
@@ -44,6 +46,7 @@ export interface ApiDependencies {
   auth: AuthService;
   authz: AuthorizationService;
   userAdmin: UserAdminService;
+  settings: SettingsService;
   notifications: NotificationService;
   providers: ProviderService;
   models: ModelService;
@@ -76,6 +79,7 @@ export function createApiApp(deps: ApiDependencies): ApiApp {
   const authRoutes = authController(deps);
   const access = accessController(deps.authz);
   const usersApi = usersController(deps.userAdmin, deps.auth);
+  const settingsApi = settingsController(deps.settings);
   const notes = notificationsController(deps.notifications);
   const prov = providersController(deps.providers, deps.operations);
   const ops = operationsController(deps.operations);
@@ -154,6 +158,10 @@ export function createApiApp(deps: ApiDependencies): ApiApp {
   router.patch('/api/users/:id', 'users.write', usersApi.update);
   router.post('/api/users/:id/password', 'users.write', usersApi.resetPassword);
   router.put('/api/users/:id/roles', 'roles.assign', access.setUserRoles);
+
+  // System and security settings (spec §16).
+  router.get('/api/settings', 'settings.read', settingsApi.list);
+  router.put('/api/settings', 'settings.write', settingsApi.update);
 
   // Gateway administration: API keys (spec §14, §31) and live metrics.
   router.get('/api/api-keys', 'api_keys.read', keys.list);

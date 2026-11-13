@@ -19,7 +19,8 @@ import { createApiKeyService, createGatewayService, type ApiKeyService, type Gat
 import { createRateLimitService, createSqliteRateLimitConfigStore, MemoryCounterStore, type RateLimitService } from '@clawrouter/rate-limits';
 import { createRequestLogService, createSqliteRequestRepository, type RequestLogService } from '@clawrouter/requests';
 import { createNotificationService, createSqliteNotificationRepository, type NotificationService } from '@clawrouter/notifications';
-import { migrations, openSqlite, runMigrations, type Database } from '@clawrouter/database';
+import { createSqliteSettingsRepository, migrations, openSqlite, runMigrations, type Database } from '@clawrouter/database';
+import { createSettingsService, type SettingsService } from '@clawrouter/settings';
 import {
   createDatabaseCheck, createGatewayCheck, createHealthHistoryService, createHealthService, createSqliteHealthHistoryRepository,
   type HealthHistoryService, type HealthService,
@@ -49,6 +50,7 @@ export interface Harness {
   auth: AuthService;
   authz: AuthorizationService;
   userAdmin: UserAdminService;
+  settings: SettingsService;
   notifications: NotificationService;
   providers: ProviderService;
   models: ModelService;
@@ -93,12 +95,16 @@ export function createHarness(options: { idleMinutes?: number; maxHours?: number
   const events = createEventBus(log);
   const users = createSqliteUserRepository(db);
   const audit = createAuditService(createSqliteAuditRepository(db), log, clock.now);
+  const settings = createSettingsService({
+    repo: createSqliteSettingsRepository(db, clock.now), audit, events, log,
+    defaults: { sessionIdleMinutes: options.idleMinutes ?? 60, sessionMaxHours: options.maxHours ?? 12, signInMaxFailures: 10, requestRetentionDays: 30, usageRetentionDays: 400, healthHistoryDays: 7 },
+  });
   const auth = createAuthService({
     users,
     sessions: createSqliteSessionRepository(db),
     hasher: fastHasher,
     audit,
-    policy: { idleMinutes: options.idleMinutes ?? 60, maxHours: options.maxHours ?? 12 },
+    policy: { get idleMinutes() { return settings.get('sessionIdleMinutes'); }, get maxHours() { return settings.get('sessionMaxHours'); }, get maxFailures() { return settings.get('signInMaxFailures'); } },
     events,
     log,
     now: clock.now,
@@ -127,7 +133,10 @@ export function createHarness(options: { idleMinutes?: number; maxHours?: number
     store: createSqliteRateLimitConfigStore(db), counters: new MemoryCounterStore(() => clock.now().getTime()), audit, events, log, now: clock.now,
     knownModels: () => models.listAll().map((m) => m.ref), directory: apiKeys,
   });
-  const requests = createRequestLogService({ repo: createSqliteRequestRepository(db), models, log, now: clock.now });
+  const requests = createRequestLogService({
+    repo: createSqliteRequestRepository(db), models, log, now: clock.now,
+    retention: { get requestDays() { return settings.get('requestRetentionDays'); }, get usageDays() { return settings.get('usageRetentionDays'); } },
+  });
   const gateway = createGatewayService({ routing, providers, models, events, log, now: clock.now, backoffMs: 0, limits, requests });
   const health = createHealthService({
     checks: [
@@ -138,10 +147,10 @@ export function createHarness(options: { idleMinutes?: number; maxHours?: number
   });
   const healthHistory = createHealthHistoryService({ repo: createSqliteHealthHistoryRepository(db), now: clock.now });
   const operations = createOperationService({ repo: createSqliteOperationRepository(db), handlers: operationHandlers({ providers, health }), audit, events, log, now: clock.now });
-  const api = createApiApp({ log, logBuffer, audit, health, healthHistory, auth, authz, userAdmin, notifications, providers, models, routing, apiKeys, gateway, limits, requests, operations, setup, cookie: { secure: options.secureCookie ?? false } });
+  const api = createApiApp({ log, logBuffer, audit, health, healthHistory, auth, authz, userAdmin, settings, notifications, providers, models, routing, apiKeys, gateway, limits, requests, operations, setup, cookie: { secure: options.secureCookie ?? false } });
 
   const h: Harness = {
-    db, clock, events, users, audit, auth, authz, userAdmin, notifications, providers, models, routing, apiKeys, gateway, limits, requests, secrets, setup, health, healthHistory, operations, api, logs, logBuffer,
+    db, clock, events, users, audit, auth, authz, userAdmin, settings, notifications, providers, models, routing, apiKeys, gateway, limits, requests, secrets, setup, health, healthHistory, operations, api, logs, logBuffer,
     setProviderFetch(fn) {
       providerFetch = fn;
     },

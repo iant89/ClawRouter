@@ -20,6 +20,7 @@
         "@clawrouter/rate-limits": "workspace:*",
         "@clawrouter/requests": "workspace:*",
         "@clawrouter/routing": "workspace:*",
+        "@clawrouter/settings": "workspace:*",
         "@clawrouter/shared": "workspace:*",
       },
       "devDependencies": {
@@ -59,6 +60,7 @@
         "@clawrouter/rate-limits": "workspace:*",
         "@clawrouter/requests": "workspace:*",
         "@clawrouter/routing": "workspace:*",
+        "@clawrouter/settings": "workspace:*",
         "@clawrouter/shared": "workspace:*",
       },
     },
@@ -79,6 +81,7 @@
         "@clawrouter/rate-limits": "workspace:*",
         "@clawrouter/requests": "workspace:*",
         "@clawrouter/routing": "workspace:*",
+        "@clawrouter/settings": "workspace:*",
         "@clawrouter/shared": "workspace:*",
       },
     },
@@ -221,6 +224,16 @@
         "@clawrouter/shared": "workspace:*",
       },
     },
+    "packages/settings": {
+      "name": "@clawrouter/settings",
+      "version": "0.1.0",
+      "dependencies": {
+        "@clawrouter/audit": "workspace:*",
+        "@clawrouter/core": "workspace:*",
+        "@clawrouter/database": "workspace:*",
+        "@clawrouter/shared": "workspace:*",
+      },
+    },
     "packages/shared": {
       "name": "@clawrouter/shared",
       "version": "0.1.0",
@@ -260,6 +273,8 @@
     "@clawrouter/routing": ["@clawrouter/routing@workspace:packages/routing"],
 
     "@clawrouter/server": ["@clawrouter/server@workspace:apps/server"],
+
+    "@clawrouter/settings": ["@clawrouter/settings@workspace:packages/settings"],
 
     "@clawrouter/shared": ["@clawrouter/shared@workspace:packages/shared"],
 

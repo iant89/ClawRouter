@@ -45,7 +45,7 @@ export type HealthHistoryService = ReturnType<typeof createHealthHistoryService>
 export function createHealthHistoryService(options: { repo: HealthHistoryRepository; log?: Logger; now?: () => Date; retentionDays?: number }) {
   const { repo, log } = options;
   const now = options.now ?? (() => new Date());
-  const retentionDays = options.retentionDays ?? 7;
+  const retentionDays = () => options.retentionDays ?? 7; // read at use time (a system setting)
 
   return {
     record(report: HealthReport) {
@@ -94,8 +94,8 @@ export function createHealthHistoryService(options: { repo: HealthHistoryReposit
     },
 
     prune(): number {
-      if (retentionDays <= 0) return 0;
-      return repo.prune(new Date(now().getTime() - retentionDays * 86_400_000).toISOString());
+      if (retentionDays() <= 0) return 0;
+      return repo.prune(new Date(now().getTime() - retentionDays() * 86_400_000).toISOString());
     },
   };
 }

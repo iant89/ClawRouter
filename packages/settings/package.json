@@ -1,0 +1,13 @@
+{
+  "name": "@clawrouter/settings",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": { ".": "./src/index.ts" },
+  "dependencies": {
+    "@clawrouter/audit": "workspace:*",
+    "@clawrouter/core": "workspace:*",
+    "@clawrouter/database": "workspace:*",
+    "@clawrouter/shared": "workspace:*"
+  }
+}

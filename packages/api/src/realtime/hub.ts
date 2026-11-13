@@ -124,6 +124,7 @@ export function createRealtimeHub(options: RealtimeOptions) {
   forward('ratelimits.changed');
   forward('role.changed');
   forward('user.changed');
+  forward('settings.changed');
 
   // Operations: to users who may see operations of that type.
   unsubscribe.push(events.on('operation.progress', (payload) => {

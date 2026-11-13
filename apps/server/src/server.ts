@@ -15,7 +15,8 @@ import { createRoutingService, createSqliteRoutingStore, type RoutingService } f
 import { createApiKeyService, createGatewayService, type ApiKeyService, type GatewayService } from '@clawrouter/gateway';
 import { createRateLimitService, createSqliteRateLimitConfigStore, MemoryCounterStore, type RateLimitService } from '@clawrouter/rate-limits';
 import { createRequestLogService, createSqliteRequestRepository, type RequestLogService } from '@clawrouter/requests';
-import { migrations, openSqlite, runMigrations, type Database } from '@clawrouter/database';
+import { createSqliteSettingsRepository, migrations, openSqlite, runMigrations, type Database } from '@clawrouter/database';
+import { createSettingsService, settingDefaults } from '@clawrouter/settings';
 import {
   createDatabaseCheck, createGatewayCheck, createHealthHistoryService, createHealthService, createPlatformCheck, createProvidersCheck,
   createSqliteHealthHistoryRepository, createWebSocketCheck, type HealthHistoryService, type HealthService,
@@ -82,6 +83,8 @@ export async function startClawRouter({ config, log, logBuffer, version, console
 
   const events = createEventBus(log);
   const audit = createAuditService(createSqliteAuditRepository(db), log);
+  // System settings: read at use time by the services below, so console changes apply without a restart.
+  const settings = createSettingsService({ repo: createSqliteSettingsRepository(db), defaults: settingDefaults(config), audit, events, log });
   const secrets = loadSecretBox(config, log);
   const providers = createProviderService({
     repo: createSqliteProviderRepository(db), registry: createDefaultRegistry(), secrets, audit, events, log, fetch: providerFetch,
@@ -97,13 +100,13 @@ export async function startClawRouter({ config, log, logBuffer, version, console
   });
   const requests = createRequestLogService({
     repo: createSqliteRequestRepository(db), models, log,
-    retention: { requestDays: config.requests.retentionDays, usageDays: config.requests.usageRetentionDays },
+    retention: { get requestDays() { return settings.get('requestRetentionDays'); }, get usageDays() { return settings.get('usageRetentionDays'); } },
   });
   // Requests a previous process left in progress can never finish.
   requests.recoverInterrupted();
   const gateway = createGatewayService({ routing, providers, models, events, log, limits, requests });
   let liveHub: RealtimeHub | null = null;
-  const healthHistory = createHealthHistoryService({ repo: createSqliteHealthHistoryRepository(db), log, retentionDays: config.health.historyDays });
+  const healthHistory = createHealthHistoryService({ repo: createSqliteHealthHistoryRepository(db), log, get retentionDays() { return settings.get('healthHistoryDays'); } });
   const health = createHealthService({
     checks: [
       createPlatformCheck(), createDatabaseCheck(db), createProvidersCheck(providers),
@@ -133,7 +136,11 @@ export async function startClawRouter({ config, log, logBuffer, version, console
     sessions: createSqliteSessionRepository(db),
     hasher,
     audit,
-    policy: { idleMinutes: config.auth.sessionIdleMinutes, maxHours: config.auth.sessionMaxHours },
+    policy: {
+      get idleMinutes() { return settings.get('sessionIdleMinutes'); },
+      get maxHours() { return settings.get('sessionMaxHours'); },
+      get maxFailures() { return settings.get('signInMaxFailures'); },
+    },
     events,
     log,
   });
@@ -189,7 +196,7 @@ export async function startClawRouter({ config, log, logBuffer, version, console
   providerKickoff?.unref();
   providerTimer?.unref();
 
-  const api = createApiApp({ log, logBuffer, audit, health, healthHistory, auth, authz, userAdmin, notifications, providers, models, routing, apiKeys, gateway, limits, requests, operations, setup, cookie: { secure: config.auth.cookieSecure } });
+  const api = createApiApp({ log, logBuffer, audit, health, healthHistory, auth, authz, userAdmin, settings, notifications, providers, models, routing, apiKeys, gateway, limits, requests, operations, setup, cookie: { secure: config.auth.cookieSecure } });
 
   // The console's live channel (spec §25): session-authenticated, same-origin only.
   const realtime = createRealtimeHub({ events, auth, authz, cookie: { secure: config.auth.cookieSecure }, metrics: () => gateway.metrics.snapshot(), log });

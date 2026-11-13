@@ -21,6 +21,7 @@ export const REALTIME_EVENTS = {
   'ratelimits.changed': 'rate_limits.read',
   'role.changed': 'roles.read',
   'user.changed': 'users.read',
+  'settings.changed': 'settings.read',
   /** Sent only to the notification's recipients; carries the id only. */
   'notification.created': null,
   /** Filtered by the operation type's view permission (OPERATION_TYPES). */

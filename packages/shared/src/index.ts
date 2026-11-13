@@ -13,3 +13,4 @@ export * from './requests.ts';
 export * from './realtime.ts';
 export * from './operations.ts';
 export * from './logs.ts';
+export * from './settings.ts';

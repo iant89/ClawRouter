@@ -16,6 +16,8 @@ export interface ClientInfo {
 export interface SessionPolicy {
   idleMinutes: number;
   maxHours: number;
+  /** Failed sign-ins per username within 15 minutes before that username is blocked for 15 minutes (default 10). */
+  maxFailures?: number;
 }
 
 export interface AuthenticatedSession {
@@ -56,9 +58,10 @@ export type AuthService = ReturnType<typeof createAuthService>;
 export function createAuthService(options: AuthServiceOptions) {
   const { users, sessions, hasher, audit, policy, events, log } = options;
   const now = options.now ?? (() => new Date());
-  const idleMs = policy.idleMinutes * 60_000;
-  const maxMs = policy.maxHours * 3_600_000;
-  const usernameThrottle = options.usernameThrottle ?? new FailureThrottle({ limit: 10, windowMs: 15 * 60_000, blockMs: 15 * 60_000, now: () => now().getTime() });
+  // Read at use time: the lifetimes are system settings that can change while running.
+  const idle = () => policy.idleMinutes * 60_000;
+
+  const usernameThrottle = options.usernameThrottle ?? new FailureThrottle({ get limit() { return policy.maxFailures ?? 10; }, windowMs: 15 * 60_000, blockMs: 15 * 60_000, now: () => now().getTime() });
   const ipThrottle = options.ipThrottle ?? new FailureThrottle({ limit: 50, windowMs: 15 * 60_000, blockMs: 15 * 60_000, now: () => now().getTime() });
 
   // Verifying against a real hash when the user does not exist keeps response times
@@ -66,7 +69,7 @@ export function createAuthService(options: AuthServiceOptions) {
   let dummyHash: Promise<string> | undefined;
   const dummy = () => (dummyHash ??= hasher.hash(generateToken()));
 
-  const idleExpiry = (s: Session) => new Date(Math.min(Date.parse(s.lastSeenAt) + idleMs, Date.parse(s.expiresAt))).toISOString();
+  const idleExpiry = (s: Session) => new Date(Math.min(Date.parse(s.lastSeenAt) + idle(), Date.parse(s.expiresAt))).toISOString();
 
   const toInfo = (s: Session, currentId?: string): SessionInfo => ({
     id: s.id,
@@ -80,7 +83,7 @@ export function createAuthService(options: AuthServiceOptions) {
   });
 
   const isLive = (s: Session, at: number) =>
-    s.revokedAt === null && Date.parse(s.expiresAt) > at && Date.parse(s.lastSeenAt) + idleMs > at;
+    s.revokedAt === null && Date.parse(s.expiresAt) > at && Date.parse(s.lastSeenAt) + idle() > at;
 
   function createSession(user: User, client: ClientInfo): LoginResult {
     const at = now();
@@ -91,7 +94,7 @@ export function createAuthService(options: AuthServiceOptions) {
       userId: user.id,
       createdAt: at.toISOString(),
       lastSeenAt: at.toISOString(),
-      expiresAt: new Date(at.getTime() + maxMs).toISOString(),
+      expiresAt: new Date(at.getTime() + policy.maxHours * 3_600_000).toISOString(),
       ip: client.ip,
       userAgent: client.userAgent?.slice(0, 512) ?? null,
       revokedAt: null,
@@ -222,7 +225,7 @@ export function createAuthService(options: AuthServiceOptions) {
       const at = now();
       const { items, total } = sessions.listActive({
         now: at.toISOString(),
-        idleCutoff: new Date(at.getTime() - idleMs).toISOString(),
+        idleCutoff: new Date(at.getTime() - idle()).toISOString(),
         userId: query.userId,
         limit: query.pageSize,
         offset: (query.page - 1) * query.pageSize,
