@@ -55,6 +55,12 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
   - Client IP addresses are shown only to users with `audit.read` (Administrators,
     Operators): the rate-limit usage view masks them as "(hidden)" for Viewers, and
     the live channel never forwards events that carry IPs.
+  - Phase 12: an **Operations** item under System (spec §17 lists Health, Logs,
+    Audit); operations routes are `authenticated` and the operation service checks
+    the permission of each type (view: the subject's read permission; run:
+    `providers.write` for provider work, `health.read` for health checks, so Viewers
+    may run health checks). `/api/health` stays public but returns details and
+    latencies only to users with `health.read`.
   - The live channel sends `health.changed` to every signed-in user (the header
     shows system health to all); everything else is filtered by permission.
 
@@ -153,24 +159,33 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
   - Console pages subscribe with `useRealtimeEvent` / `useActivity`
     (`features/realtime/RealtimeContext.tsx`); both also fire after a reconnect, so
     a handler must refetch rather than apply a delta.
+  - Bun's `toMatchObject` writes asymmetric matchers (`expect.any(String)`) into the
+    received object: read values you need later before asserting on them.
+  - Health-history screenshots (phase 12) use generated history (scratch script
+    inserting rows into `health_history`); the screenshot index says so. Do the same
+    when a picture needs time to pass, and say so.
   - The session worker can restart mid-task. Commit and push in steps, so work is
     never lost.
 
 ### Messages
 
-- **MESSAGE** · 2026-11-12 · Phase 11 waits for review; then phase 12
-  Phase 10 was merged on the owner's word ("Merge 10"): `main` = `5605557`. Phase 11
-  (real-time system) is on `claude/phase-11-realtime`, built on top of it, so
-  merging is a fast-forward. Merge only when the owner says so.
-  Next: phase 12, health + operations: gateway and WebSocket health checks
-  (`RealtimeHub.size`, gateway error rate), health history (stored checks, like the
-  provider check history), and long-running operations (connection tests and model
-  discovery as cancellable operations with status in the UI, progress over the live
-  channel as `operation.progress`).
+- **MESSAGE** · 2026-11-13 · Phase 12 waits for review; then phase 13
+  Phase 11 was merged on the owner's word ("Merge 11"): `main` = `7a79eed`. Phase 12
+  (health + operations) is on `claude/phase-12-health-operations`, built on top of
+  it, so merging is a fast-forward. Merge only when the owner says so.
+  Next: phase 13, logging + audit: the remaining items are the **Logs** page (log
+  filtering by level, component, provider, request id, user and text, spec §27;
+  needs an in-memory or stored log buffer, redacted) and the **Audit** page
+  (filters, paging, `audit.read`). Both expose IPs: Administrators and Operators
+  only (`logs.read`, `audit.read`), as decided.
 
 ---
 
 ## Resolved
+
+- **MESSAGE** · 2026-11-12 · Phase 11 waits for review; then phase 12. Resolved 2026-11-13:
+  phase 11 merged (`7a79eed`); phase 12 built on `claude/phase-12-health-operations`
+  (see `docs/health-operations.md`).
 
 - **MESSAGE** · 2026-11-12 · Phase 10 waits for review; then phase 11. Resolved 2026-11-12:
   phase 10 merged (`5605557`); phase 11 built on `claude/phase-11-realtime` (see

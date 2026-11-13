@@ -144,3 +144,21 @@ few requests OpenAI was made to fail, to show retries and failover.
 | ![Reconnecting](11-realtime/reconnecting.png) | Server stopped: **Reconnecting**, and the dashboard falls back to refreshing every 5 seconds. It was live again 0.5 s after the restart |
 | ![Signed out](11-realtime/signed-out.png) | The session was revoked from another browser: this console was at the sign-in page 0.1 s later |
 | ![Rate limits](11-realtime/rate-limits-live.png) | Rate Limits usage following traffic |
+
+## 12 · Health and operations
+
+The health history in these screenshots was **generated** (24 hours of checks every
+5 minutes, with a two-hour provider and gateway degradation and a short database
+outage) so the timeline has something to show; the most recent changes are the
+server's own. Operations are real, against the mock providers (made slow to show
+progress and cancellation).
+
+| | |
+|---|---|
+| ![Now](12-health-operations/health-now.png) | **Health** now: platform, database, providers, gateway (disabled until models exist) and the live channel |
+| ![History](12-health-operations/health-history.png) | History for 24 hours: healthy share, changes, and a timeline strip per component |
+| ![Changes](12-health-operations/health-changes.png) | Recent status changes with the detail at the time |
+| ![Running](12-health-operations/operation-running.png) | **Operations**: "Check all providers" running, progress arriving live |
+| ![Cancel](12-health-operations/cancel-confirm.png) | Cancelling a running operation |
+| ![Operations](12-health-operations/operations.png) | Afterwards: cancelled, succeeded, and a connection test started from the Providers page |
+| ![Phone](12-health-operations/phone-history.png) | Health history at phone width |

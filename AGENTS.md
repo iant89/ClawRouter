@@ -33,7 +33,7 @@ bun install            # everything, including the vendored ENTERPRISE-UI
 bun run dev            # server + console with hot reload on http://127.0.0.1:8080
 bun run check          # typecheck + all tests: must pass before every commit
 bun run typecheck
-bun test               # ~445 tests, about a second
+bun test               # ~460 tests, about a second
 bun run build          # production bundle in dist/ (server + console)
 bun run start          # run the production bundle
 bun run migrate        # apply migrations (--status to list)
@@ -52,7 +52,7 @@ packages/shared/    browser-safe types shared by server and console
 packages/core/      config, errors, validation, logger + redaction, event bus, secret box
 packages/database/  Database interface, SQLite adapter, migrations (append-only)
 packages/api/       router, middleware, controllers
-packages/<domain>/  authentication, authorization, audit, notifications, health, providers, models, routing, gateway, rate-limits, requests
+packages/<domain>/  authentication, authorization, audit, notifications, health, providers, models, routing, gateway, rate-limits, requests, operations
 tests/support/      harness.ts (fully wired in-memory app), mock-providers.ts (fake provider APIs)
 docs/               design specification, roadmap, per-area docs, screenshots/
 vendor/             ENTERPRISE-UI tarball (committed)
@@ -60,7 +60,7 @@ vendor/             ENTERPRISE-UI tarball (committed)
 
 Area docs: [architecture](docs/architecture.md) · [authentication](docs/authentication.md) ·
 [authorization](docs/authorization.md) · [console shell](docs/console-shell.md) ·
-[providers](docs/providers.md) · [models](docs/models.md) · [routing](docs/routing.md) · [gateway](docs/gateway.md) · [rate limits](docs/rate-limits.md) · [requests and usage](docs/requests-usage.md) · [real-time](docs/realtime.md) · [screenshots](docs/screenshots/README.md)
+[providers](docs/providers.md) · [models](docs/models.md) · [routing](docs/routing.md) · [gateway](docs/gateway.md) · [rate limits](docs/rate-limits.md) · [requests and usage](docs/requests-usage.md) · [real-time](docs/realtime.md) · [health and operations](docs/health-operations.md) · [screenshots](docs/screenshots/README.md)
 
 ## Rules
 

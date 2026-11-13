@@ -30,6 +30,7 @@ details through the REST API, with its normal permission checks.
 | `routing.changed` | `routing.read` |
 | `ratelimits.changed` | `rate_limits.read` |
 | `notification.created` (id only) | only the notification's recipients |
+| `operation.progress` | users who may see that operation type (phase 12) |
 | `session.revoked` | only the user whose session ended (`current: true` on that session's own connection) |
 | `activity` | users with `requests.read`, `usage.read` or `rate_limits.read`; current gateway metrics only with `requests.read` |
 

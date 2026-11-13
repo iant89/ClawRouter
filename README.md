@@ -25,14 +25,16 @@ usage tracking and an administration console built on
   phase 9, **rate limiting** (per key, user, model and gateway, with live usage),
   and phase 10, **requests and usage** (request history with attempts, tokens and
   estimated cost; usage reports by model, provider, key and user), and phase 11,
-  the **real-time system** (a signed-in WebSocket that keeps the console live).
-  Health history and operations are next (phase 12).
+  the **real-time system** (a signed-in WebSocket that keeps the console live),
+  and phase 12, **health and operations** (gateway and WebSocket checks, health
+  history, cancellable long-running operations).
+  The Logs and Audit pages are next (phase 13).
 - **Architecture:** [`docs/architecture.md`](docs/architecture.md) ·
   **Security model:** [`docs/authentication.md`](docs/authentication.md),
   [`docs/authorization.md`](docs/authorization.md) · **Console:**
   [`docs/console-shell.md`](docs/console-shell.md) · **Providers:**
   [`docs/providers.md`](docs/providers.md) · **Models:** [`docs/models.md`](docs/models.md) ·
-  **Routing:** [`docs/routing.md`](docs/routing.md) · **Gateway:** [`docs/gateway.md`](docs/gateway.md) · **Rate limits:** [`docs/rate-limits.md`](docs/rate-limits.md) · **Requests and usage:** [`docs/requests-usage.md`](docs/requests-usage.md) · **Real-time:** [`docs/realtime.md`](docs/realtime.md)
+  **Routing:** [`docs/routing.md`](docs/routing.md) · **Gateway:** [`docs/gateway.md`](docs/gateway.md) · **Rate limits:** [`docs/rate-limits.md`](docs/rate-limits.md) · **Requests and usage:** [`docs/requests-usage.md`](docs/requests-usage.md) · **Real-time:** [`docs/realtime.md`](docs/realtime.md) · **Health and operations:** [`docs/health-operations.md`](docs/health-operations.md)
 - **Screenshots:** [`docs/screenshots/`](docs/screenshots/README.md)
 - **Working on the code:** [`AGENTS.md`](AGENTS.md) (rules, commands, definition
   of done) and [`MEMORY.md`](MEMORY.md) (important notes carried between sessions).
@@ -107,6 +109,7 @@ Invalid values stop the server with a message listing every problem.
 | `CLAWROUTER_SESSION_MAX_HOURS` | `12` | A session ends this long after sign-in, regardless of activity |
 | `CLAWROUTER_COOKIE_SECURE` | `true` in production | Marks the session cookie `Secure` and uses the `__Host-` prefix. Requires HTTPS |
 | `CLAWROUTER_HEALTH_INTERVAL_SECONDS` | `30` | Background health checks (5–3600) |
+| `CLAWROUTER_HEALTH_HISTORY_DAYS` | `7` | Days of health history to keep; `0` keeps it forever |
 | `CLAWROUTER_SECRET_KEY` | generated in dev | 32-byte key (base64 or hex) that encrypts provider credentials. **Required in production.** `openssl rand -base64 32` |
 | `CLAWROUTER_SECRET_KEY_FILE` | | File containing the key, instead of `CLAWROUTER_SECRET_KEY` |
 | `CLAWROUTER_PROVIDER_HEALTH_INTERVAL_SECONDS` | `300` | Background provider checks; `0` turns them off |

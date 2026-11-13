@@ -281,24 +281,25 @@ Goal: provide live operational state. See [real-time system](realtime.md).
 Exit: the dashboard updates live without constant page refreshes ✅
 (in the browser: no metrics polling while live; reconnect 0.5 s after a server restart; sign-out 0.1 s after revocation from another browser).
 
-## Phase 12: Health + operations 🟡 next
+## Phase 12: Health + operations ✅
 
-Goal: build operational visibility.
+Goal: build operational visibility. See [health and operations](health-operations.md).
 
 - [x] Platform health
 - [x] Database health
-- [ ] Gateway health
+- [x] Gateway health: failure rate of the last minute, usable models
 - [x] Provider health
-- [ ] WebSocket health
-- [ ] Health history (groundwork: per-provider check history, 7 days)
-- [ ] Operations
-- [x] Connection tests (synchronous; not yet an "operation")
-- [ ] Operation cancellation
-- [ ] Operation status UI
+- [x] WebSocket health: the live channel and its connections
+- [x] Health history: scheduled checks stored for 7 days; availability, timeline and changes per component
+- [x] Operations: queued, running, succeeded, failed, timed out, cancelled; progress, result, retention, restart recovery
+- [x] Connection tests: now run as operations (the Test button is unchanged)
+- [x] Operation cancellation: queued and running, with audit
+- [x] Operation status UI: **Operations** page with live progress; history on **Health**
+- [x] `/api/health` keeps statuses public but withholds details from callers without `health.read`
 
-Exit: administrators can determine exactly which part of the platform is healthy or failing.
+Exit: administrators can determine exactly which part of the platform is healthy or failing ✅
 
-## Phase 13: Logging + audit 🟡
+## Phase 13: Logging + audit 🟡 next
 
 Goal: provide operational and security traceability.
 
@@ -312,7 +313,7 @@ Goal: provide operational and security traceability.
 - [x] Provider auditing
 - [x] Routing auditing (`ROUTING_UPDATED` with a diff)
 - [x] User auditing (setup, role changes)
-- [ ] API-key auditing
+- [x] API-key auditing (`API_KEY_CREATED`, `API_KEY_UPDATED`, `API_KEY_REVOKED`, since phases 8 and 9)
 - [x] Secret redaction
 
 Exit: important actions can be traced without exposing secrets.
