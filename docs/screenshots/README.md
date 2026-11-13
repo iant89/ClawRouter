@@ -211,3 +211,24 @@ disabled is suspended until the owner is enabled again.
 | | |
 |---|---|
 | ![Suspended key](15-security/suspended-key.png) | **API Access**: a key created by a user who was then disabled shows as suspended and is refused by `/v1` |
+
+## 16 · Self-service API keys
+
+A Viewer (Val) requests a key, the administrator is notified and approves it
+with a shorter lifetime, and Val creates the key. A user with `api_keys.own`
+(Devon, a custom Developer role) creates a key that works until midnight. The
+browser ran in the America/New_York time zone. The key in picture 7 was masked
+before the screenshot.
+
+| | |
+|---|---|
+| ![Request](16-self-service-keys/1-request-key.png) | **My API keys** → *Request a key*: name, purpose and how long it should work |
+| ![Waiting](16-self-service-keys/2-request-waiting.png) | The request waits for approval |
+| ![Notified](16-self-service-keys/3-approver-notified.png) | The administrator (no shared role) is notified |
+| ![Requests](16-self-service-keys/4-key-requests.png) | **API Access → Key requests** |
+| ![Approve](16-self-service-keys/5-approve.png) | Approving with a shorter expiry and a note; the approver never sees the key |
+| ![Approved](16-self-service-keys/6-request-approved.png) | The requester is told and can create the key |
+| ![Created](16-self-service-keys/7-key-from-request.png) | The key, shown once, to the requester only |
+| ![End of day](16-self-service-keys/8-own-key-end-of-day.png) | With `api_keys.own`: a key for today only, expiring at local midnight |
+| ![Own keys](16-self-service-keys/9-own-keys.png) | Your own keys |
+| ![Phone](16-self-service-keys/11-my-keys-phone.png) | My API keys at phone width |

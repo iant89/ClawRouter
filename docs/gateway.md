@@ -57,6 +57,9 @@ capabilities the normalized model does not have yet.
 - Administration: `GET/POST /api/api-keys`, `DELETE /api/api-keys/:id` (revoke),
   permissions `api_keys.read` / `api_keys.write` (Administrator only). Creation
   and revocation are audited (`API_KEY_CREATED`, `API_KEY_REVOKED`).
+- Users with `api_keys.own` create their own keys, others request one, and every key
+  can expire at the end of the day or after a length of time: see
+  [self-service keys](self-service-keys.md).
 - Console: **Gateway → API Access**: list, create (with a copy button and a curl
   example), revoke.
 

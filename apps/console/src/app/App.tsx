@@ -11,6 +11,7 @@ import { ProvidersPage } from '../features/providers/ProvidersPage.tsx';
 import { ModelsPage } from '../features/models/ModelsPage.tsx';
 import { RoutingPage } from '../features/routing/RoutingPage.tsx';
 import { ApiAccessPage } from '../features/api-access/ApiAccessPage.tsx';
+import { MyKeysPage } from '../features/my-keys/MyKeysPage.tsx';
 import { RateLimitsPage } from '../features/rate-limits/RateLimitsPage.tsx';
 import { RequestsPage } from '../features/requests/RequestsPage.tsx';
 import { UsagePage } from '../features/usage/UsagePage.tsx';
@@ -46,6 +47,7 @@ function PageFor({ item }: { item: NavItem | undefined }) {
     case 'models': return <ModelsPage />;
     case 'routing': return <RoutingPage />;
     case 'api-access': return <ApiAccessPage />;
+    case 'my-keys': return <MyKeysPage />;
     case 'rate-limits': return <RateLimitsPage />;
     case 'requests': return <RequestsPage />;
     case 'usage': return <UsagePage />;

@@ -55,7 +55,6 @@ guarded by tests, and the risks that remain. Area details live in
 | **Per-process counters and settings** | Rate-limit counters, live events and the settings cache live in one process. Running several nodes needs a shared store (spec §41, Redis). |
 | **Provider adapters untested against real APIs** | Only the mock providers were reachable; see the MEMORY warning. |
 | **No payload logging, no CORS on `/v1`** | Deliberate: prompts and completions are never stored, and browser apps must call through their backend. |
-| **Users cannot create their own API keys** | Keys are administrator-made (`api_keys.write`). Self-service keys are an open question for the owner. |
 
 ## Operator checklist for a real deployment
 

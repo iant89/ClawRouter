@@ -36,6 +36,7 @@ exist; `user_roles` records who holds them.
 | `requests.read`, `usage.read`, `health.read` | ✔ | ✔ | ✔ |
 | `logs.read`, `audit.read` | ✔ | ✔ | |
 | `api_keys.read` / `api_keys.write` | ✔ | | |
+| `api_keys.own` (own keys; see [self-service keys](self-service-keys.md)) | ✔ | | |
 | `rate_limits.read` | ✔ | ✔ | ✔ |
 | `rate_limits.write` | ✔ | ✔ | |
 | `users.read` / `users.write` | ✔ | | |

@@ -32,7 +32,10 @@ usage tracking and an administration console built on
   **administration** (custom roles, user management with temporary passwords and
   command-line recovery, system and security settings), and phase 15, **security
   hardening** (streamed body limits, CSP and security headers, trusted proxies,
-  key rotation, secret scanning; see [security](docs/security.md)).
+  key rotation, secret scanning; see [security](docs/security.md)), plus
+  **self-service API keys** (an `api_keys.own` permission, key requests approved by
+  others, keys that expire daily or after a set time; see
+  [self-service keys](docs/self-service-keys.md)).
   Performance is next (phase 16).
 - **Architecture:** [`docs/architecture.md`](docs/architecture.md) ·
   **Security model:** [`docs/authentication.md`](docs/authentication.md),

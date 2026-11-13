@@ -33,7 +33,7 @@ bun install            # everything, including the vendored ENTERPRISE-UI
 bun run dev            # server + console with hot reload on http://127.0.0.1:8080
 bun run check          # typecheck + all tests: must pass before every commit
 bun run typecheck
-bun test               # ~520 tests, a few seconds
+bun test               # ~530 tests, a few seconds
 bun run build          # production bundle in dist/ (server + console)
 bun run start          # run the production bundle
 bun run migrate        # apply migrations (--status to list)
@@ -63,7 +63,7 @@ vendor/             ENTERPRISE-UI tarball (committed)
 
 Area docs: [architecture](docs/architecture.md) · [authentication](docs/authentication.md) ·
 [authorization](docs/authorization.md) · [console shell](docs/console-shell.md) ·
-[providers](docs/providers.md) · [models](docs/models.md) · [routing](docs/routing.md) · [gateway](docs/gateway.md) · [rate limits](docs/rate-limits.md) · [requests and usage](docs/requests-usage.md) · [real-time](docs/realtime.md) · [health and operations](docs/health-operations.md) · [logging and audit](docs/logging-audit.md) · [administration](docs/administration.md) · [security](docs/security.md) · [screenshots](docs/screenshots/README.md)
+[providers](docs/providers.md) · [models](docs/models.md) · [routing](docs/routing.md) · [gateway](docs/gateway.md) · [rate limits](docs/rate-limits.md) · [requests and usage](docs/requests-usage.md) · [real-time](docs/realtime.md) · [health and operations](docs/health-operations.md) · [logging and audit](docs/logging-audit.md) · [administration](docs/administration.md) · [security](docs/security.md) · [self-service keys](docs/self-service-keys.md) · [screenshots](docs/screenshots/README.md)
 
 ## Rules
 

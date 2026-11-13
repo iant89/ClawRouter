@@ -1,25 +1,21 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
-  AlertDialog, Button, MessageStrip, OverflowMenu, Page, RefreshControl, StatusIndicator, Table, Text, useToast, type TableColumn,
+  AlertDialog, Button, MessageStrip, OverflowMenu, Page, RefreshControl, StatusIndicator, Tab, Table, TabList, TabPanel, Tabs, Text, useToast, type TableColumn,
 } from '@enterprise-ui/react';
-import type { ApiKeyInfo, ApiKeyStatus, CreateApiKeyRequest, CreatedApiKey, RateLimit } from '@clawrouter/shared';
+import type { ApiKeyInfo, CreateApiKeyRequest, CreatedApiKey, RateLimit } from '@clawrouter/shared';
 import { ApiClientError } from '../../services/api-client.ts';
 import { createApiKey, fetchApiKeys, revokeApiKey } from '../../services/gateway.ts';
-import { fetchModels } from '../../services/models.ts';
-import { fetchRouting } from '../../services/routing.ts';
 import { formatRelative } from '../../services/format.ts';
 import { updateApiKey } from '../../services/rate-limits.ts';
 import { describeLimit } from '../rate-limits/rate-limit-format.ts';
 import { KeyLimitDialog } from './KeyLimitDialog.tsx';
 import { usePermissions } from '../auth/AuthContext.tsx';
 import { CreateKeyDialog } from './CreateKeyDialog.tsx';
+import { useModelOptions } from './model-options.ts';
+import { KEY_STATUS } from './key-status.ts';
+import { KeyRequestsPanel } from './KeyRequestsPanel.tsx';
+import { useRouter } from '../../app/router.tsx';
 
-const STATUS: Record<ApiKeyStatus, { tone: 'success' | 'warning' | 'neutral'; label: string }> = {
-  ACTIVE: { tone: 'success', label: 'Active' },
-  SUSPENDED: { tone: 'warning', label: 'Suspended (owner disabled)' },
-  EXPIRED: { tone: 'warning', label: 'Expired' },
-  REVOKED: { tone: 'neutral', label: 'Revoked' },
-};
 const when = (iso: string | null) => (iso ? new Date(iso).toLocaleString() : '—');
 
 /**
@@ -30,8 +26,9 @@ export function ApiAccessPage() {
   const toast = useToast();
   const perms = usePermissions();
   const canWrite = perms.can('api_keys.write');
-  const canRouting = perms.can('routing.read');
-  const canModels = perms.can('models.read');
+  const { search, navigate } = useRouter();
+  const tab = new URLSearchParams(search).get('tab') === 'requests' ? 'requests' : 'keys';
+  const [pendingRequests, setPendingRequests] = useState(0);
   const [keys, setKeys] = useState<ApiKeyInfo[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -42,7 +39,7 @@ export function ApiAccessPage() {
   const [saving, setSaving] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
   const [revoking, setRevoking] = useState<ApiKeyInfo | null>(null);
-  const [modelOptions, setModelOptions] = useState<{ value: string; label: string; description?: string }[]>([]);
+  const modelOptions = useModelOptions(dialogOpen);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -55,15 +52,6 @@ export function ApiAccessPage() {
   }, [reloadKey]);
   const reload = useCallback(() => setReloadKey((k) => k + 1), []);
 
-  // Model choices for the "allowed models" field; optional, so failures (e.g. no models.read) just leave it empty.
-  useEffect(() => {
-    if (!dialogOpen || modelOptions.length) return;
-    const controller = new AbortController();
-    const aliases = canRouting ? fetchRouting(controller.signal).then((r) => r.aliases.map((a) => ({ value: a.name, label: a.name, description: `Alias${a.description ? ` · ${a.description}` : ''}` }))).catch(() => []) : Promise.resolve([]);
-    const models = canModels ? fetchModels({ page: 1, pageSize: 200 }, controller.signal).then((r) => r.items.map((m) => ({ value: m.ref, label: m.ref, description: m.displayName }))).catch(() => []) : Promise.resolve([]);
-    void Promise.all([aliases, models]).then(([a, m]) => { if (!controller.signal.aborted) setModelOptions([...a, ...m]); });
-    return () => controller.abort();
-  }, [dialogOpen, modelOptions.length, canRouting, canModels]);
 
   const create = async (body: CreateApiKeyRequest) => {
     setSaving(true);
@@ -119,7 +107,7 @@ export function ApiAccessPage() {
   const columns: TableColumn<ApiKeyInfo>[] = [
     { id: 'name', header: 'Name', rowHeader: true, accessor: (k) => k.name, wrap: true },
     { id: 'prefix', header: 'Key', accessor: (k) => k.prefix, cell: (k) => <span className="claw-mono">{k.prefix}…</span> },
-    { id: 'status', header: 'Status', accessor: (k) => k.status, cell: (k) => <StatusIndicator tone={STATUS[k.status].tone} size="sm">{STATUS[k.status].label}</StatusIndicator> },
+    { id: 'status', header: 'Status', accessor: (k) => k.status, cell: (k) => <StatusIndicator tone={KEY_STATUS[k.status].tone} size="sm">{KEY_STATUS[k.status].label}</StatusIndicator> },
     {
       id: 'models', header: 'Allowed models', accessor: (k) => k.allowedModels.join(', '), wrap: true,
       cell: (k) => (k.allowedModels.length ? <span className="claw-mono">{k.allowedModels.join(', ')}</span> : <Text tone="secondary">Any model</Text>),
@@ -153,15 +141,31 @@ export function ApiAccessPage() {
         Clients send the key as <span className="claw-mono">Authorization: Bearer crk_…</span> to the OpenAI-compatible endpoints
         <span className="claw-mono"> /v1/chat/completions</span>, <span className="claw-mono">/v1/embeddings</span> and <span className="claw-mono">/v1/models</span>.
       </Text>
-      <Table
-        caption={`API keys (${active} active)`}
-        columns={columns}
-        data={keys ?? []}
-        getRowId={(k) => k.id}
-        getRowLabel={(k) => `${k.name}, ${k.prefix}`}
-        loading={loading && !keys}
-        emptyState={canWrite ? 'No API keys yet. Create one for each application that calls the gateway.' : 'No API keys yet.'}
-      />
+      {(() => {
+        const table = (
+          <Table
+            caption={`API keys (${active} active)`}
+            columns={columns}
+            data={keys ?? []}
+            getRowId={(k) => k.id}
+            getRowLabel={(k) => `${k.name}, ${k.prefix}`}
+            loading={loading && !keys}
+            emptyState={canWrite ? 'No API keys yet. Create one for each application that calls the gateway.' : 'No API keys yet.'}
+          />
+        );
+        // Approvers also see key requests; a notification links straight to them (?tab=requests).
+        if (!canWrite) return table;
+        return (
+          <Tabs value={tab} onValueChange={(t) => navigate(t === 'requests' ? '/api-access?tab=requests' : '/api-access', { replace: true })}>
+            <TabList aria-label="API Access">
+              <Tab value="keys">Keys</Tab>
+              <Tab value="requests" count={pendingRequests || undefined}>Key requests</Tab>
+            </TabList>
+            <TabPanel value="keys">{table}</TabPanel>
+            <TabPanel value="requests" keepMounted><KeyRequestsPanel onPendingCount={setPendingRequests} /></TabPanel>
+          </Tabs>
+        );
+      })()}
 
       <CreateKeyDialog open={dialogOpen} modelOptions={modelOptions} onClose={closeDialog} onCreate={create} created={created} saving={saving} serverError={serverError} />
       <KeyLimitDialog apiKey={limitKey} onClose={() => setLimitKey(null)} onSave={saveLimit} saving={limitSaving} serverError={limitError} />

@@ -362,6 +362,15 @@ See [security](security.md): the review report, findings fixed, tests and residu
 
 Exit: no known critical security weaknesses remain in the initial architecture.
 
+## Owner request: self-service API keys ✅
+
+Asked by the owner on 2026-11-13, built after phase 15. See [self-service keys](self-service-keys.md).
+
+- [x] `api_keys.own` permission: create, view and revoke your own keys
+- [x] Key expiry: never, end of today (user's time zone), after a length of time, on a date
+- [x] Key requests: notify key creators who share no role with the requester; approve (optionally narrowed) or deny with a reason; the requester creates the key and sees it once
+- [x] Console: My API keys page; Key requests tab on API Access
+
 ## Phase 16: Performance ⬜ next
 
 Goal: optimize the gateway and console.

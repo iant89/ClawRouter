@@ -1,13 +1,18 @@
 import { useEffect, useState } from 'react';
-import { Button, CopyButton, DatePicker, Dialog, Form, Input, MessageStrip, MultiSelect, Text } from '@enterprise-ui/react';
+import { Button, CopyButton, Dialog, Form, Input, MessageStrip, MultiSelect, Text } from '@enterprise-ui/react';
 import type { CreateApiKeyRequest, CreatedApiKey, RateLimit } from '@clawrouter/shared';
 import { KeyLimitFields } from './KeyLimitDialog.tsx';
+import { ExpiryField, NEVER, toKeyExpiry, type ExpiryDraft } from './ExpiryField.tsx';
 
 /**
  * Create an API key. After creation the dialog shows the key once, with a copy
  * button and a curl example; closing the dialog discards it from memory.
  */
-export function CreateKeyDialog({ open, modelOptions, onClose, onCreate, created, saving, serverError }: {
+export function CreateKeyDialog({ open, modelOptions, onClose, onCreate, created, saving, serverError, withLimits = true, title = 'Create API key', intro }: {
+  /** Administrators set per-key limits; own keys use the default. */
+  withLimits?: boolean;
+  title?: string;
+  intro?: React.ReactNode;
   open: boolean;
   /** Aliases and model references a key can be limited to. */
   modelOptions: { value: string; label: string; description?: string }[];
@@ -19,7 +24,7 @@ export function CreateKeyDialog({ open, modelOptions, onClose, onCreate, created
 }) {
   const [name, setName] = useState('');
   const [models, setModels] = useState<string[]>([]);
-  const [expires, setExpires] = useState<Date | null>(null);
+  const [expiry, setExpiry] = useState<ExpiryDraft>(NEVER);
   const [rateLimit, setRateLimit] = useState<RateLimit | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -27,23 +32,17 @@ export function CreateKeyDialog({ open, modelOptions, onClose, onCreate, created
     if (!open) return;
     setName('');
     setModels([]);
-    setExpires(null);
+    setExpiry(NEVER);
     setRateLimit(null);
     setError(null);
   }, [open]);
 
   const submit = () => {
     if (!name.trim()) return setError('Give the key a name, e.g. the application that will use it.');
-    let expiresAt: string | null = null;
-    if (expires) {
-      // Valid through the end of the chosen day, local time.
-      const end = new Date(expires);
-      end.setHours(23, 59, 59, 0);
-      if (end.getTime() <= Date.now()) return setError('The expiry date must be in the future.');
-      expiresAt = end.toISOString();
-    }
+    const { expiry: chosen, error: invalid } = toKeyExpiry(expiry);
+    if (!chosen) return setError(invalid ?? 'Check the expiry.');
     setError(null);
-    onCreate({ name: name.trim(), allowedModels: models, expiresAt, rateLimit });
+    onCreate({ name: name.trim(), allowedModels: models, expiry: chosen, ...(withLimits ? { rateLimit } : {}) });
   };
 
   if (created) {
@@ -66,7 +65,7 @@ export function CreateKeyDialog({ open, modelOptions, onClose, onCreate, created
   }
 
   return (
-    <Dialog open={open} onClose={onClose} title="Create API key"
+    <Dialog open={open} onClose={onClose} title={title}
       footer={
         <>
           <Button variant="primary" loading={saving} onClick={submit}>Create key</Button>
@@ -75,10 +74,11 @@ export function CreateKeyDialog({ open, modelOptions, onClose, onCreate, created
       }>
       <Form onSubmit={(e) => { e.preventDefault(); submit(); }} noValidate>
         {(error ?? serverError) && <MessageStrip tone="error" announce="assertive">{error ?? serverError}</MessageStrip>}
+        {intro}
         <Input label="Name" required description="Who or what uses this key, e.g. ci-pipeline." value={name} onChange={(e) => setName(e.target.value)} maxLength={100} />
         <MultiSelect label="Allowed models" description="Leave empty to allow every model and alias." options={modelOptions} value={models} onChange={setModels} placeholder="Any model" />
-        <DatePicker label="Expires" description="Optional. The key stops working after this day." value={expires} onChange={setExpires} min={new Date()} />
-        <KeyLimitFields value={rateLimit} onChange={setRateLimit} />
+        <ExpiryField value={expiry} onChange={setExpiry} />
+        {withLimits && <KeyLimitFields value={rateLimit} onChange={setRateLimit} />}
       </Form>
     </Dialog>
   );

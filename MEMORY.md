@@ -14,6 +14,18 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 
 ### Important
 
+- **IMPORTANT** · 2026-11-13 · Owner rule: self-service API keys and key requests
+  Creating your own keys is a permission (`api_keys.own`). Keys can expire daily
+  ("end of today", user's time zone) or after a length of time. Users without the
+  permission can **request** a key; everyone who can create keys (`api_keys.write`)
+  and does **not share a role** with the requester is notified. Implemented in
+  `packages/gateway/src/key-requests.ts` and `expiry.ts`; tests in
+  `packages/api/test/key-requests-api.test.ts`. Design choices made here:
+  approvers never see the secret (the requester creates the key after approval,
+  owned by them); approvers may narrow models/expiry; requests resolve their
+  expiry when the key is created; max 5 pending requests per user; self-service
+  keys cannot set their own rate limit.
+
 - **IMPORTANT** · 2026-11-13 · Owner rule: custom roles; Administrator is unique and fixed
   The owner asked for roles to be creatable with a chosen set of permissions.
   The built-in Operator and Viewer stay as default roles. **Administrator can never
@@ -48,7 +60,8 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 
 - **IMPORTANT** · 2026-11-12 · Decisions that go beyond the spec text (keep unless the owner says otherwise)
   - The Viewer role has no `logs.read` or `audit.read` (they expose IPs and failed
-    sign-ins). API keys are administrator-only.
+    sign-ins). Managing everyone's API keys is administrator-only
+    (`api_keys.write`); own keys need `api_keys.own` (see the owner rule above).
   - Changing a provider's endpoint to a different host requires re-entering its API
     key, so a stored key is never sent to a new host.
   - The first setup requires a one-time setup token (written to `data/setup-token`).
@@ -219,20 +232,28 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
   fast-forward. Merge only when the owner says so.
   Next: phase 16, performance (see `docs/roadmap.md`).
 
-- **MESSAGE** · 2026-11-13 · Two open questions for the owner (asked, not yet answered)
-  1. **Self-service API keys:** should every user (or only roles given a new
-     permission such as `api_keys.own`) create and revoke their own keys? Today only
-     `api_keys.write` (Administrators) can.
-  2. **Two-factor authentication:** proposed an authenticator app (TOTP) with
-     recovery codes, plus optional email codes and security emails once an SMTP
-     server is configured (SMTP password encrypted like provider keys), and a setting
-     to require 2FA for administrators or everyone. Await the owner's choice.
-  Do not build either until the owner answers; `docs/security.md` lists both as
-  residual risks.
+- **MESSAGE** · 2026-11-13 · Self-service keys wait for review (branch on top of phase 15)
+  Built on `claude/api-key-self-service`, branched from the tip of
+  `claude/phase-15-security-hardening` (not yet merged). Merge order: phase 15
+  first, then this branch; both are fast-forwards. Merge only when the owner says so.
+  Three interpretation calls to confirm with the owner are listed at the end of
+  `docs/self-service-keys.md` (same-role rule applies to notifications only;
+  Operator/Viewer do not get `api_keys.own`; no maximum lifetime for own keys).
+
+- **MESSAGE** · 2026-11-13 · Open question for the owner: two-factor authentication
+  Proposed an authenticator app (TOTP) with recovery codes, plus optional email
+  codes and security emails once an SMTP server is configured (SMTP password
+  encrypted like provider keys), and a setting to require 2FA for administrators
+  or everyone. Await the owner's choice; do not build it before.
+  `docs/security.md` lists 2FA as a residual risk.
 
 ---
 
 ## Resolved
+
+- **MESSAGE** · 2026-11-13 · Open question: self-service API keys. Resolved 2026-11-13:
+  the owner answered (see the owner rule under Important); built on
+  `claude/api-key-self-service` (`docs/self-service-keys.md`).
 
 - **MESSAGE** · 2026-11-13 · Phase 14 waits for review; then phase 15. Resolved 2026-11-13:
   phase 14 merged (`20e0915`); phase 15 built on `claude/phase-15-security-hardening`.

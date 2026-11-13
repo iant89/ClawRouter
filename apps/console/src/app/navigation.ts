@@ -8,7 +8,7 @@ import type { Permission } from '@clawrouter/shared';
 
 export type PageId =
   | 'dashboard'
-  | 'requests' | 'api-access' | 'rate-limits' | 'usage'
+  | 'requests' | 'api-access' | 'my-keys' | 'rate-limits' | 'usage'
   | 'providers' | 'models' | 'routing'
   | 'health' | 'operations' | 'logs' | 'audit'
   | 'users' | 'roles' | 'sessions' | 'settings';
@@ -44,6 +44,7 @@ export const NAVIGATION: readonly NavGroup[] = [
     items: [
       { id: 'requests', permission: 'requests.read', label: 'Requests', path: '/requests', icon: 'activity-items', summary: 'Every gateway request with its routing decision, retries, failovers, duration and tokens.' },
       { id: 'api-access', permission: 'api_keys.read', label: 'API Access', path: '/api-access', icon: 'key', summary: 'API keys for external AI clients: scopes, allowed models, limits, expiry and revocation.' },
+      { id: 'my-keys', label: 'My API keys', path: '/my-keys', icon: 'key-user-settings', summary: 'Your own API keys, and requests for keys when you may not create them.' },
       { id: 'rate-limits', permission: 'rate_limits.read', label: 'Rate Limits', path: '/rate-limits', icon: 'performance', summary: 'Requests and tokens per minute per key, user, model and gateway, and live usage.' },
       { id: 'usage', permission: 'usage.read', label: 'Usage', path: '/usage', icon: 'line-chart', summary: 'Token usage and estimated cost by provider, model, client and user.' },
     ],
