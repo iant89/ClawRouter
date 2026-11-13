@@ -2,7 +2,7 @@ import { newId, type EventBus, type EventMap, type Logger } from '@clawrouter/co
 import type { AuthService } from '@clawrouter/authentication';
 import type { AuthorizationService } from '@clawrouter/authorization';
 import {
-  REALTIME_CLOSE, REALTIME_EVENTS, type GatewayMetrics, type RealtimeEventName, type RealtimeServerMessage,
+  isOperationType, OPERATION_TYPES, REALTIME_CLOSE, REALTIME_EVENTS, type GatewayMetrics, type RealtimeEventName, type RealtimeServerMessage,
 } from '@clawrouter/shared';
 import { readSessionToken, type SessionCookieConfig } from '../http/session.ts';
 
@@ -104,7 +104,7 @@ export function createRealtimeHub(options: RealtimeOptions) {
   const event = (name: RealtimeEventName, data: Record<string, unknown>): RealtimeServerMessage => ({ type: 'event', name, data, at: now().toISOString() });
 
   /** Forwards an event to every connection whose user holds the permission. */
-  function forward<K extends Exclude<RealtimeEventName, 'notification.created' | 'session.revoked'>>(name: K) {
+  function forward<K extends Exclude<RealtimeEventName, 'notification.created' | 'session.revoked' | 'operation.progress'>>(name: K) {
     unsubscribe.push(events.on(name, (payload: EventMap[K]) => {
       const permission = REALTIME_EVENTS[name];
       for (const ws of sockets) {
@@ -122,6 +122,13 @@ export function createRealtimeHub(options: RealtimeOptions) {
   forward('model.availability');
   forward('routing.changed');
   forward('ratelimits.changed');
+
+  // Operations: to users who may see operations of that type.
+  unsubscribe.push(events.on('operation.progress', (payload) => {
+    if (!isOperationType(payload.type)) return;
+    const permission = OPERATION_TYPES[payload.type].view;
+    for (const ws of sockets) if (ws.data.permissions.has(permission)) send(ws, event('operation.progress', payload));
+  }));
 
   // Notifications: only to their recipients, and only the id (the list API applies its own checks).
   unsubscribe.push(events.on('notification.created', ({ id, userId, audiencePermission }) => {

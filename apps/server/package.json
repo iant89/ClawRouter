@@ -15,6 +15,7 @@
     "@clawrouter/health": "workspace:*",
     "@clawrouter/models": "workspace:*",
     "@clawrouter/notifications": "workspace:*",
+    "@clawrouter/operations": "workspace:*",
     "@clawrouter/providers": "workspace:*",
     "@clawrouter/routing": "workspace:*",
     "@clawrouter/rate-limits": "workspace:*",

@@ -1,4 +1,5 @@
-import { errors, v, type Validator } from '@clawrouter/core';
+import { AppError, errors, v, type Validator } from '@clawrouter/core';
+import type { OperationService } from '@clawrouter/operations';
 import type { ProviderService } from '@clawrouter/providers';
 import { PROVIDER_KINDS, type ConnectionTestResult, type ProviderDetail, type ProviderInfo, type ProviderKind, type ProviderKindInfo } from '@clawrouter/shared';
 import { readJson } from '../http/body.ts';
@@ -52,7 +53,7 @@ const idOf = (ctx: RequestContext) => {
 };
 
 /** /api/providers (spec §31). Credentials are write-only: requests may carry them, responses never do. */
-export function providersController(providers: ProviderService) {
+export function providersController(providers: ProviderService, operations?: OperationService) {
   const kinds: Handler = () => ok<ProviderKindInfo[]>(providers.kinds());
   const list: Handler = () => ok<ProviderInfo[]>(providers.list());
   const get: Handler = (ctx) => ok<ProviderDetail>(providers.get(idOf(ctx)));
@@ -80,7 +81,15 @@ export function providersController(providers: ProviderService) {
 
   const deleteKey: Handler = (ctx) => ok<ProviderInfo>(providers.removeApiKey(actor(ctx), idOf(ctx), client(ctx)));
 
-  const test: Handler = async (ctx) => ok<ConnectionTestResult>(await providers.test(actor(ctx), idOf(ctx), client(ctx)));
+  /** Runs the test as an operation (so it is listed with its outcome) and waits for it, as before. */
+  const test: Handler = async (ctx) => {
+    if (!operations) return ok<ConnectionTestResult>(await providers.test(actor(ctx), idOf(ctx), client(ctx)));
+    const op = await operations.run({ ...actor(ctx), permissions: ctx.auth!.permissions as ReadonlySet<string> }, { type: 'provider.test', targetId: idOf(ctx) }, client(ctx));
+    if (op.status === 'TIMEOUT') throw new AppError('PROVIDER_TIMEOUT', 'The connection test did not finish in time.', { expose: true });
+    if (op.status === 'CANCELLED') throw errors.conflict('The connection test was cancelled.');
+    if (!op.result) throw new AppError('PROVIDER_ERROR', op.error ?? 'The connection test failed.', { expose: true });
+    return ok<ConnectionTestResult>({ ...(op.result as ConnectionTestResult), operationId: op.id });
+  };
 
   return { kinds, list, get, create, update, remove, putKey, deleteKey, test };
 }

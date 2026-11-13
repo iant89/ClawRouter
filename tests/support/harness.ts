@@ -2,6 +2,8 @@
  * Test harness: a fully wired ClawRouter core (in-memory SQLite, real services,
  * fast password hashing, controllable clock) without a network socket.
  */
+import { createOperationService, createSqliteOperationRepository, type OperationService } from '@clawrouter/operations';
+import { operationHandlers } from '../../apps/server/src/operation-handlers.ts';
 import { createApiApp, type ApiApp } from '@clawrouter/api';
 import { createAuditService, createSqliteAuditRepository, type AuditService } from '@clawrouter/audit';
 import {
@@ -60,6 +62,7 @@ export interface Harness {
   setup: SetupService;
   health: HealthService;
   healthHistory: HealthHistoryService;
+  operations: OperationService;
   api: ApiApp;
   logs: LogRecord[];
   /** Sends a request through the full API pipeline. */
@@ -130,10 +133,11 @@ export function createHarness(options: { idleMinutes?: number; maxHours?: number
     version: 'test', environment: 'test', now: clock.now,
   });
   const healthHistory = createHealthHistoryService({ repo: createSqliteHealthHistoryRepository(db), now: clock.now });
-  const api = createApiApp({ log, health, healthHistory, auth, authz, notifications, providers, models, routing, apiKeys, gateway, limits, requests, setup, cookie: { secure: options.secureCookie ?? false } });
+  const operations = createOperationService({ repo: createSqliteOperationRepository(db), handlers: operationHandlers({ providers, health }), audit, events, log, now: clock.now });
+  const api = createApiApp({ log, health, healthHistory, auth, authz, notifications, providers, models, routing, apiKeys, gateway, limits, requests, operations, setup, cookie: { secure: options.secureCookie ?? false } });
 
   const h: Harness = {
-    db, clock, events, users, audit, auth, authz, notifications, providers, models, routing, apiKeys, gateway, limits, requests, secrets, setup, health, healthHistory, api, logs,
+    db, clock, events, users, audit, auth, authz, notifications, providers, models, routing, apiKeys, gateway, limits, requests, secrets, setup, health, healthHistory, operations, api, logs,
     setProviderFetch(fn) {
       providerFetch = fn;
     },

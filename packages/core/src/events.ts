@@ -33,6 +33,8 @@ export interface EventMap {
   /** Rate limiting (spec §12). `subject` is a key id, user id, model reference, "global" or an IP. */
   'ratelimit.exceeded': { scope: 'key' | 'user' | 'model' | 'global' | 'ip'; subject: string; kind: 'requests' | 'tokens' | 'concurrency' | 'invalid_keys'; limit: number; retryAfterSeconds: number; requestId: string | null };
   'ratelimits.changed': { version: number; updatedBy: string | null };
+  /** Operation lifecycle and progress (spec §25, §26). */
+  'operation.progress': { id: string; type: string; targetId: string | null; status: 'QUEUED' | 'RUNNING' | 'SUCCESS' | 'FAILED' | 'TIMEOUT' | 'CANCELLED'; progress: number; message: string | null };
   'notification.created': { id: string; userId: string | null; audiencePermission: string | null };
 }
 

@@ -8,6 +8,7 @@ import type { RoutingService } from '@clawrouter/routing';
 import type { ApiKeyService, GatewayService } from '@clawrouter/gateway';
 import type { RateLimitService } from '@clawrouter/rate-limits';
 import type { RequestLogService } from '@clawrouter/requests';
+import type { OperationService } from '@clawrouter/operations';
 import type { HealthHistoryService, HealthService } from '@clawrouter/health';
 import { compose, type Handler, type Middleware, type RequestContext } from './http/context.ts';
 import { accessLog, errorBoundary, requestIdHeader, securityHeaders } from './http/middleware.ts';
@@ -23,6 +24,7 @@ import { routingController } from './controllers/routing.ts';
 import { apiKeysController, gatewayController } from './controllers/gateway.ts';
 import { rateLimitsController } from './controllers/rate-limits.ts';
 import { requestsController } from './controllers/requests.ts';
+import { operationsController } from './controllers/operations.ts';
 
 export interface ApiDependencies {
   log: Logger;
@@ -38,6 +40,7 @@ export interface ApiDependencies {
   gateway: GatewayService;
   limits: RateLimitService;
   requests: RequestLogService;
+  operations: OperationService;
   setup: SetupService;
   cookie: SessionCookieConfig;
 }
@@ -61,7 +64,8 @@ export function createApiApp(deps: ApiDependencies): ApiApp {
   const authRoutes = authController(deps);
   const access = accessController(deps.authz);
   const notes = notificationsController(deps.notifications);
-  const prov = providersController(deps.providers);
+  const prov = providersController(deps.providers, deps.operations);
+  const ops = operationsController(deps.operations);
   const mod = modelsController(deps.models);
   const rt = routingController(deps.routing);
   const keys = apiKeysController(deps.apiKeys);
@@ -72,6 +76,12 @@ export function createApiApp(deps: ApiDependencies): ApiApp {
   // Public: health for load balancers, setup and sign-in.
   router.get('/api/health', 'public', healthHandler(deps.health));
   router.get('/api/health/history', 'health.read', healthHistoryHandler(deps.healthHistory));
+
+  // Operations (spec §26). 'authenticated': the operation service checks the permission of each operation type.
+  router.get('/api/operations', 'authenticated', ops.list);
+  router.post('/api/operations', 'authenticated', ops.start);
+  router.get('/api/operations/:id', 'authenticated', ops.get);
+  router.post('/api/operations/:id/cancel', 'authenticated', ops.cancel);
   router.get('/api/setup/status', 'public', authRoutes.setupStatus);
   router.post('/api/setup', 'public', authRoutes.completeSetup);
   router.post('/api/auth/login', 'public', authRoutes.login);

@@ -72,6 +72,8 @@ export interface ConnectionTestResult {
   /** A few model ids, as a sanity check. */
   sampleModels: string[];
   checkedAt: string;
+  /** The operation that ran the test (phase 12), to find it in the operations list. */
+  operationId?: string;
 }
 
 export interface CreateProviderRequest {

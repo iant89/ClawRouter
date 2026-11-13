@@ -11,3 +11,4 @@ export * from './gateway.ts';
 export * from './rate-limits.ts';
 export * from './requests.ts';
 export * from './realtime.ts';
+export * from './operations.ts';

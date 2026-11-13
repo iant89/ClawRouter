@@ -21,6 +21,8 @@ export const REALTIME_EVENTS = {
   'ratelimits.changed': 'rate_limits.read',
   /** Sent only to the notification's recipients; carries the id only. */
   'notification.created': null,
+  /** Filtered by the operation type's view permission (OPERATION_TYPES). */
+  'operation.progress': null,
   /** Sent only to the user whose session ended. */
   'session.revoked': null,
 } as const;
