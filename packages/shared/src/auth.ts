@@ -37,6 +37,8 @@ export interface AuthSession {
   roles: string[];
   /** Two-factor sign-in is required for this user and not set up yet: only setting it up is allowed. */
   twoFactorSetupRequired: boolean;
+  /** The longest an API key this user creates may last, in hours; null: no limit (Administrators). */
+  keyLifetimeLimitHours: number | null;
   /** Effective permissions, for showing and hiding UI. The server re-checks every request. */
   permissions: string[];
 }

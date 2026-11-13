@@ -1,6 +1,7 @@
 import { AppError, errors, v } from '@clawrouter/core';
 import type { AuthService, ClientInfo, SetupService, TwoFactorService } from '@clawrouter/authentication';
 import type { AuthorizationService } from '@clawrouter/authorization';
+import type { ApiKeyService } from '@clawrouter/gateway';
 import type { AdminSessionInfo, AuthSession, RevokeResult, SetupStatus, SignInChallenge } from '@clawrouter/shared';
 import { readJson } from '../http/body.ts';
 import type { Handler, RequestContext } from '../http/context.ts';
@@ -54,6 +55,8 @@ export interface AuthControllerDeps {
   setup: SetupService;
   cookie: SessionCookieConfig;
   twoFactor: TwoFactorService;
+  // The longest a key this user creates may last (the console offers only what fits).
+  apiKeys: Pick<ApiKeyService, 'creatorLimitHours'>;
 }
 
 const verifyBody = v.object({
@@ -64,11 +67,11 @@ const verifyBody = v.object({
 
 const challengeBody = v.object({ challenge: v.string({ min: 1, max: 128 }) });
 
-export function authController({ auth, authz, setup, cookie, twoFactor }: AuthControllerDeps) {
+export function authController({ auth, authz, setup, cookie, twoFactor, apiKeys }: AuthControllerDeps) {
   /** The session body, with the roles and permissions the console uses to adapt its UI. */
   const sessionBody = (user: AuthSession['user'], info: AuthSession['session']): AuthSession => {
     const principal = authz.principalFor(user.id);
-    return { user, session: info, roles: principal.roles, permissions: [...principal.permissions].sort(), twoFactorSetupRequired: twoFactor.setupRequired(user.id) };
+    return { user, session: info, roles: principal.roles, permissions: [...principal.permissions].sort(), twoFactorSetupRequired: twoFactor.setupRequired(user.id), keyLifetimeLimitHours: apiKeys.creatorLimitHours(user.id) };
   };
 
   /** Password step. With two-factor sign-in, answers a challenge for the second step instead of a session. */

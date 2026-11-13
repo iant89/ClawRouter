@@ -1,5 +1,5 @@
 import { DateTimePicker, NumberInput, RadioGroup, Select, Text } from '@enterprise-ui/react';
-import { KEY_EXPIRY_MAX_HOURS, type KeyExpiry } from '@clawrouter/shared';
+import { formatLifetime, KEY_EXPIRY_MAX_HOURS, type KeyExpiry } from '@clawrouter/shared';
 
 /** What the user is editing; turned into a KeyExpiry with `toKeyExpiry`. */
 export interface ExpiryDraft {
@@ -12,25 +12,39 @@ export interface ExpiryDraft {
 
 export const NEVER: ExpiryDraft = { type: 'never', amount: 30, unit: 'days', at: '' };
 
+/**
+ * Where the choice starts: "never" without a limit, otherwise 30 days or the limit
+ * if shorter (owner rule: only Administrators may create keys that never expire).
+ */
+export function defaultDraft(maxHours: number | null): ExpiryDraft {
+  if (maxHours === null) return NEVER;
+  const hours = Math.min(30 * 24, maxHours);
+  return hours % 24 === 0 ? { ...NEVER, type: 'after', amount: hours / 24, unit: 'days' } : { ...NEVER, type: 'after', amount: hours, unit: 'hours' };
+}
+
 /** The browser's IANA time zone, so "end of today" means the user's today. */
 export const localTimeZone = () => Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
 
 /** Feedback only: the server validates and resolves the expiry itself. */
-export function toKeyExpiry(d: ExpiryDraft): { expiry?: KeyExpiry; error?: string } {
+export function toKeyExpiry(d: ExpiryDraft, maxHours: number | null = null): { expiry?: KeyExpiry; error?: string } {
+  const tooLong = maxHours === null ? undefined : `At most ${formatLifetime(maxHours)}: the longest a key may last unless an Administrator creates it.`;
   switch (d.type) {
     case 'never':
+      if (tooLong) return { error: 'Only Administrators can create keys that never expire.' };
       return { expiry: { type: 'never' } };
     case 'end_of_day':
       return { expiry: { type: 'end_of_day', timeZone: localTimeZone() } };
     case 'after': {
       const hours = d.amount === null ? NaN : d.amount * (d.unit === 'days' ? 24 : 1);
       if (!Number.isInteger(hours) || hours < 1 || hours > KEY_EXPIRY_MAX_HOURS) return { error: 'Enter a whole number of hours or days (up to ten years).' };
+      if (maxHours !== null && hours > maxHours) return { error: tooLong };
       return { expiry: { type: 'after', hours } };
     }
     case 'at': {
       const t = d.at ? new Date(d.at).getTime() : NaN;
       if (Number.isNaN(t)) return { error: 'Choose the date and time the key stops working.' };
       if (t <= Date.now()) return { error: 'The expiry must be in the future.' };
+      if (maxHours !== null && t - Date.now() > maxHours * 3_600_000) return { error: tooLong };
       return { expiry: { type: 'at', at: new Date(t).toISOString() } };
     }
   }
@@ -76,16 +90,24 @@ export function draftOf(expiry: KeyExpiry): ExpiryDraft {
  * Expiry choice for API keys (owner's request): never, end of today, after a
  * length of time, or on a date. Shows when the key would stop working.
  */
-export function ExpiryField({ value, onChange, error, label = 'Expires' }: { value: ExpiryDraft; onChange: (d: ExpiryDraft) => void; error?: string; label?: string }) {
-  const { expiry, error: invalid } = toKeyExpiry(value);
+export function ExpiryField({ value, onChange, error, label = 'Expires', maxHours = null }: {
+  value: ExpiryDraft;
+  onChange: (d: ExpiryDraft) => void;
+  error?: string;
+  label?: string;
+  /** The longest the key may last (null: no limit, "Never" offered). */
+  maxHours?: number | null;
+}) {
+  const { expiry, error: invalid } = toKeyExpiry(value, maxHours);
   return (
     <div style={{ display: 'grid', gap: 'var(--eui-space-2, 0.5rem)' }}>
       <RadioGroup<KeyExpiry['type']>
         label={label}
         value={value.type}
         onChange={(type) => onChange({ ...value, type })}
+        description={maxHours === null ? undefined : `Keys you create last at most ${formatLifetime(maxHours)} (set by an administrator).`}
         options={[
-          { value: 'never', label: 'Never' },
+          ...(maxHours === null ? [{ value: 'never' as const, label: 'Never' }] : []),
           { value: 'end_of_day', label: 'End of today', description: `At midnight, ${localTimeZone()} time: a key for today only.` },
           { value: 'after', label: 'After a length of time' },
           { value: 'at', label: 'On a date' },

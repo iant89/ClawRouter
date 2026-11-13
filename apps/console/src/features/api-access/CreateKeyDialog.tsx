@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import { Button, CopyButton, Dialog, Form, Input, MessageStrip, MultiSelect, Text } from '@enterprise-ui/react';
 import type { CreateApiKeyRequest, CreatedApiKey, RateLimit } from '@clawrouter/shared';
 import { KeyLimitFields } from './KeyLimitDialog.tsx';
-import { ExpiryField, NEVER, toKeyExpiry, type ExpiryDraft } from './ExpiryField.tsx';
+import { defaultDraft, ExpiryField, toKeyExpiry, type ExpiryDraft } from './ExpiryField.tsx';
+import { useSession } from '../auth/AuthContext.tsx';
 
 /**
  * Create an API key. After creation the dialog shows the key once, with a copy
@@ -22,9 +23,11 @@ export function CreateKeyDialog({ open, modelOptions, onClose, onCreate, created
   saving: boolean;
   serverError: string | null;
 }) {
+  // The signed-in user creates the key: their limit applies (none for Administrators).
+  const maxHours = useSession().keyLifetimeLimitHours;
   const [name, setName] = useState('');
   const [models, setModels] = useState<string[]>([]);
-  const [expiry, setExpiry] = useState<ExpiryDraft>(NEVER);
+  const [expiry, setExpiry] = useState<ExpiryDraft>(defaultDraft(maxHours));
   const [rateLimit, setRateLimit] = useState<RateLimit | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -32,14 +35,14 @@ export function CreateKeyDialog({ open, modelOptions, onClose, onCreate, created
     if (!open) return;
     setName('');
     setModels([]);
-    setExpiry(NEVER);
+    setExpiry(defaultDraft(maxHours));
     setRateLimit(null);
     setError(null);
   }, [open]);
 
   const submit = () => {
     if (!name.trim()) return setError('Give the key a name, e.g. the application that will use it.');
-    const { expiry: chosen, error: invalid } = toKeyExpiry(expiry);
+    const { expiry: chosen, error: invalid } = toKeyExpiry(expiry, maxHours);
     if (!chosen) return setError(invalid ?? 'Check the expiry.');
     setError(null);
     onCreate({ name: name.trim(), allowedModels: models, expiry: chosen, ...(withLimits ? { rateLimit } : {}) });
@@ -77,7 +80,7 @@ export function CreateKeyDialog({ open, modelOptions, onClose, onCreate, created
         {intro}
         <Input label="Name" required description="Who or what uses this key, e.g. ci-pipeline." value={name} onChange={(e) => setName(e.target.value)} maxLength={100} />
         <MultiSelect label="Allowed models" description="Leave empty to allow every model and alias." options={modelOptions} value={models} onChange={setModels} placeholder="Any model" />
-        <ExpiryField value={expiry} onChange={setExpiry} />
+        <ExpiryField value={expiry} onChange={setExpiry} maxHours={maxHours} />
         {withLimits && <KeyLimitFields value={rateLimit} onChange={setRateLimit} />}
       </Form>
     </Dialog>

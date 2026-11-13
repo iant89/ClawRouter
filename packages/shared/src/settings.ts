@@ -29,6 +29,10 @@ export const SETTING_DEFINITIONS = {
     group: 'Data retention', label: 'Health history', unit: 'days', min: 0, max: 365, env: 'CLAWROUTER_HEALTH_HISTORY_DAYS',
     description: 'Health check results older than this are deleted. 0 keeps them forever.',
   },
+  keyMaxLifetimeDays: {
+    group: 'API keys', label: 'Maximum key lifetime', unit: 'days', min: 1, max: 3650, env: null,
+    description: 'The longest an API key may last when anyone other than an Administrator creates it (their own keys, keys from requests). Administrators may create keys that never expire. Applies to new keys.',
+  },
 } as const;
 
 export type SettingKey = keyof typeof SETTING_DEFINITIONS;

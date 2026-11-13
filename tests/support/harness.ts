@@ -103,7 +103,7 @@ export function createHarness(options: { idleMinutes?: number; maxHours?: number
   const audit = createAuditService(createSqliteAuditRepository(db), log, clock.now);
   const settings = createSettingsService({
     repo: createSqliteSettingsRepository(db, clock.now), audit, events, log,
-    defaults: { sessionIdleMinutes: options.idleMinutes ?? 60, sessionMaxHours: options.maxHours ?? 12, signInMaxFailures: 10, requestRetentionDays: 30, usageRetentionDays: 400, healthHistoryDays: 7 },
+    defaults: { sessionIdleMinutes: options.idleMinutes ?? 60, sessionMaxHours: options.maxHours ?? 12, signInMaxFailures: 10, requestRetentionDays: 30, usageRetentionDays: 400, healthHistoryDays: 7, keyMaxLifetimeDays: 30 },
   });
   const auth = createAuthService({
     users,
@@ -144,7 +144,10 @@ export function createHarness(options: { idleMinutes?: number; maxHours?: number
   models.subscribe(events);
   // Seeded randomness: weighted routing choices are reproducible in tests.
   const routing = createRoutingService({ store: createSqliteRoutingStore(db), models, providers, audit, events, log, now: clock.now, random: seededRandom(42) });
-  const apiKeys = createApiKeyService({ db, audit, log, now: clock.now, catalog: () => ({ models: models.listAll(), aliases: routing.get().aliases }) });
+  const apiKeys = createApiKeyService({
+    db, audit, log, now: clock.now, catalog: () => ({ models: models.listAll(), aliases: routing.get().aliases }),
+    creatorLimitHours: (userId) => (authz.principalFor(userId).roles.includes('ADMIN') ? null : settings.get('keyMaxLifetimeDays') * 24),
+  });
   const keyRequests = createKeyRequestService({ db, apiKeys, directory: peopleDirectory(authz), audit, events, log, now: clock.now });
   // No retry backoff in tests: they would only get slower.
   const limits = createRateLimitService({

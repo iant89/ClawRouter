@@ -103,5 +103,6 @@ export function settingDefaults(config: Pick<Config, 'auth' | 'requests' | 'heal
     requestRetentionDays: config.requests.retentionDays,
     usageRetentionDays: config.requests.usageRetentionDays,
     healthHistoryDays: config.health.historyDays,
+    keyMaxLifetimeDays: 30,
   };
 }

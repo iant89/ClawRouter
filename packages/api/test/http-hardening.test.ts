@@ -33,7 +33,7 @@ describe('request bodies', () => {
   test('/v1 allows 10 MB, and refuses more even when chunked', async () => {
     const h = createHarness();
     await h.completeSetup();
-    const { secret } = await h.apiKeys.create({ id: null, username: 'system' } as never, { name: 'k' }, { ip: null });
+    const { secret } = await h.apiKeys.create({ id: null, username: 'system' } as never, { name: 'k', expiry: { type: 'after', hours: 24 } }, { ip: null });
     const res = await h.request('/v1/chat/completions', {
       method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${secret}` }, body: chunkedBody(11 * 1024 * 1024, 256 * 1024), duplex: 'half',
     } as RequestInit);

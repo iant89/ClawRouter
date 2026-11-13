@@ -2,7 +2,7 @@ import { errors, newId, type Logger } from '@clawrouter/core';
 import type { AuditService } from '@clawrouter/audit';
 import type { Database } from '@clawrouter/database';
 import { checkRateLimit, normalizeLimit } from '@clawrouter/rate-limits';
-import { API_KEY_PREFIX, type ApiKeyInfo, type ApiKeyStatus, type CreateApiKeyRequest, type CreatedApiKey, type FieldIssue, type KeyExpiry, type ModelAlias, type ModelInfo, type RateLimit, type UpdateApiKeyRequest } from '@clawrouter/shared';
+import { API_KEY_PREFIX, formatLifetime, type ApiKeyInfo, type ApiKeyStatus, type CreateApiKeyRequest, type CreatedApiKey, type FieldIssue, type KeyExpiry, type ModelAlias, type ModelInfo, type RateLimit, type UpdateApiKeyRequest } from '@clawrouter/shared';
 import { checkExpiry, resolveExpiry } from './expiry.ts';
 import { checkLifetime, strictestLifetime } from './key-lifetime.ts';
 
@@ -64,9 +64,26 @@ export function createApiKeyService(options: {
   now?: () => Date;
   /** The registry and aliases, to check keys against models' maximum key lifetimes (read when a key is created). */
   catalog?: () => { models: ModelInfo[]; aliases: ModelAlias[] };
+  /**
+   * The longest a key may last when this user creates it, in hours, or null for no
+   * limit. Owner rule: Administrators may create keys that never expire; everyone
+   * else is limited by the "Maximum key lifetime" setting. Read when a key is created.
+   */
+  creatorLimitHours?: (userId: string) => number | null;
 }) {
-  const { db, audit, log, catalog } = options;
+  const { db, audit, log, catalog, creatorLimitHours } = options;
   const now = options.now ?? (() => new Date());
+
+  /** Adds an issue when a key created by `creatorId` would outlast the creator's limit. */
+  const checkCreatorLimit = (creatorId: string, expiresAt: string | null, path: string, issues: FieldIssue[]) => {
+    const hours = creatorLimitHours?.(creatorId) ?? null;
+    if (hours === null) return;
+    if (expiresAt === null) {
+      issues.push({ path, message: `must be set: only Administrators can create keys that never expire (others: at most ${formatLifetime(hours)})` });
+    } else if (Date.parse(expiresAt) - now().getTime() > hours * 3_600_000) {
+      issues.push({ path, message: `must be at most ${formatLifetime(hours)} from now: the longest a key may last unless an Administrator creates it` });
+    }
+  };
   const SELECT = `SELECT k.*, u.username AS created_by_username, u.status AS created_by_status FROM api_keys k LEFT JOIN users u ON u.id = k.created_by`;
 
   const statusOf = (r: Row, at: number): ApiKeyStatus =>
@@ -107,14 +124,19 @@ export function createApiKeyService(options: {
     },
 
     /**
-     * Would a key for these models with this expiry, created now, fit the models'
-     * maximum key lifetimes? (Key requests check early; the key is checked again when created.)
+     * Would a key for these models with this expiry, created now by `creatorId`, fit
+     * the creator's limit and the models' maximum key lifetimes? (Key requests check
+     * early; the key is checked again when created.)
      */
-    checkLifetimeFor(allowedModels: string[], expiry: KeyExpiry, path: string, issues: FieldIssue[]): void {
-      if (!catalog) return;
+    /** The longest a key created by this user may last, in hours (null: no limit). */
+    creatorLimitHours: (userId: string): number | null => creatorLimitHours?.(userId) ?? null,
+
+    checkLifetimeFor(creatorId: string, allowedModels: string[], expiry: KeyExpiry, path: string, issues: FieldIssue[]): void {
       const own: FieldIssue[] = [];
       const at = resolveExpiry(expiry, now(), path, own);
       if (own.length) return; // a date in the past is reported elsewhere
+      checkCreatorLimit(creatorId, at, path, issues);
+      if (!catalog || issues.length) return;
       const { models, aliases } = catalog();
       checkLifetime(at, now(), strictestLifetime(allowedModels, models, aliases), path, issues);
     },
@@ -149,7 +171,8 @@ export function createApiKeyService(options: {
         else if (t <= now().getTime()) issues.push({ path: 'expiresAt', message: 'must be in the future' });
         else expiresAt = new Date(t).toISOString();
       }
-      // Keys for specific models must fit those models' maximum key lifetime.
+      // The creator's limit (none for Administrators), then the models' maximum key lifetime.
+      if (!issues.length) checkCreatorLimit(actor.id, expiresAt, input.expiry !== undefined ? 'expiry' : 'expiresAt', issues);
       if (!issues.length && catalog) {
         const { models, aliases } = catalog();
         checkLifetime(expiresAt, now(), strictestLifetime(allowedModels, models, aliases), input.expiry !== undefined ? 'expiry' : 'expiresAt', issues);
