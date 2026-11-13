@@ -13,6 +13,7 @@
         "@clawrouter/database": "workspace:*",
         "@clawrouter/gateway": "workspace:*",
         "@clawrouter/health": "workspace:*",
+        "@clawrouter/mail": "workspace:*",
         "@clawrouter/models": "workspace:*",
         "@clawrouter/notifications": "workspace:*",
         "@clawrouter/operations": "workspace:*",
@@ -53,6 +54,7 @@
         "@clawrouter/database": "workspace:*",
         "@clawrouter/gateway": "workspace:*",
         "@clawrouter/health": "workspace:*",
+        "@clawrouter/mail": "workspace:*",
         "@clawrouter/models": "workspace:*",
         "@clawrouter/notifications": "workspace:*",
         "@clawrouter/operations": "workspace:*",
@@ -74,6 +76,7 @@
         "@clawrouter/core": "workspace:*",
         "@clawrouter/gateway": "workspace:*",
         "@clawrouter/health": "workspace:*",
+        "@clawrouter/mail": "workspace:*",
         "@clawrouter/models": "workspace:*",
         "@clawrouter/notifications": "workspace:*",
         "@clawrouter/operations": "workspace:*",
@@ -149,6 +152,14 @@
       "dependencies": {
         "@clawrouter/core": "workspace:*",
         "@clawrouter/database": "workspace:*",
+        "@clawrouter/shared": "workspace:*",
+      },
+    },
+    "packages/mail": {
+      "name": "@clawrouter/mail",
+      "version": "0.1.0",
+      "dependencies": {
+        "@clawrouter/core": "workspace:*",
         "@clawrouter/shared": "workspace:*",
       },
     },
@@ -257,6 +268,8 @@
     "@clawrouter/gateway": ["@clawrouter/gateway@workspace:packages/gateway"],
 
     "@clawrouter/health": ["@clawrouter/health@workspace:packages/health"],
+
+    "@clawrouter/mail": ["@clawrouter/mail@workspace:packages/mail"],
 
     "@clawrouter/models": ["@clawrouter/models@workspace:packages/models"],
 

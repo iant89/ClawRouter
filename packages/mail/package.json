@@ -1,0 +1,11 @@
+{
+  "name": "@clawrouter/mail",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": { ".": "./src/index.ts" },
+  "dependencies": {
+    "@clawrouter/core": "workspace:*",
+    "@clawrouter/shared": "workspace:*"
+  }
+}
