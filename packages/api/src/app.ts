@@ -8,12 +8,12 @@ import type { RoutingService } from '@clawrouter/routing';
 import type { ApiKeyService, GatewayService } from '@clawrouter/gateway';
 import type { RateLimitService } from '@clawrouter/rate-limits';
 import type { RequestLogService } from '@clawrouter/requests';
-import type { HealthService } from '@clawrouter/health';
+import type { HealthHistoryService, HealthService } from '@clawrouter/health';
 import { compose, type Handler, type Middleware, type RequestContext } from './http/context.ts';
 import { accessLog, errorBoundary, requestIdHeader, securityHeaders } from './http/middleware.ts';
 import { Router } from './http/router.ts';
 import { apiKeyAuthentication, applyResponseHeaders, csrfProtection, sessionAuthentication, type SessionCookieConfig } from './http/session.ts';
-import { healthHandler } from './controllers/health.ts';
+import { healthHandler, healthHistoryHandler } from './controllers/health.ts';
 import { authController } from './controllers/auth.ts';
 import { accessController } from './controllers/access.ts';
 import { notificationsController } from './controllers/notifications.ts';
@@ -27,6 +27,7 @@ import { requestsController } from './controllers/requests.ts';
 export interface ApiDependencies {
   log: Logger;
   health: HealthService;
+  healthHistory: HealthHistoryService;
   auth: AuthService;
   authz: AuthorizationService;
   notifications: NotificationService;
@@ -70,6 +71,7 @@ export function createApiApp(deps: ApiDependencies): ApiApp {
 
   // Public: health for load balancers, setup and sign-in.
   router.get('/api/health', 'public', healthHandler(deps.health));
+  router.get('/api/health/history', 'health.read', healthHistoryHandler(deps.healthHistory));
   router.get('/api/setup/status', 'public', authRoutes.setupStatus);
   router.post('/api/setup', 'public', authRoutes.completeSetup);
   router.post('/api/auth/login', 'public', authRoutes.login);

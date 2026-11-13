@@ -18,7 +18,10 @@ import { createRateLimitService, createSqliteRateLimitConfigStore, MemoryCounter
 import { createRequestLogService, createSqliteRequestRepository, type RequestLogService } from '@clawrouter/requests';
 import { createNotificationService, createSqliteNotificationRepository, type NotificationService } from '@clawrouter/notifications';
 import { migrations, openSqlite, runMigrations, type Database } from '@clawrouter/database';
-import { createDatabaseCheck, createHealthService, type HealthService } from '@clawrouter/health';
+import {
+  createDatabaseCheck, createGatewayCheck, createHealthHistoryService, createHealthService, createSqliteHealthHistoryRepository,
+  type HealthHistoryService, type HealthService,
+} from '@clawrouter/health';
 import { CSRF_HEADER } from '@clawrouter/shared';
 
 /** Low-cost argon2id so tests stay fast. Never use these parameters in production. */
@@ -56,6 +59,7 @@ export interface Harness {
   setProviderFetch(fn: typeof fetch): void;
   setup: SetupService;
   health: HealthService;
+  healthHistory: HealthHistoryService;
   api: ApiApp;
   logs: LogRecord[];
   /** Sends a request through the full API pipeline. */
@@ -118,11 +122,18 @@ export function createHarness(options: { idleMinutes?: number; maxHours?: number
   });
   const requests = createRequestLogService({ repo: createSqliteRequestRepository(db), models, log, now: clock.now });
   const gateway = createGatewayService({ routing, providers, models, events, log, now: clock.now, backoffMs: 0, limits, requests });
-  const health = createHealthService({ checks: [createDatabaseCheck(db)], version: 'test', environment: 'test', now: clock.now });
-  const api = createApiApp({ log, health, auth, authz, notifications, providers, models, routing, apiKeys, gateway, limits, requests, setup, cookie: { secure: options.secureCookie ?? false } });
+  const health = createHealthService({
+    checks: [
+      createDatabaseCheck(db),
+      createGatewayCheck({ metrics: () => gateway.metrics.snapshot(), models: () => ({ registered: models.listAll().length, usable: models.listAll().filter((m) => m.usable).length }) }),
+    ],
+    version: 'test', environment: 'test', now: clock.now,
+  });
+  const healthHistory = createHealthHistoryService({ repo: createSqliteHealthHistoryRepository(db), now: clock.now });
+  const api = createApiApp({ log, health, healthHistory, auth, authz, notifications, providers, models, routing, apiKeys, gateway, limits, requests, setup, cookie: { secure: options.secureCookie ?? false } });
 
   const h: Harness = {
-    db, clock, events, users, audit, auth, authz, notifications, providers, models, routing, apiKeys, gateway, limits, requests, secrets, setup, health, api, logs,
+    db, clock, events, users, audit, auth, authz, notifications, providers, models, routing, apiKeys, gateway, limits, requests, secrets, setup, health, healthHistory, api, logs,
     setProviderFetch(fn) {
       providerFetch = fn;
     },

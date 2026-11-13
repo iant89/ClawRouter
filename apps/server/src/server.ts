@@ -16,7 +16,10 @@ import { createApiKeyService, createGatewayService, type ApiKeyService, type Gat
 import { createRateLimitService, createSqliteRateLimitConfigStore, MemoryCounterStore, type RateLimitService } from '@clawrouter/rate-limits';
 import { createRequestLogService, createSqliteRequestRepository, type RequestLogService } from '@clawrouter/requests';
 import { migrations, openSqlite, runMigrations, type Database } from '@clawrouter/database';
-import { createDatabaseCheck, createHealthService, createPlatformCheck, createProvidersCheck, type HealthService } from '@clawrouter/health';
+import {
+  createDatabaseCheck, createGatewayCheck, createHealthHistoryService, createHealthService, createPlatformCheck, createProvidersCheck,
+  createSqliteHealthHistoryRepository, createWebSocketCheck, type HealthHistoryService, type HealthService,
+} from '@clawrouter/health';
 import { loadSecretBox } from './secret-key.ts';
 import { provisionSetupToken, type SetupToken } from './setup-token.ts';
 
@@ -35,6 +38,7 @@ export interface ClawRouterOptions {
 export interface ClawRouter {
   server: Server<SocketData>;
   realtime: RealtimeHub;
+  healthHistory: HealthHistoryService;
   db: Database;
   events: EventBus;
   health: HealthService;
@@ -93,8 +97,21 @@ export async function startClawRouter({ config, log, version, consoleHtml, hashe
   // Requests a previous process left in progress can never finish.
   requests.recoverInterrupted();
   const gateway = createGatewayService({ routing, providers, models, events, log, limits, requests });
+  let liveHub: RealtimeHub | null = null;
+  const healthHistory = createHealthHistoryService({ repo: createSqliteHealthHistoryRepository(db), log, retentionDays: config.health.historyDays });
   const health = createHealthService({
-    checks: [createPlatformCheck(), createDatabaseCheck(db), createProvidersCheck(providers)],
+    checks: [
+      createPlatformCheck(), createDatabaseCheck(db), createProvidersCheck(providers),
+      createGatewayCheck({
+        metrics: () => gateway.metrics.snapshot(),
+        models: () => {
+          const all = models.listAll();
+          return { registered: all.length, usable: all.filter((m) => m.usable).length };
+        },
+      }),
+      // The live channel starts after the API app; until then (and after stop) it reports OFFLINE.
+      createWebSocketCheck({ connections: () => liveHub?.size ?? null }),
+    ],
     version,
     environment: config.env,
     events,
@@ -135,6 +152,7 @@ export async function startClawRouter({ config, log, version, consoleHtml, hashe
       const notes = notifications.purgeOld();
       const checks = providers.pruneHistory();
       const history = requests.prune();
+      healthHistory.prune();
       if (removed || notes || checks || history.requests || history.usageRecords) {
         log.debug('housekeeping', { component: 'server', sessionsPurged: removed, notificationsPurged: notes, providerChecksPruned: checks, requestsPruned: history.requests, usageRecordsPruned: history.usageRecords });
       }
@@ -146,7 +164,8 @@ export async function startClawRouter({ config, log, version, consoleHtml, hashe
 
   // Background health checks, so health changes are noticed (and notified)
   // even when nobody has the console open. History arrives in phase 12.
-  const runHealth = () => void health.report().catch((error: unknown) => log.error('scheduled health check failed', { component: 'health', error }));
+  // Only scheduled checks are recorded, so history has a regular rhythm.
+  const runHealth = () => void health.report().then((r) => healthHistory.record(r)).catch((error: unknown) => log.error('scheduled health check failed', { component: 'health', error }));
   runHealth();
   const healthTimer = setInterval(runHealth, config.health.intervalSeconds * 1000);
   healthTimer.unref();
@@ -159,11 +178,12 @@ export async function startClawRouter({ config, log, version, consoleHtml, hashe
   providerKickoff?.unref();
   providerTimer?.unref();
 
-  const api = createApiApp({ log, health, auth, authz, notifications, providers, models, routing, apiKeys, gateway, limits, requests, setup, cookie: { secure: config.auth.cookieSecure } });
+  const api = createApiApp({ log, health, healthHistory, auth, authz, notifications, providers, models, routing, apiKeys, gateway, limits, requests, setup, cookie: { secure: config.auth.cookieSecure } });
 
   // The console's live channel (spec §25): session-authenticated, same-origin only.
   const realtime = createRealtimeHub({ events, auth, authz, cookie: { secure: config.auth.cookieSecure }, metrics: () => gateway.metrics.snapshot(), log });
   realtime.start();
+  liveHub = realtime;
 
   const handle = (request: Request, srv: Server<SocketData>): Response | Promise<Response> | undefined => {
     if (new URL(request.url).pathname === REALTIME_PATH) {
@@ -211,7 +231,7 @@ export async function startClawRouter({ config, log, version, consoleHtml, hashe
 
   let stopped = false;
   return {
-    server, realtime, db, events, health, auth, authz, notifications, providers, models, routing, apiKeys, gateway, limits, requests, setup, audit, api, url,
+    server, realtime, healthHistory, db, events, health, auth, authz, notifications, providers, models, routing, apiKeys, gateway, limits, requests, setup, audit, api, url,
     get setupToken() {
       return setupToken;
     },
@@ -221,6 +241,7 @@ export async function startClawRouter({ config, log, version, consoleHtml, hashe
       clearInterval(purgeTimer);
       clearInterval(healthTimer);
       realtime.stop();
+      liveHub = null;
       if (providerKickoff) clearTimeout(providerKickoff);
       if (providerTimer) clearInterval(providerTimer);
       unsubscribeNotifications();

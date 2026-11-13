@@ -49,3 +49,44 @@ export function createProvidersCheck(source: { healthSummary(): { status: Health
     check: () => source.healthSummary(),
   };
 }
+
+/**
+ * The request gateway (spec §24 gateway): degraded when most recent requests fail,
+ * or when there is nothing to route to. Counts only (the detail can be public).
+ */
+export function createGatewayCheck(source: {
+  metrics(): { requestsLastMinute: number; errorsLastMinute: number };
+  /** Registered models, and how many of them are usable now. */
+  models(): { registered: number; usable: number };
+  /** Below this many requests a minute, the error rate is not judged (too few to mean anything). */
+  minRequests?: number;
+}): HealthCheck {
+  const minRequests = source.minRequests ?? 10;
+  return {
+    component: 'gateway',
+    critical: false,
+    check() {
+      const { requestsLastMinute: n, errorsLastMinute: failed } = source.metrics();
+      const { registered, usable } = source.models();
+      if (registered === 0) return { status: 'DISABLED', detail: 'No models registered yet' };
+      const traffic = n ? `${n} request(s) in the last minute, ${Math.round((failed / n) * 100)}% failed` : 'No requests in the last minute';
+      const detail = `${traffic}; ${usable} of ${registered} model(s) usable`;
+      if (usable === 0) return { status: 'DEGRADED', detail };
+      if (n >= minRequests && failed / n >= 0.5) return { status: 'DEGRADED', detail };
+      return { status: 'HEALTHY', detail };
+    },
+  };
+}
+
+/** The console's live channel (spec §24 WebSocket). */
+export function createWebSocketCheck(source: { connections(): number | null }): HealthCheck {
+  return {
+    component: 'websocket',
+    critical: false,
+    check() {
+      const n = source.connections();
+      if (n === null) return { status: 'OFFLINE', detail: 'Live channel not running' };
+      return { status: 'HEALTHY', detail: `${n} live connection(s)` };
+    },
+  };
+}

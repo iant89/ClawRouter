@@ -141,6 +141,7 @@
       "version": "0.1.0",
       "dependencies": {
         "@clawrouter/core": "workspace:*",
+        "@clawrouter/database": "workspace:*",
         "@clawrouter/shared": "workspace:*",
       },
     },
