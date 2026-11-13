@@ -208,7 +208,7 @@ export function createApiApp(deps: ApiDependencies): ApiApp {
 
   const pipeline: Middleware[] = [
     requestIdHeader,
-    securityHeaders,
+    securityHeaders({ https: deps.cookie.secure }),
     accessLog,
     applyResponseHeaders,
     errorBoundary,

@@ -1,7 +1,7 @@
-import { AppError, errors, v, type Validator } from '@clawrouter/core';
+import { errors, v, type Validator } from '@clawrouter/core';
 import type { ApiKeyService, GatewayResult, GatewayService } from '@clawrouter/gateway';
 import type { ApiKeyInfo, CreatedApiKey, GatewayMetrics, RateLimit } from '@clawrouter/shared';
-import { readJson } from '../http/body.ts';
+import { readJson, readJsonValue } from '../http/body.ts';
 import type { Handler, RequestContext } from '../http/context.ts';
 import { created, json, ok } from '../http/responses.ts';
 
@@ -9,19 +9,7 @@ import { created, json, ok } from '../http/responses.ts';
 const GATEWAY_BODY_LIMIT = 10 * 1024 * 1024;
 
 /** Reads a JSON body for /v1 without imposing a schema: the gateway validates it in OpenAI terms. */
-async function readGatewayBody(ctx: RequestContext): Promise<unknown> {
-  const type = ctx.request.headers.get('content-type') ?? '';
-  if (!/^application\/json(\s*;|$)/i.test(type)) throw new AppError('VALIDATION_ERROR', 'Content-Type must be application/json.');
-  const declared = Number(ctx.request.headers.get('content-length') ?? '0');
-  if (declared > GATEWAY_BODY_LIMIT) throw new AppError('VALIDATION_ERROR', 'Request body is too large (limit 10 MB).');
-  const text = await ctx.request.text();
-  if (text.length > GATEWAY_BODY_LIMIT) throw new AppError('VALIDATION_ERROR', 'Request body is too large (limit 10 MB).');
-  try {
-    return JSON.parse(text) as unknown;
-  } catch {
-    throw new AppError('VALIDATION_ERROR', 'Request body is not valid JSON.');
-  }
-}
+const readGatewayBody = (ctx: RequestContext): Promise<unknown> => readJsonValue(ctx, GATEWAY_BODY_LIMIT);
 
 function toResponse(result: GatewayResult): Response {
   if (result.kind === 'json') return json(result.body, { status: result.status, headers: result.headers });

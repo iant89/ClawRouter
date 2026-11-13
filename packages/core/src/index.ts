@@ -7,3 +7,4 @@ export * from './redact.ts';
 export * from './validation.ts';
 export * from './secrets.ts';
 export * from './log-buffer.ts';
+export * from './client-address.ts';

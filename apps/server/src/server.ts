@@ -6,8 +6,9 @@ import {
   type AuthService, type PasswordHasher, type SetupService,
 } from '@clawrouter/authentication';
 import { createAuthorizationService, createSqliteRoleRepository, userAccessPolicy, type AuthorizationService } from '@clawrouter/authorization';
-import { createEventBus, type Config, type EventBus, type LogBuffer, type Logger } from '@clawrouter/core';
+import { clientAddress, createEventBus, parseTrustedProxies, type Config, type EventBus, type LogBuffer, type Logger } from '@clawrouter/core';
 import { REALTIME_PATH } from '@clawrouter/shared';
+import { createConsoleAssets } from './console-assets.ts';
 import { createNotificationService, createSqliteNotificationRepository, type NotificationService } from '@clawrouter/notifications';
 import { createDefaultRegistry, createProviderService, createSqliteProviderRepository, type ProviderService } from '@clawrouter/providers';
 import { createModelService, createSqliteModelRepository, type ModelService } from '@clawrouter/models';
@@ -32,6 +33,8 @@ export interface ClawRouterOptions {
   version: string;
   /** The console's HTML entry (Bun bundles it on the fly in development). Omit to run headless. */
   consoleHtml?: HTMLBundle;
+  /** Directory the production console files are in (the bundle's directory). */
+  consoleDir?: string;
   /** Override password hashing cost (tests). */
   hasher?: PasswordHasher;
   /** Recent log records the logger also writes to (see main.ts), for the Logs page. */
@@ -72,7 +75,7 @@ export interface ClawRouter {
  * HTTP layer together, then starts listening. Everything is created here and
  * passed down explicitly; no module-level singletons.
  */
-export async function startClawRouter({ config, log, logBuffer, version, consoleHtml, hasher = createArgon2Hasher(), providerFetch }: ClawRouterOptions): Promise<ClawRouter> {
+export async function startClawRouter({ config, log, logBuffer, version, consoleHtml, consoleDir, hasher = createArgon2Hasher(), providerFetch }: ClawRouterOptions): Promise<ClawRouter> {
   const db = openSqlite({ path: config.database.path });
   try {
     runMigrations(db, migrations, log);
@@ -203,6 +206,8 @@ export async function startClawRouter({ config, log, logBuffer, version, console
   realtime.start();
   liveHub = realtime;
 
+  const proxies = parseTrustedProxies(config.server.trustedProxies.join(',')).proxies;
+  if (proxies.entries.length) log.info('trusting X-Forwarded-For from reverse proxies', { component: 'server', proxies: proxies.entries });
   const handle = (request: Request, srv: Server<SocketData>): Response | Promise<Response> | undefined => {
     if (new URL(request.url).pathname === REALTIME_PATH) {
       const check = realtime.authorize(request);
@@ -210,13 +215,15 @@ export async function startClawRouter({ config, log, logBuffer, version, console
       if (srv.upgrade(request, { data: check.data })) return undefined;
       return new Response('WebSocket upgrade failed', { status: 400 });
     }
-    return api.handle(request, srv.requestIP(request)?.address ?? null);
+    // Behind trusted proxies the client is in X-Forwarded-For; otherwise it is the socket peer.
+    return api.handle(request, clientAddress(srv.requestIP(request)?.address ?? null, request.headers.get('x-forwarded-for'), proxies));
   };
   const serveConsole = config.console.enabled && consoleHtml !== undefined;
 
-  const routes: Record<string, HTMLBundle | typeof handle> = { '/api/*': handle, '/v1/*': handle };
+  const routes: Record<string, HTMLBundle | ((request: Request, srv: Server<SocketData>) => Response | Promise<Response> | undefined)> = { '/api/*': handle, '/v1/*': handle };
   // Every other path serves the console's single-page app (deep links work).
-  if (serveConsole) routes['/*'] = consoleHtml;
+  // Production builds are served with the console's security headers; development keeps Bun's hot-reloading route.
+  if (serveConsole) routes['/*'] = createConsoleAssets(consoleHtml, consoleDir ?? process.cwd(), { https: config.auth.cookieSecure }) ?? consoleHtml;
 
   const server = Bun.serve({
     hostname: config.server.host,

@@ -16,7 +16,7 @@ const logBuffer = config.log.bufferSize > 0 ? new LogBuffer(config.log.bufferSiz
 const log = createLogger({ level: config.log.level, format: config.log.format, tap: logBuffer?.push });
 
 try {
-  const app = await startClawRouter({ config, log, logBuffer, version: VERSION, consoleHtml });
+  const app = await startClawRouter({ config, log, logBuffer, version: VERSION, consoleHtml, consoleDir: import.meta.dir });
 
   const shutdown = async (signal: string) => {
     log.info('shutdown requested', { component: 'server', signal });

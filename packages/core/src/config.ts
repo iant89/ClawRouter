@@ -1,3 +1,4 @@
+import { parseTrustedProxies } from './client-address.ts';
 import { AppError } from './errors.ts';
 import { LOG_LEVELS, type LogFormat, type LogLevel } from './logger.ts';
 
@@ -9,6 +10,8 @@ export interface Config {
   server: {
     host: string;
     port: number;
+    /** Reverse proxies whose X-Forwarded-For is believed (addresses or CIDR ranges). Empty: none. */
+    trustedProxies: string[];
   };
   database: {
     /** File path, or `:memory:`. */
@@ -112,6 +115,7 @@ export function loadConfig(env: Env = process.env): Config {
       // Loopback by default: nothing is exposed until an operator chooses to.
       host: str('CLAWROUTER_HOST', '127.0.0.1'),
       port: int('CLAWROUTER_PORT', 8080, 0, 65535),
+      trustedProxies: [],
     },
     database: {
       path: str('CLAWROUTER_DATABASE_PATH', envName === 'test' ? ':memory:' : './data/clawrouter.db'),
@@ -146,6 +150,9 @@ export function loadConfig(env: Env = process.env): Config {
       setupToken: env.CLAWROUTER_SETUP_TOKEN?.trim() || null,
     },
   };
+  const proxies = parseTrustedProxies(env.CLAWROUTER_TRUSTED_PROXIES);
+  if (proxies.invalid.length) issues.push({ key: 'CLAWROUTER_TRUSTED_PROXIES', message: `must be IP addresses or CIDR ranges, comma-separated (invalid: ${proxies.invalid.join(', ')})` });
+  config.server.trustedProxies = [...proxies.proxies.entries];
   if (config.secrets.key && config.secrets.keyFile) {
     issues.push({ key: 'CLAWROUTER_SECRET_KEY', message: 'set either CLAWROUTER_SECRET_KEY or CLAWROUTER_SECRET_KEY_FILE, not both' });
   }

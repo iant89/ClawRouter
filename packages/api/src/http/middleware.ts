@@ -2,6 +2,7 @@ import { normalizeError } from '@clawrouter/core';
 import { REQUEST_ID_HEADER } from '@clawrouter/shared';
 import type { Middleware } from './context.ts';
 import { errorResponse, openAiErrorResponse } from './responses.ts';
+import { API_CSP, applySecurityHeaders, type SecurityHeaderOptions } from './security-headers.ts';
 
 /**
  * Turns any thrown error into a normalized error response. 5xx errors are
@@ -27,17 +28,15 @@ export const requestIdHeader: Middleware = async (ctx, next) => {
   return response;
 };
 
-/** Conservative defaults for JSON API responses. */
-export const securityHeaders: Middleware = async (_ctx, next) => {
-  const response = await next();
-  const h = response.headers;
-  h.set('x-content-type-options', 'nosniff');
-  h.set('x-frame-options', 'DENY');
-  h.set('referrer-policy', 'no-referrer');
-  h.set('cross-origin-resource-policy', 'same-origin');
-  if (!h.has('cache-control')) h.set('cache-control', 'no-store');
-  return response;
-};
+/** Conservative defaults for JSON API responses: nothing is cached, framed or loaded. */
+export function securityHeaders(options: SecurityHeaderOptions): Middleware {
+  return async (_ctx, next) => {
+    const response = await next();
+    applySecurityHeaders(response.headers, API_CSP, options);
+    if (!response.headers.has('cache-control')) response.headers.set('cache-control', 'no-store');
+    return response;
+  };
+}
 
 /** One structured line per request. Never logs headers, query strings or bodies. */
 export const accessLog: Middleware = async (ctx, next) => {
