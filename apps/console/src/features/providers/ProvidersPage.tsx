@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   AlertDialog, Button, MessageStrip, OverflowMenu, Page, RefreshControl, Table, Text, useToast, type TableColumn,
 } from '@enterprise-ui/react';
-import type { ProviderInfo, ProviderKindInfo } from '@clawrouter/shared';
+import { formatLifetime, type ProviderInfo, type ProviderKindInfo } from '@clawrouter/shared';
 import { ProviderStatus } from '../../components/custom/ProviderStatus.tsx';
 import { EmptyStateFor } from './EmptyStateFor.tsx';
 import { useResource } from '../../hooks/useResource.ts';
@@ -107,6 +107,7 @@ export function ProvidersPage() {
     },
     { id: 'endpoint', header: 'Endpoint', accessor: 'endpoint', wrap: true, minWidth: '12rem', cell: (p) => <span className="claw-mono claw-break">{p.endpoint}</span> },
     { id: 'priority', header: 'Priority', align: 'end', sortable: true, accessor: 'priority', cell: (p) => <span className="claw-mono">{p.priority}</span> },
+    { id: 'keylife', header: 'Key lifetime', accessor: (p) => p.maxKeyLifetimeHours ?? 0, cell: (p) => (p.maxKeyLifetimeHours ? <span title="Maximum API key lifetime for this provider's models">{formatLifetime(p.maxKeyLifetimeHours)}</span> : <Text tone="secondary">No limit</Text>) },
     {
       id: 'key', header: 'API key', wrap: true, accessor: (p) => (p.credential.configured ? 1 : 0),
       cell: (p) => p.credential.configured

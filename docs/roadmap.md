@@ -370,6 +370,7 @@ Asked by the owner on 2026-11-13, built after phase 15. See [self-service keys](
 - [x] Key expiry: never, end of today (user's time zone), after a length of time, on a date
 - [x] Key requests: notify key creators who share no role with the requester; approve (optionally narrowed) or deny with a reason; the requester creates the key and sees it once
 - [x] Console: My API keys page; Key requests tab on API Access
+- [x] Maximum key lifetime per provider and model: enforced when keys are created and when they are used
 
 ## Phase 16: Performance ⬜ next
 

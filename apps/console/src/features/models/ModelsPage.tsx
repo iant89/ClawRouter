@@ -3,7 +3,7 @@ import {
   AlertDialog, Button, Checkbox, FilterBar, MessageStrip, OverflowMenu, Page, Pagination, RefreshControl, SearchField, Select, Table, Text, useToast,
   type TableColumn,
 } from '@enterprise-ui/react';
-import { CAPABILITIES, type Capability, type ModelInfo, type ProviderInfo } from '@clawrouter/shared';
+import { CAPABILITIES, formatLifetime, type Capability, type ModelInfo, type ProviderInfo } from '@clawrouter/shared';
 import { ModelAvailability } from '../../components/custom/ModelAvailability.tsx';
 import { ProviderStatus } from '../../components/custom/ProviderStatus.tsx';
 import { useRouter } from '../../app/router.tsx';
@@ -103,6 +103,12 @@ export function ModelsPage() {
     },
     { id: 'provider', header: 'Provider', wrap: true, accessor: (m) => m.provider.name, cell: (m) => <span>{m.provider.name}<br /><ProviderStatus state={m.provider.status} size="sm" /></span> },
     { id: 'caps', header: 'Capabilities', wrap: true, accessor: (m) => m.capabilities.join(', '), cell: (m) => (m.capabilities.length ? m.capabilities.map((c) => CAPABILITY_LABEL[c]).join(', ') : <Text tone="secondary">None</Text>) },
+    {
+      id: 'keylife', header: 'Key lifetime', accessor: (m) => m.keyLifetimeLimit?.hours ?? 0,
+      cell: (m) => (m.keyLifetimeLimit
+        ? <span title={`Maximum API key lifetime, set on the ${m.keyLifetimeLimit.source}`}>{formatLifetime(m.keyLifetimeLimit.hours)}{m.keyLifetimeLimit.source === 'provider' && <Text size="sm" tone="secondary"> (provider)</Text>}</span>
+        : <Text tone="secondary">No limit</Text>),
+    },
     { id: 'ctx', header: 'Context', align: 'end', accessor: (m) => m.contextLength ?? 0, cell: (m) => <span className="claw-mono" title={m.maxOutputTokens ? `Max output ${m.maxOutputTokens.toLocaleString()} tokens` : undefined}>{formatTokens(m.contextLength)}</span> },
     {
       id: 'price', header: 'Price / 1M (in · out)', align: 'end', accessor: (m) => m.cost?.inputPerMTok ?? -1,

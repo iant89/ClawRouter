@@ -34,7 +34,8 @@ usage tracking and an administration console built on
   hardening** (streamed body limits, CSP and security headers, trusted proxies,
   key rotation, secret scanning; see [security](docs/security.md)), plus
   **self-service API keys** (an `api_keys.own` permission, key requests approved by
-  others, keys that expire daily or after a set time; see
+  others, keys that expire daily or after a set time, and a maximum key lifetime per provider
+  and model; see
   [self-service keys](docs/self-service-keys.md)).
   Performance is next (phase 16).
 - **Architecture:** [`docs/architecture.md`](docs/architecture.md) ·

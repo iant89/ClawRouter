@@ -7,6 +7,8 @@ export interface ProviderFormValues {
   endpoint: string;
   priority: number;
   timeoutSeconds: number;
+  /** Maximum API key lifetime in hours; null: no limit. */
+  maxKeyLifetimeHours: number | null;
   enabled: boolean;
   /** Blank on edit means "keep the stored key". */
   apiKey: string;
@@ -23,10 +25,10 @@ export function initialValues(kind: ProviderKindInfo | undefined, existing?: Pro
   if (existing) {
     return {
       kind: existing.kind, name: existing.name, identifier: existing.identifier, endpoint: existing.endpoint,
-      priority: existing.priority, timeoutSeconds: Math.round(existing.timeoutMs / 1000), enabled: existing.enabled, apiKey: '',
+      priority: existing.priority, timeoutSeconds: Math.round(existing.timeoutMs / 1000), maxKeyLifetimeHours: existing.maxKeyLifetimeHours, enabled: existing.enabled, apiKey: '',
     };
   }
-  return { kind: kind?.kind ?? 'openai', name: '', identifier: '', endpoint: '', priority: 100, timeoutSeconds: 60, enabled: true, apiKey: '' };
+  return { kind: kind?.kind ?? 'openai', name: '', identifier: '', endpoint: '', priority: 100, timeoutSeconds: 60, maxKeyLifetimeHours: null, enabled: true, apiKey: '' };
 }
 
 /** Quick client-side checks; the server enforces the real rules (including the endpoint policy). */
@@ -46,5 +48,5 @@ export function validate(values: ProviderFormValues, kind: ProviderKindInfo | un
 
 /** Server field names -> form field names. */
 export const SERVER_FIELD: Record<string, keyof ProviderFormValues> = {
-  name: 'name', identifier: 'identifier', endpoint: 'endpoint', priority: 'priority', timeoutMs: 'timeoutSeconds', apiKey: 'apiKey', kind: 'kind',
+  name: 'name', identifier: 'identifier', endpoint: 'endpoint', priority: 'priority', timeoutMs: 'timeoutSeconds', maxKeyLifetimeHours: 'maxKeyLifetimeHours', apiKey: 'apiKey', kind: 'kind',
 };

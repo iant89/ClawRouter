@@ -3,12 +3,12 @@ import {
   Button, Dialog, MessageStrip, MultiSelect, SegmentedButton, StatusIndicator, Table, Text, TextArea, useToast, type TableColumn,
 } from '@enterprise-ui/react';
 import type { ApiKeyRequestInfo, KeyRequestStatus } from '@clawrouter/shared';
-import { ApiClientError } from '../../services/api-client.ts';
 import { formatRelative } from '../../services/format.ts';
 import { approveRequest, denyRequest, fetchKeyRequests } from '../../services/key-requests.ts';
 import { useRealtimeEvent } from '../realtime/RealtimeContext.tsx';
 import { describeExpiry, draftOf, ExpiryField, toKeyExpiry, type ExpiryDraft } from './ExpiryField.tsx';
 import { useModelOptions } from './model-options.ts';
+import { describeKeyError } from './key-issues.ts';
 
 const STATUS: Record<KeyRequestStatus, { tone: 'success' | 'warning' | 'neutral' | 'information' | 'error'; label: string }> = {
   PENDING: { tone: 'information', label: 'Pending' },
@@ -107,7 +107,7 @@ export function KeyRequestsPanel({ onPendingCount }: { onPendingCount: (n: numbe
 }
 
 const messageOf = (err: unknown, fallback: string) =>
-  err instanceof ApiClientError && err.issues.length ? err.issues.map((i) => `${i.path}: ${i.message}`).join('; ') : err instanceof Error ? err.message : fallback;
+  describeKeyError(err, fallback);
 
 function ApproveDialog({ request, onClose, onDone }: { request: ApiKeyRequestInfo | null; onClose: () => void; onDone: (r: ApiKeyRequestInfo) => void }) {
   const modelOptions = useModelOptions(request !== null);

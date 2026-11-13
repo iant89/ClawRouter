@@ -14,6 +14,16 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 
 ### Important
 
+- **IMPORTANT** · 2026-11-13 · Owner rule: maximum key lifetime per provider and model
+  "Administrators when adding providers/models should have the option to choose
+  maximum key length", read as **lifetime** (confirm with the owner). Optional
+  `maxKeyLifetimeHours` on providers and models; a model's effective limit is the
+  stricter of the two. Enforced twice: at key creation for keys naming specific
+  models (aliases through their targets; "never" refused), and at use, where a key
+  older than a model's limit cannot reach it (routing `exclude` hook, 403
+  `key_too_old`). "Any model" keys are only limited at use. See
+  `docs/self-service-keys.md` and `packages/api/test/key-lifetime-api.test.ts`.
+
 - **IMPORTANT** · 2026-11-13 · Owner rule: self-service API keys and key requests
   Creating your own keys is a permission (`api_keys.own`). Keys can expire daily
   ("end of today", user's time zone) or after a length of time. Users without the
@@ -236,9 +246,10 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
   Built on `claude/api-key-self-service`, branched from the tip of
   `claude/phase-15-security-hardening` (not yet merged). Merge order: phase 15
   first, then this branch; both are fast-forwards. Merge only when the owner says so.
-  Three interpretation calls to confirm with the owner are listed at the end of
-  `docs/self-service-keys.md` (same-role rule applies to notifications only;
-  Operator/Viewer do not get `api_keys.own`; no maximum lifetime for own keys).
+  Includes the maximum key lifetime per provider/model. Interpretation calls to
+  confirm with the owner are listed at the end of `docs/self-service-keys.md`
+  (same-role rule applies to notifications only; Operator/Viewer do not get
+  `api_keys.own`; "maximum key length" read as lifetime).
 
 - **MESSAGE** · 2026-11-13 · Open question for the owner: two-factor authentication
   Proposed an authenticator app (TOTP) with recovery codes, plus optional email

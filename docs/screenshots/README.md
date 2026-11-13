@@ -232,3 +232,7 @@ before the screenshot.
 | ![End of day](16-self-service-keys/8-own-key-end-of-day.png) | With `api_keys.own`: a key for today only, expiring at local midnight |
 | ![Own keys](16-self-service-keys/9-own-keys.png) | Your own keys |
 | ![Phone](16-self-service-keys/11-my-keys-phone.png) | My API keys at phone width |
+| ![Provider limit](16-self-service-keys/12-1-provider-key-lifetime.png) | **Maximum key lifetime** on a provider (30 days) |
+| ![Model limit](16-self-service-keys/12-2-model-key-lifetime.png) | A model with a stricter limit (7 days); the dialog notes the provider's |
+| ![Models](16-self-service-keys/12-3-models-key-lifetime.png) | The Models table shows the limit that applies |
+| ![Refused](16-self-service-keys/12-4-key-refused.png) | A never-expiring key for that model is refused, with the reason |

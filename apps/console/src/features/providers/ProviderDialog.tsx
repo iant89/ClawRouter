@@ -1,3 +1,4 @@
+import { KeyLifetimeField } from '../../components/custom/KeyLifetimeField.tsx';
 import { useEffect, useMemo, useState } from 'react';
 import { Button, Dialog, Form, Input, MessageStrip, NumberInput, PasswordInput, Select, Switch, Text } from '@enterprise-ui/react';
 import type { ProviderInfo, ProviderKindInfo } from '@clawrouter/shared';
@@ -46,6 +47,7 @@ export function ProviderDialog({ open, provider, kinds, onClose, onSaved }: Prov
         endpoint: values.endpoint.trim() || undefined,
         priority: values.priority,
         timeoutMs: values.timeoutSeconds * 1000,
+        maxKeyLifetimeHours: values.maxKeyLifetimeHours,
         enabled: values.enabled,
       };
       const saved = provider
@@ -147,6 +149,9 @@ export function ProviderDialog({ open, provider, kinds, onClose, onSaved }: Prov
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(10rem, 1fr))', gap: 'var(--eui-space-3, 0.75rem)' }}>
           <NumberInput label="Priority" description="Lower runs first." min={0} max={10_000} step={1} value={values.priority} onChange={(n) => set('priority', n ?? 0)} error={errors.priority} />
           <NumberInput label="Timeout" unit="s" min={1} max={600} step={1} value={values.timeoutSeconds} onChange={(n) => set('timeoutSeconds', n ?? 60)} error={errors.timeoutSeconds} />
+        </div>
+        <div>
+          <KeyLifetimeField value={values.maxKeyLifetimeHours} onChange={(h) => set('maxKeyLifetimeHours', h)} error={errors.maxKeyLifetimeHours} description="Optional. API keys that use this provider's models must expire within it, and older keys stop working with them. Models can set a stricter limit. Blank: no limit." />
         </div>
         {/* purpose="current": no strength meter, which means nothing for an API key. */}
         <PasswordInput

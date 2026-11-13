@@ -13,6 +13,7 @@ import { usePermissions } from '../auth/AuthContext.tsx';
 import { CreateKeyDialog } from './CreateKeyDialog.tsx';
 import { useModelOptions } from './model-options.ts';
 import { KEY_STATUS } from './key-status.ts';
+import { describeKeyError } from './key-issues.ts';
 import { KeyRequestsPanel } from './KeyRequestsPanel.tsx';
 import { useRouter } from '../../app/router.tsx';
 
@@ -60,7 +61,7 @@ export function ApiAccessPage() {
       setServerError(null);
       reload();
     } catch (err) {
-      setServerError(err instanceof ApiClientError && err.issues.length ? err.issues.map((i) => i.message).join(' ') : err instanceof Error ? err.message : 'Could not create the key.');
+      setServerError(describeKeyError(err, 'Could not create the key.'));
     } finally {
       setSaving(false);
     }

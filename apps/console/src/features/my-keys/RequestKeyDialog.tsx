@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Button, Dialog, Form, Input, MessageStrip, MultiSelect, Text, TextArea } from '@enterprise-ui/react';
 import type { ApiKeyRequestInfo } from '@clawrouter/shared';
-import { ApiClientError } from '../../services/api-client.ts';
 import { requestKey } from '../../services/key-requests.ts';
 import { ExpiryField, NEVER, toKeyExpiry, type ExpiryDraft } from '../api-access/ExpiryField.tsx';
 import type { ModelOption } from '../api-access/model-options.ts';
+import { describeKeyError } from '../api-access/key-issues.ts';
 
 /**
  * Ask for an API key (for users who may not create one). People who can create
@@ -38,7 +38,7 @@ export function RequestKeyDialog({ open, modelOptions, onClose, onSent }: { open
     try {
       onSent(await requestKey({ name: name.trim(), purpose: purpose.trim(), allowedModels: models, expiry: chosen }));
     } catch (err) {
-      setError(err instanceof ApiClientError && err.issues.length ? err.issues.map((i) => `${i.path}: ${i.message}`).join('; ') : err instanceof Error ? err.message : 'Could not send the request.');
+      setError(describeKeyError(err, 'Could not send the request.'));
     } finally {
       setSaving(false);
     }

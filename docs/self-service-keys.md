@@ -83,6 +83,38 @@ requesters hear through their notifications.
 Storage: `api_key_requests` (migration `0014`). The secret is never stored for a
 request; it exists only when the requester creates the key.
 
+## Maximum key lifetime per provider and model
+
+The owner's request (2026-11-13): administrators choose, when adding or editing a
+provider or a model, how long an API key may live and still use it. This is
+"maximum key length" in the request, read as lifetime.
+
+- **Where:** *Maximum key lifetime* (hours or days; blank = no limit) in the
+  provider and model dialogs, stored as `max_key_lifetime_hours` on both
+  (migration `0015`). The API fields are `maxKeyLifetimeHours` on providers and
+  models (`null` removes a limit). Changes are audited with the other provider and
+  model changes.
+- **Effective limit:** a model's limit is the **stricter** of its own and its
+  provider's (`ModelInfo.keyLifetimeLimit`, with the source). A model can tighten
+  its provider's limit, never loosen it. The Providers and Models tables show it.
+- **When a key is created** for specific models (by an administrator, as an own
+  key, or from an approved request), its expiry must fit within the strictest limit
+  among those models. Aliases count through their targets. "Never" is refused with
+  a message naming the model, e.g. *"Expiry must be at most 7 days from now:
+  openai/gpt-4o allows keys of at most 7 days (set on the model)."* Requests are
+  checked when submitted and again when approved.
+- **When a key is used**, a key **older** than a model's limit cannot reach that
+  model. Routing skips it (the plan says why), `/v1/models` hides it, and if
+  nothing else is left the request gets **403** `key_too_old`: *"This API key is
+  older than the 7 days maximum key lifetime for openai/gpt-4o (set on the
+  provider). Create a new key."* This covers keys for **any model**, which are not
+  checked at creation (one strict model would otherwise force every such key to be
+  short), and limits added after a key was created.
+
+Code: `packages/gateway/src/key-lifetime.ts` (resolution and creation check), the
+`exclude` hook in `packages/routing/src/engine.ts`, and `tooOldFor` in
+`packages/gateway/src/service.ts`. Tests: `packages/api/test/key-lifetime-api.test.ts`.
+
 ## Decisions to confirm with the owner
 
 - **Approving within the same role.** "Not the same role" is applied to
@@ -90,8 +122,8 @@ request; it exists only when the requester creates the key.
   Say if approval should also be limited to people outside the requester's roles.
 - **Operator and Viewer** do not get `api_keys.own`, because the built-in roles
   stay as they are. Grant it with a custom role.
-- **No maximum lifetime** for self-service keys. A setting such as "self-service
-  keys expire within N days" could be added.
+- **"Maximum key length" read as lifetime.** If it meant something else (e.g. the
+  length of the provider's own API key), say so.
 
 ## Screenshots
 

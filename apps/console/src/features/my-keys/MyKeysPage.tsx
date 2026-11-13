@@ -3,7 +3,6 @@ import {
   AlertDialog, Button, Card, Link, MessageStrip, Page, RefreshControl, StatusIndicator, Table, Text, useToast, type TableColumn,
 } from '@enterprise-ui/react';
 import type { ApiKeyInfo, ApiKeyRequestInfo, CreateApiKeyRequest, CreatedApiKey, KeyRequestStatus } from '@clawrouter/shared';
-import { ApiClientError } from '../../services/api-client.ts';
 import { formatRelative } from '../../services/format.ts';
 import { cancelRequest, createKeyFromRequest, createMyKey, fetchMyKeys, fetchMyRequests, revokeMyKey } from '../../services/key-requests.ts';
 import { useRouter } from '../../app/router.tsx';
@@ -12,6 +11,7 @@ import { useRealtimeEvent } from '../realtime/RealtimeContext.tsx';
 import { CreateKeyDialog } from '../api-access/CreateKeyDialog.tsx';
 import { describeExpiry } from '../api-access/ExpiryField.tsx';
 import { useModelOptions } from '../api-access/model-options.ts';
+import { describeKeyError } from '../api-access/key-issues.ts';
 import { KEY_STATUS } from '../api-access/key-status.ts';
 import { RequestKeyDialog } from './RequestKeyDialog.tsx';
 
@@ -70,7 +70,7 @@ export function MyKeysPage() {
       setServerError(null);
       reload();
     } catch (err) {
-      setServerError(err instanceof ApiClientError && err.issues.length ? err.issues.map((i) => i.message).join(' ') : err instanceof Error ? err.message : 'Could not create the key.');
+      setServerError(describeKeyError(err, 'Could not create the key.'));
     } finally {
       setSaving(false);
     }

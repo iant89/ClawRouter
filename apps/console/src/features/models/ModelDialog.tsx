@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Button, Checkbox, Dialog, Form, Input, MessageStrip, NumberInput, Select, Switch, Text } from '@enterprise-ui/react';
-import { CAPABILITIES, type Capability, type ModelInfo, type ProviderInfo } from '@clawrouter/shared';
+import { CAPABILITIES, formatLifetime, type Capability, type ModelInfo, type ProviderInfo } from '@clawrouter/shared';
+import { KeyLifetimeField } from '../../components/custom/KeyLifetimeField.tsx';
 import { ApiClientError } from '../../services/api-client.ts';
 import { createModel, updateModel } from '../../services/models.ts';
 
@@ -17,12 +18,13 @@ interface Values {
   maxOutputTokens: number | null;
   inputPrice: number | null;
   outputPrice: number | null;
+  maxKeyLifetimeHours: number | null;
   enabled: boolean;
 }
 
 const FIELD: Record<string, keyof Values> = {
   providerId: 'providerId', providerModelId: 'providerModelId', displayName: 'displayName', capabilities: 'capabilities',
-  contextLength: 'contextLength', maxOutputTokens: 'maxOutputTokens', 'cost.inputPerMTok': 'inputPrice', 'cost.outputPerMTok': 'outputPrice',
+  contextLength: 'contextLength', maxOutputTokens: 'maxOutputTokens', 'cost.inputPerMTok': 'inputPrice', 'cost.outputPerMTok': 'outputPrice', maxKeyLifetimeHours: 'maxKeyLifetimeHours',
 };
 
 function initial(model: ModelInfo | null, providers: ProviderInfo[]): Values {
@@ -30,10 +32,10 @@ function initial(model: ModelInfo | null, providers: ProviderInfo[]): Values {
     return {
       providerId: model.providerId, providerModelId: model.providerModelId, displayName: model.displayName, capabilities: model.capabilities,
       contextLength: model.contextLength, maxOutputTokens: model.maxOutputTokens, inputPrice: model.cost?.inputPerMTok ?? null,
-      outputPrice: model.cost?.outputPerMTok ?? null, enabled: model.enabled,
+      outputPrice: model.cost?.outputPerMTok ?? null, enabled: model.enabled, maxKeyLifetimeHours: model.maxKeyLifetimeHours,
     };
   }
-  return { providerId: providers[0]?.id ?? '', providerModelId: '', displayName: '', capabilities: ['CHAT'], contextLength: null, maxOutputTokens: null, inputPrice: null, outputPrice: null, enabled: true };
+  return { providerId: providers[0]?.id ?? '', providerModelId: '', displayName: '', capabilities: ['CHAT'], contextLength: null, maxOutputTokens: null, inputPrice: null, outputPrice: null, enabled: true, maxKeyLifetimeHours: null };
 }
 
 /** Add a model by hand (for providers that cannot list models) or edit one. */
@@ -45,6 +47,7 @@ export function ModelDialog({ open, model, providers, onClose, onSaved }: {
   onSaved: (model: ModelInfo, created: boolean) => void;
 }) {
   const [values, setValues] = useState<Values>(() => initial(model, providers));
+  const providerLimit = providers.find((p) => p.id === values.providerId)?.maxKeyLifetimeHours ?? null;
   const [errors, setErrors] = useState<Partial<Record<keyof Values, string>>>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -74,6 +77,7 @@ export function ModelDialog({ open, model, providers, onClose, onSaved }: {
       capabilities: values.capabilities,
       contextLength: values.contextLength,
       maxOutputTokens: values.maxOutputTokens,
+      maxKeyLifetimeHours: values.maxKeyLifetimeHours,
       enabled: values.enabled,
       cost,
     };
@@ -144,6 +148,12 @@ export function ModelDialog({ open, model, providers, onClose, onSaved }: {
           <NumberInput label="Input price" unit="$ / 1M" min={0} step={0.05} precision={4} value={values.inputPrice} onChange={(n) => set('inputPrice', n)} error={errors.inputPrice} />
           <NumberInput label="Output price" unit="$ / 1M" min={0} step={0.05} precision={4} value={values.outputPrice} onChange={(n) => set('outputPrice', n)} error={errors.outputPrice} />
         </div>
+        <KeyLifetimeField
+          value={values.maxKeyLifetimeHours}
+          onChange={(h) => set('maxKeyLifetimeHours', h)}
+          error={errors.maxKeyLifetimeHours}
+          description={`Optional. API keys that use this model must expire within it, and older keys stop working with it.${providerLimit ? ` The provider allows at most ${formatLifetime(providerLimit)}; the stricter limit applies.` : ''} Blank: no limit of its own.`}
+        />
         <Text as="p" size="sm" tone="secondary">Prices are used to estimate cost (phase 10). Providers do not publish prices through their APIs, so enter them from the provider's price list.</Text>
         <Switch label="Enabled" checked={values.enabled} onChange={(on) => set('enabled', on)} />
       </Form>
