@@ -66,6 +66,7 @@
       "name": "@clawrouter/api",
       "version": "0.1.0",
       "dependencies": {
+        "@clawrouter/audit": "workspace:*",
         "@clawrouter/authentication": "workspace:*",
         "@clawrouter/authorization": "workspace:*",
         "@clawrouter/core": "workspace:*",

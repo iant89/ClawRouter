@@ -1,4 +1,5 @@
 import { AppError, newRequestId, type LogBuffer, type Logger } from '@clawrouter/core';
+import type { AuditService } from '@clawrouter/audit';
 import type { AuthService, SetupService } from '@clawrouter/authentication';
 import type { AuthorizationService } from '@clawrouter/authorization';
 import type { NotificationService } from '@clawrouter/notifications';
@@ -26,12 +27,14 @@ import { rateLimitsController } from './controllers/rate-limits.ts';
 import { requestsController } from './controllers/requests.ts';
 import { operationsController } from './controllers/operations.ts';
 import { logsController } from './controllers/logs.ts';
+import { auditController } from './controllers/audit.ts';
 
 export interface ApiDependencies {
   log: Logger;
   /** Recent log records for the Logs page; null when the buffer is off. */
   logBuffer?: LogBuffer | null;
   health: HealthService;
+  audit: AuditService;
   healthHistory: HealthHistoryService;
   auth: AuthService;
   authz: AuthorizationService;
@@ -70,6 +73,7 @@ export function createApiApp(deps: ApiDependencies): ApiApp {
   const prov = providersController(deps.providers, deps.operations);
   const ops = operationsController(deps.operations);
   const logs = logsController(deps.logBuffer ?? null);
+  const auditLog = auditController(deps.audit);
   const mod = modelsController(deps.models);
   const rt = routingController(deps.routing);
   const keys = apiKeysController(deps.apiKeys);
@@ -132,6 +136,7 @@ export function createApiApp(deps: ApiDependencies): ApiApp {
   router.post('/api/sessions/revoke', 'sessions.revoke', authRoutes.revokeUserSessions);
   router.delete('/api/sessions/:id', 'sessions.revoke', authRoutes.revokeAnySession);
   router.get('/api/logs', 'logs.read', logs.list);
+  router.get('/api/audit', 'audit.read', auditLog.list);
   router.get('/api/roles', 'roles.read', access.listRoles);
   router.get('/api/users', 'users.read', access.listUsers);
   router.put('/api/users/:id/roles', 'roles.assign', access.setUserRoles);

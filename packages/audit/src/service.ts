@@ -1,5 +1,5 @@
 import { newId, redact, type Logger } from '@clawrouter/core';
-import type { AuditAction, AuditRecord, AuditResult } from '@clawrouter/shared';
+import type { AuditAction, AuditRecord, AuditResult, AuditSearch } from '@clawrouter/shared';
 import type { AuditRepository } from './repository.ts';
 
 export interface AuditEntry {
@@ -17,6 +17,8 @@ export interface AuditEntry {
 export interface AuditService {
   record(entry: AuditEntry): void;
   list: AuditRepository['list'];
+  /** The Audit page: filtered and paged on the server. */
+  search(query: AuditSearch): { items: AuditRecord[]; total: number; page: number; pageSize: number; resources: string[] };
 }
 
 /**
@@ -46,5 +48,10 @@ export function createAuditService(repo: AuditRepository, log?: Logger, now: () 
       }
     },
     list: (query) => repo.list(query),
+    search(query) {
+      const page = query.page ?? 1;
+      const pageSize = query.pageSize ?? 50;
+      return { ...repo.search({ ...query, limit: pageSize, offset: (page - 1) * pageSize }), page, pageSize, resources: repo.resources() };
+    },
   };
 }

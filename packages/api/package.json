@@ -7,6 +7,7 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
+    "@clawrouter/audit": "workspace:*",
     "@clawrouter/authentication": "workspace:*",
     "@clawrouter/authorization": "workspace:*",
     "@clawrouter/core": "workspace:*",

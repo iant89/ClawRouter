@@ -1,4 +1,4 @@
-import type { AuditAction, AuditRecord } from '@clawrouter/shared';
+import type { AuditAction, AuditRecord, AuditSearch } from '@clawrouter/shared';
 import type { Database } from '@clawrouter/database';
 
 export interface AuditQuery {
@@ -13,6 +13,10 @@ export interface AuditQuery {
 export interface AuditRepository {
   append(record: AuditRecord): void;
   list(query?: AuditQuery): AuditRecord[];
+  /** Filtered, paged search for the Audit page, newest first. */
+  search(query: AuditSearch & { limit: number; offset: number }): { items: AuditRecord[]; total: number };
+  /** Resource types that occur in the log, for the filter. */
+  resources(): string[];
 }
 
 interface Row {
@@ -64,5 +68,35 @@ export function createSqliteAuditRepository(db: Database): AuditRepository {
         .all<Row>(`SELECT * FROM audit_log ${where.length ? `WHERE ${where.join(' AND ')}` : ''} ORDER BY timestamp DESC, id DESC LIMIT ?`, params)
         .map(toRecord);
     },
+    search(q) {
+      const where: string[] = [];
+      const params: (string | number)[] = [];
+      const add = (sql: string, ...values: (string | number)[]) => {
+        where.push(sql);
+        params.push(...values);
+      };
+      if (q.action) add('action = ?', q.action);
+      if (q.result) add('result = ?', q.result);
+      if (q.resource) add('resource = ?', q.resource);
+      if (q.resourceId) add('resource_id = ?', q.resourceId);
+      if (q.requestId) add('request_id = ?', q.requestId);
+      if (q.actor) add("actor_name LIKE ? ESCAPE '\\'", `%${escapeLike(q.actor)}%`);
+      if (q.from) add('timestamp >= ?', q.from);
+      if (q.to) add('timestamp < ?', q.to);
+      if (q.q) {
+        const like = `%${escapeLike(q.q)}%`;
+        add("(actor_name LIKE ? ESCAPE '\\' OR resource_id LIKE ? ESCAPE '\\' OR ip LIKE ? ESCAPE '\\' OR request_id LIKE ? ESCAPE '\\' OR metadata LIKE ? ESCAPE '\\')", like, like, like, like, like);
+      }
+      const sql = where.length ? `WHERE ${where.join(' AND ')}` : '';
+      const total = db.get<{ n: number }>(`SELECT COUNT(*) AS n FROM audit_log ${sql}`, params)?.n ?? 0;
+      const items = db.all<Row>(`SELECT * FROM audit_log ${sql} ORDER BY timestamp DESC, id DESC LIMIT ? OFFSET ?`, [...params, q.limit, q.offset]).map(toRecord);
+      return { items, total };
+    },
+    resources() {
+      return db.all<{ resource: string }>('SELECT DISTINCT resource FROM audit_log WHERE resource IS NOT NULL ORDER BY resource').map((r) => r.resource);
+    },
   };
 }
+
+/** Makes user text literal inside LIKE (no wildcards from the browser). */
+const escapeLike = (text: string) => text.replace(/[\\%_]/g, (c) => `\\${c}`);

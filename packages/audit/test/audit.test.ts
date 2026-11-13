@@ -28,7 +28,7 @@ describe('audit', () => {
 
   test('a failing write is logged and does not throw', () => {
     const logs: LogRecord[] = [];
-    const broken: AuditRepository = { append: () => { throw new Error('disk full'); }, list: () => [] };
+    const broken: AuditRepository = { append: () => { throw new Error('disk full'); }, list: () => [], search: () => ({ items: [], total: 0 }), resources: () => [] };
     const audit = createAuditService(broken, createLogger({ sink: (r) => logs.push(r) }));
     expect(() => audit.record({ action: 'LOGIN', result: 'SUCCESS' })).not.toThrow();
     expect(logs.some((r) => r.msg === 'audit write failed')).toBe(true);
@@ -36,6 +36,7 @@ describe('audit', () => {
 
   test('the repository is append-only', () => {
     const repo = createSqliteAuditRepository(createHarness().db);
-    expect(Object.keys(repo).sort()).toEqual(['append', 'list']);
+    // Writes go through append only: everything else reads. There is no update or delete.
+    expect(Object.keys(repo).sort()).toEqual(['append', 'list', 'resources', 'search']);
   });
 });

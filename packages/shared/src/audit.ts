@@ -30,3 +30,21 @@ export interface AuditRecord {
   requestId: string | null;
   metadata: Record<string, unknown> | null;
 }
+
+/** GET /api/audit filters (spec §28). */
+export interface AuditSearch {
+  page?: number;
+  pageSize?: number;
+  action?: AuditAction;
+  result?: AuditResult;
+  resource?: string;
+  resourceId?: string;
+  /** Text in the actor's name. */
+  actor?: string;
+  requestId?: string;
+  /** ISO date-times, inclusive start and exclusive end. */
+  from?: string;
+  to?: string;
+  /** Text anywhere: actor, resource id, IP, request id or metadata. */
+  q?: string;
+}
