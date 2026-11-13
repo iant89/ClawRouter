@@ -14,6 +14,12 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 
 ### Important
 
+- **IMPORTANT** · 2026-11-13 · Owner rule: custom roles; Administrator is unique and fixed
+  The owner asked for roles to be creatable with a chosen set of permissions.
+  The built-in Operator and Viewer stay as default roles. **Administrator can never
+  be removed, edited or replaced, and no other role may have every permission
+  enabled.** Keep this when touching roles (phase 14 implements it; tests guard it).
+
 - **IMPORTANT** · 2026-11-12 · Workflow: one branch per phase, merged when the owner says so
   Build each phase on a branch (`claude/phase-N-<name>`), push it, and report.
   The owner reviews and says "merge it". Then fast-forward `main` to the branch
