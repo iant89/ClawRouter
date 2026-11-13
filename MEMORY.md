@@ -253,12 +253,15 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
   (same-role rule applies to notifications only; Operator/Viewer do not get
   `api_keys.own`; "maximum key length" read as lifetime).
 
-- **MESSAGE** · 2026-11-13 · Open question for the owner: two-factor authentication
-  Proposed an authenticator app (TOTP) with recovery codes, plus optional email
-  codes and security emails once an SMTP server is configured (SMTP password
-  encrypted like provider keys), and a setting to require 2FA for administrators
-  or everyone. Await the owner's choice; do not build it before.
-  `docs/security.md` lists 2FA as a residual risk.
+- **MESSAGE** · 2026-11-13 · Two-factor sign-in in progress on `claude/two-factor-auth`
+  The owner answered "should be configured in settings by administrator": the
+  methods (authenticator app / email codes) and whether 2FA is required are admin
+  settings. Branch built on `claude/api-key-self-service` (merge order: phase 15,
+  self-service keys, then this). Plan: users get an email address; settings for
+  allowed methods, requirement (off / administrators / everyone) and the SMTP
+  server (password encrypted with the secret key); TOTP (RFC 6238) with recovery
+  codes; email codes; two-step sign-in; forced enrollment when required; admin
+  reset of a user's 2FA; console screens. Check `git log` on the branch for how far it got.
 
 ---
 
