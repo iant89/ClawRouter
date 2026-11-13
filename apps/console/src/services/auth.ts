@@ -1,4 +1,4 @@
-import type { AdminSessionInfo, AuthSession, ChangePasswordRequest, LoginRequest, RevokeResult, SessionInfo, SetupRequest, SetupStatus, UserSummary } from '@clawrouter/shared';
+import type { AdminSessionInfo, AuthSession, ChangePasswordRequest, LoginRequest, RevokeResult, SessionInfo, SetupRequest, SetupStatus, SignInChallenge, UserSummary, VerifySignInRequest } from '@clawrouter/shared';
 import { ApiClientError, apiDelete, apiGet, apiGetPage, apiPost } from './api-client.ts';
 
 const quiet = { ignoreUnauthorized: true };
@@ -15,7 +15,10 @@ export async function fetchSession(): Promise<AuthSession | null> {
   }
 }
 
-export const login = (body: LoginRequest) => apiPost<AuthSession>('/api/auth/login', body, quiet);
+/** A session, or a challenge when the account has two-factor sign-in. */
+export const login = (body: LoginRequest) => apiPost<AuthSession | SignInChallenge>('/api/auth/login', body, quiet);
+export const verifySignIn = (body: VerifySignInRequest) => apiPost<AuthSession>('/api/auth/login/verify', body, quiet);
+export const sendSignInCode = (challenge: string) => apiPost<{ sentTo: string }>('/api/auth/login/email-code', { challenge }, quiet);
 export const completeSetup = (body: SetupRequest) => apiPost<AuthSession>('/api/setup', body, quiet);
 export const logout = () => apiPost<void>('/api/auth/logout', undefined, quiet);
 export const fetchMySessions = () => apiGet<SessionInfo[]>('/api/auth/sessions');

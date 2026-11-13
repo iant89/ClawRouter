@@ -3,6 +3,8 @@ import { Button, Form, Input, MessageStrip, PasswordInput } from '@enterprise-ui
 import { AuthPanel } from '../../components/custom/AuthPanel.tsx';
 import { ApiClientError } from '../../services/api-client.ts';
 import { useAuth } from './AuthContext.tsx';
+import { SecondStep } from './SecondStep.tsx';
+import type { SignInChallenge } from '@clawrouter/shared';
 
 function describe(error: unknown): string {
   if (error instanceof ApiClientError) {
@@ -17,6 +19,7 @@ function describe(error: unknown): string {
 
 export function LoginPage() {
   const { state, signIn } = useAuth();
+  const [challenge, setChallenge] = useState<SignInChallenge['twoFactor'] | null>(null);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -32,7 +35,11 @@ export function LoginPage() {
     setBusy(true);
     setError(null);
     try {
-      await signIn({ username: username.trim(), password });
+      const second = await signIn({ username: username.trim(), password });
+      if (second) {
+        setChallenge(second);
+        setPassword('');
+      }
     } catch (err) {
       setError(describe(err));
       setPassword('');
@@ -40,6 +47,14 @@ export function LoginPage() {
       setBusy(false);
     }
   };
+
+  if (challenge) {
+    return (
+      <AuthPanel title="Two-factor sign-in" subtitle={username}>
+        <SecondStep challenge={challenge} onRestart={(message) => { setChallenge(null); setError(message || null); }} />
+      </AuthPanel>
+    );
+  }
 
   return (
     <AuthPanel title="Sign in" subtitle="Administration console">

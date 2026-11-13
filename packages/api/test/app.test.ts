@@ -70,9 +70,9 @@ describe('conventions', () => {
 
   test('access log never includes query strings', async () => {
     const h = createHarness();
-    await h.request('/api/health?token=abc');
+    await h.request('/api/health?token=QUERYMARKER');
     const line = JSON.stringify(h.logs.find((r) => r.msg === 'http request'));
     expect(line).toContain('/api/health');
-    expect(line).not.toContain('abc');
+    expect(line).not.toContain('QUERYMARKER');
   });
 });

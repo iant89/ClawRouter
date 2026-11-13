@@ -73,6 +73,8 @@ function sameSession(a: AuthSession, b: AuthSession): boolean {
     a.user.id === b.user.id &&
     a.user.displayName === b.user.displayName &&
     a.user.mustChangePassword === b.user.mustChangePassword &&
+    a.twoFactorSetupRequired === b.twoFactorSetupRequired &&
+    a.user.email === b.user.email &&
     a.session.id === b.session.id &&
     a.roles.join() === b.roles.join() &&
     a.permissions.join() === b.permissions.join()

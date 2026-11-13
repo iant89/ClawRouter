@@ -1,12 +1,15 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useReducer, type ReactNode } from 'react';
-import type { LoginRequest, Permission, SetupRequest } from '@clawrouter/shared';
+import type { LoginRequest, Permission, SetupRequest, SignInChallenge, VerifySignInRequest } from '@clawrouter/shared';
 import { setUnauthorizedHandler } from '../../services/api-client.ts';
 import * as authApi from '../../services/auth.ts';
 import { authReducer, type AuthState } from './auth-state.ts';
 
 interface AuthValue {
   state: AuthState;
-  signIn(body: LoginRequest): Promise<void>;
+  /** Password step. Returns the two-factor challenge when a second step is needed (no session yet), else null. */
+  signIn(body: LoginRequest): Promise<SignInChallenge['twoFactor'] | null>;
+  /** Second step: a code for the challenge. */
+  verifySignIn(body: VerifySignInRequest): Promise<void>;
   completeSetup(body: SetupRequest): Promise<void>;
   signOut(): Promise<void>;
   retry(): void;
@@ -53,7 +56,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const value = useMemo<AuthValue>(() => ({
     state,
     async signIn(body) {
-      dispatch({ type: 'signed-in', session: await authApi.login(body) });
+      const result = await authApi.login(body);
+      if ('twoFactor' in result) return result.twoFactor;
+      dispatch({ type: 'signed-in', session: result });
+      return null;
+    },
+    async verifySignIn(body) {
+      dispatch({ type: 'signed-in', session: await authApi.verifySignIn(body) });
     },
     async completeSetup(body) {
       dispatch({ type: 'signed-in', session: await authApi.completeSetup(body) });
