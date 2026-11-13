@@ -1,4 +1,4 @@
-import type { AdminSessionInfo, AuthSession, LoginRequest, RevokeResult, SessionInfo, SetupRequest, SetupStatus } from '@clawrouter/shared';
+import type { AdminSessionInfo, AuthSession, ChangePasswordRequest, LoginRequest, RevokeResult, SessionInfo, SetupRequest, SetupStatus, UserSummary } from '@clawrouter/shared';
 import { ApiClientError, apiDelete, apiGet, apiGetPage, apiPost } from './api-client.ts';
 
 const quiet = { ignoreUnauthorized: true };
@@ -49,3 +49,6 @@ export function fetchAllSessions(query: { page: number; pageSize: number; userId
 }
 export const revokeSession = (id: string) => changing(apiDelete(`/api/sessions/${encodeURIComponent(id)}`));
 export const revokeUserSessions = (userId: string, keepCurrent = false) => changing(apiPost<RevokeResult>('/api/sessions/revoke', { userId, keepCurrent }));
+
+/** Changes the signed-in user's own password; their other sessions end. */
+export const changePassword = (body: ChangePasswordRequest) => apiPost<UserSummary>('/api/auth/password', body);

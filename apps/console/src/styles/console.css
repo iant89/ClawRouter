@@ -75,3 +75,17 @@ body {
 .claw-timeline-bucket[data-status='none'] {
   border-style: dashed;
 }
+
+/* Role editor: permission areas side by side when there is room. */
+.claw-permission-groups {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+  gap: var(--eui-space-4, 1rem);
+}
+
+/* Settings: fields in columns when there is room. */
+.claw-settings-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
+  gap: var(--eui-space-5, 1.25rem);
+}

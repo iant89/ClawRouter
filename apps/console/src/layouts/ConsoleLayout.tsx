@@ -7,6 +7,7 @@ import { LiveIndicator } from '../components/custom/LiveIndicator.tsx';
 import { useAuth, usePermissions, useSession } from '../features/auth/AuthContext.tsx';
 import { useHealth } from '../features/health/HealthContext.tsx';
 import { MySessionsDialog } from '../features/sessions/MySessionsDialog.tsx';
+import { ChangePasswordDialog } from '../features/auth/ChangePasswordDialog.tsx';
 import { NotificationsPanel } from '../features/notifications/NotificationsPanel.tsx';
 import { useNotifications } from '../features/notifications/NotificationsContext.tsx';
 
@@ -24,6 +25,7 @@ export function ConsoleLayout({ activeId, children }: { activeId: string | undef
   const { set: permissions } = usePermissions();
   const { data, error } = useHealth();
   const [sessionsOpen, setSessionsOpen] = useState(false);
+  const [passwordOpen, setPasswordOpen] = useState(false);
   const { unread } = useNotifications();
   const gatewayState = error ? 'OFFLINE' : (data?.status ?? 'UNKNOWN');
 
@@ -44,11 +46,13 @@ export function ConsoleLayout({ activeId, children }: { activeId: string | undef
           user={{ name: user.displayName, email: user.username, role: roles.length ? roles.map(roleLabel).join(', ') : 'No role' }}
           userMenuItems={[
             { id: 'sessions', label: 'My sessions', icon: 'user-settings' },
+            { id: 'password', label: 'Change password', icon: 'key' },
             { type: 'separator' },
             { id: 'logout', label: 'Sign out', icon: 'log' },
           ]}
           onUserAction={(id) => {
             if (id === 'sessions') setSessionsOpen(true);
+            if (id === 'password') setPasswordOpen(true);
             if (id === 'logout') void signOut();
           }}
         />
@@ -78,6 +82,7 @@ export function ConsoleLayout({ activeId, children }: { activeId: string | undef
     >
       {children}
       <MySessionsDialog open={sessionsOpen} onClose={() => setSessionsOpen(false)} />
+      <ChangePasswordDialog open={passwordOpen} onClose={() => setPasswordOpen(false)} />
     </AppShell>
   );
 }

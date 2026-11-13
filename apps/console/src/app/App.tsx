@@ -17,11 +17,13 @@ import { UsagePage } from '../features/usage/UsagePage.tsx';
 import { OperationsPage } from '../features/operations/OperationsPage.tsx';
 import { LogsPage } from '../features/logs/LogsPage.tsx';
 import { AuditPage } from '../features/audit/AuditPage.tsx';
+import { SettingsPage } from '../features/settings/SettingsPage.tsx';
 import { NoAccessPage } from '../pages/NoAccessPage.tsx';
 import { AuthProvider, useAuth, usePermissions } from '../features/auth/AuthContext.tsx';
 import { redirectFor } from '../features/auth/auth-state.ts';
 import { LoginPage } from '../features/auth/LoginPage.tsx';
 import { SetupPage } from '../features/auth/SetupPage.tsx';
+import { ForcedPasswordChange } from '../features/auth/ForcedPasswordChange.tsx';
 import { PlannedFeature } from '../components/custom/PlannedFeature.tsx';
 import { PageErrorBoundary } from '../components/custom/PageErrorBoundary.tsx';
 import { NotificationsProvider } from '../features/notifications/NotificationsContext.tsx';
@@ -51,6 +53,7 @@ function PageFor({ item }: { item: NavItem | undefined }) {
     case 'logs': return <LogsPage />;
     case 'audit': return <AuditPage />;
     case 'roles': return <RolesPage />;
+    case 'settings': return <SettingsPage />;
     default: return <NotFoundPage />;
   }
 }
@@ -105,7 +108,8 @@ function Gate() {
     case 'signed-out':
       return target ? null : <LoginPage />;
     case 'signed-in':
-      return target ? null : <Console />;
+      if (target) return null;
+      return state.session.user.mustChangePassword ? <ForcedPasswordChange /> : <Console />;
   }
 }
 

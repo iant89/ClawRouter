@@ -310,6 +310,7 @@ export function createAuthService(options: AuthServiceOptions) {
         action: 'PASSWORD_CHANGED', result: 'SUCCESS', resource: 'user', resourceId: user.id,
         actor: { id: user.id, name: user.username }, ip: client.ip, requestId: client.requestId ?? null, metadata: { otherSessionsEnded: ended },
       });
+      events?.emit('user.changed', { userId: user.id, action: 'password_changed' });
       log?.info('password changed', { component: 'auth', userId: user.id });
       return toUserSummary(users.findById(user.id)!);
     },
