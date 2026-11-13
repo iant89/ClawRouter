@@ -3,6 +3,7 @@ import type { AuditService } from '@clawrouter/audit';
 import type { Database } from '@clawrouter/database';
 import { checkRateLimit, normalizeLimit } from '@clawrouter/rate-limits';
 import { API_KEY_PREFIX, type ApiKeyInfo, type ApiKeyStatus, type CreateApiKeyRequest, type CreatedApiKey, type FieldIssue, type RateLimit, type UpdateApiKeyRequest } from '@clawrouter/shared';
+import { checkExpiry, resolveExpiry } from './expiry.ts';
 
 /** The identity of an authenticated external client for one request. */
 export interface ApiKeyPrincipal {
@@ -95,19 +96,38 @@ export function createApiKeyService(options: { db: Database; audit: AuditService
       return db.get<{ username: string }>('SELECT username FROM users WHERE id = ?', [userId])?.username ?? null;
     },
 
-    create(actor: { id: string; username: string }, input: CreateApiKeyRequest, client: { ip: string | null; requestId?: string | null }): CreatedApiKey {
+    /** Keys owned by one user (their own keys page). */
+    listOwned(userId: string): ApiKeyInfo[] {
+      return db.all<Row>(`${SELECT} WHERE k.created_by = ? ORDER BY k.revoked_at IS NOT NULL, k.created_at DESC`, [userId]).map(toInfo);
+    },
+
+    /**
+     * Creates a key. The key belongs to (and acts for) `options.ownerId` when
+     * given (a key created from an approved request), otherwise to the actor.
+     */
+    create(
+      actor: { id: string; username: string },
+      input: CreateApiKeyRequest,
+      client: { ip: string | null; requestId?: string | null },
+      options: { ownerId?: string; via?: string } = {},
+    ): CreatedApiKey {
       const issues: FieldIssue[] = [];
       const name = checkName(input.name, issues);
       const allowedModels = checkModels(input.allowedModels ?? [], issues);
       const rateLimit = checkKeyLimit(input.rateLimit, issues);
       let expiresAt: string | null = null;
-      if (input.expiresAt) {
+      if (input.expiry !== undefined && input.expiresAt) issues.push({ path: 'expiry', message: 'send either expiry or expiresAt, not both' });
+      else if (input.expiry !== undefined) {
+        const expiry = checkExpiry(input.expiry, 'expiry', issues);
+        if (expiry) expiresAt = resolveExpiry(expiry, now(), 'expiry', issues);
+      } else if (input.expiresAt) {
         const t = Date.parse(input.expiresAt);
         if (Number.isNaN(t)) issues.push({ path: 'expiresAt', message: 'must be an ISO date-time' });
         else if (t <= now().getTime()) issues.push({ path: 'expiresAt', message: 'must be in the future' });
         else expiresAt = new Date(t).toISOString();
       }
       if (issues.length) throw errors.validation(issues);
+      const owner = options.ownerId ?? actor.id;
 
       const id = newId();
       const publicId = Buffer.from(crypto.getRandomValues(new Uint8Array(4))).toString('hex');
@@ -116,12 +136,12 @@ export function createApiKeyService(options: { db: Database; audit: AuditService
       const at = now().toISOString();
       db.run(
         `INSERT INTO api_keys (id, name, prefix, secret_hash, allowed_models, created_by, created_at, expires_at, rate_limit) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [id, name, prefix, sha256(secret), JSON.stringify(allowedModels), actor.id, at, expiresAt, rateLimit ? JSON.stringify(rateLimit) : null],
+        [id, name, prefix, sha256(secret), JSON.stringify(allowedModels), owner, at, expiresAt, rateLimit ? JSON.stringify(rateLimit) : null],
       );
       audit.record({
         action: 'API_KEY_CREATED', result: 'SUCCESS', resource: 'api_key', resourceId: id,
         actor: { id: actor.id, name: actor.username }, ip: client.ip, requestId: client.requestId ?? null,
-        metadata: { name, prefix, allowedModels, expiresAt, rateLimit },
+        metadata: { name, prefix, allowedModels, expiresAt, rateLimit, ...(owner !== actor.id ? { ownerId: owner } : {}), ...(options.via ? { via: options.via } : {}) },
       });
       return { key: toInfo(db.get<Row>(`${SELECT} WHERE k.id = ?`, [id])!), secret };
     },
@@ -150,6 +170,13 @@ export function createApiKeyService(options: { db: Database; audit: AuditService
         });
       }
       return toInfo(db.get<Row>(`${SELECT} WHERE k.id = ?`, [id])!);
+    },
+
+    /** Revokes one of the actor's own keys. Someone else's key is "not found" (no probing). */
+    revokeOwned(actor: { id: string; username: string }, id: string, client: { ip: string | null; requestId?: string | null }): ApiKeyInfo {
+      const owner = db.get<{ created_by: string | null }>('SELECT created_by FROM api_keys WHERE id = ?', [id]);
+      if (!owner || owner.created_by !== actor.id) throw errors.notFound('API key not found.');
+      return this.revoke(actor, id, client);
     },
 
     revoke(actor: { id: string; username: string }, id: string, client: { ip: string | null; requestId?: string | null }): ApiKeyInfo {
@@ -192,13 +219,13 @@ export function createApiKeyService(options: { db: Database; audit: AuditService
   };
 }
 
-function checkName(value: string, issues: FieldIssue[]): string {
+export function checkName(value: string, issues: FieldIssue[]): string {
   const name = value.trim();
   if (!name || name.length > 100) issues.push({ path: 'name', message: 'must be 1–100 characters' });
   return name;
 }
 
-function checkModels(value: string[], issues: FieldIssue[]): string[] {
+export function checkModels(value: string[], issues: FieldIssue[]): string[] {
   const models = [...new Set(value.map((m) => m.trim()).filter(Boolean))];
   if (models.length > 100 || models.some((m) => m.length > 300)) issues.push({ path: 'allowedModels', message: 'at most 100 model names of up to 300 characters' });
   return models;

@@ -7,7 +7,7 @@ import type { NotificationService } from '@clawrouter/notifications';
 import type { ProviderService } from '@clawrouter/providers';
 import type { ModelService } from '@clawrouter/models';
 import type { RoutingService } from '@clawrouter/routing';
-import type { ApiKeyService, GatewayService } from '@clawrouter/gateway';
+import type { ApiKeyService, GatewayService, KeyRequestService } from '@clawrouter/gateway';
 import type { RateLimitService } from '@clawrouter/rate-limits';
 import type { RequestLogService } from '@clawrouter/requests';
 import type { OperationService } from '@clawrouter/operations';
@@ -31,6 +31,7 @@ import { requestsController } from './controllers/requests.ts';
 import { operationsController } from './controllers/operations.ts';
 import { logsController } from './controllers/logs.ts';
 import { auditController } from './controllers/audit.ts';
+import { keyRequestsController } from './controllers/key-requests.ts';
 import { settingsController } from './controllers/settings.ts';
 
 /** What a user with a temporary password may still do: see their session, change the password, sign out. */
@@ -52,6 +53,7 @@ export interface ApiDependencies {
   models: ModelService;
   routing: RoutingService;
   apiKeys: ApiKeyService;
+  keyRequests: KeyRequestService;
   gateway: GatewayService;
   limits: RateLimitService;
   requests: RequestLogService;
@@ -88,6 +90,7 @@ export function createApiApp(deps: ApiDependencies): ApiApp {
   const mod = modelsController(deps.models);
   const rt = routingController(deps.routing);
   const keys = apiKeysController(deps.apiKeys);
+  const mine = keyRequestsController(deps.apiKeys, deps.keyRequests);
   const gw = gatewayController(deps.gateway);
   const rl = rateLimitsController(deps.limits);
   const rq = requestsController(deps.requests);
@@ -168,6 +171,19 @@ export function createApiApp(deps: ApiDependencies): ApiApp {
   router.post('/api/api-keys', 'api_keys.write', keys.create);
   router.patch('/api/api-keys/:id', 'api_keys.write', keys.update);
   router.delete('/api/api-keys/:id', 'api_keys.write', keys.revoke);
+
+  // Self-service keys and key requests (owner's rule): own keys need api_keys.own to create;
+  // anyone may list and revoke keys they own, and ask for a key; api_keys.write decides requests.
+  router.get('/api/me/api-keys', 'authenticated', mine.listOwnKeys);
+  router.post('/api/me/api-keys', 'api_keys.own', mine.createOwnKey);
+  router.delete('/api/me/api-keys/:id', 'authenticated', mine.revokeOwnKey);
+  router.get('/api/me/api-key-requests', 'authenticated', mine.listMyRequests);
+  router.post('/api/me/api-key-requests', 'authenticated', mine.submit);
+  router.delete('/api/me/api-key-requests/:id', 'authenticated', mine.cancel);
+  router.post('/api/me/api-key-requests/:id/create', 'authenticated', mine.fulfil);
+  router.get('/api/api-key-requests', 'api_keys.write', mine.list);
+  router.post('/api/api-key-requests/:id/approve', 'api_keys.write', mine.approve);
+  router.post('/api/api-key-requests/:id/deny', 'api_keys.write', mine.deny);
   router.get('/api/gateway/metrics', 'requests.read', gw.metrics);
   router.get('/api/rate-limits', 'rate_limits.read', rl.get);
   router.put('/api/rate-limits', 'rate_limits.write', rl.put);

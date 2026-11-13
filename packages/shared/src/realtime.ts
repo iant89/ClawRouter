@@ -22,6 +22,8 @@ export const REALTIME_EVENTS = {
   'role.changed': 'roles.read',
   'user.changed': 'users.read',
   'settings.changed': 'settings.read',
+  /** Key request list changes: approvers. (Requesters hear through their notifications.) */
+  'api_key_request.changed': 'api_keys.write',
   /** Sent only to the notification's recipients; carries the id only. */
   'notification.created': null,
   /** Filtered by the operation type's view permission (OPERATION_TYPES). */

@@ -28,14 +28,78 @@ export interface ApiKeyInfo {
   rateLimit: RateLimit | null;
 }
 
-/** POST /api/api-keys */
+/**
+ * When a key stops working, resolved by the server when the key is created:
+ * - `never`;
+ * - `end_of_day`: at the next midnight in the given IANA time zone (the user's), a key for today only;
+ * - `after`: a length of time from creation;
+ * - `at`: a specific moment.
+ */
+export type KeyExpiry =
+  | { type: 'never' }
+  | { type: 'end_of_day'; timeZone: string }
+  | { type: 'after'; hours: number }
+  | { type: 'at'; at: string };
+
+/** Longest `after` period: ten years. */
+export const KEY_EXPIRY_MAX_HOURS = 24 * 3650;
+
+/** POST /api/api-keys (and /api/me/api-keys without `rateLimit`) */
 export interface CreateApiKeyRequest {
   name: string;
   allowedModels?: string[];
-  /** ISO date-time, or null for no expiry. */
+  /** ISO date-time, or null for no expiry. `expiry` is the richer alternative; send one or neither. */
   expiresAt?: string | null;
-  /** Own limits for this key; omit or null for the default. */
+  expiry?: KeyExpiry;
+  /** Own limits for this key; omit or null for the default. Administrators only. */
   rateLimit?: RateLimit | null;
+}
+
+/**
+ * Key requests: a user who may not create keys asks for one. Users who can
+ * create keys for others (`api_keys.write`) and share no role with the
+ * requester are notified; one approves or denies. On approval the requester
+ * creates the key themselves (the secret is shown only to them, once).
+ */
+export const KEY_REQUEST_STATUSES = ['PENDING', 'APPROVED', 'DENIED', 'CANCELLED', 'FULFILLED'] as const;
+export type KeyRequestStatus = (typeof KEY_REQUEST_STATUSES)[number];
+
+export interface ApiKeyRequestInfo {
+  id: string;
+  name: string;
+  /** Why the key is needed, in the requester's words. */
+  purpose: string;
+  allowedModels: string[];
+  expiry: KeyExpiry;
+  status: KeyRequestStatus;
+  requestedBy: { id: string; username: string; displayName: string };
+  createdAt: string;
+  decidedBy: { id: string; username: string } | null;
+  decidedAt: string | null;
+  /** The approver's note, or the reason for a denial. */
+  decisionNote: string | null;
+  /** The key created from an approved request. */
+  apiKeyId: string | null;
+}
+
+/** POST /api/me/api-key-requests */
+export interface CreateKeyRequestBody {
+  name: string;
+  purpose: string;
+  allowedModels?: string[];
+  expiry?: KeyExpiry;
+}
+
+/** POST /api/api-key-requests/:id/approve. Omitted fields keep what was requested. */
+export interface ApproveKeyRequestBody {
+  allowedModels?: string[];
+  expiry?: KeyExpiry;
+  note?: string;
+}
+
+/** POST /api/api-key-requests/:id/deny */
+export interface DenyKeyRequestBody {
+  reason: string;
 }
 
 /** PATCH /api/api-keys/:id */

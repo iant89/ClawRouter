@@ -5,7 +5,7 @@ import {
   createArgon2Hasher, createAuthService, createSetupService, createSqliteSessionRepository, createSqliteUserRepository, createUserAdminService,
   type AuthService, type PasswordHasher, type SetupService,
 } from '@clawrouter/authentication';
-import { createAuthorizationService, createSqliteRoleRepository, userAccessPolicy, type AuthorizationService } from '@clawrouter/authorization';
+import { createAuthorizationService, createSqliteRoleRepository, peopleDirectory, userAccessPolicy, type AuthorizationService } from '@clawrouter/authorization';
 import { clientAddress, createEventBus, parseTrustedProxies, type Config, type EventBus, type LogBuffer, type Logger } from '@clawrouter/core';
 import { REALTIME_PATH } from '@clawrouter/shared';
 import { createConsoleAssets } from './console-assets.ts';
@@ -13,7 +13,7 @@ import { createNotificationService, createSqliteNotificationRepository, type Not
 import { createDefaultRegistry, createProviderService, createSqliteProviderRepository, type ProviderService } from '@clawrouter/providers';
 import { createModelService, createSqliteModelRepository, type ModelService } from '@clawrouter/models';
 import { createRoutingService, createSqliteRoutingStore, type RoutingService } from '@clawrouter/routing';
-import { createApiKeyService, createGatewayService, type ApiKeyService, type GatewayService } from '@clawrouter/gateway';
+import { createApiKeyService, createGatewayService, createKeyRequestService, type ApiKeyService, type GatewayService } from '@clawrouter/gateway';
 import { createRateLimitService, createSqliteRateLimitConfigStore, MemoryCounterStore, type RateLimitService } from '@clawrouter/rate-limits';
 import { createRequestLogService, createSqliteRequestRepository, type RequestLogService } from '@clawrouter/requests';
 import { createSqliteSettingsRepository, migrations, openSqlite, runMigrations, type Database } from '@clawrouter/database';
@@ -149,6 +149,7 @@ export async function startClawRouter({ config, log, logBuffer, version, console
   });
   const authz = createAuthorizationService({ roles: createSqliteRoleRepository(db), audit, events, log });
   const userAdmin = createUserAdminService({ users, hasher, auth, audit, policy: userAccessPolicy(authz), events, log });
+  const keyRequests = createKeyRequestService({ db, apiKeys, directory: peopleDirectory(authz), audit, events, log });
   const notifications = createNotificationService({ repo: createSqliteNotificationRepository(db), events, log });
   const unsubscribeNotifications = notifications.subscribe(events);
   let setupToken: SetupToken | null = users.count() === 0 ? provisionSetupToken(config, log) : null;
@@ -199,7 +200,7 @@ export async function startClawRouter({ config, log, logBuffer, version, console
   providerKickoff?.unref();
   providerTimer?.unref();
 
-  const api = createApiApp({ log, logBuffer, audit, health, healthHistory, auth, authz, userAdmin, settings, notifications, providers, models, routing, apiKeys, gateway, limits, requests, operations, setup, cookie: { secure: config.auth.cookieSecure } });
+  const api = createApiApp({ log, logBuffer, audit, health, healthHistory, auth, authz, userAdmin, settings, notifications, providers, models, routing, apiKeys, keyRequests, gateway, limits, requests, operations, setup, cookie: { secure: config.auth.cookieSecure } });
 
   // The console's live channel (spec §25): session-authenticated, same-origin only.
   const realtime = createRealtimeHub({ events, auth, authz, cookie: { secure: config.auth.cookieSecure }, metrics: () => gateway.metrics.snapshot(), log });

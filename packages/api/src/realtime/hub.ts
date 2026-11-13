@@ -125,6 +125,7 @@ export function createRealtimeHub(options: RealtimeOptions) {
   forward('role.changed');
   forward('user.changed');
   forward('settings.changed');
+  forward('api_key_request.changed');
 
   // Operations: to users who may see operations of that type.
   unsubscribe.push(events.on('operation.progress', (payload) => {

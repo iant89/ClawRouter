@@ -1,6 +1,6 @@
 import { errors, v, type Validator } from '@clawrouter/core';
 import type { ApiKeyService, GatewayResult, GatewayService } from '@clawrouter/gateway';
-import type { ApiKeyInfo, CreatedApiKey, GatewayMetrics, RateLimit } from '@clawrouter/shared';
+import type { ApiKeyInfo, CreatedApiKey, GatewayMetrics, KeyExpiry, RateLimit } from '@clawrouter/shared';
 import { readJson, readJsonValue } from '../http/body.ts';
 import type { Handler, RequestContext } from '../http/context.ts';
 import { created, json, ok } from '../http/responses.ts';
@@ -30,7 +30,7 @@ export function gatewayController(gateway: GatewayService) {
   return { models, chat, embeddings, responses, metrics };
 }
 
-const modelList = v.optional<string[]>((value, path, issues) => {
+export const modelList = v.optional<string[]>((value, path, issues) => {
   if (Array.isArray(value) && value.every((m) => typeof m === 'string')) return value as string[];
   issues.push({ path, message: 'must be a list of model names' });
   return undefined;
@@ -51,6 +51,14 @@ const keyLimit: Validator<RateLimit | null | undefined> = (value, path, issues) 
   return undefined;
 };
 
+/** Shape only; the key service checks the expiry in detail. */
+export const expiryField: Validator<KeyExpiry | undefined> = (value, path, issues) => {
+  if (value === undefined) return undefined;
+  if (typeof value === 'object' && value !== null && !Array.isArray(value)) return value as KeyExpiry;
+  issues.push({ path, message: 'must be an expiry object' });
+  return undefined;
+};
+
 const createKeyBody = v.object({
   name: v.string({ min: 1, max: 100 }),
   allowedModels: modelList,
@@ -60,6 +68,7 @@ const createKeyBody = v.object({
     issues.push({ path, message: 'must be an ISO date-time or null' });
     return undefined;
   },
+  expiry: expiryField,
   rateLimit: keyLimit,
 });
 

@@ -18,6 +18,12 @@ export interface EventMap {
   'user.changed': { userId: string; action: 'created' | 'updated' | 'enabled' | 'disabled' | 'password_reset' | 'password_changed' };
   /** A custom role was created, changed or deleted (its members also get user.roles_changed). */
   'role.changed': { roleId: string; action: 'created' | 'updated' | 'deleted' };
+  /** Someone asked for an API key; `recipientIds` are the approvers to notify (no shared role with the requester). */
+  'api_key_request.created': { requestId: string; requesterId: string; requesterName: string; keyName: string; recipientIds: string[] };
+  /** A key request was approved or denied; the requester is told. */
+  'api_key_request.decided': { requestId: string; requesterId: string; keyName: string; status: 'APPROVED' | 'DENIED'; byName: string; note: string | null };
+  /** Any change to a key request (for live lists). */
+  'api_key_request.changed': { requestId: string; status: string };
   /** A username was blocked after repeated failed sign-ins (emitted once per block). */
   /** `username` is null when the name typed is not an account (it might be a mistyped password). */
   'auth.login_throttled': { username: string | null; ip: string | null; scope: 'username' | 'ip'; retryAfterSeconds: number };

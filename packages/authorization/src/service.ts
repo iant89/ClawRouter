@@ -241,3 +241,15 @@ export function userAccessPolicy(authz: AuthorizationService) {
     getUser: (userId: string) => authz.getUser(userId),
   };
 }
+
+/** Who holds what, for flows that must find the right people (e.g. API key requests). */
+export function peopleDirectory(authz: AuthorizationService) {
+  return {
+    /** Active users holding `permission`, with their role ids. */
+    holders: (permission: string) =>
+      authz.listUsers()
+        .filter((u) => u.status === 'ACTIVE' && authz.principalFor(u.id).permissions.has(permission as Permission))
+        .map((u) => ({ id: u.id, roles: u.roles })),
+    rolesOf: (userId: string) => authz.principalFor(userId).roles,
+  };
+}

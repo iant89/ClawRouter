@@ -120,6 +120,31 @@ export function createNotificationService(options: {
             });
           }
         })),
+        // Key requests: each approver outside the requester's roles, by name (owner's rule).
+        bus.on('api_key_request.created', safely(({ requesterName, keyName, recipientIds }) => {
+          for (const userId of recipientIds) {
+            service.notify({
+              userId,
+              severity: 'INFO',
+              title: 'API key requested',
+              body: `${requesterName} asked for an API key "${keyName}". Approve or deny it under API Access → Key requests.`,
+              link: '/api-access?tab=requests',
+              source: 'api_key_request.created',
+            });
+          }
+        })),
+        bus.on('api_key_request.decided', safely(({ requesterId, keyName, status, byName, note }) => {
+          service.notify({
+            userId: requesterId,
+            severity: status === 'APPROVED' ? 'SUCCESS' : 'WARNING',
+            title: status === 'APPROVED' ? 'API key request approved' : 'API key request denied',
+            body: status === 'APPROVED'
+              ? `${byName} approved "${keyName}". Create the key under My API keys; it is shown only once.${note ? ` Note: ${note}` : ''}`
+              : `${byName} denied "${keyName}"${note ? `: ${note}` : '.'}`,
+            link: '/my-keys',
+            source: 'api_key_request.decided',
+          });
+        })),
         bus.on('user.roles_changed', safely(({ userId, roles }) => {
           service.notify({
             userId,

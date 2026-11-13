@@ -10,12 +10,12 @@ import {
   createArgon2Hasher, createAuthService, createSetupService, createSqliteSessionRepository, createSqliteUserRepository, createUserAdminService,
   type AuthService, type PasswordHasher, type SetupService, type UserAdminService, type UserRepository,
 } from '@clawrouter/authentication';
-import { createAuthorizationService, createSqliteRoleRepository, userAccessPolicy, type AuthorizationService } from '@clawrouter/authorization';
+import { createAuthorizationService, createSqliteRoleRepository, peopleDirectory, userAccessPolicy, type AuthorizationService } from '@clawrouter/authorization';
 import { createEventBus, createLogger, createSecretBox, generateSecretKey, LogBuffer, parseSecretKey, type EventBus, type LogRecord, type SecretBox } from '@clawrouter/core';
 import { createDefaultRegistry, createProviderService, createSqliteProviderRepository, type ProviderService } from '@clawrouter/providers';
 import { createModelService, createSqliteModelRepository, type ModelService } from '@clawrouter/models';
 import { createRoutingService, createSqliteRoutingStore, seededRandom, type RoutingService } from '@clawrouter/routing';
-import { createApiKeyService, createGatewayService, type ApiKeyService, type GatewayService } from '@clawrouter/gateway';
+import { createApiKeyService, createGatewayService, createKeyRequestService, type ApiKeyService, type GatewayService, type KeyRequestService } from '@clawrouter/gateway';
 import { createRateLimitService, createSqliteRateLimitConfigStore, MemoryCounterStore, type RateLimitService } from '@clawrouter/rate-limits';
 import { createRequestLogService, createSqliteRequestRepository, type RequestLogService } from '@clawrouter/requests';
 import { createNotificationService, createSqliteNotificationRepository, type NotificationService } from '@clawrouter/notifications';
@@ -56,6 +56,7 @@ export interface Harness {
   models: ModelService;
   routing: RoutingService;
   apiKeys: ApiKeyService;
+  keyRequests: KeyRequestService;
   gateway: GatewayService;
   limits: RateLimitService;
   requests: RequestLogService;
@@ -128,6 +129,7 @@ export function createHarness(options: { idleMinutes?: number; maxHours?: number
   // Seeded randomness: weighted routing choices are reproducible in tests.
   const routing = createRoutingService({ store: createSqliteRoutingStore(db), models, providers, audit, events, log, now: clock.now, random: seededRandom(42) });
   const apiKeys = createApiKeyService({ db, audit, log, now: clock.now });
+  const keyRequests = createKeyRequestService({ db, apiKeys, directory: peopleDirectory(authz), audit, events, log, now: clock.now });
   // No retry backoff in tests: they would only get slower.
   const limits = createRateLimitService({
     store: createSqliteRateLimitConfigStore(db), counters: new MemoryCounterStore(() => clock.now().getTime()), audit, events, log, now: clock.now,
@@ -147,10 +149,10 @@ export function createHarness(options: { idleMinutes?: number; maxHours?: number
   });
   const healthHistory = createHealthHistoryService({ repo: createSqliteHealthHistoryRepository(db), now: clock.now });
   const operations = createOperationService({ repo: createSqliteOperationRepository(db), handlers: operationHandlers({ providers, health }), audit, events, log, now: clock.now });
-  const api = createApiApp({ log, logBuffer, audit, health, healthHistory, auth, authz, userAdmin, settings, notifications, providers, models, routing, apiKeys, gateway, limits, requests, operations, setup, cookie: { secure: options.secureCookie ?? false } });
+  const api = createApiApp({ log, logBuffer, audit, health, healthHistory, auth, authz, userAdmin, settings, notifications, providers, models, routing, apiKeys, keyRequests, gateway, limits, requests, operations, setup, cookie: { secure: options.secureCookie ?? false } });
 
   const h: Harness = {
-    db, clock, events, users, audit, auth, authz, userAdmin, settings, notifications, providers, models, routing, apiKeys, gateway, limits, requests, secrets, setup, health, healthHistory, operations, api, logs, logBuffer,
+    db, clock, events, users, audit, auth, authz, userAdmin, settings, notifications, providers, models, routing, apiKeys, keyRequests, gateway, limits, requests, secrets, setup, health, healthHistory, operations, api, logs, logBuffer,
     setProviderFetch(fn) {
       providerFetch = fn;
     },
