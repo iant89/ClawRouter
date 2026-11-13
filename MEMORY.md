@@ -28,7 +28,9 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
   Creating your own keys is a permission (`api_keys.own`). Keys can expire daily
   ("end of today", user's time zone) or after a length of time. Users without the
   permission can **request** a key; everyone who can create keys (`api_keys.write`)
-  and does **not share a role** with the requester is notified. Implemented in
+  and does **not share a role** with the requester is notified, and only they may
+  approve or deny it (owner confirmed 2026-11-13). Operators have `api_keys.own`
+  (owner confirmed). Implemented in
   `packages/gateway/src/key-requests.ts` and `expiry.ts`; tests in
   `packages/api/test/key-requests-api.test.ts`. Design choices made here:
   approvers never see the secret (the requester creates the key after approval,

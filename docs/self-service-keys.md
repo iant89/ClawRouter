@@ -49,7 +49,7 @@ when the key is **created**, not from when it was requested. The older
    requester's roles gets a notification linking to API Access → Key requests. If
    nobody qualifies, nobody is notified (a warning is logged), but the request is
    still listed for every approver.
-3. **Decide.** Any `api_keys.write` holder approves, optionally narrowing the models
+3. **Decide.** An `api_keys.write` holder who shares no role with the requester approves, optionally narrowing the models
    or the expiry and adding a note, or denies with a reason. The requester is
    notified either way. Approvers **never see the key**.
 4. **Create.** On My API keys, the requester clicks *Create key* on the approved
@@ -115,15 +115,17 @@ Code: `packages/gateway/src/key-lifetime.ts` (resolution and creation check), th
 `exclude` hook in `packages/routing/src/engine.ts`, and `tooOldFor` in
 `packages/gateway/src/service.ts`. Tests: `packages/api/test/key-lifetime-api.test.ts`.
 
-## Decisions to confirm with the owner
+## Owner's decisions (2026-11-13)
 
-- **Approving within the same role.** "Not the same role" is applied to
-  **notifications**. Any `api_keys.write` holder can still approve from the list.
-  Say if approval should also be limited to people outside the requester's roles.
-- **Operator and Viewer** do not get `api_keys.own`, because the built-in roles
-  stay as they are. Grant it with a custom role.
-- **"Maximum key length" read as lifetime.** If it meant something else (e.g. the
-  length of the provider's own API key), say so.
+- **Deciding is also limited to people outside the requester's roles**, not only
+  being notified. An `api_keys.write` holder who shares a role with the requester
+  sees the request but cannot approve or deny it (403). The list marks each request
+  with `decidableByYou`.
+- **Operators have `api_keys.own`** by default. Viewers do not; grant it with a
+  custom role if wanted.
+
+Still to confirm: "maximum key length" was read as **lifetime**. If it meant
+something else (e.g. the length of the provider's own API key), say so.
 
 ## Screenshots
 

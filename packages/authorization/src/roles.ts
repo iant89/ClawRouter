@@ -19,6 +19,8 @@ export const BUILT_IN_ROLE_PERMISSIONS: Record<BuiltInRoleId, readonly Permissio
     'audit.read',
     'requests.read',
     'usage.read',
+    // Owner's decision (2026-11-13): Operators create their own API keys.
+    'api_keys.own',
   ],
   /**
    * Read-only view of gateway configuration and activity. Deliberately excludes

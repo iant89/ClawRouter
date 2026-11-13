@@ -80,6 +80,8 @@ export interface ApiKeyRequestInfo {
   decisionNote: string | null;
   /** The key created from an approved request. */
   apiKeyId: string | null;
+  /** In approver lists: whether the signed-in approver may decide it (they share no role with the requester). */
+  decidableByYou?: boolean;
 }
 
 /** POST /api/me/api-key-requests */

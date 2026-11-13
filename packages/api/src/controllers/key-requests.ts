@@ -84,7 +84,7 @@ export function keyRequestsController(apiKeys: ApiKeyService, requests: KeyReque
 
     list: ((ctx) => {
       const q = pageQuery(ctx.url);
-      const { items, total } = requests.list(q);
+      const { items, total } = requests.list(actor(ctx), q);
       return ok<ApiKeyRequestInfo[]>(items, { meta: { page: q.page, pageSize: q.pageSize, total } });
     }) satisfies Handler,
 

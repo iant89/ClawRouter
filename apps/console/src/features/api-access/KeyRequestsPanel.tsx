@@ -58,12 +58,14 @@ export function KeyRequestsPanel({ onPendingCount }: { onPendingCount: (n: numbe
     },
     {
       id: 'actions', header: 'Actions', align: 'end',
-      cell: (r) => (r.status === 'PENDING' ? (
+      cell: (r) => (r.status !== 'PENDING' ? null : r.decidableByYou === false ? (
+        <Text size="sm" tone="secondary">You share a role with {r.requestedBy.username}: someone outside their roles decides.</Text>
+      ) : (
         <span style={{ display: 'inline-flex', gap: 'var(--eui-space-1, 0.25rem)' }}>
           <Button size="sm" variant="primary" onClick={() => setApproving(r)}>Approve…</Button>
           <Button size="sm" variant="tertiary" onClick={() => setDenying(r)}>Deny…</Button>
         </span>
-      ) : null),
+      )),
     },
   ];
 
@@ -72,7 +74,7 @@ export function KeyRequestsPanel({ onPendingCount }: { onPendingCount: (n: numbe
       {error && <MessageStrip tone="error" title="Cannot load key requests">{error}</MessageStrip>}
       <div style={{ display: 'flex', gap: 'var(--eui-space-3, 0.75rem)', alignItems: 'center', flexWrap: 'wrap' }}>
         <SegmentedButton aria-label="Show" items={[{ value: 'PENDING', label: 'Waiting' }, { value: 'ALL', label: 'All' }]} value={[filter]} onChange={(v) => v[0] && setFilter(v[0] as 'PENDING' | 'ALL')} />
-        <Text size="sm" tone="secondary">You are notified about requests from people who share none of your roles.</Text>
+        <Text size="sm" tone="secondary">You are notified about, and may decide, requests from people who share none of your roles.</Text>
       </div>
       <Table
         caption="Key requests"

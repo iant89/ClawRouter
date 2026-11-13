@@ -144,6 +144,30 @@ describe('key requests (owner rule)', () => {
     expect((await h.request('/api/api-key-requests?status=MAYBE', { cookie: manager })).status).toBe(400);
   });
 
+  test('only approvers who share no role with the requester may decide (owner rule)', async () => {
+    const { h, viewer, manager } = await world();
+    const r = await data<ApiKeyRequestInfo>(await h.request('/api/me/api-key-requests', { method: 'POST', cookie: viewer, json: { name: 'mine', purpose: 'y' } }));
+    // ada2 is an Administrator and a Viewer, like the requester: listed, but not theirs to decide.
+    const ada2 = await h.login('ada2');
+    const theirList = await data<ApiKeyRequestInfo[]>(await h.request('/api/api-key-requests', { cookie: ada2 }));
+    expect(theirList[0]).toMatchObject({ id: r.id, decidableByYou: false });
+    const approve = await h.request(`/api/api-key-requests/${r.id}/approve`, { method: 'POST', cookie: ada2, json: {} });
+    expect(approve.status).toBe(403);
+    expect((await errorOf(approve)).message).toBe('You share a role with val, so someone outside their roles must decide this request.');
+    expect((await h.request(`/api/api-key-requests/${r.id}/deny`, { method: 'POST', cookie: ada2, json: { reason: 'no' } })).status).toBe(403);
+    // The key manager shares no role with val.
+    expect((await data<ApiKeyRequestInfo[]>(await h.request('/api/api-key-requests', { cookie: manager })))[0]!.decidableByYou).toBe(true);
+    expect((await h.request(`/api/api-key-requests/${r.id}/approve`, { method: 'POST', cookie: manager, json: {} })).status).toBe(200);
+  });
+
+  test('Operators create their own keys (owner\'s decision), so they do not request', async () => {
+    const { h } = await world();
+    await h.addUser('olly', ['OPERATOR']);
+    const op = await h.login('olly');
+    expect((await h.request('/api/me/api-keys', { method: 'POST', cookie: op, json: { name: 'ops script', expiry: { type: 'after', hours: 24 } } })).status).toBe(201);
+    expect((await h.request('/api/me/api-key-requests', { method: 'POST', cookie: op, json: { name: 'x', purpose: 'y' } })).status).toBe(409);
+  });
+
   test('validation and the pending limit', async () => {
     const { h, viewer } = await world();
     const post = (json: unknown) => h.request('/api/me/api-key-requests', { method: 'POST', cookie: viewer, json });

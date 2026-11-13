@@ -16,7 +16,9 @@ describe('built-in roles (spec §16)', () => {
     for (const p of ['providers.write', 'models.write', 'routing.write', 'health.read', 'logs.read', 'audit.read', 'requests.read', 'usage.read'] as const) {
       expect(op.has(p)).toBe(true);
     }
-    for (const p of PERMISSIONS) if (/^(users|roles|sessions|settings|api_keys)\./.test(p)) expect(op.has(p)).toBe(false);
+    // Own API keys only (owner's decision, 2026-11-13); never everyone's keys or administration.
+    expect(op.has('api_keys.own')).toBe(true);
+    for (const p of PERMISSIONS) if (/^(users|roles|sessions|settings|api_keys)\./.test(p) && p !== 'api_keys.own') expect(op.has(p)).toBe(false);
   });
 
   test('VIEWER is read-only', () => {

@@ -142,6 +142,18 @@ export function createKeyRequestService(options: {
 
   const changed = (id: string, status: KeyRequestStatus) => events?.emit('api_key_request.changed', { requestId: id, status });
 
+  /** Owner's rule: whoever shares a role with the requester neither hears about nor decides their request. */
+  const sharesRole = (a: string, b: string) => {
+    const theirs = new Set(directory.rolesOf(b));
+    return directory.rolesOf(a).some((r) => theirs.has(r));
+  };
+  const assertMayDecide = (actor: KeyRequestActor, r: ApiKeyRequestInfo) => {
+    if (r.requestedBy.id === actor.id) throw errors.conflict('You cannot decide your own request.');
+    if (sharesRole(actor.id, r.requestedBy.id)) {
+      throw new AppError('AUTHORIZATION_ERROR', `You share a role with ${r.requestedBy.username}, so someone outside their roles must decide this request.`, { expose: true });
+    }
+  };
+
   return {
     /** Approvers to notify about a request from `requesterId`: key creators who share none of the requester's roles. */
     recipientsFor(requesterId: string): string[] {
@@ -180,8 +192,11 @@ export function createKeyRequestService(options: {
 
     listMine: (actor: KeyRequestActor) => repo.listByRequester(actor.id),
 
-    list: (query: { status?: KeyRequestStatus; page: number; pageSize: number }) =>
-      repo.list({ status: query.status, limit: query.pageSize, offset: (query.page - 1) * query.pageSize }),
+    /** All requests for approvers, each marked with whether this approver may decide it (no shared role). */
+    list(actor: KeyRequestActor, query: { status?: KeyRequestStatus; page: number; pageSize: number }) {
+      const page = repo.list({ status: query.status, limit: query.pageSize, offset: (query.page - 1) * query.pageSize });
+      return { ...page, items: page.items.map((r) => ({ ...r, decidableByYou: !sharesRole(actor.id, r.requestedBy.id) && r.requestedBy.id !== actor.id })) };
+    },
 
     cancel(actor: KeyRequestActor, id: string, client: Client): ApiKeyRequestInfo {
       const r = ownRequest(actor, id);
@@ -193,7 +208,8 @@ export function createKeyRequestService(options: {
 
     approve(actor: KeyRequestActor, id: string, body: ApproveKeyRequestBody, client: Client): ApiKeyRequestInfo {
       const r = get(id);
-      if (r.requestedBy.id === actor.id) throw errors.conflict('You cannot approve your own request.');
+      assertMayDecide(actor, r);
+
       const issues: FieldIssue[] = [];
       const allowedModels = body.allowedModels === undefined ? undefined : checkModels(body.allowedModels, issues);
       const expiry = body.expiry === undefined ? undefined : checkExpiry(body.expiry, 'expiry', issues);
@@ -217,6 +233,7 @@ export function createKeyRequestService(options: {
 
     deny(actor: KeyRequestActor, id: string, body: DenyKeyRequestBody, client: Client): ApiKeyRequestInfo {
       const r = get(id);
+      assertMayDecide(actor, r);
       const reason = body.reason.trim();
       if (!reason || reason.length > 500) throw errors.validation([{ path: 'reason', message: 'must be 1–500 characters: tell the requester why' }]);
       if (!repo.transition(id, 'PENDING', 'DENIED', { decidedBy: actor.id, at: now().toISOString(), note: reason })) {
