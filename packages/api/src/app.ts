@@ -176,6 +176,7 @@ export function createApiApp(deps: ApiDependencies): ApiApp {
   router.post('/api/users', 'users.write', usersApi.create);
   router.patch('/api/users/:id', 'users.write', usersApi.update);
   router.post('/api/users/:id/password', 'users.write', usersApi.resetPassword);
+  router.post('/api/users/:id/two-factor/reset', 'users.write', usersApi.resetTwoFactor);
   router.put('/api/users/:id/roles', 'roles.assign', access.setUserRoles);
 
   // System and security settings (spec §16).

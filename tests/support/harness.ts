@@ -117,7 +117,10 @@ export function createHarness(options: { idleMinutes?: number; maxHours?: number
     now: clock.now,
   });
   const authz = createAuthorizationService({ roles: createSqliteRoleRepository(db), audit, events, log, now: clock.now });
-  const userAdmin = createUserAdminService({ users, hasher: fastHasher, auth, audit, policy: userAccessPolicy(authz), events, log, now: clock.now });
+  const userAdmin = createUserAdminService({
+    users, hasher: fastHasher, auth, audit, policy: userAccessPolicy(authz), events, log, now: clock.now,
+    twoFactor: { reset: (actor, userId, client) => twoFactor.reset(actor, userId, client), emailChanged: (userId) => twoFactor.emailChanged(userId) },
+  });
   const notifications = createNotificationService({ repo: createSqliteNotificationRepository(db), events, log, now: clock.now });
   notifications.subscribe(events);
   const setup = createSetupService({

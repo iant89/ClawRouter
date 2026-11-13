@@ -16,16 +16,26 @@ const roleList = (value: unknown, path: string, issues: { path: string; message:
   return value as string[];
 };
 
+/** An email address, null to remove it, or absent. The service checks the format. */
+const optionalEmail = (value: unknown, path: string, issues: { path: string; message: string }[]) => {
+  if (value === undefined || value === null) return value;
+  if (typeof value === 'string' && value.length <= 254) return value;
+  issues.push({ path, message: 'must be an email address or null' });
+  return undefined;
+};
+
 const createBody = v.object({
   username: v.string({ min: 1, max: 64 }),
   displayName: v.string({ min: 1, max: 128 }),
   password: password(),
   roles: roleList,
+  email: optionalEmail,
 });
 
 const updateBody = v.object({
   displayName: v.optional(v.string({ min: 1, max: 128 })),
   status: v.optional(v.oneOf(['ACTIVE', 'DISABLED'] as const)),
+  email: optionalEmail,
 });
 
 const resetBody = v.object({ password: password() });
@@ -62,5 +72,8 @@ export function usersController(users: UserAdminService, auth: AuthService) {
     return ok<UserSummary>(await auth.changePassword(ctx.auth.user.id, ctx.auth.sessionId, body.currentPassword, body.newPassword, client(ctx)));
   };
 
-  return { create, update, resetPassword, changeOwnPassword };
+  /** POST /api/users/:id/two-factor/reset: removes a user's methods (lost phone). */
+  const resetTwoFactor: Handler = (ctx) => ok<UserWithRoles>(users.resetTwoFactor(actor(ctx), ctx.params.id ?? '', client(ctx)));
+
+  return { create, update, resetPassword, changeOwnPassword, resetTwoFactor };
 }

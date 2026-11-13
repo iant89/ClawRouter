@@ -5,6 +5,7 @@
  *
  *   bun run reset-password <username>            new temporary password, sessions ended
  *   bun run reset-password <username> --enable   also re-enables a disabled account
+ *   bun run reset-password <username> --reset-2fa also removes two-factor sign-in (lost phone)
  *
  * Uses the same configuration as the server (CLAWROUTER_DATABASE_PATH etc.).
  */
@@ -15,7 +16,7 @@ import { recoverPassword } from '../apps/server/src/recover.ts';
 const args = process.argv.slice(2);
 const username = args.find((a) => !a.startsWith('--'));
 if (!username || args.includes('--help')) {
-  console.error('usage: bun run reset-password <username> [--enable]');
+  console.error('usage: bun run reset-password <username> [--enable] [--reset-2fa]');
   process.exit(username ? 0 : 2);
 }
 
@@ -27,11 +28,12 @@ try {
     console.error('The database has pending migrations. Run "bun run migrate" (or start the server once) first.');
     process.exit(1);
   }
-  const { user, password } = await recoverPassword(db, username, { enable: args.includes('--enable'), log });
+  const { user, password } = await recoverPassword(db, username, { enable: args.includes('--enable'), resetTwoFactor: args.includes('--reset-2fa'), log });
   // Printed to this terminal only: never logged or stored in plain text.
   console.log(`Temporary password for ${user.username}: ${password}`);
   console.log('They must choose a new password when they sign in. Their sessions have been ended.');
   if (user.status !== 'ACTIVE') console.log('The account is disabled. Add --enable to re-enable it.');
+  if (user.twoFactor.length) console.log('Two-factor sign-in is still on (' + user.twoFactor.join(', ') + '). Add --reset-2fa if the phone or mailbox is lost too.');
 } catch (error) {
   console.error(error instanceof AppError ? error.message : error);
   process.exitCode = 1;

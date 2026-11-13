@@ -34,6 +34,8 @@ export interface RealtimeOptions {
   log?: Logger;
   now?: () => Date;
   /** Open connections allowed per user (tabs) and in total. */
+  /** A reason to refuse a signed-in user (e.g. two-factor setup required), or null. */
+  blocked?: (userId: string) => string | null;
   maxPerUser?: number;
   maxTotal?: number;
   /** A connection whose unsent data exceeds this is closed (slow consumer). */
@@ -186,6 +188,8 @@ export function createRealtimeHub(options: RealtimeOptions) {
       const resolved = token ? auth.resolve(token) : null;
       if (!token || !resolved) return refuse(401, 'Sign in first.');
       if (resolved.user.mustChangePassword) return refuse(403, 'Choose a new password first.');
+      const blocked = options.blocked?.(resolved.user.id);
+      if (blocked) return refuse(403, blocked);
       let mine = 0;
       for (const ws of sockets) if (ws.data.userId === resolved.user.id) mine += 1;
       if (mine >= maxPerUser || sockets.size >= maxTotal) return refuse(429, 'Too many open connections.');

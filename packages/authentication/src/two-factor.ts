@@ -327,6 +327,11 @@ export function createTwoFactorService(options: {
       events?.emit('user.changed', { userId, action: 'updated' });
     },
 
+    /** An administrator changed the user's address: email codes must be confirmed again at the new one. */
+    emailChanged(userId: string): void {
+      if (repo.get(userId)?.emailEnabledAt) repo.setEmailEnabled(userId, null, now().toISOString());
+    },
+
     purgeExpired: () => repo.purge(new Date(now().getTime() - 24 * 3_600_000).toISOString()),
   };
 }

@@ -37,6 +37,8 @@ export interface UserAdminOptions {
   events?: EventBus;
   log?: Logger;
   now?: () => Date;
+  /** Two-factor hooks: reset a user's methods, and re-confirm email codes when an administrator changes the address. */
+  twoFactor?: { reset(actor: { id: string | null; username: string }, userId: string, client: ClientInfo): void; emailChanged(userId: string): void };
 }
 
 export type UserAdminService = ReturnType<typeof createUserAdminService>;
@@ -91,15 +93,18 @@ export function createUserAdminService(options: UserAdminOptions) {
         ...(USERNAME_PATTERN.test(username) ? [] : [{ path: 'username', message: USERNAME_RULE }]),
         ...(input.displayName.trim() ? [] : [{ path: 'displayName', message: 'is required' }]),
         ...checkPasswordPolicy(input.password, username),
+        ...emailIssues(input.email),
       ];
       if (issues.length) throw errors.validation(issues);
       if (users.findByUsername(username)) throw errors.validation([{ path: 'username', message: 'is already taken' }]);
+      const email = input.email?.trim() || null;
+      if (email && users.findByEmail(email)) throw errors.validation([{ path: 'email', message: 'is used by another account' }]);
       policy.assertCanAssign(actor, input.roles);
 
       const passwordHash = await hasher.hash(input.password);
       const user = users.transaction((tx) => {
         if (tx.findByUsername(username)) throw errors.validation([{ path: 'username', message: 'is already taken' }]);
-        return tx.insert({ id: newId(), username, displayName: input.displayName.trim(), passwordHash, status: 'ACTIVE', mustChangePassword: true, now: now().toISOString() });
+        return tx.insert({ id: newId(), username, displayName: input.displayName.trim(), passwordHash, status: 'ACTIVE', mustChangePassword: true, email, now: now().toISOString() });
       });
       record(actor, 'USER_CREATED', user.id, client, { username: user.username, roles: [...new Set(input.roles)].sort() });
       if (input.roles.length) policy.assignRoles(actor, user.id, input.roles, client);
@@ -115,7 +120,12 @@ export function createUserAdminService(options: UserAdminOptions) {
       if (patch.displayName !== undefined && !displayName) throw errors.validation([{ path: 'displayName', message: 'is required' }]);
       const status = patch.status && patch.status !== user.status ? patch.status : undefined;
       const renamed = displayName !== undefined && displayName !== user.displayName;
-      if (!status && !renamed) return describe(userId);
+      const issues = patch.email === undefined ? [] : emailIssues(patch.email);
+      if (issues.length) throw errors.validation(issues);
+      const email = patch.email === undefined ? undefined : patch.email?.trim() || null;
+      const emailChanged = email !== undefined && email !== user.email;
+      if (emailChanged && email && users.findByEmail(email) && users.findByEmail(email)!.id !== userId) throw errors.validation([{ path: 'email', message: 'is used by another account' }]);
+      if (!status && !renamed && !emailChanged) return describe(userId);
 
       if (userId !== actor.id) policy.assertCanManageUser(actor, userId, 'change this user');
       if (status === 'DISABLED') {
@@ -123,9 +133,15 @@ export function createUserAdminService(options: UserAdminOptions) {
         if (policy.isLastActiveAdministrator(userId)) throw new AppError('CONFLICT', 'This is the only active administrator. Give another user the Administrator role first.');
       }
 
-      users.update(userId, { displayName: renamed ? displayName : undefined, status }, now().toISOString());
-      if (renamed) {
-        record(actor, 'USER_UPDATED', userId, client, { username: user.username, displayName: { before: user.displayName, after: displayName } });
+      users.update(userId, { displayName: renamed ? displayName : undefined, status, email: emailChanged ? email : undefined }, now().toISOString());
+      if (renamed || emailChanged) {
+        // The address itself is personal data: the audit record says only that it changed.
+        record(actor, 'USER_UPDATED', userId, client, {
+          username: user.username,
+          ...(renamed ? { displayName: { before: user.displayName, after: displayName } } : {}),
+          ...(emailChanged ? { emailChanged: true } : {}),
+        });
+        if (emailChanged) options.twoFactor?.emailChanged(userId);
         events?.emit('user.changed', { userId, action: 'updated' });
       }
       if (status === 'DISABLED') {
@@ -143,6 +159,16 @@ export function createUserAdminService(options: UserAdminOptions) {
      * Sets a temporary password chosen by an administrator. The user is signed
      * out everywhere and must choose a new password at the next sign-in.
      */
+    /** Removes a user's two-factor methods and recovery codes (lost phone). Same rules as other user changes. */
+    resetTwoFactor(actor: UserAdminActor, userId: string, client: ClientInfo): UserWithRoles {
+      target(userId);
+      if (!options.twoFactor) throw new AppError('SERVICE_UNAVAILABLE', 'Two-factor sign-in is not available.');
+      if (userId !== actor.id) policy.assertCanManageUser(actor, userId, "reset this user's two-factor sign-in");
+      options.twoFactor.reset(actor, userId, client);
+      log?.info('two-factor sign-in reset', { component: 'users', userId });
+      return describe(userId);
+    },
+
     async resetPassword(actor: UserAdminActor, userId: string, password: string, client: ClientInfo): Promise<UserWithRoles> {
       const user = target(userId);
       if (userId === actor.id) throw new AppError('CONFLICT', 'Use "Change password" to change your own password.');
@@ -182,3 +208,12 @@ export function createUserAdminService(options: UserAdminOptions) {
     },
   };
 }
+
+/** An optional email address: absent or null is fine; otherwise it must look like one. */
+function emailIssues(email: string | null | undefined): { path: string; message: string }[] {
+  const e = email?.trim();
+  if (!e) return [];
+  return EMAIL_RE.test(e) && e.length <= 254 ? [] : [{ path: 'email', message: 'must be an email address' }];
+}
+
+const EMAIL_RE = /^[^\s@<>()",;:]+@[^\s@<>()",;:]+\.[^\s@<>()",;:]+$/;

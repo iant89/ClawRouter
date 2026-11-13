@@ -152,7 +152,10 @@ export async function startClawRouter({ config, log, logBuffer, version, console
     secondStep: (user) => twoFactor.needsSecondStep(user.id),
   });
   const authz = createAuthorizationService({ roles: createSqliteRoleRepository(db), audit, events, log });
-  const userAdmin = createUserAdminService({ users, hasher, auth, audit, policy: userAccessPolicy(authz), events, log });
+  const userAdmin = createUserAdminService({
+    users, hasher, auth, audit, policy: userAccessPolicy(authz), events, log,
+    twoFactor: { reset: (actor, userId, client) => twoFactor.reset(actor, userId, client), emailChanged: (userId) => twoFactor.emailChanged(userId) },
+  });
   const mail = createMailService({ settings: createSqliteSettingsRepository(db), secrets, audit, events, log });
   const twoFactor = createTwoFactorService({
     db, users, hasher, secrets, settings: createSqliteSettingsRepository(db), mail, audit, events, log,
@@ -179,6 +182,7 @@ export async function startClawRouter({ config, log, logBuffer, version, console
   const purgeTimer = setInterval(() => {
     try {
       const removed = auth.purgeExpired();
+      twoFactor.purgeExpired();
       const notes = notifications.purgeOld();
       const checks = providers.pruneHistory();
       const history = requests.prune();
@@ -212,7 +216,10 @@ export async function startClawRouter({ config, log, logBuffer, version, console
   const api = createApiApp({ log, logBuffer, audit, health, healthHistory, auth, authz, userAdmin, settings, twoFactor, mail, notifications, providers, models, routing, apiKeys, keyRequests, gateway, limits, requests, operations, setup, cookie: { secure: config.auth.cookieSecure } });
 
   // The console's live channel (spec §25): session-authenticated, same-origin only.
-  const realtime = createRealtimeHub({ events, auth, authz, cookie: { secure: config.auth.cookieSecure }, metrics: () => gateway.metrics.snapshot(), log });
+  const realtime = createRealtimeHub({
+    events, auth, authz, cookie: { secure: config.auth.cookieSecure }, metrics: () => gateway.metrics.snapshot(), log,
+    blocked: (userId) => (twoFactor.setupRequired(userId) ? 'Set up two-factor sign-in first.' : null),
+  });
   realtime.start();
   liveHub = realtime;
 

@@ -64,12 +64,16 @@ export interface CreateUserRequest {
   displayName: string;
   password: string;
   roles: string[];
+  /** Optional; needed for email sign-in codes. */
+  email?: string | null;
 }
 
 /** PATCH /api/users/:id (users.write). */
 export interface UpdateUserRequest {
   displayName?: string;
   status?: 'ACTIVE' | 'DISABLED';
+  /** null removes the address. Changing it turns email sign-in codes off until confirmed again. */
+  email?: string | null;
 }
 
 /** POST /api/users/:id/password (users.write): sets a temporary password and signs the user out. */

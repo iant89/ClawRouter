@@ -102,7 +102,7 @@ export function createMailService(options: {
       if (Object.keys(changes).length || passwordChanged) {
         audit.record({
           action: 'SETTINGS_CHANGED', result: 'SUCCESS', resource: 'settings', actor: { id: actor.id, name: actor.username }, ip: client.ip, requestId: client.requestId ?? null,
-          metadata: { mailServer: changes, ...(passwordChanged ? { passwordChanged: true } : {}) },
+          metadata: { mailServer: changes, ...(passwordChanged ? { signInDetailsChanged: true } : {}) },
         });
         events?.emit('settings.changed', { key: KEY });
       }
