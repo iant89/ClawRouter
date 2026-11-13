@@ -87,6 +87,16 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
     (getter objects in `server.ts`), so no restart is needed. Stored as
     `system.<snake_case>` keys; out-of-range stored values are ignored. The password
     policy is not a setting.
+  - Phase 15: an API key acts for its owner, so a disabled owner's keys are
+    `SUSPENDED` (refused) until the owner is enabled again. Keys whose creator was
+    deleted (none can be today) keep working.
+  - Phase 15: production console files are served by `apps/server/src/console-assets.ts`
+    (not Bun's HTML route) so they get the CSP and security headers; development
+    still uses Bun's route for hot reload, without those headers.
+  - Phase 15: a failed sign-in records the typed username only if it is an existing
+    account (`unknownUser: true` otherwise), so mistyped passwords are never stored.
+  - Phase 15: `X-Forwarded-For` is ignored unless `CLAWROUTER_TRUSTED_PROXIES` lists
+    the connecting proxy; then the right-most untrusted hop is the client.
 
 ### Warnings
 
@@ -130,16 +140,15 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
     Redis pub/sub). A reverse proxy must pass WebSocket upgrades on `/api/ws` and
     keep the `Host` header (the origin check uses it).
 
-- **WARNING** · 2026-11-12 · Behind a reverse proxy, per-IP limits are shared
-  Client IPs come from the socket. Behind a proxy, every client has the proxy's
-  IP, so the per-IP sign-in limit (50 per 15 minutes) and the gateway's
-  invalid-API-key limit (default 20 per minute, then every `/v1` request from that
-  address is refused) apply to all clients together: one misconfigured client
-  could block everyone. Trusted `X-Forwarded-For` handling is planned for phase 17.
-
 - **WARNING** · 2026-11-12 · CI not yet observed
-  `.github/workflows/ci.yml` (frozen install, typecheck, tests, build) was added
-  with the move but has not been seen running on GitHub. Check the first run.
+  `.github/workflows/ci.yml` (frozen install, secret scan, `bun audit`, typecheck,
+  tests, build) has not been seen running on GitHub. Check the first run; `bun
+  audit` needs the npm registry and could be flaky.
+
+- **WARNING** · 2026-11-13 · Accepted security risks (see `docs/security.md`)
+  No 2FA; a known username can be locked out by repeated wrong passwords (15 min);
+  the console CSP allows inline styles (design system needs them; scripts are
+  strict). Revisit with the owner's 2FA decision.
 
 ### Notes
 
@@ -189,21 +198,48 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
     when a picture needs time to pass, and say so.
   - The session worker can restart mid-task. Commit and push in steps, so work is
     never lost.
+  - `bun run check 2>&1 | grep ... && git commit` commits even when the typecheck
+    fails (grep succeeds on the error text). Check the exit status of `bun run check`
+    itself before committing.
+  - `git grep -E` / `git log -G` use POSIX regular expressions: `(?:...)` silently
+    matches nothing. `scripts/scan-secrets.ts` converts its patterns; keep that.
+  - The password policy refuses passwords containing the username. Browser-check
+    scripts tripped on it twice (e.g. "sams-..." for sam); pick unrelated words.
+  - `dist/` keeps old hashed bundles across builds; `rm -rf dist` before a build
+    whose output you inspect.
+  - GitHub pushes sometimes fail with 503 ("credential service temporarily
+    unavailable"); retry with a short backoff and confirm with `git ls-remote`.
 
 ### Messages
 
-- **MESSAGE** · 2026-11-13 · Phase 14 waits for review; then phase 15
-  Phase 13 was merged on the owner's word ("Merge 13"): `main` = `aad19fe`. Phase 14
-  (administration: custom roles, user management, password recovery CLI, settings)
-  is on `claude/phase-14-administration`, built on top of it, so merging is a
+- **MESSAGE** · 2026-11-13 · Phase 15 waits for review; then phase 16
+  Phase 14 was merged on the owner's word ("Merge, then start next phase"): `main` =
+  `20e0915`. Phase 15 (security hardening, report in `docs/security.md`) is on
+  `claude/phase-15-security-hardening`, built on top of it, so merging is a
   fast-forward. Merge only when the owner says so.
-  Next: phase 15, security hardening (reviews of authentication, authorization,
-  sessions, API keys, credential encryption, CSRF; see `docs/roadmap.md`). Trusted
-  `X-Forwarded-For` handling is also still open (see the reverse-proxy warning).
+  Next: phase 16, performance (see `docs/roadmap.md`).
+
+- **MESSAGE** · 2026-11-13 · Two open questions for the owner (asked, not yet answered)
+  1. **Self-service API keys:** should every user (or only roles given a new
+     permission such as `api_keys.own`) create and revoke their own keys? Today only
+     `api_keys.write` (Administrators) can.
+  2. **Two-factor authentication:** proposed an authenticator app (TOTP) with
+     recovery codes, plus optional email codes and security emails once an SMTP
+     server is configured (SMTP password encrypted like provider keys), and a setting
+     to require 2FA for administrators or everyone. Await the owner's choice.
+  Do not build either until the owner answers; `docs/security.md` lists both as
+  residual risks.
 
 ---
 
 ## Resolved
+
+- **MESSAGE** · 2026-11-13 · Phase 14 waits for review; then phase 15. Resolved 2026-11-13:
+  phase 14 merged (`20e0915`); phase 15 built on `claude/phase-15-security-hardening`.
+
+- **WARNING** · 2026-11-12 · Behind a reverse proxy, per-IP limits are shared. Resolved
+  2026-11-13 (phase 15): `CLAWROUTER_TRUSTED_PROXIES` makes ClawRouter read
+  `X-Forwarded-For` from listed proxies only (`packages/core/src/client-address.ts`).
 
 - **MESSAGE** · 2026-11-13 · Phase 13 waits for review; then phase 14. Resolved 2026-11-13:
   phase 13 merged (`aad19fe`); phase 14 built on `claude/phase-14-administration`

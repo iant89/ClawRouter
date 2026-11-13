@@ -201,3 +201,13 @@ the audit log.
 | ![Change password](14-administration/12-change-password.png) | User menu → Change password |
 | ![Phone](14-administration/13-settings-phone.png) | Settings at phone width |
 | ![Audit](14-administration/14-audit.png) | The audit trail of all of the above |
+
+## 15 · Security
+
+Most of phase 15 is invisible (headers, limits, tests; see
+[security](../security.md)). The console change: an API key whose owner was
+disabled is suspended until the owner is enabled again.
+
+| | |
+|---|---|
+| ![Suspended key](15-security/suspended-key.png) | **API Access**: a key created by a user who was then disabled shows as suspended and is refused by `/v1` |

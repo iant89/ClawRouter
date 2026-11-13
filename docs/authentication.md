@@ -100,9 +100,9 @@ Unknown usernames and wrong passwords get the same message, and the server verif
 dummy hash for unknown users so response timing is similar. "Account is disabled" is
 only shown after the correct password.
 
-> Behind a reverse proxy every client has the proxy's IP, so the per-IP limit then
-> applies to everyone together. Trusted-proxy support (`X-Forwarded-For`) comes with
-> production packaging (phase 17).
+> Behind a reverse proxy, set `CLAWROUTER_TRUSTED_PROXIES` to the proxy's address:
+> otherwise every client has the proxy's IP and the per-IP limit applies to everyone
+> together. See [security](security.md).
 
 ## CSRF
 

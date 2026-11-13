@@ -23,8 +23,8 @@ Partly built items in later phases are marked "(groundwork: …)".
 | 12 Health + operations | ✅ |
 | 13 Logging + audit | ✅ |
 | 14 Administration | ✅ |
-| 15 Security hardening | ⬜ **next** |
-| 16 Performance | ⬜ |
+| 15 Security hardening | ✅ |
+| 16 Performance | ⬜ **next** |
 | 17 Production | ⬜ |
 
 ---
@@ -339,28 +339,30 @@ See [administration](administration.md).
 
 Exit: the entire platform can be administered through the console.
 
-## Phase 15: Security hardening ⬜ next
+## Phase 15: Security hardening ✅
 
 Goal: prepare for real-world deployment.
 
-- [ ] Security review
-- [ ] Authentication review
-- [ ] Authorization review
-- [ ] Session security review
-- [ ] API-key security review
-- [ ] Credential encryption review
-- [ ] CSRF review
-- [ ] Rate-limit review
-- [ ] Input validation review
-- [ ] Output validation review
-- [ ] Secret scanning
-- [ ] Dependency audit
-- [ ] Security tests
-- [ ] Failure-path tests
+See [security](security.md): the review report, findings fixed, tests and residual risks.
+
+- [x] Security review
+- [x] Authentication review
+- [x] Authorization review
+- [x] Session security review
+- [x] API-key security review
+- [x] Credential encryption review
+- [x] CSRF review
+- [x] Rate-limit review
+- [x] Input validation review
+- [x] Output validation review
+- [x] Secret scanning
+- [x] Dependency audit
+- [x] Security tests
+- [x] Failure-path tests
 
 Exit: no known critical security weaknesses remain in the initial architecture.
 
-## Phase 16: Performance ⬜
+## Phase 16: Performance ⬜ next
 
 Goal: optimize the gateway and console.
 

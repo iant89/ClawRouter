@@ -30,8 +30,10 @@ usage tracking and an administration console built on
   history, cancellable long-running operations), and phase 13, **logging and
   audit** (Logs and Audit pages, secret scrubbing by shape), and phase 14,
   **administration** (custom roles, user management with temporary passwords and
-  command-line recovery, system and security settings).
-  Security hardening is next (phase 15).
+  command-line recovery, system and security settings), and phase 15, **security
+  hardening** (streamed body limits, CSP and security headers, trusted proxies,
+  key rotation, secret scanning; see [security](docs/security.md)).
+  Performance is next (phase 16).
 - **Architecture:** [`docs/architecture.md`](docs/architecture.md) ·
   **Security model:** [`docs/authentication.md`](docs/authentication.md),
   [`docs/authorization.md`](docs/authorization.md) · **Console:**
@@ -90,6 +92,8 @@ curl -s http://127.0.0.1:8080/api/health | jq
 | `bun run check` | typecheck + tests |
 | `bun run migrate` | Apply pending migrations (`--status` to list only) |
 | `bun run reset-password <username>` | Lost password: sets and prints a temporary password, ends the user's sessions (`--enable` also re-enables the account) |
+| `bun run rotate-secret-key` | Re-encrypt stored provider credentials with a new key (`CLAWROUTER_NEW_SECRET_KEY` or `--new-key-file`); stop the server first |
+| `bun run scan-secrets` | Fail on credential-shaped strings in tracked files (`--history`: every commit) |
 | `bun run build` | Production bundle in `dist/` (server + console) |
 | `bun run start` | Run the production bundle (`CLAWROUTER_ENV=production`) |
 
@@ -121,6 +125,7 @@ Invalid values stop the server with a message listing every problem.
 | `CLAWROUTER_REQUEST_RETENTION_DAYS` | `30` | Days to keep gateway request history; `0` keeps it forever |
 | `CLAWROUTER_USAGE_RETENTION_DAYS` | `400` | Days to keep hourly usage records; `0` keeps them forever |
 | `CLAWROUTER_SETUP_TOKEN` | generated | Pre-chosen initial setup token (≥ 16 chars), e.g. for automated installs |
+| `CLAWROUTER_TRUSTED_PROXIES` | none | Reverse proxies (addresses or CIDR ranges, comma-separated) whose `X-Forwarded-For` is believed. Only list your own proxy |
 
 Session lifetimes and the three retention periods are only **defaults**: Administration → Settings can change them while running, and a value set there wins until it is reset (see [administration](docs/administration.md#settings)).
 

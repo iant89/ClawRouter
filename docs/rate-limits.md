@@ -33,7 +33,7 @@ empty for "no limit".
 - **Invalid keys per address.** After N failed key checks in a minute, **every**
   `/v1` request from that address gets 429 until the window has passed, valid key
   or not, so the address cannot keep probing. Behind a reverse proxy all clients
-  share the proxy's address (trusted `X-Forwarded-For` is phase 17).
+  share the proxy's address unless `CLAWROUTER_TRUSTED_PROXIES` lists it (see [security](security.md)).
 
 ### Tokens
 
