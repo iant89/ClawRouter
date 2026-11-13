@@ -33,7 +33,7 @@ bun install            # everything, including the vendored ENTERPRISE-UI
 bun run dev            # server + console with hot reload on http://127.0.0.1:8080
 bun run check          # typecheck + all tests: must pass before every commit
 bun run typecheck
-bun test               # ~460 tests, about a second
+bun test               # ~470 tests, about a second
 bun run build          # production bundle in dist/ (server + console)
 bun run start          # run the production bundle
 bun run migrate        # apply migrations (--status to list)
@@ -60,7 +60,7 @@ vendor/             ENTERPRISE-UI tarball (committed)
 
 Area docs: [architecture](docs/architecture.md) · [authentication](docs/authentication.md) ·
 [authorization](docs/authorization.md) · [console shell](docs/console-shell.md) ·
-[providers](docs/providers.md) · [models](docs/models.md) · [routing](docs/routing.md) · [gateway](docs/gateway.md) · [rate limits](docs/rate-limits.md) · [requests and usage](docs/requests-usage.md) · [real-time](docs/realtime.md) · [health and operations](docs/health-operations.md) · [screenshots](docs/screenshots/README.md)
+[providers](docs/providers.md) · [models](docs/models.md) · [routing](docs/routing.md) · [gateway](docs/gateway.md) · [rate limits](docs/rate-limits.md) · [requests and usage](docs/requests-usage.md) · [real-time](docs/realtime.md) · [health and operations](docs/health-operations.md) · [logging and audit](docs/logging-audit.md) · [screenshots](docs/screenshots/README.md)
 
 ## Rules
 
@@ -81,7 +81,8 @@ From the specification (§2, §39), plus conventions established while building:
 6. **Secrets never leave the server.** No secret in logs, audit metadata,
    notifications, errors, URLs, WebSocket messages or API responses. Provider keys
    are write-only and encrypted (`packages/core/src/secrets.ts`). Field names like
-   `password`, `token`, `apiKey` are redacted by the logger; do not rely on that alone.
+   `password`, `token`, `apiKey` are redacted, and secret-shaped strings (API keys,
+   bearer tokens) are scrubbed anywhere (`redact`, `scrubSecrets`); do not rely on that alone.
 7. **Never trust the browser.** Validate every input on the server
    (`packages/core/src/validation.ts`); the console's checks are only for feedback.
 8. **ENTERPRISE-UI is the design system.** Use its components and `--eui-*` tokens.

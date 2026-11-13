@@ -27,14 +27,15 @@ usage tracking and an administration console built on
   estimated cost; usage reports by model, provider, key and user), and phase 11,
   the **real-time system** (a signed-in WebSocket that keeps the console live),
   and phase 12, **health and operations** (gateway and WebSocket checks, health
-  history, cancellable long-running operations).
-  The Logs and Audit pages are next (phase 13).
+  history, cancellable long-running operations), and phase 13, **logging and
+  audit** (Logs and Audit pages, secret scrubbing by shape).
+  Administration (users, settings) is next (phase 14).
 - **Architecture:** [`docs/architecture.md`](docs/architecture.md) ·
   **Security model:** [`docs/authentication.md`](docs/authentication.md),
   [`docs/authorization.md`](docs/authorization.md) · **Console:**
   [`docs/console-shell.md`](docs/console-shell.md) · **Providers:**
   [`docs/providers.md`](docs/providers.md) · **Models:** [`docs/models.md`](docs/models.md) ·
-  **Routing:** [`docs/routing.md`](docs/routing.md) · **Gateway:** [`docs/gateway.md`](docs/gateway.md) · **Rate limits:** [`docs/rate-limits.md`](docs/rate-limits.md) · **Requests and usage:** [`docs/requests-usage.md`](docs/requests-usage.md) · **Real-time:** [`docs/realtime.md`](docs/realtime.md) · **Health and operations:** [`docs/health-operations.md`](docs/health-operations.md)
+  **Routing:** [`docs/routing.md`](docs/routing.md) · **Gateway:** [`docs/gateway.md`](docs/gateway.md) · **Rate limits:** [`docs/rate-limits.md`](docs/rate-limits.md) · **Requests and usage:** [`docs/requests-usage.md`](docs/requests-usage.md) · **Real-time:** [`docs/realtime.md`](docs/realtime.md) · **Health and operations:** [`docs/health-operations.md`](docs/health-operations.md) · **Logging and audit:** [`docs/logging-audit.md`](docs/logging-audit.md)
 - **Screenshots:** [`docs/screenshots/`](docs/screenshots/README.md)
 - **Working on the code:** [`AGENTS.md`](AGENTS.md) (rules, commands, definition
   of done) and [`MEMORY.md`](MEMORY.md) (important notes carried between sessions).
@@ -104,6 +105,7 @@ Invalid values stop the server with a message listing every problem.
 | `CLAWROUTER_DATABASE_PATH` | `./data/clawrouter.db` | `:memory:` in `test` |
 | `CLAWROUTER_LOG_LEVEL` | `debug` (dev), `info` | `debug`, `info`, `warn`, `error`, `fatal` |
 | `CLAWROUTER_LOG_FORMAT` | `pretty` (dev), `json` | |
+| `CLAWROUTER_LOG_BUFFER_SIZE` | `5000` | Recent log records kept in memory for the console's Logs page; `0` turns it off |
 | `CLAWROUTER_CONSOLE_ENABLED` | `true` | `false` runs the server headless (API only) |
 | `CLAWROUTER_SESSION_IDLE_MINUTES` | `60` | A session ends after this long without activity |
 | `CLAWROUTER_SESSION_MAX_HOURS` | `12` | A session ends this long after sign-in, regardless of activity |

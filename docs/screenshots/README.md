@@ -162,3 +162,19 @@ progress and cancellation).
 | ![Cancel](12-health-operations/cancel-confirm.png) | Cancelling a running operation |
 | ![Operations](12-health-operations/operations.png) | Afterwards: cancelled, succeeded, and a connection test started from the Providers page |
 | ![Phone](12-health-operations/phone-history.png) | Health history at phone width |
+
+## 13 · Logging and audit
+
+Real records from a server that saw sign-ins (two with a wrong password), a
+provider created with a wrong key, gateway calls (one failing), and an API key
+used both correctly and incorrectly. None of those secrets appear anywhere.
+
+| | |
+|---|---|
+| ![Logs](13-logging-audit/logs.png) | **Logs**: recent records with level, component and request |
+| ![Warnings](13-logging-audit/logs-warnings.png) | Warnings and errors only; filters are kept in the address |
+| ![Detail](13-logging-audit/log-detail.png) | A record's full JSON |
+| ![Request](13-logging-audit/logs-for-request.png) | Opened from a request's **Logs for this request** |
+| ![Audit](13-logging-audit/audit.png) | **Audit**: who did what, when and from where |
+| ![Audit detail](13-logging-audit/audit-detail.png) | A failed sign-in: username and reason, never the password; link to its logs |
+| ![Phone](13-logging-audit/phone-audit.png) | Audit at phone width |

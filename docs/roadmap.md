@@ -299,33 +299,36 @@ Goal: build operational visibility. See [health and operations](health-operation
 
 Exit: administrators can determine exactly which part of the platform is healthy or failing ✅
 
-## Phase 13: Logging + audit 🟡 next
+## Phase 13: Logging + audit ✅
+
+See [logging and audit](logging-audit.md).
 
 Goal: provide operational and security traceability.
 
 - [x] Structured logs
 - [x] Log levels
-- [ ] Log filtering (no Logs page yet)
+- [x] Log filtering: in-memory buffer of recent redacted records, `GET /api/logs`, **Logs** page (level, component, provider, request id, user, text; follow)
 - [x] Request correlation IDs
 - [x] Audit repository
-- [ ] Audit UI
+- [x] Audit UI: `GET /api/audit` with filters and paging, **Audit** page
 - [x] Authentication auditing
 - [x] Provider auditing
 - [x] Routing auditing (`ROUTING_UPDATED` with a diff)
 - [x] User auditing (setup, role changes)
 - [x] API-key auditing (`API_KEY_CREATED`, `API_KEY_UPDATED`, `API_KEY_REVOKED`, since phases 8 and 9)
-- [x] Secret redaction
+- [x] Secret redaction: by field name, and secret-shaped strings (API keys, bearer tokens) anywhere
 
-Exit: important actions can be traced without exposing secrets.
+Exit: important actions can be traced without exposing secrets ✅
+(tested end to end: no password, key or token reaches the logs; request ids link logs, requests and audit).
 
-## Phase 14: Administration 🟡
+## Phase 14: Administration 🟡 next
 
 Goal: complete the control plane.
 
 - [ ] User management (groundwork: list users, assign roles; no create, disable or reset yet)
 - [ ] Role management (built-in roles and assignment only; no custom roles)
 - [x] Session management
-- [ ] API-key management
+- [x] API-key management (API Access page: create, revoke, allowed models, expiry, limits; phases 8 and 9)
 - [x] Provider management
 - [x] Model management
 - [x] Routing management (Routing page)

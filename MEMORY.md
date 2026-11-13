@@ -61,6 +61,9 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
     `providers.write` for provider work, `health.read` for health checks, so Viewers
     may run health checks). `/api/health` stays public but returns details and
     latencies only to users with `health.read`.
+  - Phase 13: the Logs page reads an **in-memory** buffer of recent records
+    (`CLAWROUTER_LOG_BUFFER_SIZE`, lost on restart); stdout stays the log of record.
+    Logs are not stored in SQLite. Request ids link Requests, Logs and Audit.
   - The live channel sends `health.changed` to every signed-in user (the header
     shows system health to all); everything else is filtered by permission.
 
@@ -169,19 +172,26 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 
 ### Messages
 
-- **MESSAGE** · 2026-11-13 · Phase 12 waits for review; then phase 13
-  Phase 11 was merged on the owner's word ("Merge 11"): `main` = `7a79eed`. Phase 12
-  (health + operations) is on `claude/phase-12-health-operations`, built on top of
-  it, so merging is a fast-forward. Merge only when the owner says so.
-  Next: phase 13, logging + audit: the remaining items are the **Logs** page (log
-  filtering by level, component, provider, request id, user and text, spec §27;
-  needs an in-memory or stored log buffer, redacted) and the **Audit** page
-  (filters, paging, `audit.read`). Both expose IPs: Administrators and Operators
-  only (`logs.read`, `audit.read`), as decided.
+- **MESSAGE** · 2026-11-13 · Phase 13 waits for review; then phase 14
+  Phase 12 was merged on the owner's word ("Merge 12"): `main` = `4d3a728`. Phase 13
+  (logging + audit) is on `claude/phase-13-logging-audit`, built on top of it, so
+  merging is a fast-forward. Merge only when the owner says so.
+  Next: phase 14, administration. Open items: user management (create, disable,
+  reset password: the password reset should be a server-side CLI per the warning
+  above, plus "must change password at next sign-in"), role management (built-in
+  roles only today; decide with the owner whether custom roles are wanted), system
+  settings and security settings (the `settings` table exists; candidates:
+  session lifetimes, sign-in throttling, retention periods now in environment
+  variables). Settings changes must be audited (`SETTINGS_CHANGED`).
 
 ---
 
 ## Resolved
+
+- **MESSAGE** · 2026-11-13 · Phase 12 waits for review; then phase 13. Resolved 2026-11-13:
+  phase 12 merged (`4d3a728`); phase 13 built on `claude/phase-13-logging-audit`
+  (see `docs/logging-audit.md`). Phase 13 also fixed connection-test audit records
+  losing the client address since phase 12.
 
 - **MESSAGE** · 2026-11-12 · Phase 11 waits for review; then phase 12. Resolved 2026-11-13:
   phase 11 merged (`7a79eed`); phase 12 built on `claude/phase-12-health-operations`
