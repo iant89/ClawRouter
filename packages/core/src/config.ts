@@ -17,6 +17,8 @@ export interface Config {
   log: {
     level: LogLevel;
     format: LogFormat;
+    /** Recent log records kept in memory for the Logs page (0 turns it off). */
+    bufferSize: number;
   };
   console: {
     /** Serve the web console from this process. The gateway works without it. */
@@ -117,6 +119,7 @@ export function loadConfig(env: Env = process.env): Config {
     log: {
       level: oneOf('CLAWROUTER_LOG_LEVEL', LOG_LEVELS, envName === 'development' ? 'debug' : 'info'),
       format: oneOf<LogFormat>('CLAWROUTER_LOG_FORMAT', ['json', 'pretty'], envName === 'development' ? 'pretty' : 'json'),
+      bufferSize: int('CLAWROUTER_LOG_BUFFER_SIZE', 5000, 0, 100_000),
     },
     console: {
       enabled: bool('CLAWROUTER_CONSOLE_ENABLED', true),

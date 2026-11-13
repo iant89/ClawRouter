@@ -12,3 +12,4 @@ export * from './rate-limits.ts';
 export * from './requests.ts';
 export * from './realtime.ts';
 export * from './operations.ts';
+export * from './logs.ts';

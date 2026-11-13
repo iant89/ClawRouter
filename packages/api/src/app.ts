@@ -1,4 +1,4 @@
-import { AppError, newRequestId, type Logger } from '@clawrouter/core';
+import { AppError, newRequestId, type LogBuffer, type Logger } from '@clawrouter/core';
 import type { AuthService, SetupService } from '@clawrouter/authentication';
 import type { AuthorizationService } from '@clawrouter/authorization';
 import type { NotificationService } from '@clawrouter/notifications';
@@ -25,9 +25,12 @@ import { apiKeysController, gatewayController } from './controllers/gateway.ts';
 import { rateLimitsController } from './controllers/rate-limits.ts';
 import { requestsController } from './controllers/requests.ts';
 import { operationsController } from './controllers/operations.ts';
+import { logsController } from './controllers/logs.ts';
 
 export interface ApiDependencies {
   log: Logger;
+  /** Recent log records for the Logs page; null when the buffer is off. */
+  logBuffer?: LogBuffer | null;
   health: HealthService;
   healthHistory: HealthHistoryService;
   auth: AuthService;
@@ -66,6 +69,7 @@ export function createApiApp(deps: ApiDependencies): ApiApp {
   const notes = notificationsController(deps.notifications);
   const prov = providersController(deps.providers, deps.operations);
   const ops = operationsController(deps.operations);
+  const logs = logsController(deps.logBuffer ?? null);
   const mod = modelsController(deps.models);
   const rt = routingController(deps.routing);
   const keys = apiKeysController(deps.apiKeys);
@@ -127,6 +131,7 @@ export function createApiApp(deps: ApiDependencies): ApiApp {
   router.get('/api/sessions', 'sessions.read', authRoutes.listAllSessions);
   router.post('/api/sessions/revoke', 'sessions.revoke', authRoutes.revokeUserSessions);
   router.delete('/api/sessions/:id', 'sessions.revoke', authRoutes.revokeAnySession);
+  router.get('/api/logs', 'logs.read', logs.list);
   router.get('/api/roles', 'roles.read', access.listRoles);
   router.get('/api/users', 'users.read', access.listUsers);
   router.put('/api/users/:id/roles', 'roles.assign', access.setUserRoles);

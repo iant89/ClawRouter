@@ -1,4 +1,4 @@
-import { redact } from './redact.ts';
+import { redact, scrubSecrets } from './redact.ts';
 
 export const LOG_LEVELS = ['debug', 'info', 'warn', 'error', 'fatal'] as const;
 export type LogLevel = (typeof LOG_LEVELS)[number];
@@ -31,6 +31,8 @@ export interface LoggerOptions {
   format?: LogFormat;
   /** Where formatted lines go. Defaults to stdout (stderr for warn and above). */
   sink?: LogSink;
+  /** Receives every record after redaction, in addition to the sink (e.g. the in-memory log buffer). */
+  tap?: (record: LogRecord) => void;
   bindings?: LogFields;
   now?: () => Date;
 }
@@ -65,9 +67,10 @@ export function createLogger(options: LoggerOptions = {}): Logger {
   const write = (lvl: LogLevel, msg: string, fields?: LogFields) => {
     if (RANK[lvl] < threshold) return;
     const safe = redact({ ...bindings, ...fields }) as LogFields;
-    const record: LogRecord = { time: now().toISOString(), level: lvl, msg, ...safe };
+    const record: LogRecord = { time: now().toISOString(), level: lvl, msg: scrubSecrets(msg), ...safe };
     const line = format === 'pretty' ? formatPretty(record) : JSON.stringify(record);
     sink(record, line);
+    options.tap?.(record);
   };
 
   return {
@@ -76,7 +79,7 @@ export function createLogger(options: LoggerOptions = {}): Logger {
     warn: (msg, fields) => write('warn', msg, fields),
     error: (msg, fields) => write('error', msg, fields),
     fatal: (msg, fields) => write('fatal', msg, fields),
-    child: (extra) => createLogger({ level, format, sink, now, bindings: { ...bindings, ...extra } }),
+    child: (extra) => createLogger({ level, format, sink, now, tap: options.tap, bindings: { ...bindings, ...extra } }),
     isLevelEnabled: (lvl) => RANK[lvl] >= threshold,
   };
 }

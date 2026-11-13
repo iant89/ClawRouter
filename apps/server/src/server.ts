@@ -6,7 +6,7 @@ import {
   type AuthService, type PasswordHasher, type SetupService,
 } from '@clawrouter/authentication';
 import { createAuthorizationService, createSqliteRoleRepository, type AuthorizationService } from '@clawrouter/authorization';
-import { createEventBus, type Config, type EventBus, type Logger } from '@clawrouter/core';
+import { createEventBus, type Config, type EventBus, type LogBuffer, type Logger } from '@clawrouter/core';
 import { REALTIME_PATH } from '@clawrouter/shared';
 import { createNotificationService, createSqliteNotificationRepository, type NotificationService } from '@clawrouter/notifications';
 import { createDefaultRegistry, createProviderService, createSqliteProviderRepository, type ProviderService } from '@clawrouter/providers';
@@ -33,6 +33,8 @@ export interface ClawRouterOptions {
   consoleHtml?: HTMLBundle;
   /** Override password hashing cost (tests). */
   hasher?: PasswordHasher;
+  /** Recent log records the logger also writes to (see main.ts), for the Logs page. */
+  logBuffer?: LogBuffer;
   /** Override the fetch used for provider calls (tests). */
   providerFetch?: typeof fetch;
 }
@@ -69,7 +71,7 @@ export interface ClawRouter {
  * HTTP layer together, then starts listening. Everything is created here and
  * passed down explicitly; no module-level singletons.
  */
-export async function startClawRouter({ config, log, version, consoleHtml, hasher = createArgon2Hasher(), providerFetch }: ClawRouterOptions): Promise<ClawRouter> {
+export async function startClawRouter({ config, log, logBuffer, version, consoleHtml, hasher = createArgon2Hasher(), providerFetch }: ClawRouterOptions): Promise<ClawRouter> {
   const db = openSqlite({ path: config.database.path });
   try {
     runMigrations(db, migrations, log);
@@ -186,7 +188,7 @@ export async function startClawRouter({ config, log, version, consoleHtml, hashe
   providerKickoff?.unref();
   providerTimer?.unref();
 
-  const api = createApiApp({ log, health, healthHistory, auth, authz, notifications, providers, models, routing, apiKeys, gateway, limits, requests, operations, setup, cookie: { secure: config.auth.cookieSecure } });
+  const api = createApiApp({ log, logBuffer, health, healthHistory, auth, authz, notifications, providers, models, routing, apiKeys, gateway, limits, requests, operations, setup, cookie: { secure: config.auth.cookieSecure } });
 
   // The console's live channel (spec §25): session-authenticated, same-origin only.
   const realtime = createRealtimeHub({ events, auth, authz, cookie: { secure: config.auth.cookieSecure }, metrics: () => gateway.metrics.snapshot(), log });

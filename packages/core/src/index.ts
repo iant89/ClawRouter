@@ -6,3 +6,4 @@ export * from './logger.ts';
 export * from './redact.ts';
 export * from './validation.ts';
 export * from './secrets.ts';
+export * from './log-buffer.ts';

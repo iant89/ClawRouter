@@ -17,7 +17,7 @@ describe('loadConfig', () => {
 
   test('production defaults to JSON logs at info', () => {
     const config = loadConfig({ CLAWROUTER_ENV: 'production', CLAWROUTER_SECRET_KEY: 'a'.repeat(64) });
-    expect(config.log).toEqual({ level: 'info', format: 'json' });
+    expect(config.log).toEqual({ level: 'info', format: 'json', bufferSize: 5000 });
   });
 
   test('production requires a secret key for credential encryption', () => {

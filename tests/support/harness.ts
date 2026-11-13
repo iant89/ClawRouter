@@ -11,7 +11,7 @@ import {
   type AuthService, type PasswordHasher, type SetupService, type UserRepository,
 } from '@clawrouter/authentication';
 import { createAuthorizationService, createSqliteRoleRepository, type AuthorizationService } from '@clawrouter/authorization';
-import { createEventBus, createLogger, createSecretBox, generateSecretKey, parseSecretKey, type EventBus, type LogRecord, type SecretBox } from '@clawrouter/core';
+import { createEventBus, createLogger, createSecretBox, generateSecretKey, LogBuffer, parseSecretKey, type EventBus, type LogRecord, type SecretBox } from '@clawrouter/core';
 import { createDefaultRegistry, createProviderService, createSqliteProviderRepository, type ProviderService } from '@clawrouter/providers';
 import { createModelService, createSqliteModelRepository, type ModelService } from '@clawrouter/models';
 import { createRoutingService, createSqliteRoutingStore, seededRandom, type RoutingService } from '@clawrouter/routing';
@@ -65,6 +65,7 @@ export interface Harness {
   operations: OperationService;
   api: ApiApp;
   logs: LogRecord[];
+  logBuffer: LogBuffer;
   /** Sends a request through the full API pipeline. */
   request(path: string, init?: RequestInit & { json?: unknown; cookie?: string | null; csrf?: boolean; ip?: string }): Promise<Response>;
   /** Completes setup with ADMIN and returns the session cookie (`name=value`). */
@@ -86,7 +87,8 @@ export function createHarness(options: { idleMinutes?: number; maxHours?: number
   runMigrations(db, migrations);
   const clock = new Clock();
   const logs: LogRecord[] = [];
-  const log = createLogger({ level: 'debug', sink: (r) => logs.push(r), now: clock.now });
+  const logBuffer = new LogBuffer(2000);
+  const log = createLogger({ level: 'debug', sink: (r) => logs.push(r), tap: logBuffer.push, now: clock.now });
   const events = createEventBus(log);
   const users = createSqliteUserRepository(db);
   const audit = createAuditService(createSqliteAuditRepository(db), log, clock.now);
@@ -134,10 +136,10 @@ export function createHarness(options: { idleMinutes?: number; maxHours?: number
   });
   const healthHistory = createHealthHistoryService({ repo: createSqliteHealthHistoryRepository(db), now: clock.now });
   const operations = createOperationService({ repo: createSqliteOperationRepository(db), handlers: operationHandlers({ providers, health }), audit, events, log, now: clock.now });
-  const api = createApiApp({ log, health, healthHistory, auth, authz, notifications, providers, models, routing, apiKeys, gateway, limits, requests, operations, setup, cookie: { secure: options.secureCookie ?? false } });
+  const api = createApiApp({ log, logBuffer, health, healthHistory, auth, authz, notifications, providers, models, routing, apiKeys, gateway, limits, requests, operations, setup, cookie: { secure: options.secureCookie ?? false } });
 
   const h: Harness = {
-    db, clock, events, users, audit, auth, authz, notifications, providers, models, routing, apiKeys, gateway, limits, requests, secrets, setup, health, healthHistory, operations, api, logs,
+    db, clock, events, users, audit, auth, authz, notifications, providers, models, routing, apiKeys, gateway, limits, requests, secrets, setup, health, healthHistory, operations, api, logs, logBuffer,
     setProviderFetch(fn) {
       providerFetch = fn;
     },

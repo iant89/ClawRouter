@@ -1,4 +1,4 @@
-import { createLogger, loadConfig, AppError } from '@clawrouter/core';
+import { createLogger, loadConfig, AppError, LogBuffer } from '@clawrouter/core';
 import consoleHtml from '@clawrouter/console/index.html';
 import { startClawRouter } from './server.ts';
 import { VERSION } from './version.ts';
@@ -11,10 +11,12 @@ try {
   process.exit(1);
 }
 
-const log = createLogger({ level: config.log.level, format: config.log.format });
+// Recent records also go to an in-memory buffer for the console's Logs page (already redacted).
+const logBuffer = config.log.bufferSize > 0 ? new LogBuffer(config.log.bufferSize) : undefined;
+const log = createLogger({ level: config.log.level, format: config.log.format, tap: logBuffer?.push });
 
 try {
-  const app = await startClawRouter({ config, log, version: VERSION, consoleHtml });
+  const app = await startClawRouter({ config, log, logBuffer, version: VERSION, consoleHtml });
 
   const shutdown = async (signal: string) => {
     log.info('shutdown requested', { component: 'server', signal });
