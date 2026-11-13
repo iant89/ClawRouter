@@ -11,6 +11,7 @@ import { m0009ApiKeys } from './0009_api_keys.ts';
 import { m0010RateLimits } from './0010_rate_limits.ts';
 import { m0011Requests } from './0011_requests.ts';
 import { m0012HealthOperations } from './0012_health_operations.ts';
+import { m0013CustomRolesUsers } from './0013_custom_roles_users.ts';
 
 /** All migrations, in order. Append only. */
-export const migrations: readonly Migration[] = [m0001Settings, m0002UsersSessions, m0003AuditLog, m0004Roles, m0005Notifications, m0006Providers, m0007Models, m0008Routing, m0009ApiKeys, m0010RateLimits, m0011Requests, m0012HealthOperations];
+export const migrations: readonly Migration[] = [m0001Settings, m0002UsersSessions, m0003AuditLog, m0004Roles, m0005Notifications, m0006Providers, m0007Models, m0008Routing, m0009ApiKeys, m0010RateLimits, m0011Requests, m0012HealthOperations, m0013CustomRolesUsers];

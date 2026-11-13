@@ -18,6 +18,14 @@ export interface RoleRepository {
   countActiveHolders(roleId: string): number;
   listUsersWithRoles(): UserWithRoles[];
   findUserWithRoles(userId: string): UserWithRoles | undefined;
+  /** Stored permissions of custom roles (built-in roles keep theirs in code). */
+  customPermissions(roleIds: string[]): Map<string, string[]>;
+  findRole(id: string): RoleRecord | undefined;
+  /** Case-insensitive. */
+  findRoleByName(name: string): RoleRecord | undefined;
+  insertRole(role: { id: string; name: string; description: string; permissions: string[]; at: string }): void;
+  updateRole(id: string, patch: { name: string; description: string; permissions: string[]; at: string }): void;
+  deleteRole(id: string): void;
   transaction<T>(fn: (repo: RoleRepository) => T): T;
 }
 
@@ -79,6 +87,40 @@ export function createSqliteRoleRepository(db: Database): RoleRepository {
     findUserWithRoles(userId) {
       const row = d.get<UserRow>(`${USERS_WITH_ROLES} WHERE u.id = ?`, [userId]);
       return row ? toUser(row) : undefined;
+    },
+    customPermissions(roleIds) {
+      const out = new Map<string, string[]>();
+      if (!roleIds.length) return out;
+      const rows = d.all<{ role_id: string; permission: string }>(
+        `SELECT role_id, permission FROM role_permissions WHERE role_id IN (${roleIds.map(() => '?').join(', ')}) ORDER BY permission`,
+        roleIds,
+      );
+      for (const r of rows) out.set(r.role_id, [...(out.get(r.role_id) ?? []), r.permission]);
+      return out;
+    },
+    findRole(id) {
+      const r = d.get<{ id: string; name: string; description: string; built_in: number }>('SELECT id, name, description, built_in FROM roles WHERE id = ?', [id]);
+      return r ? { id: r.id, name: r.name, description: r.description, builtIn: r.built_in === 1 } : undefined;
+    },
+    findRoleByName(name) {
+      const r = d.get<{ id: string; name: string; description: string; built_in: number }>('SELECT id, name, description, built_in FROM roles WHERE name = ? COLLATE NOCASE', [name]);
+      return r ? { id: r.id, name: r.name, description: r.description, builtIn: r.built_in === 1 } : undefined;
+    },
+    insertRole(role) {
+      d.transaction((tx) => {
+        tx.run('INSERT INTO roles (id, name, description, built_in, created_at, updated_at) VALUES (?, ?, ?, 0, ?, ?)', [role.id, role.name, role.description, role.at, role.at]);
+        for (const p of role.permissions) tx.run('INSERT INTO role_permissions (role_id, permission) VALUES (?, ?)', [role.id, p]);
+      });
+    },
+    updateRole(id, patch) {
+      d.transaction((tx) => {
+        tx.run('UPDATE roles SET name = ?, description = ?, updated_at = ? WHERE id = ? AND built_in = 0', [patch.name, patch.description, patch.at, id]);
+        tx.run('DELETE FROM role_permissions WHERE role_id = ?', [id]);
+        for (const p of patch.permissions) tx.run('INSERT INTO role_permissions (role_id, permission) VALUES (?, ?)', [id, p]);
+      });
+    },
+    deleteRole(id) {
+      d.run('DELETE FROM roles WHERE id = ? AND built_in = 0', [id]);
     },
     transaction: (fn) => d.transaction((tx) => fn(repo(tx))),
   });

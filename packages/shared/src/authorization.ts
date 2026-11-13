@@ -14,7 +14,7 @@ export const PERMISSIONS = [
   'logs.read',
   'audit.read',
   'users.read', 'users.write',
-  'roles.read', 'roles.assign',
+  'roles.read', 'roles.write', 'roles.assign',
   'sessions.read', 'sessions.revoke',
   'settings.read', 'settings.write',
 ] as const;
@@ -39,7 +39,8 @@ export const PERMISSION_DESCRIPTIONS: Record<Permission, string> = {
   'users.read': 'View console users and their roles',
   'users.write': 'Create, change, enable and disable console users',
   'roles.read': 'View roles and their permissions',
-  'roles.assign': 'Assign roles to users',
+  'roles.write': 'Create, change and delete custom roles (only with permissions you hold yourself)',
+  'roles.assign': 'Assign roles to users (only roles whose permissions you hold yourself)',
   'sessions.read': "View every user's sessions",
   'sessions.revoke': "Sign out any user's sessions",
   'settings.read': 'View system settings',
@@ -77,4 +78,29 @@ export interface SetUserRolesRequest {
 
 export function isPermission(value: unknown): value is Permission {
   return typeof value === 'string' && (PERMISSIONS as readonly string[]).includes(value);
+}
+
+/** The role that holds every permission. Unique and fixed: it cannot be edited, deleted or matched by another role. */
+export const ADMIN_ROLE_ID = 'ADMIN';
+
+/** Permissions grouped by area, for the role editor (every permission appears once). */
+export const PERMISSION_GROUPS: { area: string; permissions: Permission[] }[] = [
+  { area: 'Gateway', permissions: ['requests.read', 'usage.read', 'api_keys.read', 'api_keys.write', 'rate_limits.read', 'rate_limits.write'] },
+  { area: 'AI infrastructure', permissions: ['providers.read', 'providers.write', 'models.read', 'models.write', 'routing.read', 'routing.write'] },
+  { area: 'System', permissions: ['health.read', 'logs.read', 'audit.read'] },
+  { area: 'Administration', permissions: ['users.read', 'users.write', 'roles.read', 'roles.write', 'roles.assign', 'sessions.read', 'sessions.revoke', 'settings.read', 'settings.write'] },
+];
+
+/** POST /api/roles */
+export interface CreateRoleRequest {
+  name: string;
+  description?: string;
+  permissions: Permission[];
+}
+
+/** PATCH /api/roles/:id (custom roles only) */
+export interface UpdateRoleRequest {
+  name?: string;
+  description?: string;
+  permissions?: Permission[];
 }

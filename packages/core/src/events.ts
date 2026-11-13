@@ -14,6 +14,8 @@ export interface EventMap {
   'session.revoked': { sessionId: string; userId: string; reason: SessionRevokeReason };
   'user.signed_in': { userId: string };
   'user.roles_changed': { userId: string; roles: string[] };
+  /** A custom role was created, changed or deleted (its members also get user.roles_changed). */
+  'role.changed': { roleId: string; action: 'created' | 'updated' | 'deleted' };
   /** A username was blocked after repeated failed sign-ins (emitted once per block). */
   'auth.login_throttled': { username: string; ip: string | null; scope: 'username' | 'ip'; retryAfterSeconds: number };
   'provider.changed': { providerId: string; action: 'created' | 'updated' | 'deleted' | 'enabled' | 'disabled' | 'credential' };

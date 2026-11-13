@@ -138,6 +138,9 @@ export function createApiApp(deps: ApiDependencies): ApiApp {
   router.get('/api/logs', 'logs.read', logs.list);
   router.get('/api/audit', 'audit.read', auditLog.list);
   router.get('/api/roles', 'roles.read', access.listRoles);
+  router.post('/api/roles', 'roles.write', access.createRole);
+  router.patch('/api/roles/:id', 'roles.write', access.updateRole);
+  router.delete('/api/roles/:id', 'roles.write', access.deleteRole);
   router.get('/api/users', 'users.read', access.listUsers);
   router.put('/api/users/:id/roles', 'roles.assign', access.setUserRoles);
 
