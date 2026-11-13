@@ -4,7 +4,8 @@ import type { RateLimit } from './rate-limits.ts';
  * Gateway vocabulary (spec §6, §7, §14). API keys authenticate external AI
  * clients on /v1/*; they are separate from console sessions.
  */
-export const API_KEY_STATUSES = ['ACTIVE', 'EXPIRED', 'REVOKED'] as const;
+/** SUSPENDED: the user who owns the key is disabled; it works again if they are re-enabled. */
+export const API_KEY_STATUSES = ['ACTIVE', 'SUSPENDED', 'EXPIRED', 'REVOKED'] as const;
 export type ApiKeyStatus = (typeof API_KEY_STATUSES)[number];
 
 /** Every key starts with this, so leaked keys are easy to recognize (e.g. by secret scanners). */

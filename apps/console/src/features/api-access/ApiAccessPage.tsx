@@ -16,6 +16,7 @@ import { CreateKeyDialog } from './CreateKeyDialog.tsx';
 
 const STATUS: Record<ApiKeyStatus, { tone: 'success' | 'warning' | 'neutral'; label: string }> = {
   ACTIVE: { tone: 'success', label: 'Active' },
+  SUSPENDED: { tone: 'warning', label: 'Suspended (owner disabled)' },
   EXPIRED: { tone: 'warning', label: 'Expired' },
   REVOKED: { tone: 'neutral', label: 'Revoked' },
 };
@@ -129,7 +130,7 @@ export function ApiAccessPage() {
     { id: 'created', header: 'Created', accessor: (k) => k.createdAt, cell: (k) => <span>{when(k.createdAt)}{k.createdBy && <Text size="sm" tone="secondary"> by {k.createdBy.username}</Text>}</span> },
     {
       id: 'actions', header: 'Actions', align: 'end',
-      cell: (k) => (canWrite && k.status === 'ACTIVE'
+      cell: (k) => (canWrite && (k.status === 'ACTIVE' || k.status === 'SUSPENDED')
         ? <OverflowMenu label={`Actions for ${k.name}`} items={[{ id: 'limit', label: 'Change rate limit' }, { type: 'separator' }, { id: 'revoke', label: 'Revoke key', destructive: true }]} onAction={(id) => (id === 'limit' ? (setLimitError(null), setLimitKey(k)) : setRevoking(k))} />
         : null),
     },

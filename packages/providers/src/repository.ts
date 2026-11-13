@@ -41,6 +41,13 @@ export interface ProviderRepository {
   credentialSummaries(): Map<string, { hint: string | null; updatedAt: string }>;
   putCredential(providerId: string, name: string, value: StoredCredential & { updatedBy: string | null }): 'created' | 'replaced';
   deleteCredential(providerId: string, name: string): boolean;
+  /** Every stored credential (key rotation). */
+  listCredentials(): { providerId: string; name: string; ciphertext: string; keyFingerprint: string }[];
+  /**
+   * Replaces ciphertexts in one transaction, each only if it is still `from`
+   * (unchanged since it was read). Returns how many were replaced.
+   */
+  replaceCiphertexts(updates: { providerId: string; name: string; from: string; ciphertext: string; keyFingerprint: string }[]): number;
 
   addCheck(providerId: string, check: ProviderCheck): void;
   recentChecks(providerId: string, limit: number): ProviderCheck[];
@@ -142,6 +149,21 @@ export function createSqliteProviderRepository(db: Database): ProviderRepository
       });
     },
     deleteCredential: (providerId, name) => db.run('DELETE FROM provider_credentials WHERE provider_id = ? AND name = ?', [providerId, name]).changes > 0,
+    listCredentials() {
+      return db.all<{ provider_id: string; name: string; ciphertext: string; key_fingerprint: string }>('SELECT provider_id, name, ciphertext, key_fingerprint FROM provider_credentials ORDER BY provider_id, name')
+        .map((r) => ({ providerId: r.provider_id, name: r.name, ciphertext: r.ciphertext, keyFingerprint: r.key_fingerprint }));
+    },
+    replaceCiphertexts(updates) {
+      return db.transaction((tx) => {
+        let n = 0;
+        for (const u of updates) {
+          n += tx.run('UPDATE provider_credentials SET ciphertext = ?, key_fingerprint = ? WHERE provider_id = ? AND name = ? AND ciphertext = ?',
+            [u.ciphertext, u.keyFingerprint, u.providerId, u.name, u.from]).changes;
+        }
+        if (n !== updates.length) throw new Error('stored credentials changed during key rotation; nothing was changed, run it again');
+        return n;
+      });
+    },
 
     addCheck(providerId, c) {
       db.run('INSERT INTO provider_health_history (provider_id, checked_at, check_kind, status, latency_ms, detail) VALUES (?, ?, ?, ?, ?, ?)',

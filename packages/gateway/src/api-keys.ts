@@ -24,6 +24,7 @@ interface Row {
   allowed_models: string;
   created_by: string | null;
   created_by_username: string | null;
+  created_by_status: string | null;
   created_at: string;
   expires_at: string | null;
   last_used_at: string | null;
@@ -55,10 +56,14 @@ export type ApiKeyService = ReturnType<typeof createApiKeyService>;
 export function createApiKeyService(options: { db: Database; audit: AuditService; log?: Logger; now?: () => Date }) {
   const { db, audit, log } = options;
   const now = options.now ?? (() => new Date());
-  const SELECT = `SELECT k.*, u.username AS created_by_username FROM api_keys k LEFT JOIN users u ON u.id = k.created_by`;
+  const SELECT = `SELECT k.*, u.username AS created_by_username, u.status AS created_by_status FROM api_keys k LEFT JOIN users u ON u.id = k.created_by`;
 
   const statusOf = (r: Row, at: number): ApiKeyStatus =>
-    r.revoked_at ? 'REVOKED' : r.expires_at && Date.parse(r.expires_at) <= at ? 'EXPIRED' : 'ACTIVE';
+    r.revoked_at ? 'REVOKED'
+      : r.expires_at && Date.parse(r.expires_at) <= at ? 'EXPIRED'
+        // A key acts for the user who owns it: a disabled user's keys stop working too.
+        : r.created_by_status === 'DISABLED' ? 'SUSPENDED'
+          : 'ACTIVE';
 
   const toInfo = (r: Row): ApiKeyInfo => ({
     id: r.id,

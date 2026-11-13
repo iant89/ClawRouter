@@ -136,7 +136,7 @@ export function createNotificationService(options: {
             severity: 'WARNING',
             title: 'Sign-in blocked after repeated failures',
             body: scope === 'username'
-              ? `Sign-in as "${username}" is blocked for ${minutes} min after repeated wrong passwords${ip ? ` (last attempt from ${ip})` : ''}.`
+              ? `Sign-in as ${username ? `"${username}"` : "an unknown username"} is blocked for ${minutes} min after repeated failures${ip ? ` (last attempt from ${ip})` : ''}.`
               : `Sign-in from ${ip ?? 'an unknown address'} is blocked for ${minutes} min after repeated failures.`,
             link: '/audit',
             source: 'auth.login_throttled',

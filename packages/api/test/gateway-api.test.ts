@@ -90,6 +90,22 @@ describe('API keys (admin)', () => {
     expect((await v1(h, soon.secret, '/models')).status).toBe(401);
   });
 
+  test("a disabled user's keys are suspended, and work again when the user is enabled", async () => {
+    const { h, admin } = await world();
+    const { id: otherId } = await h.addUser('second', ['ADMIN']);
+    const second = await h.login('second');
+    const theirs = await createKey(h, second, { name: 'theirs' });
+    expect((await v1(h, theirs.secret, '/models')).status).toBe(200);
+
+    await h.request(`/api/users/${otherId}`, { method: 'PATCH', cookie: admin, json: { status: 'DISABLED' } });
+    expect((await v1(h, theirs.secret, '/models')).status).toBe(401);
+    const listed = (await json<ApiSuccess<ApiKeyInfo[]>>(await h.request('/api/api-keys', { cookie: admin }))).data;
+    expect(listed.find((k) => k.name === 'theirs')!.status).toBe('SUSPENDED');
+
+    await h.request(`/api/users/${otherId}`, { method: 'PATCH', cookie: admin, json: { status: 'ACTIVE' } });
+    expect((await v1(h, theirs.secret, '/models')).status).toBe(200);
+  });
+
   test('validation and permissions', async () => {
     const { h, admin } = await world();
     expect((await h.request('/api/api-keys', { method: 'POST', cookie: admin, json: { name: '' } })).status).toBe(400);

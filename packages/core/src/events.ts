@@ -19,7 +19,8 @@ export interface EventMap {
   /** A custom role was created, changed or deleted (its members also get user.roles_changed). */
   'role.changed': { roleId: string; action: 'created' | 'updated' | 'deleted' };
   /** A username was blocked after repeated failed sign-ins (emitted once per block). */
-  'auth.login_throttled': { username: string; ip: string | null; scope: 'username' | 'ip'; retryAfterSeconds: number };
+  /** `username` is null when the name typed is not an account (it might be a mistyped password). */
+  'auth.login_throttled': { username: string | null; ip: string | null; scope: 'username' | 'ip'; retryAfterSeconds: number };
   'provider.changed': { providerId: string; action: 'created' | 'updated' | 'deleted' | 'enabled' | 'disabled' | 'credential' };
   'provider.status': { providerId: string; name: string; previous: ProviderState; current: ProviderState; detail: string | null };
   'provider.test.started': { providerId: string };
