@@ -83,11 +83,36 @@ requesters hear through their notifications.
 Storage: `api_key_requests` (migration `0014`). The secret is never stored for a
 request; it exists only when the requester creates the key.
 
+## Maximum key lifetime by creator
+
+The owner's rule (2026-11-13): "Maximum key length if an administrator creates it,
+can be infinite, any other role maximum should be a configuration value the
+administrator sets, default is 30 days."
+
+- **Administrators** (the Administrator role) may create keys that never expire.
+- **Everyone else** creates keys that last at most the **Maximum key lifetime**
+  setting (Administration → Settings → API keys; 30 days by default, 1–3650).
+  "Never" and anything longer are refused (400). This covers their own keys,
+  keys made in API Access through a custom role with `api_keys.write`, and keys
+  created from approved requests.
+- **Who counts is who creates the key.** For a request, that is the requester: an
+  approver, even an Administrator, cannot approve a never-expiring key for them.
+  A request sent without an expiry asks for the longest allowed.
+- **New keys only.** Lowering the setting does not shorten existing keys. A request
+  approved under a longer limit fails when the key is created; the requester asks again.
+- The per-provider and per-model limits below still apply on top, to everyone.
+- The session (`GET /api/auth/session`) reports `keyLifetimeLimitHours` (null for
+  Administrators), so the console hides "Never" and checks the length before sending.
+
+Code: `creatorLimitHours` in `packages/gateway/src/api-keys.ts`, wired in
+`apps/server/src/server.ts`. Tests: `packages/api/test/key-creator-limit-api.test.ts`.
+Screenshots: [`docs/screenshots/18-key-lifetime-by-role`](screenshots/README.md#18--maximum-key-lifetime-by-creator).
+
 ## Maximum key lifetime per provider and model
 
 The owner's request (2026-11-13): administrators choose, when adding or editing a
 provider or a model, how long an API key may live and still use it. This is
-"maximum key length" in the request, read as lifetime.
+"maximum key length" in the request (lifetime, confirmed by the owner).
 
 - **Where:** *Maximum key lifetime* (hours or days; blank = no limit) in the
   provider and model dialogs, stored as `max_key_lifetime_hours` on both
@@ -124,8 +149,8 @@ Code: `packages/gateway/src/key-lifetime.ts` (resolution and creation check), th
 - **Operators have `api_keys.own`** by default. Viewers do not; grant it with a
   custom role if wanted.
 
-Still to confirm: "maximum key length" was read as **lifetime**. If it meant
-something else (e.g. the length of the provider's own API key), say so.
+- **"Maximum key length" means lifetime.** Administrators may create keys that never
+  expire; everyone else is limited by a setting (see [above](#maximum-key-lifetime-by-creator)).
 
 ## Screenshots
 

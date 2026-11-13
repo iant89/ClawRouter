@@ -385,6 +385,14 @@ built after self-service keys. See [two-factor sign-in](two-factor.md).
 - [x] Forced setup when required; administrator and command-line reset
 - [x] Console: second sign-in step, Sign-in security, Settings, Users
 
+## Owner request: maximum key lifetime by creator ✅
+
+Asked by the owner on 2026-11-13. See [self-service keys](self-service-keys.md#maximum-key-lifetime-by-creator).
+
+- [x] Administrators may create keys that never expire
+- [x] Everyone else: at most the *Maximum key lifetime* setting (default 30 days), for own keys, API Access keys and keys from requests
+- [x] Console: "Never" hidden and the length checked for users with a limit
+
 ## Phase 16: Performance ⬜ next
 
 Goal: optimize the gateway and console.

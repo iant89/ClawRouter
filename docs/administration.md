@@ -112,6 +112,7 @@ Administration → Settings (`settings.read` to view, `settings.write` to change
 | Request history (days, 0 = forever) | `CLAWROUTER_REQUEST_RETENTION_DAYS` (30) | 0–3650 | Next hourly cleanup |
 | Usage records (days, 0 = forever) | `CLAWROUTER_USAGE_RETENTION_DAYS` (400) | 0–3650 | Next hourly cleanup |
 | Health history (days, 0 = forever) | `CLAWROUTER_HEALTH_HISTORY_DAYS` (7) | 0–365 | Next hourly cleanup |
+| Maximum key lifetime (days), for keys not created by an Administrator | built in (30) | 1–3650 | For new keys (see [self-service keys](self-service-keys.md#maximum-key-lifetime-by-creator)) |
 
 The environment provides the defaults. **A value changed in the console takes
 precedence** until it is reset to the default. Values are stored in the

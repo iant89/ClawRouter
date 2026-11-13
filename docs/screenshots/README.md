@@ -257,3 +257,14 @@ The setup key and codes in the pictures came from a throwaway test database.
 | ![Users](17-two-factor/9-users-two-factor.png) | **Users** shows each user's methods |
 | ![Reset](17-two-factor/10-reset-two-factor.png) | Resetting a user's two-factor sign-in |
 | ![Phone](17-two-factor/11-second-step-phone.png) | The second step at phone width |
+
+## 18 · Maximum key lifetime by creator
+
+Administrators may create keys that never expire; everyone else is limited by a
+setting (here lowered to 14 days). Devon has a custom Developer role with `api_keys.own`.
+
+| | |
+|---|---|
+| ![Setting](18-key-lifetime-by-role/1-setting.png) | **Settings → API keys**: *Maximum key lifetime* (default 30 days) |
+| ![Too long](18-key-lifetime-by-role/2-own-key-too-long.png) | Devon: no "Never", and 30 days is more than the limit |
+| ![Within](18-key-lifetime-by-role/3-own-key-within-limit.png) | Within the limit |

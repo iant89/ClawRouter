@@ -23,9 +23,20 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
   Your own email changes only with your password (user administration refuses it).
   See `docs/two-factor.md`; tests in `packages/api/test/two-factor-api.test.ts`.
 
+- **IMPORTANT** · 2026-11-13 · Owner rule: maximum key lifetime by creator
+  "Maximum key length if a administrator creates it, can be infinite, any other role
+  maximum should be a configuration value the administrator sets, default is 30
+  days." Keys created by a holder of the Administrator role may never expire;
+  everyone else's keys last at most the `keyMaxLifetimeDays` setting (30, 1–3650):
+  own keys, API Access keys through custom roles, and keys from requests (the
+  requester creates them, so their limit applies even when an Administrator
+  approves). New keys only. Per-provider/model limits still apply on top.
+  `creatorLimitHours` in `packages/gateway/src/api-keys.ts`; the session reports
+  `keyLifetimeLimitHours`; tests in `packages/api/test/key-creator-limit-api.test.ts`.
+
 - **IMPORTANT** · 2026-11-13 · Owner rule: maximum key lifetime per provider and model
   "Administrators when adding providers/models should have the option to choose
-  maximum key length", read as **lifetime** (confirm with the owner). Optional
+  maximum key length", meaning **lifetime** (owner confirmed 2026-11-13). Optional
   `maxKeyLifetimeHours` on providers and models; a model's effective limit is the
   stricter of the two. Enforced twice: at key creation for keys naming specific
   models (aliases through their targets; "never" refused), and at use, where a key
@@ -255,7 +266,11 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 - **MESSAGE** · 2026-11-13 · Next: phase 16, performance
   Everything built so far is merged into `main` (see Resolved). Next is phase 16
   (see `docs/roadmap.md`), on a new branch `claude/phase-16-performance`.
-  Still to confirm with the owner: "maximum key length" read as key lifetime.
+
+- **MESSAGE** · 2026-11-13 · Maximum key lifetime by creator waits for review
+  On `claude/key-lifetime-by-role`, branched from `main` (`b80e5c0`), so merging is
+  a fast-forward. Merge only when the owner says so. Build phase 16 on top of it
+  (or on `main` after it is merged).
 
 ---
 
