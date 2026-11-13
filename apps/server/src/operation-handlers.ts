@@ -26,7 +26,7 @@ export function operationHandlers(deps: { providers: ProviderService; health: He
       describeTarget: nameOf,
       async run(ctx) {
         ctx.progress(10, 'Contacting the provider');
-        const r: ConnectionTestResult = await providers.test(actorOf(ctx.actor), ctx.targetId!, { ip: null });
+        const r: ConnectionTestResult = await providers.test(actorOf(ctx.actor), ctx.targetId!, ctx.client);
         return { result: r, message: r.message, ok: r.ok };
       },
     },
@@ -39,7 +39,7 @@ export function operationHandlers(deps: { providers: ProviderService; health: He
         for (const [i, p] of enabled.entries()) {
           if (ctx.signal.aborted) throw new AppError('CONFLICT', 'Cancelled.');
           ctx.progress((i / Math.max(1, enabled.length)) * 100, `Testing ${p.name} (${i + 1} of ${enabled.length})`);
-          const r = await providers.test(actorOf(ctx.actor), p.id, { ip: null });
+          const r = await providers.test(actorOf(ctx.actor), p.id, ctx.client);
           if (!r.ok) failed.push({ id: p.id, name: p.name, message: r.message });
         }
         const healthy = enabled.length - failed.length;

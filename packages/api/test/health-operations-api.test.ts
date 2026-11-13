@@ -88,6 +88,8 @@ describe('/api/operations', () => {
     const op = await data<OperationInfo>(got);
     expect(op).toMatchObject({ type: 'provider.test', targetId: p.id, targetLabel: 'OpenAI', status: 'SUCCESS', createdBy: { username: 'admin' } });
     expect(JSON.stringify(op)).not.toContain(mock.key);
+    // The audit record written by the work keeps the requester's address (the harness uses 203.0.113.7).
+    expect(h.audit.list({ action: 'CONNECTION_TEST' })[0]).toMatchObject({ ip: '203.0.113.7', actorName: 'admin' });
   });
 
   test('start, list and cancel follow the permissions of each operation type', async () => {

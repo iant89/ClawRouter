@@ -17,6 +17,8 @@ export interface OperationContext {
   signal: AbortSignal;
   /** Reports progress (0–100) and what is happening; updates are rate-limited. */
   progress(percent: number, message?: string): void;
+  /** Address and request of whoever started the operation, for audit records written by the work. */
+  client: { ip: string | null; requestId?: string | null };
   /** The user who started the operation. */
   actor: OperationActor;
   targetId: string | null;
@@ -58,7 +60,7 @@ export function createOperationService(options: {
   const maxConcurrent = options.maxConcurrent ?? 2;
   const queue: string[] = [];
   const running = new Map<string, AbortController>();
-  const pending = new Map<string, { type: OperationType; targetId: string | null; actor: OperationActor }>();
+  const pending = new Map<string, { type: OperationType; targetId: string | null; actor: OperationActor; client: { ip: string | null; requestId?: string | null } }>();
   const waiters = new Map<string, ((op: OperationInfo) => void)[]>();
   let stopped = false;
 
@@ -96,7 +98,7 @@ export function createOperationService(options: {
     }
   }
 
-  async function execute(id: string, job: { type: OperationType; targetId: string | null; actor: OperationActor }) {
+  async function execute(id: string, job: { type: OperationType; targetId: string | null; actor: OperationActor; client: { ip: string | null; requestId?: string | null } }) {
     const handler = handlerFor(job.type);
     const controller = new AbortController();
     running.set(id, controller);
@@ -110,7 +112,7 @@ export function createOperationService(options: {
     try {
       const outcome = await Promise.race([
         handler.run({
-          signal: controller.signal, actor: job.actor, targetId: job.targetId,
+          signal: controller.signal, actor: job.actor, targetId: job.targetId, client: job.client,
           progress(percent, message) {
             if (controller.signal.aborted) return;
             const t = Date.now();
@@ -169,7 +171,7 @@ export function createOperationService(options: {
         metadata: { type: input.type, targetId },
       });
       events?.emit('operation.progress', { id, type: input.type, targetId, status: 'QUEUED', progress: 0, message: 'Waiting to start' });
-      pending.set(id, { type: input.type, targetId, actor });
+      pending.set(id, { type: input.type, targetId, actor, client });
       queue.push(id);
       pump();
       return info(id)!;
