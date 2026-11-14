@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Button, Card, Input, MessageStrip, Page, RefreshControl, StatusIndicator, Tab, TabList, TabPanel, Tabs, Text, useToast } from '@enterprise-ui/react';
 import { useRouter } from '../../app/router.tsx';
+import { FieldHelp } from '../../components/custom/FieldHelp.tsx';
 import type { MailServerSettings, SettingInfo, SettingKey } from '@clawrouter/shared';
 import { useResource } from '../../hooks/useResource.ts';
 import { ApiClientError } from '../../services/api-client.ts';
@@ -14,8 +15,17 @@ import { MailServerCard, TwoFactorPolicyCard } from './SignInSecuritySettings.ts
 /** Draft values as typed (strings), keyed by setting. */
 type Draft = Partial<Record<SettingKey, string>>;
 
-const describeDefault = (s: SettingInfo) =>
-  `Default ${s.defaultValue} ${s.unit}${s.env ? ` (from ${s.env} or built in)` : ' (built in)'}. Allowed ${s.min}–${s.max}.`;
+/** Under the field: only what is needed to type a valid value. */
+const describeRange = (s: SettingInfo) => `Allowed ${s.min}–${s.max}. Default ${s.defaultValue}.`;
+/** In the field's help popover: what it does, and where the default comes from. */
+const settingHelp = (s: SettingInfo) => (
+  <>
+    <Text as="p">{s.description}</Text>
+    <Text as="p" size="sm" tone="secondary">
+      Default {s.defaultValue} {s.unit}{s.env ? <>, from <span className="claw-mono">{s.env}</span> when set, otherwise built in</> : ', built in'}.
+    </Text>
+  </>
+);
 
 /** The tabs, in order, and which groups of numeric settings each one shows. */
 const TABS = [
@@ -139,7 +149,8 @@ export function SettingsPage() {
                     value={draft[s.key] ?? ''}
                     onChange={(e) => setDraft((d) => ({ ...d, [s.key]: e.target.value }))}
                     error={fieldErrors[s.key]}
-                    description={`${s.description} ${describeDefault(s)}`}
+                    description={describeRange(s)}
+                    endAdornment={<FieldHelp label={s.label}>{settingHelp(s)}</FieldHelp>}
                   />
                   <div style={{ display: 'flex', gap: 'var(--eui-space-2, 0.5rem)', alignItems: 'center', flexWrap: 'wrap' }}>
                     {s.overridden

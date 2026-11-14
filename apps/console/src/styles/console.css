@@ -98,3 +98,12 @@ body {
   display: grid;
   gap: var(--eui-space-2, 0.5rem);
 }
+
+/* Field help popover (components/custom/FieldHelp.tsx): paragraphs spaced, no outer margins. */
+.claw-field-help {
+  display: grid;
+  gap: var(--eui-space-2, 0.5rem);
+}
+.claw-field-help p {
+  margin: 0;
+}

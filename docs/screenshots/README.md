@@ -311,3 +311,16 @@ Administration → Settings, organized in tabs (see [administration](../administ
 | ![Import](21-settings-tabs/5-import-and-export.png) | **Import and export**, opened directly with `?tab=configuration` |
 | ![Phone](21-settings-tabs/6-phone.png) | At phone width the tab row scrolls sideways; the page does not |
 | ![Phone, last tab](21-settings-tabs/7-phone-last-tab.png) | The last tab, scrolled into view |
+
+## 22 · Field help in popovers
+
+A trial on Settings: each field's explanation moves into a popover behind an "i"
+button inside the field (`components/custom/FieldHelp.tsx`); the allowed range and
+default stay under the field.
+
+| | |
+|---|---|
+| ![Fields](22-field-help/1-fields.png) | Settings fields with only the allowed range and default underneath |
+| ![Open](22-field-help/2-help-open.png) | The popover: what the setting does, and where its default comes from |
+| ![Retention](22-field-help/3-retention-help.png) | The same on the Data retention tab |
+| ![Phone](22-field-help/4-phone.png) | At phone width |

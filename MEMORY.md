@@ -317,6 +317,14 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 
 ### Messages
 
+- **MESSAGE** · 2026-11-14 · Field help popovers: a trial waiting for the owner's verdict
+  The owner asked to see field descriptions moved into a popover behind an "i"
+  button on the right of the field, keeping the "Allowed ..." text under it.
+  `components/custom/FieldHelp.tsx` (in the field's `endAdornment`), tried only on
+  Settings' numeric fields, on `claude/field-help` (branches from `claude/settings-tabs`).
+  If the owner likes it, apply it to the other forms with long descriptions; if not,
+  drop the branch.
+
 - **MESSAGE** · 2026-11-14 · Settings in tabs waits for review
   The owner asked for the Settings page to be "separated and organized into tabs".
   Built on `claude/settings-tabs`, which branches from `claude/phase-17-production`
