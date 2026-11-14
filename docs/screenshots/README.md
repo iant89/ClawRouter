@@ -297,3 +297,17 @@ imported into a newly set-up second one. See [deployment](../deployment.md).
 | ![Preview](20-production/2-import-preview.png) | Importing shows what would change first; an import creates and updates, never deletes |
 | ![Done](20-production/3-import-done.png) | After the import: where the backup taken just before it is, and what is still to do (provider keys) |
 | ![Providers](20-production/4-providers-imported.png) | The imported providers on the second server |
+
+## 21 · Settings in tabs
+
+Administration → Settings, organized in tabs (see [administration](../administration.md#settings)).
+
+| | |
+|---|---|
+| ![Sign-in](21-settings-tabs/1-sign-in-and-sessions.png) | **Sign-in and sessions**: session lifetimes and failed sign-ins, with their save bar, then the two-factor policy |
+| ![API keys](21-settings-tabs/2-api-keys.png) | **API keys**: maximum key lifetime (here saved as 14 days) |
+| ![Mail](21-settings-tabs/3-mail-server.png) | **Mail server** |
+| ![Retention](21-settings-tabs/4-data-retention.png) | **Data retention**, while the first tab has an unsaved edit: the save bar says so |
+| ![Import](21-settings-tabs/5-import-and-export.png) | **Import and export**, opened directly with `?tab=configuration` |
+| ![Phone](21-settings-tabs/6-phone.png) | At phone width the tab row scrolls sideways; the page does not |
+| ![Phone, last tab](21-settings-tabs/7-phone-last-tab.png) | The last tab, scrolled into view |

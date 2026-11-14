@@ -317,6 +317,12 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 
 ### Messages
 
+- **MESSAGE** · 2026-11-14 · Settings in tabs waits for review
+  The owner asked for the Settings page to be "separated and organized into tabs".
+  Built on `claude/settings-tabs`, which branches from `claude/phase-17-production`
+  (the Import and export tab needs phase 17). Merge phase 17 first, then this, only
+  when the owner says so. Tabs and their URL values are in `docs/administration.md`.
+
 - **MESSAGE** · 2026-11-14 · Phase 17 waits for review
   Phase 17 (production) is on `claude/phase-17-production`, pushed, not merged.
   Merge it into `main` (fast-forward) only when the owner says so. Every roadmap

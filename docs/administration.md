@@ -102,7 +102,23 @@ in the database on every request, and open live connections close within about
 
 ## Settings
 
-Administration → Settings (`settings.read` to view, `settings.write` to change):
+Administration → Settings (`settings.read` to view, `settings.write` to change) is
+organized in tabs. The selected tab is in the URL (`/settings?tab=api-keys`), so a
+link can open it directly:
+
+| Tab | Contains |
+|---|---|
+| Sign-in and sessions (`security`, the default) | Session lifetimes, failed sign-ins before blocking, the [two-factor policy](two-factor.md) |
+| API keys (`api-keys`) | Maximum key lifetime, with the keys that would outlast a lowered limit |
+| Mail server (`mail`) | SMTP server for emailed sign-in codes |
+| Data retention (`retention`) | Request history, usage records, health history |
+| Import and export (`configuration`) | [Configuration export and import](configuration.md#configuration-export-and-import) |
+
+Each tab saves only its own changes. Hidden tabs keep their unsaved edits, and a
+tab's save bar names the other tabs that have unsaved changes. A setting added to a
+group no tab lists (`TABS` in `SettingsPage.tsx`) appears on the first tab.
+
+The numeric settings:
 
 | Setting | Default from | Range | Takes effect |
 |---|---|---|---|

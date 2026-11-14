@@ -65,7 +65,7 @@ export function TwoFactorPolicyCard({ canWrite, mailConfigured }: { canWrite: bo
           />
           <Checkbox
             label="Codes by email"
-            description={mailConfigured === false ? 'Needs the mail server below. Until it is set up, nobody can receive codes.' : 'A code is sent to the user’s email address at each sign-in.'}
+            description={mailConfigured === false ? 'Needs a mail server (Mail server tab). Until it is set up, nobody can receive codes.' : 'A code is sent to the user’s email address at each sign-in.'}
             checked={draft.methods.email}
             disabled={!canWrite}
             onChange={(on) => setDraft({ ...draft, methods: { ...draft.methods, email: on } })}
