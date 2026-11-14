@@ -1,4 +1,4 @@
-import { AppError, errors, type EventBus, type Logger } from '@clawrouter/core';
+import { AppError, errors, RollingSum, type EventBus, type Logger } from '@clawrouter/core';
 import type { AuditService } from '@clawrouter/audit';
 import type {
   PutRateLimitsRequest, RateLimit, RateLimitConfig, RateLimitConfigView, RateLimitScope, RateLimitUsage, RateLimitUsageEntry,
@@ -79,13 +79,13 @@ export function createRateLimitService(options: {
   let cached: RateLimitConfig | null = null;
   const config = () => (cached ??= store.load());
   let rejectedTotal = 0;
-  let rejectedAt: number[] = [];
+  // Refusals in the last minute, in one-second buckets: constant cost even under a flood of 429s.
+  const rejectedRecently = new RollingSum(1_000, 60);
 
   function rejected(check: { scope: RateLimitScope; subject: string }, kind: Kind, limit: number, retryAfterMs: number, requestId: string | null, headers: Record<string, string> = {}): AppError {
     const at = now().getTime();
     rejectedTotal += 1;
-    rejectedAt = rejectedAt.filter((t) => at - t < WINDOW_MS);
-    rejectedAt.push(at);
+    rejectedRecently.add(at);
     const retry = seconds(retryAfterMs);
     events?.emit('ratelimit.exceeded', { scope: check.scope, subject: check.subject, kind, limit, retryAfterSeconds: retry, requestId });
     log?.info('rate limit reached', { component: 'rate-limits', scope: check.scope, kind, limit, requestId });
@@ -240,9 +240,7 @@ export function createRateLimitService(options: {
     },
 
     rejections(): { lastMinute: number; total: number } {
-      const at = now().getTime();
-      rejectedAt = rejectedAt.filter((t) => at - t < WINDOW_MS);
-      return { lastMinute: rejectedAt.length, total: rejectedTotal };
+      return { lastMinute: rejectedRecently.sum(now().getTime()), total: rejectedTotal };
     },
 
     /** Live counters with a non-zero value, for the console. */

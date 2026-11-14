@@ -1,8 +1,9 @@
+import { RollingSum } from '@clawrouter/core';
 import type { GatewayMetrics } from '@clawrouter/shared';
 
 /**
  * In-memory gateway counters for the dashboard (spec §21). Per process and lost
- * on restart; persistent request history and usage arrive in phase 10.
+ * on restart; persistent request history and usage are in the requests package.
  */
 export class GatewayMetricsRecorder {
   private active = 0;
@@ -10,10 +11,12 @@ export class GatewayMetricsRecorder {
   private errors = 0;
   private retried = 0;
   private failedOver = 0;
-  private starts: number[] = [];
-  private failuresAt: number[] = [];
+  /** Last minute in one-second buckets; last hour of tokens in one-minute buckets. */
+  private readonly starts = new RollingSum(1_000, 60);
+  private readonly failures = new RollingSum(1_000, 60);
+  private readonly inputTokens = new RollingSum(60_000, 60);
+  private readonly outputTokens = new RollingSum(60_000, 60);
   private latencies: number[] = [];
-  private tokens: { at: number; input: number; output: number }[] = [];
   private readonly startedAt: string;
 
   constructor(
@@ -27,7 +30,7 @@ export class GatewayMetricsRecorder {
   started(): void {
     this.active += 1;
     this.total += 1;
-    this.starts.push(this.now());
+    this.starts.add(this.now());
   }
 
   finished(outcome: { ok: boolean; latencyMs: number; inputTokens?: number | null; outputTokens?: number | null; retries?: number; failovers?: number }): void {
@@ -35,30 +38,28 @@ export class GatewayMetricsRecorder {
     const at = this.now();
     if (!outcome.ok) {
       this.errors += 1;
-      this.failuresAt.push(at);
+      this.failures.add(at);
     }
     if (outcome.retries) this.retried += 1;
     if (outcome.failovers) this.failedOver += 1;
     this.latencies.push(outcome.latencyMs);
     if (this.latencies.length > 100) this.latencies.shift();
-    if (outcome.inputTokens || outcome.outputTokens) this.tokens.push({ at, input: outcome.inputTokens ?? 0, output: outcome.outputTokens ?? 0 });
+    if (outcome.inputTokens) this.inputTokens.add(at, outcome.inputTokens);
+    if (outcome.outputTokens) this.outputTokens.add(at, outcome.outputTokens);
   }
 
   snapshot(): GatewayMetrics {
     const at = this.now();
-    this.starts = this.starts.filter((t) => at - t < 60_000);
-    this.failuresAt = this.failuresAt.filter((t) => at - t < 60_000);
-    this.tokens = this.tokens.filter((t) => at - t.at < 3_600_000);
     const limited = this.rejections();
     return {
       startedAt: this.startedAt,
       activeRequests: this.active,
       totalRequests: this.total,
       totalErrors: this.errors,
-      requestsLastMinute: this.starts.length,
-      errorsLastMinute: this.failuresAt.length,
+      requestsLastMinute: this.starts.sum(at),
+      errorsLastMinute: this.failures.sum(at),
       averageLatencyMs: this.latencies.length ? Math.round(this.latencies.reduce((a, b) => a + b, 0) / this.latencies.length) : null,
-      tokensLastHour: this.tokens.reduce((s, t) => ({ input: s.input + t.input, output: s.output + t.output }), { input: 0, output: 0 }),
+      tokensLastHour: { input: this.inputTokens.sum(at), output: this.outputTokens.sum(at) },
       retriedRequests: this.retried,
       failedOverRequests: this.failedOver,
       rateLimitedLastMinute: limited.lastMinute,

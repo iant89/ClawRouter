@@ -146,3 +146,23 @@ describe('permissions', () => {
     expect((await put(h, viewer, { version: 0, defaultPolicy: { failover: 'NONE', maxAttempts: 1, retriesPerTarget: 0 }, aliases: [] })).status).toBe(403);
   });
 });
+
+describe('routing snapshot cache (phase 16)', () => {
+  test('changes through the services apply to the next plan; anything else within 5 seconds', async () => {
+    const { h, admin, models } = await world();
+    const refs = () => h.routing.plan({ model: 'x' }).candidates.map((c) => c.modelRef);
+    expect(refs()).toEqual(['alpha/x', 'beta/x']);
+
+    // Through the API: an event invalidates the snapshot at once.
+    expect((await h.request(`/api/models/${models.ax.id}`, { method: 'PATCH', cookie: admin, json: { enabled: false } })).status).toBe(200);
+    expect(refs()).toEqual(['beta/x']);
+    await h.request(`/api/models/${models.ax.id}`, { method: 'PATCH', cookie: admin, json: { enabled: true } });
+    expect(refs()).toEqual(['alpha/x', 'beta/x']);
+
+    // Behind the services' back (no event): the snapshot is reused until it is 5 seconds old.
+    h.db.run('UPDATE models SET enabled = 0 WHERE id = ?', [models.bx.id]);
+    expect(refs()).toEqual(['alpha/x', 'beta/x']);
+    h.clock.advance(5_000);
+    expect(refs()).toEqual(['alpha/x']);
+  });
+});

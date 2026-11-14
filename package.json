@@ -19,6 +19,7 @@
     "rotate-secret-key": "bun scripts/rotate-secret-key.ts",
     "scan-secrets": "bun scripts/scan-secrets.ts",
     "bench:db": "bun scripts/bench-db.ts",
+    "bench:gateway": "bun scripts/bench-gateway.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "bun test",
     "check": "bun run typecheck && bun test"

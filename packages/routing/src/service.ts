@@ -15,9 +15,12 @@ export interface Actor {
 
 export type RoutingService = ReturnType<typeof createRoutingService>;
 
+/** Longest a routing snapshot is reused without a change event (see `snapshot` below). */
+export const SNAPSHOT_MAX_AGE_MS = 5_000;
+
 /**
- * Routing configuration and route planning. Loads a snapshot of models and
- * providers per call and hands it to the pure engine.
+ * Routing configuration and route planning. Plans run on a cached snapshot of
+ * models and providers (see `snapshot`), handed to the pure engine.
  */
 export function createRoutingService(options: {
   store: RoutingStore;
@@ -34,17 +37,34 @@ export function createRoutingService(options: {
   const now = options.now ?? (() => new Date());
   const failures = options.failures ?? new FailureTracker(60_000, () => now().getTime());
 
-  const snapshot = () => ({
+  const load = () => ({
     config: store.load(),
     models: models.listAll(),
     providerPriority: new Map(providers.list().map((p) => [p.id, p.priority])),
   });
 
+  // Phase 16: every gateway request plans a route, and loading the registry costs
+  // ~17 ms at 5,000 models. Requests share one snapshot until a model, provider or
+  // the routing configuration changes (events), and for at most SNAPSHOT_MAX_AGE_MS
+  // in any case, so a change made some other way is picked up soon.
+  let cached: { at: number; value: ReturnType<typeof load> } | null = null;
+  const invalidate = () => {
+    cached = null;
+  };
+  for (const name of ['model.changed', 'model.availability', 'provider.changed', 'provider.status', 'provider.models_listed', 'routing.changed'] as const) {
+    events?.on(name, invalidate);
+  }
+  const snapshot = () => {
+    const t = now().getTime();
+    if (!cached || t - cached.at >= SNAPSHOT_MAX_AGE_MS || t < cached.at) cached = { at: t, value: load() };
+    return cached.value;
+  };
+
   return {
     failures,
 
     get(): RoutingConfigView {
-      const snap = snapshot();
+      const snap = load(); // the console always sees the current state
       return { ...snap.config, problems: routingProblems(snap.config, snap.models, snap.providerPriority) };
     },
 
