@@ -7,6 +7,7 @@ import { fetchSettings, saveSettings } from '../../services/settings.ts';
 import { usePermissions } from '../auth/AuthContext.tsx';
 import { useRealtimeEvent } from '../realtime/RealtimeContext.tsx';
 import { KeysBeyondLifetime } from './KeysBeyondLifetime.tsx';
+import { ConfigurationTransfer } from './ConfigurationTransfer.tsx';
 import { MailServerCard, TwoFactorPolicyCard } from './SignInSecuritySettings.tsx';
 
 /** Draft values as typed (strings), keyed by setting. */
@@ -137,6 +138,7 @@ export function SettingsPage() {
       )}
       <TwoFactorPolicyCard canWrite={canWrite} mailConfigured={mailConfigured} />
       <MailServerCard canWrite={canWrite} onLoaded={mailLoaded} />
+      <ConfigurationTransfer canImport={canWrite} />
     </Page>
   );
 }
