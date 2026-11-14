@@ -314,15 +314,15 @@ Administration → Settings, organized in tabs (see [administration](../administ
 
 ## 22 · Field help tips
 
-A trial on Settings: each field's explanation moves into a Bootstrap-style tooltip (dark
-box, centred text, an arrow) behind an "i" button
+A trial on Settings: each field's explanation moves into a Bootstrap-shaped tooltip (page
+background colour with a border, centred text, an arrow, centred on the field) behind an "i" button
 inside the field (`components/custom/FieldHelp.tsx`); the allowed range and default
 stay under the field. The tip opens on hover, keyboard focus or a tap, and closes on
 its own: move away, click elsewhere, start typing, or press Escape.
 
 | | |
 |---|---|
-| ![Hover](22-field-help/1-hover.png) | Hovering over the "i": the tip sits centred above it, below when there is no room above |
+| ![Hover](22-field-help/1-hover.png) | Hovering over the "i": the tip sits centred above the field, below when there is no room above |
 | ![Kept open](22-field-help/2-pinned.png) | Clicked: it stays open until you click elsewhere or type |
 | ![Retention](22-field-help/3-retention-hover.png) | The same on the Data retention tab |
 | ![Phone](22-field-help/4-phone-tap.png) | On a phone, a tap opens it; a tap on the tip or anywhere else closes it |

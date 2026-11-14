@@ -8,6 +8,14 @@ const LEAVE_GRACE_MS = 120;
 const GAP = 8; // room for the arrow
 const MARGIN = 16;
 
+/** The field box the button sits in: the nearest ancestor holding the input (or the button itself). */
+function fieldOf(button: HTMLElement | null): HTMLElement | null {
+  for (let el = button?.parentElement; el; el = el.parentElement) {
+    if (el.querySelector("input, textarea, select")) return el;
+  }
+  return button;
+}
+
 /**
  * An "i" button for a form field's longer explanation, shown like a tooltip
  * instead of under the field. Put it in the field's `endAdornment`; keep short,
@@ -21,8 +29,9 @@ const MARGIN = 16;
  *   on a tap on the tip itself (touch),
  *   on Escape, on a click or tap anywhere else, and when typing starts in a field.
  * No focus moves into it, so the field can be clicked and typed in at once.
- * Styled like a Bootstrap tooltip (dark box, centred white text, an arrow). It is
- * drawn in a portal (cards clip their content), centred above the button or
+ * Shaped like a Bootstrap tooltip (centred text, an arrow), in the page background
+ * colour with a border, centred on the whole field. It is
+ * drawn in a portal (cards clip their content), centred above the field or
  * below it when there is no room above, and follows it while the page scrolls. Its text
  * is the button's description (`aria-describedby`), read by screen readers on focus.
  */
@@ -35,6 +44,7 @@ export function FieldHelp({ label, children }: { label: string; children: ReactN
   const [pinned, setPinned] = useState(false);
   const [position, setPosition] = useState<CSSProperties>({});
   const [placement, setPlacement] = useState<'top' | 'bottom'>('top');
+  const [host, setHost] = useState<Element | null>(null);
   const open = shown || pinned;
 
   const close = () => {
@@ -52,13 +62,18 @@ export function FieldHelp({ label, children }: { label: string; children: ReactN
   };
   const mouse = (e: { pointerType: string }) => e.pointerType === 'mouse'; // touch opens with the tap
 
-  // Like a Bootstrap tooltip: centred above the button with an arrow pointing at it;
-  // below when there is no room above. Kept inside the viewport, the arrow still
-  // pointing at the button.
+  // The tip lives in the theme's container (not document.body) so it gets the
+  // theme's colours and font; position: fixed still escapes the cards' clipping.
+  useLayoutEffect(() => {
+    setHost(button.current?.closest('[data-eui-theme]') ?? document.body);
+  }, []);
+
+  // Like a Bootstrap tooltip: centred above the field, its arrow pointing at the
+  // field's centre; below when there is no room above. Kept inside the viewport.
   useLayoutEffect(() => {
     if (!open) return;
     const place = () => {
-      const r = button.current?.getBoundingClientRect();
+      const r = fieldOf(button.current)?.getBoundingClientRect();
       const tip = bubble.current;
       if (!r || !tip) return;
       const { offsetWidth: width, offsetHeight: height } = tip;
@@ -125,7 +140,7 @@ export function FieldHelp({ label, children }: { label: string; children: ReactN
       >
         <Icon name="information" size="sm" />
       </button>
-      {createPortal(
+      {host && createPortal(
         <span
           ref={bubble}
           id={id}
@@ -141,7 +156,7 @@ export function FieldHelp({ label, children }: { label: string; children: ReactN
         >
           {children}
         </span>,
-        document.body,
+        host,
       )}
     </>
   );
