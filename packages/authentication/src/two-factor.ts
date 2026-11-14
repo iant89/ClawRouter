@@ -1,4 +1,4 @@
-import { AppError, errors, newId, type EventBus, type Logger, type SecretBox } from '@clawrouter/core';
+import { AppError, errors, newId, type EventBus, type Logger, type SealedSecretStore, type SecretBox } from '@clawrouter/core';
 import type { AuditService } from '@clawrouter/audit';
 import type { Database, JsonValue, SettingsRepository } from '@clawrouter/database';
 import {
@@ -7,7 +7,7 @@ import {
 } from '@clawrouter/shared';
 import type { ClientInfo } from './auth-service.ts';
 import type { PasswordHasher } from './password.ts';
-import { createSqliteTwoFactorRepository, type ChallengeRecord } from './sqlite/two-factor.ts';
+import { createSqliteTwoFactorRepository, type ChallengeRecord, type TwoFactorRepository } from './sqlite/two-factor.ts';
 import { generateToken, hashToken } from './tokens.ts';
 import { base32Encode, generateTotpSecret, otpauthUri, verifyTotp } from './totp.ts';
 import { toUserSummary, type User, type UserRepository } from './users.ts';
@@ -333,5 +333,16 @@ export function createTwoFactorService(options: {
     },
 
     purgeExpired: () => repo.purge(new Date(now().getTime() - 24 * 3_600_000).toISOString()),
+  };
+}
+
+/** Authenticator-app secrets as sealed secrets (key rotation, checks, credential recovery). */
+export function totpSecrets(repo: TwoFactorRepository, now: () => Date = () => new Date()): SealedSecretStore {
+  return {
+    name: 'authenticator-app secrets',
+    whenForgotten: 'the user signs in without the authenticator app (other methods or recovery codes still work) and must set it up again',
+    list: () => repo.listTotpSecrets().map((s) => ({ id: s.userId, label: `user ${s.username}`, context: `user:${s.userId}:totp`, ciphertext: s.ciphertext, fingerprint: s.fingerprint })),
+    replace: (userId, from, ciphertext, fingerprint) => repo.replaceTotpSecret(userId, from, ciphertext, fingerprint),
+    forget: (userId) => repo.clearTotp(userId, now().toISOString()),
   };
 }

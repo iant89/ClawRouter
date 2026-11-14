@@ -1,36 +1,35 @@
-import { AppError, type SecretBox } from '@clawrouter/core';
+import type { SealedSecretStore } from '@clawrouter/core';
 import type { ProviderRepository } from './repository.ts';
 
-export interface RotationResult {
-  /** Credentials re-encrypted with the new key. */
-  rotated: number;
-  /** Credentials that already used the new key (an earlier, interrupted run). */
-  alreadyNew: number;
+/**
+ * Provider credentials (API keys) as sealed secrets, for key rotation, checks and
+ * credential recovery (see `SealedSecretStore` in core). The context binds each
+ * value to its provider exactly as when it was stored.
+ */
+export function providerCredentialSecrets(repo: ProviderRepository, names: (providerId: string) => string = (id) => id): SealedSecretStore {
+  return {
+    name: 'provider credentials',
+    whenForgotten: 'the provider has no API key until one is entered again (Providers page)',
+    list: () => repo.listCredentials().map((c) => ({
+      id: `${c.providerId}/${c.name}`, label: `provider ${names(c.providerId)}`, context: `provider:${c.providerId}:${c.name}`,
+      ciphertext: c.ciphertext, fingerprint: c.keyFingerprint,
+    })),
+    replace(id, from, ciphertext, fingerprint) {
+      const [providerId, name] = splitId(id);
+      try {
+        return repo.replaceCiphertexts([{ providerId, name, from, ciphertext, keyFingerprint: fingerprint }]) === 1;
+      } catch {
+        return false; // changed meanwhile
+      }
+    },
+    forget(id) {
+      const [providerId, name] = splitId(id);
+      repo.deleteCredential(providerId, name);
+    },
+  };
 }
 
-/**
- * Re-encrypts every stored provider credential from `from` (the current key) to
- * `to` (the new key). All or nothing: every value is decrypted and re-encrypted
- * in memory first, then written in one transaction. Running it again after it
- * succeeded changes nothing, so it is safe to repeat.
- *
- * Values encrypted with neither key stop the rotation before anything is written.
- */
-export async function rotateCredentialKey(repo: ProviderRepository, from: SecretBox, to: SecretBox): Promise<RotationResult> {
-  if (from.fingerprint === to.fingerprint) throw new AppError('VALIDATION_ERROR', 'The new key is the same as the current key.');
-  const all = repo.listCredentials();
-  const unknown = all.filter((c) => c.keyFingerprint !== from.fingerprint && c.keyFingerprint !== to.fingerprint);
-  if (unknown.length) {
-    throw new AppError('VALIDATION_ERROR', `${unknown.length} stored credential(s) were encrypted with a different key (fingerprint ${[...new Set(unknown.map((c) => c.keyFingerprint))].join(', ')}). Nothing was changed.`);
-  }
-  const pending = all.filter((c) => c.keyFingerprint === from.fingerprint);
-  const updates = [];
-  for (const c of pending) {
-    // The same context binds the value to its owner, exactly as when it was stored.
-    const context = `provider:${c.providerId}:${c.name}`;
-    const plain = await from.decrypt(c.ciphertext, context);
-    updates.push({ providerId: c.providerId, name: c.name, from: c.ciphertext, ciphertext: await to.encrypt(plain, context), keyFingerprint: to.fingerprint });
-  }
-  const rotated = updates.length ? repo.replaceCiphertexts(updates) : 0;
-  return { rotated, alreadyNew: all.length - pending.length };
+function splitId(id: string): [string, string] {
+  const at = id.lastIndexOf('/');
+  return [id.slice(0, at), id.slice(at + 1)];
 }

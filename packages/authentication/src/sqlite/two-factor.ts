@@ -47,6 +47,16 @@ export function createSqliteTwoFactorRepository(db: Database) {
     useTotpStep(userId: string, step: number): boolean {
       return db.run('UPDATE user_two_factor SET totp_last_step = ? WHERE user_id = ? AND (totp_last_step IS NULL OR totp_last_step < ?)', [step, userId, step]).changes === 1;
     },
+    /** Every stored authenticator secret, with its owner's username (key rotation and checks). */
+    listTotpSecrets(): { userId: string; username: string; ciphertext: string; fingerprint: string | null }[] {
+      return db.all<{ user_id: string; username: string; totp_ciphertext: string; totp_key_fingerprint: string | null }>(
+        'SELECT t.user_id, u.username, t.totp_ciphertext, t.totp_key_fingerprint FROM user_two_factor t JOIN users u ON u.id = t.user_id WHERE t.totp_ciphertext IS NOT NULL ORDER BY u.username',
+      ).map((r) => ({ userId: r.user_id, username: r.username, ciphertext: r.totp_ciphertext, fingerprint: r.totp_key_fingerprint }));
+    },
+    /** Swaps a re-encrypted secret in; false if it changed meanwhile. */
+    replaceTotpSecret(userId: string, from: string, ciphertext: string, fingerprint: string): boolean {
+      return db.run('UPDATE user_two_factor SET totp_ciphertext = ?, totp_key_fingerprint = ? WHERE user_id = ? AND totp_ciphertext = ?', [ciphertext, fingerprint, userId, from]).changes === 1;
+    },
     clearTotp(userId: string, at: string) {
       db.run('UPDATE user_two_factor SET totp_ciphertext = NULL, totp_key_fingerprint = NULL, totp_confirmed_at = NULL, totp_last_step = NULL, updated_at = ? WHERE user_id = ?', [at, userId]);
     },

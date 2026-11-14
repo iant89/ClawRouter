@@ -1,5 +1,6 @@
 /**
- * Re-encrypts stored provider credentials with a new secret key.
+ * Re-encrypts every stored secret (provider credentials, mail server password,
+ * authenticator-app secrets) with a new secret key.
  *
  *   CLAWROUTER_NEW_SECRET_KEY=<new key> bun run rotate-secret-key
  *   bun run rotate-secret-key --new-key-file /path/to/new.key
@@ -35,7 +36,9 @@ try {
   const current = loadSecretBox(config, log);
   const next = createSecretBox(parseSecretKey(newKeyText));
   const { rotated, alreadyNew } = await rotateSecretKey(db, current, next, log);
-  console.log(`Re-encrypted ${rotated} credential(s) from key ${current.fingerprint} to ${next.fingerprint}${alreadyNew ? ` (${alreadyNew} already used the new key)` : ''}.`);
+  const total = Object.values(rotated).reduce((a, b) => a + b, 0);
+  console.log(`Re-encrypted ${total} secret(s) from key ${current.fingerprint} to ${next.fingerprint}${alreadyNew ? ` (${alreadyNew} already used the new key)` : ''}:`);
+  for (const [kind, n] of Object.entries(rotated)) console.log(`  ${kind}: ${n}`);
   console.log('Now start ClawRouter with the new key (CLAWROUTER_SECRET_KEY or CLAWROUTER_SECRET_KEY_FILE), then back up the database.');
 } catch (error) {
   console.error(error instanceof AppError ? error.message : error);

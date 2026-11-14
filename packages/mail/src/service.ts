@@ -1,4 +1,4 @@
-import { AppError, errors, type EventBus, type Logger, type SecretBox } from '@clawrouter/core';
+import { AppError, errors, type EventBus, type Logger, type SealedSecretStore, type SecretBox } from '@clawrouter/core';
 import type { AuditService } from '@clawrouter/audit';
 import type { JsonValue, SettingsRepository } from '@clawrouter/database';
 import { MAIL_SECURITY, type FieldIssue, type MailServerSettings, type UpdateMailServerRequest } from '@clawrouter/shared';
@@ -119,6 +119,29 @@ export function createMailService(options: {
         log?.warn('sending mail failed', { component: 'mail', host: cfg.host, reason });
         throw new AppError('PROVIDER_ERROR', `The mail server could not send the message: ${reason}.`, { expose: true, cause: error });
       }
+    },
+  };
+}
+
+/** The mail server password as a sealed secret (key rotation, checks, credential recovery). */
+export function mailPasswordSecrets(settings: SettingsRepository): SealedSecretStore {
+  const stored = () => settings.get(KEY)?.value as Partial<Stored> | undefined;
+  return {
+    name: 'mail server password',
+    whenForgotten: 'the mail server signs in without a password until it is entered again (Settings → Mail server)',
+    list: () => {
+      const s = stored();
+      return s?.passwordCiphertext ? [{ id: KEY, label: `mail server ${s.host ?? ''}`.trim(), context: PASSWORD_CONTEXT, ciphertext: s.passwordCiphertext, fingerprint: null }] : [];
+    },
+    replace(_id, from, ciphertext) {
+      const s = stored();
+      if (!s || s.passwordCiphertext !== from) return false;
+      settings.set(KEY, { ...s, passwordCiphertext: ciphertext } as unknown as JsonValue);
+      return true;
+    },
+    forget() {
+      const s = stored();
+      if (s) settings.set(KEY, { ...s, passwordCiphertext: null } as unknown as JsonValue);
     },
   };
 }
