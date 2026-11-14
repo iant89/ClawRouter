@@ -10,6 +10,7 @@
     "@clawrouter/audit": "workspace:*",
     "@clawrouter/authentication": "workspace:*",
     "@clawrouter/authorization": "workspace:*",
+    "@clawrouter/configuration": "workspace:*",
     "@clawrouter/core": "workspace:*",
     "@clawrouter/gateway": "workspace:*",
     "@clawrouter/health": "workspace:*",

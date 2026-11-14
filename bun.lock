@@ -9,6 +9,7 @@
         "@clawrouter/audit": "workspace:*",
         "@clawrouter/authentication": "workspace:*",
         "@clawrouter/authorization": "workspace:*",
+        "@clawrouter/configuration": "workspace:*",
         "@clawrouter/core": "workspace:*",
         "@clawrouter/database": "workspace:*",
         "@clawrouter/gateway": "workspace:*",
@@ -49,6 +50,7 @@
         "@clawrouter/audit": "workspace:*",
         "@clawrouter/authentication": "workspace:*",
         "@clawrouter/authorization": "workspace:*",
+        "@clawrouter/configuration": "workspace:*",
         "@clawrouter/console": "workspace:*",
         "@clawrouter/core": "workspace:*",
         "@clawrouter/database": "workspace:*",
@@ -73,6 +75,7 @@
         "@clawrouter/audit": "workspace:*",
         "@clawrouter/authentication": "workspace:*",
         "@clawrouter/authorization": "workspace:*",
+        "@clawrouter/configuration": "workspace:*",
         "@clawrouter/core": "workspace:*",
         "@clawrouter/gateway": "workspace:*",
         "@clawrouter/health": "workspace:*",
@@ -114,6 +117,23 @@
         "@clawrouter/audit": "workspace:*",
         "@clawrouter/core": "workspace:*",
         "@clawrouter/database": "workspace:*",
+        "@clawrouter/shared": "workspace:*",
+      },
+    },
+    "packages/configuration": {
+      "name": "@clawrouter/configuration",
+      "version": "0.1.0",
+      "dependencies": {
+        "@clawrouter/audit": "workspace:*",
+        "@clawrouter/authentication": "workspace:*",
+        "@clawrouter/authorization": "workspace:*",
+        "@clawrouter/core": "workspace:*",
+        "@clawrouter/mail": "workspace:*",
+        "@clawrouter/models": "workspace:*",
+        "@clawrouter/providers": "workspace:*",
+        "@clawrouter/rate-limits": "workspace:*",
+        "@clawrouter/routing": "workspace:*",
+        "@clawrouter/settings": "workspace:*",
         "@clawrouter/shared": "workspace:*",
       },
     },
@@ -260,6 +280,8 @@
     "@clawrouter/authentication": ["@clawrouter/authentication@workspace:packages/authentication"],
 
     "@clawrouter/authorization": ["@clawrouter/authorization@workspace:packages/authorization"],
+
+    "@clawrouter/configuration": ["@clawrouter/configuration@workspace:packages/configuration"],
 
     "@clawrouter/console": ["@clawrouter/console@workspace:apps/console"],
 

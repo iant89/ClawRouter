@@ -27,6 +27,7 @@ import {
   type HealthHistoryService, type HealthService,
 } from '@clawrouter/health';
 import { CSRF_HEADER } from '@clawrouter/shared';
+import { createConfigurationService } from '@clawrouter/configuration';
 
 /** Low-cost argon2id so tests stay fast. Never use these parameters in production. */
 export const fastHasher: PasswordHasher = createArgon2Hasher({ memoryCost: 256, timeCost: 1 });
@@ -168,7 +169,8 @@ export function createHarness(options: { idleMinutes?: number; maxHours?: number
   });
   const healthHistory = createHealthHistoryService({ repo: createSqliteHealthHistoryRepository(db), now: clock.now });
   const operations = createOperationService({ repo: createSqliteOperationRepository(db), handlers: operationHandlers({ providers, health }), audit, events, log, now: clock.now });
-  const api = createApiApp({ log, logBuffer, audit, health, healthHistory, auth, authz, userAdmin, settings, twoFactor, mail, notifications, providers, models, routing, apiKeys, keyRequests, gateway, limits, requests, operations, setup, cookie: { secure: options.secureCookie ?? false } });
+  const configuration = createConfigurationService({ providers, models, routing, limits, authz, settings, twoFactor, mail, audit, version: 'test', now: clock.now });
+  const api = createApiApp({ log, logBuffer, audit, health, configuration, healthHistory, auth, authz, userAdmin, settings, twoFactor, mail, notifications, providers, models, routing, apiKeys, keyRequests, gateway, limits, requests, operations, setup, cookie: { secure: options.secureCookie ?? false } });
 
   const h: Harness = {
     db, clock, events, users, audit, auth, authz, userAdmin, settings, twoFactor, mail, outbox, notifications, providers, models, routing, apiKeys, keyRequests, gateway, limits, requests, secrets, setup, health, healthHistory, operations, api, logs, logBuffer,

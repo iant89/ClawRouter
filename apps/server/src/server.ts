@@ -27,6 +27,7 @@ import {
 } from '@clawrouter/health';
 import { loadSecretBox } from './secret-key.ts';
 import { createBackup, pruneBackups } from './backup.ts';
+import { createConfigurationService } from '@clawrouter/configuration';
 import { provisionSetupToken, type SetupToken } from './setup-token.ts';
 import { operationHandlers } from './operation-handlers.ts';
 import { createOperationService, createSqliteOperationRepository, type OperationService } from '@clawrouter/operations';
@@ -247,7 +248,16 @@ export async function startClawRouter({ config, log, logBuffer, version, console
 
   // 'draining' from the moment a shutdown starts: readiness fails and new gateway requests are refused.
   let lifecycle: 'ready' | 'draining' = 'ready';
-  const api = createApiApp({ log, logBuffer, audit, health, lifecycle: { state: () => lifecycle }, healthHistory, auth, authz, userAdmin, settings, twoFactor, mail, notifications, providers, models, routing, apiKeys, keyRequests, gateway, limits, requests, operations, setup, cookie: { secure: config.auth.cookieSecure } });
+  // Configuration export/import (phase 17); an import is preceded by a backup when the database is on disk.
+  const configuration = createConfigurationService({
+    providers, models, routing, limits, authz, settings, twoFactor, mail, audit, version,
+    backup: config.database.path === ':memory:' ? undefined : async () => {
+      const { path } = await createBackup(db, { dir: config.database.backupDir, box: secrets, version, label: 'pre-import', log });
+      pruneBackups(config.database.backupDir, 'pre-import', config.database.backupKeep);
+      return path;
+    },
+  });
+  const api = createApiApp({ log, logBuffer, audit, health, configuration, lifecycle: { state: () => lifecycle }, healthHistory, auth, authz, userAdmin, settings, twoFactor, mail, notifications, providers, models, routing, apiKeys, keyRequests, gateway, limits, requests, operations, setup, cookie: { secure: config.auth.cookieSecure } });
 
   // The console's live channel (spec §25): session-authenticated, same-origin only.
   const realtime = createRealtimeHub({

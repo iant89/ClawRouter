@@ -1,0 +1,20 @@
+{
+  "name": "@clawrouter/configuration",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": { ".": "./src/index.ts" },
+  "dependencies": {
+    "@clawrouter/audit": "workspace:*",
+    "@clawrouter/authentication": "workspace:*",
+    "@clawrouter/authorization": "workspace:*",
+    "@clawrouter/core": "workspace:*",
+    "@clawrouter/mail": "workspace:*",
+    "@clawrouter/models": "workspace:*",
+    "@clawrouter/providers": "workspace:*",
+    "@clawrouter/rate-limits": "workspace:*",
+    "@clawrouter/routing": "workspace:*",
+    "@clawrouter/settings": "workspace:*",
+    "@clawrouter/shared": "workspace:*"
+  }
+}

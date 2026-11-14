@@ -35,6 +35,8 @@ import { auditController } from './controllers/audit.ts';
 import { keyRequestsController } from './controllers/key-requests.ts';
 import { twoFactorController } from './controllers/two-factor.ts';
 import { settingsController } from './controllers/settings.ts';
+import { configurationController } from './controllers/configuration.ts';
+import type { ConfigurationService } from '@clawrouter/configuration';
 
 /** What a user with a temporary password may still do: see their session, change the password, sign out. */
 const ALLOWED_BEFORE_PASSWORD_CHANGE = new Set(['GET /api/auth/session', 'POST /api/auth/password', 'POST /api/auth/logout']);
@@ -52,6 +54,8 @@ export interface ApiDependencies {
   authz: AuthorizationService;
   userAdmin: UserAdminService;
   settings: SettingsService;
+  /** Configuration export/import (phase 17); absent: routes not served. */
+  configuration?: ConfigurationService;
   notifications: NotificationService;
   providers: ProviderService;
   models: ModelService;
@@ -89,6 +93,7 @@ export function createApiApp(deps: ApiDependencies): ApiApp {
   const usersApi = usersController(deps.userAdmin, deps.auth);
   const tf = twoFactorController(deps.twoFactor, deps.mail);
   const settingsApi = settingsController(deps.settings);
+  const configApi = deps.configuration ? configurationController(deps.configuration) : null;
   const notes = notificationsController(deps.notifications);
   const prov = providersController(deps.providers, deps.operations);
   const ops = operationsController(deps.operations);
@@ -185,6 +190,12 @@ export function createApiApp(deps: ApiDependencies): ApiApp {
   router.put('/api/users/:id/roles', 'roles.assign', access.setUserRoles);
 
   // System and security settings (spec §16).
+  if (configApi) {
+    // Export needs every section's read permission and import their write permissions: checked by the service.
+    router.get('/api/configuration/export', 'settings.read', configApi.export);
+    router.post('/api/configuration/import/preview', 'settings.write', configApi.preview);
+    router.post('/api/configuration/import', 'settings.write', configApi.apply);
+  }
   router.get('/api/settings', 'settings.read', settingsApi.list);
   router.get('/api/settings/sign-in', 'settings.read', tf.signInSettings);
   router.put('/api/settings/sign-in', 'settings.write', tf.updateSignInSettings);

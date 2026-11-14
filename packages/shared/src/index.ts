@@ -15,3 +15,4 @@ export * from './operations.ts';
 export * from './logs.ts';
 export * from './settings.ts';
 export * from './two-factor.ts';
+export * from './configuration.ts';

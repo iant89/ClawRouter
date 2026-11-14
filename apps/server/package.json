@@ -9,6 +9,7 @@
     "@clawrouter/authentication": "workspace:*",
     "@clawrouter/authorization": "workspace:*",
     "@clawrouter/console": "workspace:*",
+    "@clawrouter/configuration": "workspace:*",
     "@clawrouter/core": "workspace:*",
     "@clawrouter/database": "workspace:*",
     "@clawrouter/gateway": "workspace:*",
