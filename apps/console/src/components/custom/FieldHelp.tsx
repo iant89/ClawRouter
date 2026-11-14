@@ -5,7 +5,7 @@ import { Icon } from '@enterprise-ui/react';
 const HOVER_DELAY_MS = 250;
 /** Time to move the mouse from the button onto the tip before it closes. */
 const LEAVE_GRACE_MS = 120;
-const GAP = 8;
+const GAP = 8; // room for the arrow
 const MARGIN = 16;
 
 /**
@@ -18,10 +18,12 @@ const MARGIN = 16;
  * - opens on mouse hover (after a short delay) and on keyboard focus;
  * - a click or tap keeps it open;
  * - closes when the mouse leaves (unless kept open), when focus moves elsewhere,
+ *   on a tap on the tip itself (touch),
  *   on Escape, on a click or tap anywhere else, and when typing starts in a field.
  * No focus moves into it, so the field can be clicked and typed in at once.
- * The tip is drawn in a portal (cards clip their content), below the button or
- * above it when there is no room, and follows it while the page scrolls. Its text
+ * Styled like a Bootstrap tooltip (dark box, centred white text, an arrow). It is
+ * drawn in a portal (cards clip their content), centred above the button or
+ * below it when there is no room above, and follows it while the page scrolls. Its text
  * is the button's description (`aria-describedby`), read by screen readers on focus.
  */
 export function FieldHelp({ label, children }: { label: string; children: ReactNode }) {
@@ -32,6 +34,7 @@ export function FieldHelp({ label, children }: { label: string; children: ReactN
   const [shown, setShown] = useState(false);
   const [pinned, setPinned] = useState(false);
   const [position, setPosition] = useState<CSSProperties>({});
+  const [placement, setPlacement] = useState<'top' | 'bottom'>('top');
   const open = shown || pinned;
 
   const close = () => {
@@ -49,17 +52,26 @@ export function FieldHelp({ label, children }: { label: string; children: ReactN
   };
   const mouse = (e: { pointerType: string }) => e.pointerType === 'mouse'; // touch opens with the tap
 
-  // Place the tip under the button, right edges aligned; above it when it does not fit below.
+  // Like a Bootstrap tooltip: centred above the button with an arrow pointing at it;
+  // below when there is no room above. Kept inside the viewport, the arrow still
+  // pointing at the button.
   useLayoutEffect(() => {
     if (!open) return;
     const place = () => {
       const r = button.current?.getBoundingClientRect();
-      const height = bubble.current?.offsetHeight ?? 0;
-      if (!r) return;
+      const tip = bubble.current;
+      if (!r || !tip) return;
+      const { offsetWidth: width, offsetHeight: height } = tip;
       const viewport = document.documentElement;
-      const right = Math.max(MARGIN, viewport.clientWidth - r.right - GAP);
-      const below = r.bottom + GAP + height <= viewport.clientHeight - MARGIN || r.top - GAP - height < MARGIN;
-      setPosition(below ? { top: r.bottom + GAP, right } : { bottom: viewport.clientHeight - r.top + GAP, right });
+      const centre = r.left + r.width / 2;
+      const left = Math.min(Math.max(MARGIN, centre - width / 2), viewport.clientWidth - MARGIN - width);
+      const above = r.top - GAP - height >= MARGIN;
+      setPlacement(above ? 'top' : 'bottom');
+      setPosition({
+        left,
+        top: above ? r.top - GAP - height : r.bottom + GAP,
+        '--claw-tip-arrow-x': `${Math.round(centre - left)}px`,
+      } as CSSProperties);
     };
     place();
     window.addEventListener('scroll', place, true);
@@ -119,10 +131,13 @@ export function FieldHelp({ label, children }: { label: string; children: ReactN
           id={id}
           role="tooltip"
           className="claw-field-help-bubble"
+          data-placement={placement}
           hidden={!open}
           style={position}
           onPointerEnter={(e) => { if (mouse(e)) clearTimeout(timer.current); }}
           onPointerLeave={(e) => { if (mouse(e)) hoverOut(); }}
+          // On touch screens the tip can cover the field above: a tap on it dismisses it.
+          onPointerDown={(e) => { if (!mouse(e)) close(); }}
         >
           {children}
         </span>,

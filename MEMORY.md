@@ -321,7 +321,8 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
   The owner asked for field descriptions behind an "i" button on the right of the
   field, keeping the "Allowed ..." text under it, then for it to act "more like a
   tooltip": no close button, closes on typing or clicking away. Built as a custom
-  toggletip, `components/custom/FieldHelp.tsx` (in the field's `endAdornment`):
+  toggletip, `components/custom/FieldHelp.tsx` (in the field's `endAdornment`), then
+  restyled to look like a Bootstrap tooltip (owner's request, with a reference picture):
   hover, keyboard focus or tap opens it; a click keeps it open. ENTERPRISE-UI's
   Tooltip was not used because it opens on hover and focus only (not on touch).
   The tip is in a portal (cards clip their content) and sets the font itself.
