@@ -18,7 +18,7 @@ import { compose, type Handler, type Middleware, type RequestContext } from './h
 import { accessLog, errorBoundary, requestIdHeader, securityHeaders } from './http/middleware.ts';
 import { Router } from './http/router.ts';
 import { apiKeyAuthentication, applyResponseHeaders, csrfProtection, sessionAuthentication, type SessionCookieConfig } from './http/session.ts';
-import { healthHandler, healthHistoryHandler } from './controllers/health.ts';
+import { healthHandler, healthHistoryHandler, livenessHandler, readinessHandler, type Lifecycle } from './controllers/health.ts';
 import { authController } from './controllers/auth.ts';
 import { accessController } from './controllers/access.ts';
 import { usersController } from './controllers/users.ts';
@@ -44,6 +44,8 @@ export interface ApiDependencies {
   /** Recent log records for the Logs page; null when the buffer is off. */
   logBuffer?: LogBuffer | null;
   health: HealthService;
+  /** Readiness for load balancers (phase 17); absent: always ready. */
+  lifecycle?: Lifecycle;
   audit: AuditService;
   healthHistory: HealthHistoryService;
   auth: AuthService;
@@ -102,6 +104,9 @@ export function createApiApp(deps: ApiDependencies): ApiApp {
 
   // Public: health for load balancers, setup and sign-in.
   router.get('/api/health', 'public', healthHandler(deps.health));
+  // Public: liveness and readiness probes carry no information beyond the state.
+  router.get('/api/health/live', 'public', livenessHandler());
+  router.get('/api/health/ready', 'public', readinessHandler(deps.lifecycle));
   router.get('/api/health/history', 'health.read', healthHistoryHandler(deps.healthHistory));
 
   // Operations (spec §26). 'authenticated': the operation service checks the permission of each operation type.

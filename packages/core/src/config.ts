@@ -1,3 +1,4 @@
+import { dirname, join } from 'node:path';
 import { parseTrustedProxies } from './client-address.ts';
 import { AppError } from './errors.ts';
 import { LOG_LEVELS, type LogFormat, type LogLevel } from './logger.ts';
@@ -12,10 +13,22 @@ export interface Config {
     port: number;
     /** Reverse proxies whose X-Forwarded-For is believed (addresses or CIDR ranges). Empty: none. */
     trustedProxies: string[];
+    /** On SIGTERM/SIGINT, how long in-flight gateway requests may take to finish before they are cut off. */
+    shutdownGraceSeconds: number;
+    /** Let a second process listen on the same port (Linux), for restarts without downtime. */
+    reusePort: boolean;
+    /** Serve HTTPS directly (PEM files). Null: plain HTTP, normally behind a TLS-terminating proxy. */
+    tls: { certFile: string; keyFile: string } | null;
   };
   database: {
     /** File path, or `:memory:`. */
     path: string;
+    /** `auto`: apply pending migrations at startup. `manual`: refuse to start until `bun run migrate`. */
+    migrations: 'auto' | 'manual';
+    /** Copy the database to `backupDir` before applying migrations to it. */
+    backupBeforeMigrate: boolean;
+    /** Where automatic and `bun run backup` copies go (default: `backups/` next to the database). */
+    backupDir: string;
   };
   log: {
     level: LogLevel;
@@ -109,6 +122,7 @@ export function loadConfig(env: Env = process.env): Config {
   };
 
   const envName = oneOf('CLAWROUTER_ENV', ENVIRONMENTS, env.NODE_ENV === 'production' ? 'production' : 'development');
+  const dbPath = str('CLAWROUTER_DATABASE_PATH', envName === 'test' ? ':memory:' : './data/clawrouter.db');
   const config: Config = {
     env: envName,
     server: {
@@ -116,9 +130,15 @@ export function loadConfig(env: Env = process.env): Config {
       host: str('CLAWROUTER_HOST', '127.0.0.1'),
       port: int('CLAWROUTER_PORT', 8080, 0, 65535),
       trustedProxies: [],
+      shutdownGraceSeconds: int('CLAWROUTER_SHUTDOWN_GRACE_SECONDS', 30, 0, 600),
+      reusePort: bool('CLAWROUTER_REUSE_PORT', false),
+      tls: null,
     },
     database: {
-      path: str('CLAWROUTER_DATABASE_PATH', envName === 'test' ? ':memory:' : './data/clawrouter.db'),
+      path: dbPath,
+      migrations: oneOf('CLAWROUTER_MIGRATIONS', ['auto', 'manual'] as const, 'auto'),
+      backupBeforeMigrate: bool('CLAWROUTER_BACKUP_BEFORE_MIGRATE', dbPath !== ':memory:'),
+      backupDir: str('CLAWROUTER_BACKUP_DIR', dbPath === ':memory:' ? './data/backups' : join(dirname(dbPath), 'backups')),
     },
     log: {
       level: oneOf('CLAWROUTER_LOG_LEVEL', LOG_LEVELS, envName === 'development' ? 'debug' : 'info'),
@@ -159,6 +179,12 @@ export function loadConfig(env: Env = process.env): Config {
   if (config.env === 'production' && !config.secrets.key && !config.secrets.keyFile) {
     issues.push({ key: 'CLAWROUTER_SECRET_KEY', message: 'is required in production (or CLAWROUTER_SECRET_KEY_FILE). Generate one with: openssl rand -base64 32' });
   }
+  const certFile = env.CLAWROUTER_TLS_CERT_FILE?.trim();
+  const keyFile = env.CLAWROUTER_TLS_KEY_FILE?.trim();
+  if (certFile && keyFile) config.server.tls = { certFile, keyFile };
+  else if (certFile || keyFile) issues.push({ key: certFile ? 'CLAWROUTER_TLS_KEY_FILE' : 'CLAWROUTER_TLS_CERT_FILE', message: 'is needed too: set both CLAWROUTER_TLS_CERT_FILE and CLAWROUTER_TLS_KEY_FILE, or neither' });
+  // Cookies follow the transport: served over HTTPS directly, they are Secure unless told otherwise.
+  if (config.server.tls && env.CLAWROUTER_COOKIE_SECURE === undefined) config.auth.cookieSecure = true;
   if (config.auth.setupToken !== null && config.auth.setupToken.length < 16) {
     issues.push({ key: 'CLAWROUTER_SETUP_TOKEN', message: 'must be at least 16 characters' });
   }

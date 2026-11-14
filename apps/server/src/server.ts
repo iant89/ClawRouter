@@ -68,7 +68,8 @@ export interface ClawRouter {
   setupToken: SetupToken | null;
   api: ApiApp;
   url: URL;
-  stop(): Promise<void>;
+  /** Graceful shutdown: drain in-flight gateway requests for up to `graceMs` (default: the configured grace period). */
+  stop(options?: { graceMs?: number }): Promise<void>;
 }
 
 /**
@@ -217,7 +218,9 @@ export async function startClawRouter({ config, log, logBuffer, version, console
   providerKickoff?.unref();
   providerTimer?.unref();
 
-  const api = createApiApp({ log, logBuffer, audit, health, healthHistory, auth, authz, userAdmin, settings, twoFactor, mail, notifications, providers, models, routing, apiKeys, keyRequests, gateway, limits, requests, operations, setup, cookie: { secure: config.auth.cookieSecure } });
+  // 'draining' from the moment a shutdown starts: readiness fails and new gateway requests are refused.
+  let lifecycle: 'ready' | 'draining' = 'ready';
+  const api = createApiApp({ log, logBuffer, audit, health, lifecycle: { state: () => lifecycle }, healthHistory, auth, authz, userAdmin, settings, twoFactor, mail, notifications, providers, models, routing, apiKeys, keyRequests, gateway, limits, requests, operations, setup, cookie: { secure: config.auth.cookieSecure } });
 
   // The console's live channel (spec §25): session-authenticated, same-origin only.
   const realtime = createRealtimeHub({
@@ -236,6 +239,13 @@ export async function startClawRouter({ config, log, logBuffer, version, console
       if (srv.upgrade(request, { data: check.data })) return undefined;
       return new Response('WebSocket upgrade failed', { status: 400 });
     }
+    // While draining, new gateway requests go elsewhere (or retry): requests already running finish.
+    if (lifecycle === 'draining' && new URL(request.url).pathname.startsWith('/v1/')) {
+      return Response.json(
+        { error: { message: 'ClawRouter is restarting. Retry in a few seconds.', type: 'server_error', param: null, code: 'shutting_down' } },
+        { status: 503, headers: { 'retry-after': '5', connection: 'close' } },
+      );
+    }
     // Behind trusted proxies the client is in X-Forwarded-For; otherwise it is the socket peer.
     return api.handle(request, clientAddress(srv.requestIP(request)?.address ?? null, request.headers.get('x-forwarded-for'), proxies));
   };
@@ -252,6 +262,9 @@ export async function startClawRouter({ config, log, logBuffer, version, console
     // Bun closes idle connections after 10 s by default, which would cut off slow
     // model responses and streams. 255 s is Bun's maximum.
     idleTimeout: 255,
+    // A new process may bind the same port while this one drains (restarts without downtime, Linux).
+    reusePort: config.server.reusePort,
+    ...(config.server.tls ? { tls: { cert: Bun.file(config.server.tls.certFile), key: Bun.file(config.server.tls.keyFile) } } : {}),
     development: config.env === 'development' && { hmr: true, console: false },
     routes,
     fetch: handle,
@@ -271,6 +284,13 @@ export async function startClawRouter({ config, log, logBuffer, version, console
 
   const url = new URL(server.url.href);
   log.info('ClawRouter listening', { component: 'server', url: url.href, env: config.env, console: serveConsole, version });
+  // What this process runs with, for whoever reads the logs later. Never values of secrets.
+  log.info('configuration', {
+    component: 'server', database: config.database.path, migrations: config.database.migrations, https: !!config.server.tls,
+    secureCookies: config.auth.cookieSecure, trustedProxies: config.server.trustedProxies.length, reusePort: config.server.reusePort,
+    shutdownGraceSeconds: config.server.shutdownGraceSeconds, secretKey: config.secrets.key ? 'environment' : config.secrets.keyFile ? 'file' : 'development file',
+    logLevel: config.log.level, logFormat: config.log.format,
+  });
   if (!config.auth.cookieSecure && !['127.0.0.1', 'localhost', '::1'].includes(config.server.host)) {
     log.warn('session cookies are not marked Secure; serve ClawRouter over HTTPS and set CLAWROUTER_COOKIE_SECURE=true', { component: 'server' });
   }
@@ -281,21 +301,38 @@ export async function startClawRouter({ config, log, logBuffer, version, console
     get setupToken() {
       return setupToken;
     },
-    async stop() {
+    /**
+     * Graceful shutdown (phase 17): stop listening and fail readiness, refuse new
+     * gateway requests on open connections, let the ones running finish for up to
+     * `graceMs`, tell consoles to reconnect, then close everything.
+     */
+    async stop(options: { graceMs?: number } = {}) {
       if (stopped) return;
       stopped = true;
+      const graceMs = options.graceMs ?? config.server.shutdownGraceSeconds * 1000;
+      lifecycle = 'draining';
+      const inFlight = () => gateway.metrics.snapshot().activeRequests;
+      log.info('draining', { component: 'server', inFlight: inFlight(), graceSeconds: graceMs / 1000 });
       clearInterval(purgeTimer);
       clearInterval(healthTimer);
-      realtime.stop();
-      operations.stop();
-      liveHub = null;
       if (providerKickoff) clearTimeout(providerKickoff);
       if (providerTimer) clearInterval(providerTimer);
+      // No new connections from here on; requests on open connections still arrive (and /v1 is refused).
+      const closed = server.stop(false);
+      // Consoles reconnect (to this node after a restart, or another one).
+      realtime.stop();
+      liveHub = null;
+      const deadline = Date.now() + graceMs;
+      while (inFlight() > 0 && Date.now() < deadline) await Bun.sleep(100);
+      const cut = inFlight();
+      if (cut > 0) log.warn('grace period over; cutting off gateway requests still running', { component: 'server', requests: cut });
+      await Promise.race([closed, Bun.sleep(Math.max(0, deadline - Date.now()))]);
+      await server.stop(true);
+      operations.stop();
       unsubscribeNotifications();
       unsubscribeModels();
-      await server.stop();
       db.close();
-      log.info('ClawRouter stopped', { component: 'server' });
+      log.info('ClawRouter stopped', { component: 'server', cutOff: cut });
     },
   };
 }

@@ -131,7 +131,7 @@ describe('protection', () => {
     const h = createHarness();
     const publicRoutes = h.api.router.list().filter((r) => r.access === 'public').map((r) => `${r.method} ${r.pattern}`);
     expect(publicRoutes.sort()).toEqual([
-      'GET /api/health', 'GET /api/setup/status', 'POST /api/auth/login', 'POST /api/auth/login/email-code', 'POST /api/auth/login/verify', 'POST /api/auth/logout', 'POST /api/setup',
+      'GET /api/health', 'GET /api/health/live', 'GET /api/health/ready', 'GET /api/setup/status', 'POST /api/auth/login', 'POST /api/auth/login/email-code', 'POST /api/auth/login/verify', 'POST /api/auth/logout', 'POST /api/setup',
     ]);
   });
 

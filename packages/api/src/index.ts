@@ -8,3 +8,4 @@ export * from './http/middleware.ts';
 export * from './http/session.ts';
 export * from './http/security-headers.ts';
 export * from './realtime/hub.ts';
+export type { Lifecycle } from './controllers/health.ts';

@@ -31,3 +31,26 @@ export function healthHistoryHandler(history: HealthHistoryService): Handler {
     return ok<HealthHistoryReport>(history.report({ hours, component: component as HealthComponent | undefined }));
   };
 }
+
+/** Where the process is in its life: serving, or finishing in-flight work before it stops. */
+export interface Lifecycle {
+  state(): 'ready' | 'draining';
+}
+
+/**
+ * GET /api/health/live and /api/health/ready (phase 17), public for load
+ * balancers and orchestrators. Live: the process answers. Ready: it should get
+ * traffic; 503 while it drains for a shutdown or restart. Neither says more.
+ */
+export function livenessHandler(): Handler {
+  return () => ok({ status: 'alive' });
+}
+
+export function readinessHandler(lifecycle: Lifecycle | undefined): Handler {
+  return () => {
+    const state = lifecycle?.state() ?? 'ready';
+    return state === 'ready'
+      ? ok({ status: 'ready' })
+      : new Response(JSON.stringify({ data: { status: state } }), { status: 503, headers: { 'content-type': 'application/json', 'retry-after': '5', 'cache-control': 'no-store' } });
+  };
+}
