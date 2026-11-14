@@ -296,6 +296,10 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
   owner says so. Measurements and changes: `docs/performance.md`. Next: phase 17,
   production packaging (see `docs/roadmap.md`).
 
+- **MESSAGE** · 2026-11-14 · Revoke from the "keys beyond the lifetime" table waits for review
+  On `claude/revoke-beyond-lifetime`, built on top of `claude/phase-16-performance`.
+  Merge order: phase 16, then this branch; both fast-forwards.
+
 ---
 
 ## Resolved
