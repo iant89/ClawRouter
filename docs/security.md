@@ -61,8 +61,9 @@ guarded by tests, and the risks that remain. Area details live in
 2. Set `CLAWROUTER_SECRET_KEY` (or `_FILE`) from `openssl rand -base64 32`, and back it up separately from the database.
 3. Behind a reverse proxy, set `CLAWROUTER_TRUSTED_PROXIES` to the proxy's address only. Pass the `Host` header and WebSocket upgrades on `/api/ws`.
 4. Keep `CLAWROUTER_HOST` on a private interface unless the proxy needs otherwise.
-5. Rotate the secret key with `bun run rotate-secret-key` if it may have been exposed. Recover lost passwords with `bun run reset-password`.
-6. Run `bun run scan-secrets` and `bun audit` before releases (CI does both).
+5. Rotate the secret key with `bun run rotate-secret-key` if it may have been exposed (it re-encrypts provider keys, the mail password and authenticator-app secrets). Recover lost passwords with `bun run reset-password`, a lost key with `bun run clear-credentials` (see [deployment](deployment.md#recovery)).
+6. Back up regularly and copy backups off the machine. Backups leave the secret key out unless `--include-secret-key` is given: whoever holds both can read every provider key. Run `bun run doctor` after changes.
+7. Run `bun run scan-secrets` and `bun audit` before releases (CI does both).
 
 ## Screenshots
 

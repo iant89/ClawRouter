@@ -24,8 +24,8 @@ Partly built items in later phases are marked "(groundwork: …)".
 | 13 Logging + audit | ✅ |
 | 14 Administration | ✅ |
 | 15 Security hardening | ✅ |
-| 16 Performance | ⬜ **next** |
-| 17 Production | ⬜ |
+| 16 Performance | ✅ |
+| 17 Production | ✅ |
 
 ---
 
@@ -411,24 +411,25 @@ Goal: optimize the gateway and console. Measurements and changes: [performance](
 
 Exit: performance remains predictable under realistic gateway workloads.
 
-## Phase 17: Production ⬜ next
+## Phase 17: Production ✅
 
-Goal: package ClawRouter as a production-ready self-hosted application.
+Goal: package ClawRouter as a production-ready self-hosted application. See
+[deployment](deployment.md) and [configuration](configuration.md).
 
-- [ ] Production configuration
-- [ ] HTTPS deployment documentation
-- [ ] Reverse-proxy support (trusted `X-Forwarded-For`: login throttling per IP needs it)
-- [ ] Backup/restore (must include the secret key)
-- [ ] Database backup
-- [ ] Configuration export
-- [ ] Configuration import
-- [ ] Credential recovery strategy
-- [x] Health endpoint
-- [ ] Graceful shutdown (groundwork: SIGINT/SIGTERM handled)
-- [ ] Graceful restart
-- [ ] Migration handling (groundwork: migrations run on startup)
-- [ ] Production logging (groundwork: JSON logs in production)
-- [ ] Deployment documentation
+- [x] Production configuration (every variable documented; one `configuration` log line at start; `bun run doctor` checks a deployment)
+- [x] HTTPS deployment documentation (Caddy, nginx, or ClawRouter's own certificate with `CLAWROUTER_TLS_*`)
+- [x] Reverse-proxy support (trusted `X-Forwarded-For`, phase 15; checked behind nginx and Caddy in Docker)
+- [x] Backup/restore (`bun run backup` / `restore`; the key is kept apart by default, `--include-secret-key` adds it; the manifest records its fingerprint)
+- [x] Database backup (consistent copies while running; scheduled, before migrations and before imports)
+- [x] Configuration export (Settings → Configuration, no secrets)
+- [x] Configuration import (previewed, merges, never deletes, backed up first)
+- [x] Credential recovery strategy (`clear-credentials` for a lost key, `reset-password --reset-2fa`; key rotation now covers every encrypted value)
+- [x] Health endpoint (plus `/api/health/live` and `/api/health/ready`)
+- [x] Graceful shutdown (drains requests in flight; crashes stop the same way)
+- [x] Graceful restart (`CLAWROUTER_REUSE_PORT`; readiness answers 503 while draining)
+- [x] Migration handling (backup first; `CLAWROUTER_MIGRATIONS=manual`; newer databases refused)
+- [x] Production logging (JSON on stdout, redacted)
+- [x] Deployment documentation (systemd unit, Dockerfile, Compose, proxy configurations)
 
 Exit: ClawRouter can be deployed as a standalone production AI gateway.
 

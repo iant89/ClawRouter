@@ -40,8 +40,10 @@ usage tracking and an administration console built on
   configured by administrators (authenticator app, email codes over SMTP, recovery
   codes; see [two-factor](docs/two-factor.md)), and phase 16, **performance**
   (indexes, a cached routing snapshot, code splitting and compression, measured with
-  `bun run bench:db` and `bun run bench:gateway`; see [performance](docs/performance.md)).
-  Production packaging is next (phase 17).
+  `bun run bench:db` and `bun run bench:gateway`; see [performance](docs/performance.md)),
+  and phase 17, **production** (graceful drain and restart, backups and restore,
+  configuration export/import, credential recovery, `bun run doctor`, Docker, systemd
+  and proxy files; see [deployment](docs/deployment.md)). Every roadmap phase is done.
 - **Architecture:** [`docs/architecture.md`](docs/architecture.md) ·
   **Security model:** [`docs/authentication.md`](docs/authentication.md),
   [`docs/authorization.md`](docs/authorization.md) · **Console:**
@@ -98,11 +100,15 @@ curl -s http://127.0.0.1:8080/api/health | jq
 | `bun test` | All unit and integration tests |
 | `bun run typecheck` | `tsc` in strict mode over every package and app |
 | `bun run check` | typecheck + tests |
-| `bun run migrate` | Apply pending migrations (`--status` to list only) |
-| `bun run reset-password <username>` | Lost password: sets and prints a temporary password, ends the user's sessions (`--enable` also re-enables the account) |
-| `bun run rotate-secret-key` | Re-encrypt stored provider credentials with a new key (`CLAWROUTER_NEW_SECRET_KEY` or `--new-key-file`); stop the server first |
+| `bun run migrate` | Back up, then apply pending migrations (`--status` to list only) |
+| `bun run backup` | Consistent backup while running (`--dir`, `--include-secret-key`, `--keep N`, `--list`) |
+| `bun run restore <dir>` | Check a backup; `--yes` restores it (server stopped) |
+| `bun run doctor` | Check a deployment without changing anything (`--json`) |
+| `bun run clear-credentials` | Lost secret key: list the values it cannot open; `--yes` forgets them |
+| `bun run reset-password <username>` | Lost password: sets and prints a temporary password, ends the user's sessions (`--enable` also re-enables the account, `--reset-2fa` removes two-factor sign-in) |
+| `bun run rotate-secret-key` | Re-encrypt every stored secret with a new key (`CLAWROUTER_NEW_SECRET_KEY` or `--new-key-file`); stop the server first |
 | `bun run scan-secrets` | Fail on credential-shaped strings in tracked files (`--history`: every commit) |
-| `bun run build` | Production bundle in `dist/` (server + console) |
+| `bun run build` | Production bundle in `dist/` (server, console, and the commands above in `dist/cli`) |
 | `bun run start` | Run the production bundle (`CLAWROUTER_ENV=production`) |
 
 To move to a newer ENTERPRISE-UI, follow [`vendor/README.md`](vendor/README.md).
@@ -134,6 +140,16 @@ Invalid values stop the server with a message listing every problem.
 | `CLAWROUTER_USAGE_RETENTION_DAYS` | `400` | Days to keep hourly usage records; `0` keeps them forever |
 | `CLAWROUTER_SETUP_TOKEN` | generated | Pre-chosen initial setup token (≥ 16 chars), e.g. for automated installs |
 | `CLAWROUTER_TRUSTED_PROXIES` | none | Reverse proxies (addresses or CIDR ranges, comma-separated) whose `X-Forwarded-For` is believed. Only list your own proxy |
+| `CLAWROUTER_TLS_CERT_FILE`, `_KEY_FILE` | none | Serve HTTPS directly (both or neither) |
+| `CLAWROUTER_SHUTDOWN_GRACE_SECONDS` | `30` | Time requests in flight get to finish on stop |
+| `CLAWROUTER_REUSE_PORT` | `false` | Restart without refusing connections (Linux) |
+| `CLAWROUTER_MIGRATIONS` | `auto` | `manual`: refuse to start with pending migrations |
+| `CLAWROUTER_BACKUP_BEFORE_MIGRATE` | `true` | Back up before migrations |
+| `CLAWROUTER_BACKUP_DIR` | `<database dir>/backups` | |
+| `CLAWROUTER_BACKUP_INTERVAL_HOURS` | `24` in production, else `0` | Scheduled backups |
+| `CLAWROUTER_BACKUP_KEEP` | `7` | Automatic backups kept per kind |
+
+Every variable is described in [configuration](docs/configuration.md); running on a server in [deployment](docs/deployment.md).
 
 Session lifetimes and the three retention periods are only **defaults**: Administration → Settings can change them while running, and a value set there wins until it is reset (see [administration](docs/administration.md#settings)).
 
@@ -156,6 +172,7 @@ clawrouter/
     routing/     routing engine (pure), routing configuration, failure tracker
     audit/       append-only audit log
     health/      health checks and aggregation service
+    configuration/   configuration export and import (preview, merge, no secrets)
     api/         router, middleware (CSRF, sessions), response conventions, controllers
   docs/          design specification, roadmap, architecture, feature docs, screenshots/
   scripts/       build-ui, migrate, start

@@ -148,6 +148,13 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 
 ### Warnings
 
+- **WARNING** · 2026-11-14 · Phase 17 parts not verified
+  The systemd unit (`deploy/clawrouter.service`) was never run (no systemd in the
+  development container). Docker, Compose, nginx and Caddy were run and checked.
+  `CLAWROUTER_REUSE_PORT` was checked by hand on Linux (two processes on one port,
+  the second kept answering when the first stopped); no automated test, and not tried on macOS or Windows.
+  Caddy's automatic certificates were not tried (no public host).
+
 - **WARNING** · 2026-11-12 · Provider adapters never tested against the real APIs
   OpenAI, Anthropic, Google and OpenAI-compatible adapters were only tested
   against `tests/support/mock-providers.ts`. No real provider was reachable from
@@ -213,6 +220,26 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
     reaches the others within 5 seconds.
 
 ### Notes
+
+- **NOTE** · 2026-11-14 · Phase 17 mechanisms to keep in mind
+  - Every encrypted value belongs to a `SealedSecretStore` (`apps/server/src/secret-stores.ts`):
+    provider credentials, mail password, TOTP secrets. A **new kind of encrypted
+    value must get a store there**, or key rotation, `doctor` and `clear-credentials`
+    miss it. (Before phase 17, rotation re-encrypted only provider keys; fixed.)
+  - Backups leave the secret key out unless `--include-secret-key`; the manifest
+    records the key fingerprint, and restore refuses a backup the configured key cannot
+    open (unless `--force`).
+  - `deploy/nginx.conf` must use `Host $http_host`: `$host` drops a non-standard port
+    and the console's same-origin check answers 403 "Cross-site request rejected".
+  - Docker: the secret file must be owned by uid 1000 (the image's `bun` user).
+    Image builds behind a TLS-inspecting proxy need `--secret id=ca,src=...`.
+  - `CLAWROUTER_BACKUP_INTERVAL_HOURS` defaults to 24 in production: a production
+    install writes backups into `<db dir>/backups` unless told otherwise.
+  - The server writes `<db>.pid`; `restore` and `doctor` use it to see whether the
+    server runs. Scratch servers in browser checks must be stopped by PID, or later
+    starts on the same port fail with EADDRINUSE.
+  - Configuration import is a merge (never deletes) and refuses permissions the
+    importer lacks; a provider endpoint host change is skipped when it has a key.
 
 - **NOTE** · 2026-11-14 · Phase 16 mechanisms to keep in mind
   - Routing plans use a cached snapshot (`packages/routing/src/service.ts`), dropped
@@ -290,14 +317,19 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 
 ### Messages
 
-- **MESSAGE** · 2026-11-14 · Next: phase 17, production
-  Everything built so far is merged into `main` (see Resolved). Next is phase 17,
-  production packaging (see `docs/roadmap.md`), on a new branch
-  `claude/phase-17-production`. Remember the secret-key backup (Important).
+- **MESSAGE** · 2026-11-14 · Phase 17 waits for review
+  Phase 17 (production) is on `claude/phase-17-production`, pushed, not merged.
+  Merge it into `main` (fast-forward) only when the owner says so. Every roadmap
+  phase is then done; what comes next is the owner's call (spec §41 future roadmap,
+  or the open warnings above).
 
 ---
 
 ## Resolved
+
+- **MESSAGE** · 2026-11-14 · Next: phase 17, production. Resolved 2026-11-14: built on
+  `claude/phase-17-production` (see `docs/deployment.md`); the secret-key backup is
+  covered there (backups leave the key out by default).
 
 - **MESSAGE** · 2026-11-14 · Phase 16 and the revoke button wait for review. Resolved
   2026-11-14: the owner said "Merge"; `main` was fast-forwarded to phase 16
