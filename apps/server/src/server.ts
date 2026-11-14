@@ -1,3 +1,5 @@
+import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import type { HTMLBundle, Server } from 'bun';
 import { createApiApp, createRealtimeHub, type ApiApp, type RealtimeHub, type SocketData } from '@clawrouter/api';
 import { createAuditService, createSqliteAuditRepository, type AuditService } from '@clawrouter/audit';
@@ -6,7 +8,7 @@ import {
   type AuthService, type PasswordHasher, type SetupService,
 } from '@clawrouter/authentication';
 import { createAuthorizationService, createSqliteRoleRepository, peopleDirectory, userAccessPolicy, type AuthorizationService } from '@clawrouter/authorization';
-import { clientAddress, createEventBus, parseTrustedProxies, type Config, type EventBus, type LogBuffer, type Logger } from '@clawrouter/core';
+import { AppError, clientAddress, createEventBus, parseTrustedProxies, type Config, type EventBus, type LogBuffer, type Logger } from '@clawrouter/core';
 import { REALTIME_PATH } from '@clawrouter/shared';
 import { createConsoleAssets } from './console-assets.ts';
 import { createNotificationService, createSqliteNotificationRepository, type NotificationService } from '@clawrouter/notifications';
@@ -16,7 +18,7 @@ import { createRoutingService, createSqliteRoutingStore, type RoutingService } f
 import { createApiKeyService, createGatewayService, createKeyRequestService, type ApiKeyService, type GatewayService } from '@clawrouter/gateway';
 import { createRateLimitService, createSqliteRateLimitConfigStore, MemoryCounterStore, type RateLimitService } from '@clawrouter/rate-limits';
 import { createRequestLogService, createSqliteRequestRepository, type RequestLogService } from '@clawrouter/requests';
-import { createSqliteSettingsRepository, migrations, openSqlite, runMigrations, type Database } from '@clawrouter/database';
+import { createSqliteSettingsRepository, migrationStatus, migrations, openSqlite, runMigrations, type Database } from '@clawrouter/database';
 import { createSettingsService, settingDefaults } from '@clawrouter/settings';
 import { createMailService } from '@clawrouter/mail';
 import {
@@ -24,6 +26,7 @@ import {
   createSqliteHealthHistoryRepository, createWebSocketCheck, type HealthHistoryService, type HealthService,
 } from '@clawrouter/health';
 import { loadSecretBox } from './secret-key.ts';
+import { createBackup, pruneBackups } from './backup.ts';
 import { provisionSetupToken, type SetupToken } from './setup-token.ts';
 import { operationHandlers } from './operation-handlers.ts';
 import { createOperationService, createSqliteOperationRepository, type OperationService } from '@clawrouter/operations';
@@ -79,18 +82,34 @@ export interface ClawRouter {
  */
 export async function startClawRouter({ config, log, logBuffer, version, consoleHtml, consoleDir, hasher = createArgon2Hasher(), providerFetch }: ClawRouterOptions): Promise<ClawRouter> {
   const db = openSqlite({ path: config.database.path });
+  const secrets = loadSecretBox(config, log);
   try {
+    const status = migrationStatus(db, migrations);
+    const pending = status.filter((m) => !m.appliedAt);
+    if (pending.length && status.some((m) => m.appliedAt)) {
+      if (config.database.migrations === 'manual') {
+        throw new AppError('INTERNAL_ERROR', `The database needs ${pending.length} migration(s) (${pending.map((m) => m.id).join(', ')}) and CLAWROUTER_MIGRATIONS=manual. Back up, then run "bun run migrate".`);
+      }
+      // An existing database is about to change: keep a copy to go back to.
+      if (config.database.backupBeforeMigrate && config.database.path !== ':memory:') {
+        const { path } = await createBackup(db, { dir: config.database.backupDir, box: secrets, version, label: 'pre-migrate', log });
+        pruneBackups(config.database.backupDir, 'pre-migrate', config.database.backupKeep);
+        log.info('backed up the database before migrating', { component: 'database', backup: path, pending: pending.length });
+      }
+    }
     runMigrations(db, migrations, log);
   } catch (error) {
     db.close();
     throw error;
   }
+  // Tells `bun run restore` (and people) that this database is in use. Removed on stop.
+  const pidFile = config.database.path === ':memory:' ? null : `${resolve(config.database.path)}.pid`;
+  if (pidFile) writeFileSync(pidFile, `${process.pid}\n`);
 
   const events = createEventBus(log);
   const audit = createAuditService(createSqliteAuditRepository(db), log);
   // System settings: read at use time by the services below, so console changes apply without a restart.
   const settings = createSettingsService({ repo: createSqliteSettingsRepository(db), defaults: settingDefaults(config), audit, events, log });
-  const secrets = loadSecretBox(config, log);
   const providers = createProviderService({
     repo: createSqliteProviderRepository(db), registry: createDefaultRegistry(), secrets, audit, events, log, fetch: providerFetch,
   });
@@ -184,6 +203,14 @@ export async function startClawRouter({ config, log, logBuffer, version, console
       setupToken = null;
     },
   });
+  // Scheduled backups (phase 17): a consistent copy every N hours; the newest `backupKeep` are kept.
+  const backupTimer = config.database.backupIntervalHours > 0 && config.database.path !== ':memory:'
+    ? setInterval(() => {
+      createBackup(db, { dir: config.database.backupDir, box: secrets, version, label: 'scheduled', log })
+        .then(() => pruneBackups(config.database.backupDir, 'scheduled', config.database.backupKeep))
+        .catch((error: unknown) => log.error('scheduled backup failed', { component: 'backup', error }));
+    }, config.database.backupIntervalHours * 3_600_000)
+    : null;
   const purgeTimer = setInterval(() => {
     try {
       const removed = auth.purgeExpired();
@@ -314,6 +341,7 @@ export async function startClawRouter({ config, log, logBuffer, version, console
       const inFlight = () => gateway.metrics.snapshot().activeRequests;
       log.info('draining', { component: 'server', inFlight: inFlight(), graceSeconds: graceMs / 1000 });
       clearInterval(purgeTimer);
+      if (backupTimer) clearInterval(backupTimer);
       clearInterval(healthTimer);
       if (providerKickoff) clearTimeout(providerKickoff);
       if (providerTimer) clearInterval(providerTimer);
@@ -332,6 +360,8 @@ export async function startClawRouter({ config, log, logBuffer, version, console
       unsubscribeNotifications();
       unsubscribeModels();
       db.close();
+      // Only our own pid file: during an overlapping restart the new process has written its own.
+      if (pidFile && existsSync(pidFile) && readFileSync(pidFile, 'utf8').trim() === String(process.pid)) rmSync(pidFile, { force: true });
       log.info('ClawRouter stopped', { component: 'server', cutOff: cut });
     },
   };

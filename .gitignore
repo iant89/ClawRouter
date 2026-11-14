@@ -8,3 +8,4 @@ data/
 .env.local
 secret.key
 setup-token
+*.db.pid

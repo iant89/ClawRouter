@@ -18,6 +18,8 @@
     "reset-password": "bun scripts/reset-password.ts",
     "rotate-secret-key": "bun scripts/rotate-secret-key.ts",
     "scan-secrets": "bun scripts/scan-secrets.ts",
+    "backup": "bun scripts/backup.ts",
+    "restore": "bun scripts/restore.ts",
     "bench:db": "bun scripts/bench-db.ts",
     "bench:gateway": "bun scripts/bench-gateway.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json",

@@ -29,6 +29,10 @@ export interface Config {
     backupBeforeMigrate: boolean;
     /** Where automatic and `bun run backup` copies go (default: `backups/` next to the database). */
     backupDir: string;
+    /** Hours between automatic backups while running (0: none). Default 24 in production. */
+    backupIntervalHours: number;
+    /** Automatic backups kept (each kind: scheduled, pre-migrate); older ones are removed. */
+    backupKeep: number;
   };
   log: {
     level: LogLevel;
@@ -139,6 +143,8 @@ export function loadConfig(env: Env = process.env): Config {
       migrations: oneOf('CLAWROUTER_MIGRATIONS', ['auto', 'manual'] as const, 'auto'),
       backupBeforeMigrate: bool('CLAWROUTER_BACKUP_BEFORE_MIGRATE', dbPath !== ':memory:'),
       backupDir: str('CLAWROUTER_BACKUP_DIR', dbPath === ':memory:' ? './data/backups' : join(dirname(dbPath), 'backups')),
+      backupIntervalHours: int('CLAWROUTER_BACKUP_INTERVAL_HOURS', envName === 'production' && dbPath !== ':memory:' ? 24 : 0, 0, 24 * 30),
+      backupKeep: int('CLAWROUTER_BACKUP_KEEP', 7, 1, 1000),
     },
     log: {
       level: oneOf('CLAWROUTER_LOG_LEVEL', LOG_LEVELS, envName === 'development' ? 'debug' : 'info'),
