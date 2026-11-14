@@ -15,6 +15,7 @@ import { m0013CustomRolesUsers } from './0013_custom_roles_users.ts';
 import { m0014ApiKeyRequests } from './0014_api_key_requests.ts';
 import { m0015KeyLifetimeLimits } from './0015_key_lifetime_limits.ts';
 import { m0016TwoFactor } from './0016_two_factor.ts';
+import { m0017PerformanceIndexes } from './0017_performance_indexes.ts';
 
 /** All migrations, in order. Append only. */
-export const migrations: readonly Migration[] = [m0001Settings, m0002UsersSessions, m0003AuditLog, m0004Roles, m0005Notifications, m0006Providers, m0007Models, m0008Routing, m0009ApiKeys, m0010RateLimits, m0011Requests, m0012HealthOperations, m0013CustomRolesUsers, m0014ApiKeyRequests, m0015KeyLifetimeLimits, m0016TwoFactor];
+export const migrations: readonly Migration[] = [m0001Settings, m0002UsersSessions, m0003AuditLog, m0004Roles, m0005Notifications, m0006Providers, m0007Models, m0008Routing, m0009ApiKeys, m0010RateLimits, m0011Requests, m0012HealthOperations, m0013CustomRolesUsers, m0014ApiKeyRequests, m0015KeyLifetimeLimits, m0016TwoFactor, m0017PerformanceIndexes];

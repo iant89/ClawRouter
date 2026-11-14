@@ -195,7 +195,10 @@ export function createSqliteRequestRepository(db: Database): RequestRepository {
       params.push(q.providerId);
     }
     if (q.model) {
-      clauses.push('(r.requested_model = ? COLLATE NOCASE OR r.model_ref = ? COLLATE NOCASE)');
+      // A union of two index lookups (requests_requested_model, requests_model): with a
+      // plain OR the planner walks the date index instead and reads most of the table.
+      clauses.push(`r.rowid IN (SELECT rowid FROM requests WHERE requested_model = ? COLLATE NOCASE
+        UNION SELECT rowid FROM requests WHERE model_ref = ? COLLATE NOCASE)`);
       params.push(q.model, q.model);
     }
     if (q.from) {

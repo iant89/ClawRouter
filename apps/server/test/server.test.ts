@@ -31,7 +31,7 @@ describe('ClawRouter server', () => {
 
   test('migrations ran on startup', () => {
     const ids = app.db.all<{ id: string }>('SELECT id FROM schema_migrations ORDER BY id').map((r) => r.id);
-    expect(ids).toEqual(['0001_settings', '0002_users_sessions', '0003_audit_log', '0004_roles', '0005_notifications', '0006_providers', '0007_models', '0008_routing', '0009_api_keys', '0010_rate_limits', '0011_requests', '0012_health_operations', '0013_custom_roles_users', '0014_api_key_requests', '0015_key_lifetime_limits', '0016_two_factor']);
+    expect(ids).toEqual(['0001_settings', '0002_users_sessions', '0003_audit_log', '0004_roles', '0005_notifications', '0006_providers', '0007_models', '0008_routing', '0009_api_keys', '0010_rate_limits', '0011_requests', '0012_health_operations', '0013_custom_roles_users', '0014_api_key_requests', '0015_key_lifetime_limits', '0016_two_factor', '0017_performance_indexes']);
   });
 
   test('admin API requires a session', async () => {

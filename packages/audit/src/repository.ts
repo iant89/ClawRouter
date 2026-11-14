@@ -83,7 +83,11 @@ export function createSqliteAuditRepository(db: Database): AuditRepository {
       if (q.actor) add("actor_name LIKE ? ESCAPE '\\'", `%${escapeLike(q.actor)}%`);
       if (q.from) add('timestamp >= ?', q.from);
       if (q.to) add('timestamp < ?', q.to);
-      if (q.q) {
+      // Free text of 3+ characters uses the trigram index (audit_fts, migration 0017):
+      // the same case-insensitive substring match as LIKE, without reading every row.
+      // (Actor names repeat across many records, so the actor filter scans instead.)
+      if (q.q && [...q.q].length >= 3) add(`rowid IN (SELECT rowid FROM audit_fts WHERE audit_fts MATCH ?)`, ftsPhrase(q.q));
+      else if (q.q) {
         const like = `%${escapeLike(q.q)}%`;
         add("(actor_name LIKE ? ESCAPE '\\' OR resource_id LIKE ? ESCAPE '\\' OR ip LIKE ? ESCAPE '\\' OR request_id LIKE ? ESCAPE '\\' OR metadata LIKE ? ESCAPE '\\')", like, like, like, like, like);
       }
@@ -100,3 +104,8 @@ export function createSqliteAuditRepository(db: Database): AuditRepository {
 
 /** Makes user text literal inside LIKE (no wildcards from the browser). */
 const escapeLike = (text: string) => text.replace(/[\\%_]/g, (c) => `\\${c}`);
+
+/** The text as one literal FTS5 phrase (quotes doubled): a substring match with the trigram tokenizer. */
+function ftsPhrase(text: string): string {
+  return `"${text.replace(/"/g, '""')}"`;
+}

@@ -94,6 +94,16 @@ describe('GET /api/audit (spec §28)', () => {
     expect(await data<AuditRecord[]>(await h.request('/api/audit?actor=adm', { cookie: admin }))).not.toHaveLength(0);
     // Wildcards typed in the browser are literal.
     expect(await data<AuditRecord[]>(await h.request(`/api/audit?q=${encodeURIComponent('%')}`, { cookie: admin }))).toHaveLength(0);
+    // Text of 3+ characters goes through the trigram index: still a case-insensitive
+    // substring, with quotes and wildcards taken literally; shorter text scans.
+    const search = async (q: string) => (await data<AuditRecord[]>(await h.request(`/api/audit?q=${encodeURIComponent(q)}`, { cookie: admin }))).length;
+    expect(await search('KEY-1')).toBe(1);
+    expect(await search('ey-')).toBe(3);
+    expect(await search('key-%')).toBe(0);
+    expect(await search('"key-')).toBe(3); // metadata is JSON: {"name":"key-1"}
+    expect(await search('key"x')).toBe(0);
+    expect(await search('y-2')).toBe(1);
+    expect(await search('y-')).toBeGreaterThanOrEqual(3); // two characters: the LIKE scan
     const since = new Date(h.clock.time - 1500).toISOString();
     expect((await data<AuditRecord[]>(await h.request(`/api/audit?action=API_KEY_CREATED&from=${encodeURIComponent(since)}`, { cookie: admin }))).map((r) => r.metadata?.name)).toEqual(['key-2']);
 
