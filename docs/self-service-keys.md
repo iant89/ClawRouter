@@ -106,7 +106,8 @@ administrator sets, default is 30 days."
   the user who owns each, paginated on the server:
   `GET /api/api-keys/beyond-lifetime?days=N&page&pageSize` (`api_keys.read`).
   Suspended keys (disabled owners), revoked and expired keys are not listed.
-  Revoke keys that should stop sooner in API Access.
+  Users with `api_keys.write` can revoke a key straight from the table (after a
+  confirmation naming its owner); API Access works too.
 - The per-provider and per-model limits below still apply on top, to everyone.
 - The session (`GET /api/auth/session`) reports `keyLifetimeLimitHours` (null for
   Administrators), so the console hides "Never" and checks the length before sending.
