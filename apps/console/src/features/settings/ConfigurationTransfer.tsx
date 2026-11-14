@@ -85,7 +85,6 @@ export function ConfigurationTransfer({ canImport }: { canImport: boolean }) {
       const done = await applyImport(doc.value);
       setResult(done);
       setPlan(null);
-      if (!done.failed) toast.show({ tone: 'success', title: 'Configuration imported', description: doc.name });
     } catch (err) {
       setError(message(err));
     } finally {

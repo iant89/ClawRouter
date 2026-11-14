@@ -284,3 +284,16 @@ A production build with 120 API keys and a mock provider offering 400 models. Se
 | ![Key picker](19-performance/3-requests-key-picker.png) | **Requests**: the key filter searches keys as you type |
 | ![Discover](19-performance/4-discover-virtualized.png) | **Discover models** with 400 models: only the visible rows are rendered |
 | ![Updated](19-performance/5-updated-reload.png) | After an upgrade, an open console that asks for a page file from the old build offers a reload |
+
+## 20 · Production
+
+Two servers built from the production bundle: the configuration of the first one
+(three providers, five models, an alias, a custom role, two settings) is exported and
+imported into a newly set-up second one. See [deployment](../deployment.md).
+
+| | |
+|---|---|
+| ![Card](20-production/1-configuration-card.png) | **Settings → Configuration**: export downloads one JSON file, never with secrets |
+| ![Preview](20-production/2-import-preview.png) | Importing shows what would change first; an import creates and updates, never deletes |
+| ![Done](20-production/3-import-done.png) | After the import: where the backup taken just before it is, and what is still to do (provider keys) |
+| ![Providers](20-production/4-providers-imported.png) | The imported providers on the second server |
