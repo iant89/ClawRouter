@@ -99,11 +99,64 @@ body {
   gap: var(--eui-space-2, 0.5rem);
 }
 
-/* Field help popover (components/custom/FieldHelp.tsx): paragraphs spaced, no outer margins. */
-.claw-field-help {
-  display: grid;
-  gap: var(--eui-space-2, 0.5rem);
+/* Field help toggletip (components/custom/FieldHelp.tsx): looks like ENTERPRISE-UI's Tooltip.
+   The tip is in a portal, placed with inline top/bottom and right. */
+.claw-field-help-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 1.75rem;
+  block-size: 1.75rem;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--eui-color-text-secondary, currentColor);
+  cursor: help;
+  position: relative;
 }
-.claw-field-help p {
-  margin: 0;
+.claw-field-help-button:hover,
+.claw-field-help-button[aria-expanded='true'] {
+  color: var(--eui-color-text, currentColor);
+  background: var(--eui-color-surface-hover, rgba(255, 255, 255, 0.08));
+}
+.claw-field-help-button:focus-visible {
+  outline: 2px solid var(--eui-color-focus, #4c9aff);
+  outline-offset: 1px;
+}
+.claw-field-help-bubble {
+  font-family: var(--eui-font-family, system-ui, sans-serif); /* the portal is outside the app's font scope */
+  position: fixed;
+  z-index: var(--eui-z-tooltip, 1000);
+  display: grid;
+  gap: var(--eui-space-1, 0.25rem);
+  inline-size: max-content;
+  max-inline-size: min(20rem, calc(100vw - 2rem));
+  padding: var(--eui-space-2, 0.5rem) var(--eui-space-3, 0.75rem);
+  border-radius: var(--eui-radius-sm, 4px);
+  background: var(--eui-color-tooltip);
+  color: var(--eui-color-on-tooltip);
+  font-size: var(--eui-font-size-sm, 0.875rem);
+  line-height: var(--eui-line-height-normal, 1.5);
+  box-shadow: var(--eui-shadow-md);
+  white-space: normal;
+  overflow-wrap: break-word;
+  text-align: start;
+}
+.claw-field-help-bubble[hidden] {
+  display: none;
+}
+.claw-field-help-bubble > span {
+  display: block;
+}
+.claw-field-help-note {
+  opacity: 0.8;
+}
+@media (pointer: coarse) {
+  /* ~44px touch target without making the field taller. */
+  .claw-field-help-button::after {
+    content: '';
+    position: absolute;
+    inset: -0.5rem;
+  }
 }

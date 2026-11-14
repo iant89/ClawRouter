@@ -17,13 +17,13 @@ type Draft = Partial<Record<SettingKey, string>>;
 
 /** Under the field: only what is needed to type a valid value. */
 const describeRange = (s: SettingInfo) => `Allowed ${s.min}–${s.max}. Default ${s.defaultValue}.`;
-/** In the field's help popover: what it does, and where the default comes from. */
+/** In the field's help tip: what it does, and where the default comes from. */
 const settingHelp = (s: SettingInfo) => (
   <>
-    <Text as="p">{s.description}</Text>
-    <Text as="p" size="sm" tone="secondary">
+    <span>{s.description}</span>
+    <span className="claw-field-help-note">
       Default {s.defaultValue} {s.unit}{s.env ? <>, from <span className="claw-mono">{s.env}</span> when set, otherwise built in</> : ', built in'}.
-    </Text>
+    </span>
   </>
 );
 

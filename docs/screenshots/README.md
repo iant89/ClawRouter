@@ -312,15 +312,16 @@ Administration → Settings, organized in tabs (see [administration](../administ
 | ![Phone](21-settings-tabs/6-phone.png) | At phone width the tab row scrolls sideways; the page does not |
 | ![Phone, last tab](21-settings-tabs/7-phone-last-tab.png) | The last tab, scrolled into view |
 
-## 22 · Field help in popovers
+## 22 · Field help tips
 
-A trial on Settings: each field's explanation moves into a popover behind an "i"
-button inside the field (`components/custom/FieldHelp.tsx`); the allowed range and
-default stay under the field.
+A trial on Settings: each field's explanation moves into a tip behind an "i" button
+inside the field (`components/custom/FieldHelp.tsx`); the allowed range and default
+stay under the field. The tip opens on hover, keyboard focus or a tap, and closes on
+its own: move away, click elsewhere, start typing, or press Escape.
 
 | | |
 |---|---|
-| ![Fields](22-field-help/1-fields.png) | Settings fields with only the allowed range and default underneath |
-| ![Open](22-field-help/2-help-open.png) | The popover: what the setting does, and where its default comes from |
-| ![Retention](22-field-help/3-retention-help.png) | The same on the Data retention tab |
-| ![Phone](22-field-help/4-phone.png) | At phone width |
+| ![Hover](22-field-help/1-hover.png) | Hovering over the "i" |
+| ![Kept open](22-field-help/2-pinned.png) | Clicked: it stays open until you click elsewhere or type |
+| ![Retention](22-field-help/3-retention-hover.png) | The same on the Data retention tab |
+| ![Phone](22-field-help/4-phone-tap.png) | On a phone, a tap opens it (above the field when there is no room below) |
