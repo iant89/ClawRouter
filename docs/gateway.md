@@ -54,7 +54,7 @@ capabilities the normalized model does not have yet.
 - Optional **allowed models** (alias names, references or model ids,
   case-insensitive; empty means any model) and **expiry**. Revocation is
   immediate. `last_used_at` is written at most once a minute per key.
-- Administration: `GET/POST /api/api-keys`, `DELETE /api/api-keys/:id` (revoke),
+- Administration: `GET/POST /api/api-keys` (the list is paged: `page`, `pageSize` up to 200, `q`, `status`; `meta.total`, `meta.active`), `DELETE /api/api-keys/:id` (revoke),
   permissions `api_keys.read` / `api_keys.write` (Administrator only). Creation
   and revocation are audited (`API_KEY_CREATED`, `API_KEY_REVOKED`).
 - Users with `api_keys.own` create their own keys, others request one, and every key

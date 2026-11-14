@@ -69,6 +69,9 @@ export function createConsoleAssets(bundle: HTMLBundle, baseDir: string, options
     }
     const path = new URL(request.url).pathname;
     const asset = assets.get(path);
+    // A script or style that is not in this build (an open console from before an
+    // upgrade asking for an old page file) gets a 404, not the page as JavaScript.
+    if (!asset && /\.(js|css|map)$/.test(path)) return new Response('Not Found', { status: 404, headers: { 'cache-control': 'no-store' } });
     const chosen = asset ?? page;
     const headers = new Headers(chosen.headers);
     headers.set('cache-control', asset ? 'public, max-age=31536000, immutable' : 'no-cache');

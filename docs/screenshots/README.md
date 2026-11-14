@@ -270,3 +270,16 @@ setting (here lowered to 14 days). Devon has a custom Developer role with `api_k
 | ![Within](18-key-lifetime-by-role/3-own-key-within-limit.png) | Within the limit |
 | ![Lowering](18-key-lifetime-by-role/4-lowering-lists-keys.png) | Lowering the limit to 14 days lists the active keys that outlast it, with their owners (the administrator's never-expiring key is not limited, so not listed) |
 | ![Saved](18-key-lifetime-by-role/5-after-saving.png) | After saving, the list stays until those keys expire or are revoked |
+
+## 19 · Performance
+
+A production build with 120 API keys and a mock provider offering 400 models. See
+[performance](../performance.md) for the measurements.
+
+| | |
+|---|---|
+| ![Paged](19-performance/1-api-access-paged.png) | **API Access** pages on the server: 50 of 120 keys, with search and a status filter |
+| ![Search](19-performance/2-api-access-search.png) | Searching by name (30 matches) |
+| ![Key picker](19-performance/3-requests-key-picker.png) | **Requests**: the key filter searches keys as you type |
+| ![Discover](19-performance/4-discover-virtualized.png) | **Discover models** with 400 models: only the visible rows are rendered |
+| ![Updated](19-performance/5-updated-reload.png) | After an upgrade, an open console that asks for a page file from the old build offers a reload |

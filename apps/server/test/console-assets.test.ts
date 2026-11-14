@@ -62,5 +62,8 @@ describe('console assets (phase 16 compression)', () => {
     expect(png.headers.get('content-encoding')).toBeNull();
     expect(new Uint8Array(await png.arrayBuffer())).toEqual(new Uint8Array([137, 80, 78, 71]));
     expect((await serve(new Request('http://localhost/app-abc.js', { method: 'POST' }))).status).toBe(405);
+    // A page file from an older build: 404, so the console can tell the user to reload.
+    expect((await get('/SettingsPage-old123.js')).status).toBe(404);
+    expect((await get('/settings')).status).toBe(200);
   });
 });

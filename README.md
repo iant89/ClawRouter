@@ -38,8 +38,10 @@ usage tracking and an administration console built on
   and model; see
   [self-service keys](docs/self-service-keys.md)), and **two-factor sign-in**
   configured by administrators (authenticator app, email codes over SMTP, recovery
-  codes; see [two-factor](docs/two-factor.md)).
-  Performance is next (phase 16).
+  codes; see [two-factor](docs/two-factor.md)), and phase 16, **performance**
+  (indexes, a cached routing snapshot, code splitting and compression, measured with
+  `bun run bench:db` and `bun run bench:gateway`; see [performance](docs/performance.md)).
+  Production packaging is next (phase 17).
 - **Architecture:** [`docs/architecture.md`](docs/architecture.md) ·
   **Security model:** [`docs/authentication.md`](docs/authentication.md),
   [`docs/authorization.md`](docs/authorization.md) · **Console:**

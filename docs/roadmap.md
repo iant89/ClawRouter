@@ -394,24 +394,24 @@ Asked by the owner on 2026-11-13. See [self-service keys](self-service-keys.md#m
 - [x] Console: "Never" hidden and the length checked for users with a limit
 - [x] Lowering the limit lists the active keys that outlast it, with their owners
 
-## Phase 16: Performance ⬜ next
+## Phase 16: Performance ✅
 
-Goal: optimize the gateway and console.
+Goal: optimize the gateway and console. Measurements and changes: [performance](performance.md).
 
-- [ ] Database indexes (basic indexes exist on every table)
-- [ ] Query profiling
-- [ ] Request pipeline profiling
-- [ ] Provider latency measurement (groundwork: recorded per check)
-- [ ] Memory profiling
-- [ ] WebSocket optimization
-- [ ] UI rendering optimization (console bundle is ~0.9 MB: ENTERPRISE-UI icons load eagerly)
-- [ ] Large-table virtualization
-- [ ] Caching where appropriate
-- [ ] Connection pooling where applicable
+- [x] Database indexes (migration 0017, including a trigram index for audit text search)
+- [x] Query profiling (`bun run bench:db`)
+- [x] Request pipeline profiling (`bun run bench:gateway`, CPU profile)
+- [x] Provider latency measurement (per attempt in request history, per health check; the benchmark separates provider time from ClawRouter's)
+- [x] Memory profiling (heap over 40k requests; constant-memory counters)
+- [x] WebSocket optimization (one serialization per broadcast; activity already coalesced)
+- [x] UI rendering optimization (code splitting, lazy pages, brotli/gzip; icons still load as one set from ENTERPRISE-UI)
+- [x] Large-table virtualization (model discovery) and server paging for API keys
+- [x] Caching where appropriate (routing snapshot, compressed console files)
+- [x] Connection pooling where applicable (Bun fetch keep-alive; SQLite single connection in WAL mode: nothing to pool)
 
 Exit: performance remains predictable under realistic gateway workloads.
 
-## Phase 17: Production ⬜
+## Phase 17: Production ⬜ next
 
 Goal: package ClawRouter as a production-ready self-hosted application.
 

@@ -204,7 +204,31 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
   real mail server. No QR code for the authenticator app (text key plus
   `otpauth://` link). See `docs/two-factor.md`.
 
+- **WARNING** · 2026-11-14 · Performance limits left in place (phase 16)
+  - Usage charts over a whole year take ~220 ms at 290k hourly rows (shorter ranges
+    are milliseconds); daily roll-ups would fix it if needed.
+  - ENTERPRISE-UI's icon collection imports all 1,410 icons statically (~0.47 MB,
+    93 KB brotli), loaded with the first page; per-icon loading needs ENTERPRISE-UI.
+  - The routing snapshot is per process: with several nodes, a change made on one
+    reaches the others within 5 seconds.
+
 ### Notes
+
+- **NOTE** · 2026-11-14 · Phase 16 mechanisms to keep in mind
+  - Routing plans use a cached snapshot (`packages/routing/src/service.ts`), dropped
+    on `model.*`, `provider.*` and `routing.changed` events and after 5 s. A new way
+    of changing models or providers must emit one of those events (or accept up to
+    5 s of staleness). The console's routing view (`get`) always reads fresh.
+  - Audit free text uses the trigram table `audit_fts` (migration 0017, triggers on
+    insert and delete). If audit rows are ever updated in place, add an update
+    trigger. It costs ~70% of the audit table's size.
+  - `GET /api/api-keys` is paged (50 by default, 200 max). Anything needing every
+    key must page or use the service's `list()`.
+  - Benchmarks: `bun run bench:db`, `bun run bench:gateway` (`docs/performance.md`).
+    The gateway benchmark clears the harness's log array and the mock's call list,
+    which grow by design; do not mistake them for leaks.
+  - The build uses `--splitting`: pages are separate files. Unknown `.js`/`.css`
+    paths answer 404 so a tab open across an upgrade shows "ClawRouter was updated".
 
 - **NOTE** · 2026-11-12 · Things that are easy to trip over
   - Production bundles must run with `dist/` as the working directory (Bun resolves
@@ -266,18 +290,19 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 
 ### Messages
 
-- **MESSAGE** · 2026-11-13 · Next: phase 16, performance
-  Everything built so far is merged into `main` (see Resolved). Next is phase 16
-  (see `docs/roadmap.md`), on a new branch `claude/phase-16-performance`.
-
-- **MESSAGE** · 2026-11-13 · Maximum key lifetime by creator waits for review
-  On `claude/key-lifetime-by-role`, branched from `main` (`b80e5c0`), so merging is
-  a fast-forward. Merge only when the owner says so. Build phase 16 on top of it
-  (or on `main` after it is merged).
+- **MESSAGE** · 2026-11-14 · Phase 16 waits for review; then phase 17
+  Performance is on `claude/phase-16-performance`, branched from `main` (`415ee7b`,
+  everything before it merged), so merging is a fast-forward. Merge only when the
+  owner says so. Measurements and changes: `docs/performance.md`. Next: phase 17,
+  production packaging (see `docs/roadmap.md`).
 
 ---
 
 ## Resolved
+
+- **MESSAGE** · 2026-11-13 · Next: phase 16; maximum key lifetime by creator waits for
+  review. Resolved 2026-11-14: the owner said "Merge, then next phase"; `main` was
+  fast-forwarded to `415ee7b` and phase 16 was built on `claude/phase-16-performance`.
 
 - **MESSAGE** · 2026-11-13 · Phase 15, self-service keys and two-factor sign-in wait for
   review. Resolved 2026-11-13: the owner said "Start merging"; `main` was
