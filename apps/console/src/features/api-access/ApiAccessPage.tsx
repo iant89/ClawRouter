@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
-  AlertDialog, Button, MessageStrip, OverflowMenu, Page, RefreshControl, StatusIndicator, Tab, Table, TabList, TabPanel, Tabs, Text, useToast, type TableColumn,
+  AlertDialog, Button, MessageStrip, OverflowMenu, Page, Pagination, RefreshControl, SearchField, Select, StatusIndicator, Tab, Table, TabList, TabPanel, Tabs, Text, useToast, type TableColumn,
 } from '@enterprise-ui/react';
-import type { ApiKeyInfo, CreateApiKeyRequest, CreatedApiKey, RateLimit } from '@clawrouter/shared';
+import { API_KEY_STATUSES, type ApiKeyInfo, type ApiKeyStatus, type CreateApiKeyRequest, type CreatedApiKey, type RateLimit } from '@clawrouter/shared';
 import { ApiClientError } from '../../services/api-client.ts';
 import { createApiKey, fetchApiKeys, revokeApiKey } from '../../services/gateway.ts';
 import { formatRelative } from '../../services/format.ts';
@@ -18,6 +18,7 @@ import { KeyRequestsPanel } from './KeyRequestsPanel.tsx';
 import { useRouter } from '../../app/router.tsx';
 
 const when = (iso: string | null) => (iso ? new Date(iso).toLocaleString() : '—');
+const PAGE_SIZE = 50;
 
 /**
  * Gateway → API Access: keys for external AI clients on /v1 (spec §14, §32).
@@ -31,6 +32,12 @@ export function ApiAccessPage() {
   const tab = new URLSearchParams(search).get('tab') === 'requests' ? 'requests' : 'keys';
   const [pendingRequests, setPendingRequests] = useState(0);
   const [keys, setKeys] = useState<ApiKeyInfo[] | null>(null);
+  const [total, setTotal] = useState(0);
+  const [active, setActive] = useState(0);
+  const [page, setPage] = useState(1);
+  const [text, setText] = useState('');
+  const [q, setQ] = useState('');
+  const [status, setStatus] = useState<ApiKeyStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<Date>();
@@ -42,15 +49,27 @@ export function ApiAccessPage() {
   const [revoking, setRevoking] = useState<ApiKeyInfo | null>(null);
   const modelOptions = useModelOptions(dialogOpen);
 
+  // Search waits until typing pauses; any filter change starts again at page 1.
+  useEffect(() => {
+    const timer = setTimeout(() => { setQ(text.trim()); setPage(1); }, 300);
+    return () => clearTimeout(timer);
+  }, [text]);
+
   useEffect(() => {
     const controller = new AbortController();
     setLoading(true);
-    fetchApiKeys(controller.signal)
-      .then((k) => { setKeys(k); setError(null); setLastUpdated(new Date()); })
+    fetchApiKeys({ page, pageSize: PAGE_SIZE, q, status }, controller.signal)
+      .then((r) => {
+        setKeys(r.items);
+        setTotal(r.total);
+        setActive(typeof r.meta.active === 'number' ? r.meta.active : 0);
+        setError(null);
+        setLastUpdated(new Date());
+      })
       .catch((err: unknown) => { if (!controller.signal.aborted) setError(err instanceof Error ? err.message : 'Could not load API keys.'); })
       .finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => controller.abort();
-  }, [reloadKey]);
+  }, [reloadKey, page, q, status]);
   const reload = useCallback(() => setReloadKey((k) => k + 1), []);
 
 
@@ -125,7 +144,6 @@ export function ApiAccessPage() {
     },
   ];
 
-  const active = keys?.filter((k) => k.status === 'ACTIVE').length ?? 0;
   return (
     <Page
       title="API Access"
@@ -144,15 +162,27 @@ export function ApiAccessPage() {
       </Text>
       {(() => {
         const table = (
+          <div style={{ display: 'grid', gap: 'var(--eui-space-3, 0.75rem)' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(14rem, 1fr))', gap: 'var(--eui-space-3, 0.75rem)', alignItems: 'end' }}>
+            <SearchField label="Search" placeholder="Name, key prefix or owner" value={text} onChange={setText} />
+            <Select<ApiKeyStatus | 'any'>
+              label="Status"
+              value={status ?? 'any'}
+              onChange={(v) => { setStatus(!v || v === 'any' ? null : v); setPage(1); }}
+              options={[{ value: 'any', label: 'Any status' }, ...API_KEY_STATUSES.map((s) => ({ value: s, label: KEY_STATUS[s].label }))]}
+            />
+          </div>
           <Table
-            caption={`API keys (${active} active)`}
+            caption={`API keys (${active} active${q || status ? `; ${total} match` : ''})`}
             columns={columns}
             data={keys ?? []}
             getRowId={(k) => k.id}
             getRowLabel={(k) => `${k.name}, ${k.prefix}`}
             loading={loading && !keys}
-            emptyState={canWrite ? 'No API keys yet. Create one for each application that calls the gateway.' : 'No API keys yet.'}
+            emptyState={q || status ? 'No key matches these filters.' : canWrite ? 'No API keys yet. Create one for each application that calls the gateway.' : 'No API keys yet.'}
           />
+          {total > PAGE_SIZE && <Pagination page={page} onPageChange={setPage} totalItems={total} pageSize={PAGE_SIZE} />}
+          </div>
         );
         // Approvers also see key requests; a notification links straight to them (?tab=requests).
         if (!canWrite) return table;

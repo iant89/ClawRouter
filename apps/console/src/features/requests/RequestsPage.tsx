@@ -2,9 +2,9 @@ import { useCallback, useEffect, useState } from 'react';
 import {
   Input, MessageStrip, Page, Pagination, RefreshControl, SegmentedButton, Select, StatusIndicator, Switch, Table, Text, type TableColumn,
 } from '@enterprise-ui/react';
-import { REQUEST_STATUSES, type ApiKeyInfo, type RequestRecord, type RequestStatus } from '@clawrouter/shared';
+import { REQUEST_STATUSES, type RequestRecord, type RequestStatus } from '@clawrouter/shared';
 import type { PagedResult } from '../../services/api-client.ts';
-import { fetchApiKeys } from '../../services/gateway.ts';
+import { ApiKeyPicker } from '../api-access/ApiKeyPicker.tsx';
 import { fetchRequests } from '../../services/requests.ts';
 import { formatDuration, formatRelative, formatUsd } from '../../services/format.ts';
 import { usePermissions } from '../auth/AuthContext.tsx';
@@ -36,15 +36,7 @@ export function RequestsPage() {
   const [loading, setLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<Date>();
   const [reloadKey, setReloadKey] = useState(0);
-  const [keys, setKeys] = useState<ApiKeyInfo[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!canKeys) return;
-    const controller = new AbortController();
-    fetchApiKeys(controller.signal).then(setKeys).catch(() => {});
-    return () => controller.abort();
-  }, [canKeys]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -103,8 +95,7 @@ export function RequestsPage() {
         <Select label="Status" value={status ?? 'any'} onChange={(v) => filter(setStatus)(v === 'any' || !v ? null : (v as RequestStatus))}
           options={[{ value: 'any', label: 'Any status' }, ...REQUEST_STATUSES.map((s) => ({ value: s, label: STATUS[s].label }))]} />
         {canKeys && (
-          <Select label="API key" value={apiKeyId ?? 'any'} onChange={(v) => filter(setApiKeyId)(v === 'any' || !v ? null : v)}
-            options={[{ value: 'any', label: 'Any key' }, ...keys.map((k) => ({ value: k.id, label: k.name, description: `${k.prefix}…` }))]} />
+          <ApiKeyPicker value={apiKeyId} onChange={(id) => filter(setApiKeyId)(id)} />
         )}
         <Input label="Model" placeholder="Alias or provider/model" className="claw-mono" value={modelDraft}
           description="Press Enter to apply."

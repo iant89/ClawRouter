@@ -102,13 +102,18 @@ export interface PagedResult<T> {
   page: number;
   pageSize: number;
   total: number;
+  /** Everything else the server sent alongside the page (e.g. API keys: `active`). */
+  meta: Record<string, unknown>;
 }
 
 /** GET a paginated list (server-side pagination, spec §35). */
 export async function apiGetPage<T>(path: string, options?: RequestOptions): Promise<PagedResult<T>> {
   const envelope = await requestEnvelope<T[]>('GET', path, undefined, options);
   const meta = envelope.meta as Partial<PageMeta> | undefined;
-  return { items: envelope.data, page: meta?.page ?? 1, pageSize: meta?.pageSize ?? envelope.data.length, total: meta?.total ?? envelope.data.length };
+  return {
+    items: envelope.data, page: meta?.page ?? 1, pageSize: meta?.pageSize ?? envelope.data.length, total: meta?.total ?? envelope.data.length,
+    meta: (envelope.meta as Record<string, unknown> | undefined) ?? {},
+  };
 }
 
 export const apiGet = <T>(path: string, options?: RequestOptions) => request<T>('GET', path, undefined, options);

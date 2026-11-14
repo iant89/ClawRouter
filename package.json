@@ -13,7 +13,7 @@
     "ui:build": "bun scripts/build-ui.ts",
     "dev": "bun --hot apps/server/src/main.ts",
     "start": "bun scripts/start.ts",
-    "build": "bun build apps/server/src/main.ts --target=bun --production --outdir=dist --entry-naming=[name].[ext] --sourcemap=linked",
+    "build": "bun build apps/server/src/main.ts --target=bun --production --splitting --outdir=dist --entry-naming=[name].[ext] --sourcemap=linked",
     "migrate": "bun scripts/migrate.ts",
     "reset-password": "bun scripts/reset-password.ts",
     "rotate-secret-key": "bun scripts/rotate-secret-key.ts",

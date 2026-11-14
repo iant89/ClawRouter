@@ -77,14 +77,15 @@ export function createRealtimeHub(options: RealtimeOptions) {
   const timers: ReturnType<typeof setInterval>[] = [];
   let activity = { completed: 0, failed: 0, rateLimited: 0 };
 
-  function send(ws: RealtimeSocket, message: RealtimeServerMessage) {
+  /** Sends a message, or text already serialized once for a broadcast (phase 16). */
+  function send(ws: RealtimeSocket, message: RealtimeServerMessage | string) {
     if (ws.getBufferedAmount() > maxBuffered) {
       log?.warn('realtime client too slow; disconnecting', { component: 'realtime', userId: ws.data.userId });
       close(ws, REALTIME_CLOSE.TOO_SLOW, 'too slow');
       return;
     }
     try {
-      ws.send(JSON.stringify(message));
+      ws.send(typeof message === 'string' ? message : JSON.stringify(message));
     } catch (error) {
       log?.debug('realtime send failed', { component: 'realtime', error });
     }
@@ -109,8 +110,9 @@ export function createRealtimeHub(options: RealtimeOptions) {
   function forward<K extends Exclude<RealtimeEventName, 'notification.created' | 'session.revoked' | 'operation.progress'>>(name: K) {
     unsubscribe.push(events.on(name, (payload: EventMap[K]) => {
       const permission = REALTIME_EVENTS[name];
+      let text: string | null = null; // serialized once, for the first recipient
       for (const ws of sockets) {
-        if (permission === null || ws.data.permissions.has(permission)) send(ws, event(name, payload as unknown as Record<string, unknown>));
+        if (permission === null || ws.data.permissions.has(permission)) send(ws, text ??= JSON.stringify(event(name, payload as unknown as Record<string, unknown>)));
       }
     }));
   }
@@ -133,7 +135,8 @@ export function createRealtimeHub(options: RealtimeOptions) {
   unsubscribe.push(events.on('operation.progress', (payload) => {
     if (!isOperationType(payload.type)) return;
     const permission = OPERATION_TYPES[payload.type].view;
-    for (const ws of sockets) if (ws.data.permissions.has(permission)) send(ws, event('operation.progress', payload));
+    let text: string | null = null;
+    for (const ws of sockets) if (ws.data.permissions.has(permission)) send(ws, text ??= JSON.stringify(event('operation.progress', payload)));
   }));
 
   // Notifications: only to their recipients, and only the id (the list API applies its own checks).
@@ -228,12 +231,16 @@ export function createRealtimeHub(options: RealtimeOptions) {
       if (!activity.completed && !activity.failed && !activity.rateLimited) return;
       const counts = activity;
       activity = { completed: 0, failed: 0, rateLimited: 0 };
-      let metrics: GatewayMetrics | undefined;
+      // Two variants (with and without metrics), each serialized once.
+      let plain: string | null = null;
+      let detailed: string | null = null;
       for (const ws of sockets) {
         if (!ACTIVITY_PERMISSIONS.some((p) => ws.data.permissions.has(p))) continue;
-        const withMetrics = ws.data.permissions.has('requests.read') && options.metrics;
-        if (withMetrics) metrics ??= options.metrics!();
-        send(ws, { type: 'activity', ...counts, ...(withMetrics ? { metrics } : {}) });
+        if (ws.data.permissions.has('requests.read') && options.metrics) {
+          send(ws, detailed ??= JSON.stringify({ type: 'activity', ...counts, metrics: options.metrics() } satisfies RealtimeServerMessage));
+        } else {
+          send(ws, plain ??= JSON.stringify({ type: 'activity', ...counts } satisfies RealtimeServerMessage));
+        }
       }
     },
 

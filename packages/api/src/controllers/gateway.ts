@@ -1,6 +1,6 @@
 import { errors, v, type Validator } from '@clawrouter/core';
 import type { ApiKeyService, GatewayResult, GatewayService } from '@clawrouter/gateway';
-import type { ApiKeyInfo, CreatedApiKey, GatewayMetrics, KeyExpiry, RateLimit } from '@clawrouter/shared';
+import { API_KEY_STATUSES, type ApiKeyInfo, type ApiKeyStatus, type CreatedApiKey, type GatewayMetrics, type KeyExpiry, type RateLimit } from '@clawrouter/shared';
 import { readJson, readJsonValue } from '../http/body.ts';
 import type { Handler, RequestContext } from '../http/context.ts';
 import { created, json, ok } from '../http/responses.ts';
@@ -82,7 +82,22 @@ const actor = (ctx: RequestContext) => ({ id: ctx.auth!.user.id, username: ctx.a
 
 /** /api/api-keys (spec §31): create (the only time the key is shown), list, revoke. */
 export function apiKeysController(apiKeys: ApiKeyService) {
-  const list: Handler = () => ok<ApiKeyInfo[]>(apiKeys.list());
+  /** One page of keys (`page`, `pageSize` up to 200, `q`, `status`); meta has the total and the active count. */
+  const list: Handler = (ctx) => {
+    const params = ctx.url.searchParams;
+    const int = (name: string, fallback: number, max: number) => {
+      const raw = params.get(name);
+      const n = raw === null || raw === '' ? fallback : Number(raw);
+      if (!Number.isInteger(n) || n < 1 || n > max) throw errors.validation([{ path: name, message: `must be an integer from 1 to ${max}` }]);
+      return n;
+    };
+    const status = params.get('status') || undefined;
+    if (status && !(API_KEY_STATUSES as readonly string[]).includes(status)) throw errors.validation([{ path: 'status', message: `must be one of ${API_KEY_STATUSES.join(', ')}` }]);
+    const q = (params.get('q') ?? '').slice(0, 200);
+    const page = { page: int('page', 1, 1_000_000), pageSize: int('pageSize', 50, 200) };
+    const { items, total, active } = apiKeys.query({ ...page, q, status: status as ApiKeyStatus | undefined });
+    return ok<ApiKeyInfo[]>(items, { meta: { ...page, total, active } });
+  };
   /** Active keys of non-administrators lasting longer than `days` (Settings shows them when the limit is lowered). */
   const beyondLifetime: Handler = (ctx) => {
     const int = (name: string, fallback: number | null, min: number, max: number) => {

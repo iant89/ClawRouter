@@ -112,6 +112,36 @@ export function createApiKeyService(options: {
       return db.all<Row>(`${SELECT} ORDER BY k.revoked_at IS NOT NULL, k.created_at DESC`).map(toInfo);
     },
 
+    /**
+     * One page of keys for API Access (phase 16: thousands of self-service keys must
+     * not all reach the browser). `q` matches name, prefix or owner; `active` counts
+     * every active key, whatever the filters.
+     */
+    query(q: { page: number; pageSize: number; q?: string; status?: ApiKeyStatus }): { items: ApiKeyInfo[]; total: number; active: number } {
+      const at = now().toISOString();
+      const clauses: string[] = [];
+      const params: (string | number)[] = [];
+      const ACTIVE = `k.revoked_at IS NULL AND (k.expires_at IS NULL OR k.expires_at > ?) AND (u.status IS NULL OR u.status = 'ACTIVE')`;
+      switch (q.status) {
+        case 'REVOKED': clauses.push('k.revoked_at IS NOT NULL'); break;
+        case 'EXPIRED': clauses.push('k.revoked_at IS NULL AND k.expires_at IS NOT NULL AND k.expires_at <= ?'); params.push(at); break;
+        case 'SUSPENDED': clauses.push(`k.revoked_at IS NULL AND (k.expires_at IS NULL OR k.expires_at > ?) AND u.status = 'DISABLED'`); params.push(at); break;
+        case 'ACTIVE': clauses.push(ACTIVE); params.push(at); break;
+      }
+      if (q.q?.trim()) {
+        const like = `%${q.q.trim().replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
+        clauses.push(`(k.name LIKE ? ESCAPE '\\' OR k.prefix LIKE ? ESCAPE '\\' OR u.username LIKE ? ESCAPE '\\')`);
+        params.push(like, like, like);
+      }
+      const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
+      const FROM = 'FROM api_keys k LEFT JOIN users u ON u.id = k.created_by';
+      return {
+        items: db.all<Row>(`${SELECT} ${where} ORDER BY k.revoked_at IS NOT NULL, k.created_at DESC, k.rowid DESC LIMIT ? OFFSET ?`, [...params, q.pageSize, (q.page - 1) * q.pageSize]).map(toInfo),
+        total: db.get<{ n: number }>(`SELECT COUNT(*) AS n ${FROM} ${where}`, params)!.n,
+        active: db.get<{ n: number }>(`SELECT COUNT(*) AS n ${FROM} WHERE ${ACTIVE}`, [at])!.n,
+      };
+    },
+
     /** Name and limit of a key, for the rate-limit usage view. */
     describeKey(id: string): { label: string; limit: RateLimit | null } | null {
       const r = db.get<Row>(`${SELECT} WHERE k.id = ?`, [id]);

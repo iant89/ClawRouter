@@ -4,6 +4,10 @@ import type { DiscoveredModelInfo, ProviderInfo } from '@clawrouter/shared';
 import { discoverModels, importModels } from '../../services/models.ts';
 import { formatTokens } from '../../services/format.ts';
 
+/** Past this many models, only the visible rows are rendered (fixed row height). */
+const VIRTUALIZE_FROM = 150;
+const ROW_HEIGHT = 40;
+
 /**
  * Model discovery (spec §9): ask a provider which models it offers and import
  * a selection. The server re-checks the list on import.
@@ -52,6 +56,8 @@ export function DiscoverDialog({ open, providers, initialProviderId, onClose, on
   }, [open, providerId]);
 
   const visible = useMemo(() => (found ?? []).filter((m) => !filter || `${m.providerModelId} ${m.displayName ?? ''}`.toLowerCase().includes(filter.toLowerCase())), [found, filter]);
+  // Phase 16: a provider can offer hundreds of models.
+  const many = visible.length > VIRTUALIZE_FROM;
   const selectable = visible.filter((m) => !m.registered);
   const allSelected = selectable.length > 0 && selectable.every((m) => selected.has(m.providerModelId));
   const provider = providers.find((p) => p.id === providerId);
@@ -83,7 +89,10 @@ export function DiscoverDialog({ open, providers, initialProviderId, onClose, on
       headerText: 'Select', width: '3rem',
       cell: (m) => <Checkbox aria-label={`Import ${m.providerModelId}`} disabled={m.registered} checked={m.registered || selected.has(m.providerModelId)} onChange={(on) => toggle(m.providerModelId, on)} />,
     },
-    { id: 'id', header: 'Model', rowHeader: true, wrap: true, accessor: 'providerModelId', cell: (m) => <span><span className="claw-mono claw-break">{m.providerModelId}</span>{m.displayName && m.displayName !== m.providerModelId ? <><br /><Text size="sm" tone="secondary">{m.displayName}</Text></> : null}</span> },
+    many
+      // Long lists are windowed (fixed row height): one line per model, the full name on hover.
+      ? { id: 'id', header: 'Model', rowHeader: true, accessor: 'providerModelId', cell: (m) => <span title={m.displayName ?? m.providerModelId}><span className="claw-mono">{m.providerModelId}</span>{m.displayName && m.displayName !== m.providerModelId ? <Text size="sm" tone="secondary"> {m.displayName}</Text> : null}</span> }
+      : { id: 'id', header: 'Model', rowHeader: true, wrap: true, accessor: 'providerModelId', cell: (m) => <span><span className="claw-mono claw-break">{m.providerModelId}</span>{m.displayName && m.displayName !== m.providerModelId ? <><br /><Text size="sm" tone="secondary">{m.displayName}</Text></> : null}</span> },
     { id: 'caps', header: 'Detected as', accessor: (m) => m.capabilities.join(', '), cell: (m) => (m.capabilities.length ? m.capabilities.join(', ').toLowerCase() : <Text tone="secondary">other</Text>) },
     { id: 'ctx', header: 'Context', align: 'end', accessor: (m) => m.contextLength ?? 0, cell: (m) => <span className="claw-mono">{formatTokens(m.contextLength)}</span> },
     { id: 'state', header: 'Status', accessor: (m) => (m.registered ? 1 : 0), cell: (m) => (m.registered ? <StatusIndicator tone="neutral" size="sm">Registered</StatusIndicator> : <StatusIndicator tone="information" size="sm">New</StatusIndicator>) },
@@ -116,9 +125,14 @@ export function DiscoverDialog({ open, providers, initialProviderId, onClose, on
             <Text size="sm" tone="secondary">
               {found.length} model{found.length === 1 ? '' : 's'} offered, {found.filter((m) => m.registered).length} already registered. Capabilities are a first guess; edit them after importing.
             </Text>
-            <div style={{ maxHeight: '50vh', overflow: 'auto' }}>
-              <Table caption="Models offered by the provider" hideCaption columns={columns} data={visible} getRowId={(m) => m.providerModelId} emptyState="No models match." />
-            </div>
+            {many ? (
+              <Table caption="Models offered by the provider" hideCaption columns={columns} data={visible} getRowId={(m) => m.providerModelId} emptyState="No models match."
+                virtualization={{ rowHeight: ROW_HEIGHT, height: 440, overscan: 8 }} />
+            ) : (
+              <div style={{ maxHeight: '50vh', overflow: 'auto' }}>
+                <Table caption="Models offered by the provider" hideCaption columns={columns} data={visible} getRowId={(m) => m.providerModelId} emptyState="No models match." />
+              </div>
+            )}
           </>
         )}
       </div>

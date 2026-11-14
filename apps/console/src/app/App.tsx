@@ -1,24 +1,7 @@
-import { useEffect } from 'react';
+import { lazy, Suspense, useEffect, type ComponentType } from 'react';
 import { BusyIndicator, Button, EmptyState, ThemeProvider, ToastProvider, useMediaQuery } from '@enterprise-ui/react';
-import { DashboardPage } from '../features/dashboard/DashboardPage.tsx';
-import { HealthPage } from '../features/health/HealthPage.tsx';
 import { HealthProvider } from '../features/health/HealthContext.tsx';
 import { RealtimeProvider } from '../features/realtime/RealtimeContext.tsx';
-import { SessionsPage } from '../features/sessions/SessionsPage.tsx';
-import { RolesPage } from '../features/roles/RolesPage.tsx';
-import { UsersPage } from '../features/users/UsersPage.tsx';
-import { ProvidersPage } from '../features/providers/ProvidersPage.tsx';
-import { ModelsPage } from '../features/models/ModelsPage.tsx';
-import { RoutingPage } from '../features/routing/RoutingPage.tsx';
-import { ApiAccessPage } from '../features/api-access/ApiAccessPage.tsx';
-import { MyKeysPage } from '../features/my-keys/MyKeysPage.tsx';
-import { RateLimitsPage } from '../features/rate-limits/RateLimitsPage.tsx';
-import { RequestsPage } from '../features/requests/RequestsPage.tsx';
-import { UsagePage } from '../features/usage/UsagePage.tsx';
-import { OperationsPage } from '../features/operations/OperationsPage.tsx';
-import { LogsPage } from '../features/logs/LogsPage.tsx';
-import { AuditPage } from '../features/audit/AuditPage.tsx';
-import { SettingsPage } from '../features/settings/SettingsPage.tsx';
 import { NoAccessPage } from '../pages/NoAccessPage.tsx';
 import { AuthProvider, useAuth, usePermissions } from '../features/auth/AuthContext.tsx';
 import { redirectFor } from '../features/auth/auth-state.ts';
@@ -33,6 +16,32 @@ import { ConsoleLayout } from '../layouts/ConsoleLayout.tsx';
 import { NotFoundPage } from '../pages/NotFoundPage.tsx';
 import { canSee, resolvePath, type NavItem } from './navigation.ts';
 import { RouterProvider, useRouter } from './router.tsx';
+
+/**
+ * Console pages load on first visit (phase 16): each is its own file, so signing in
+ * does not wait for every page's code.
+ */
+function page<K extends string>(load: () => Promise<Record<K, ComponentType>>, name: K) {
+  return lazy(() => load().then((m) => ({ default: m[name] })));
+}
+
+const DashboardPage = page(() => import('../features/dashboard/DashboardPage.tsx'), 'DashboardPage');
+const HealthPage = page(() => import('../features/health/HealthPage.tsx'), 'HealthPage');
+const SessionsPage = page(() => import('../features/sessions/SessionsPage.tsx'), 'SessionsPage');
+const RolesPage = page(() => import('../features/roles/RolesPage.tsx'), 'RolesPage');
+const UsersPage = page(() => import('../features/users/UsersPage.tsx'), 'UsersPage');
+const ProvidersPage = page(() => import('../features/providers/ProvidersPage.tsx'), 'ProvidersPage');
+const ModelsPage = page(() => import('../features/models/ModelsPage.tsx'), 'ModelsPage');
+const RoutingPage = page(() => import('../features/routing/RoutingPage.tsx'), 'RoutingPage');
+const ApiAccessPage = page(() => import('../features/api-access/ApiAccessPage.tsx'), 'ApiAccessPage');
+const MyKeysPage = page(() => import('../features/my-keys/MyKeysPage.tsx'), 'MyKeysPage');
+const RateLimitsPage = page(() => import('../features/rate-limits/RateLimitsPage.tsx'), 'RateLimitsPage');
+const RequestsPage = page(() => import('../features/requests/RequestsPage.tsx'), 'RequestsPage');
+const UsagePage = page(() => import('../features/usage/UsagePage.tsx'), 'UsagePage');
+const OperationsPage = page(() => import('../features/operations/OperationsPage.tsx'), 'OperationsPage');
+const LogsPage = page(() => import('../features/logs/LogsPage.tsx'), 'LogsPage');
+const AuditPage = page(() => import('../features/audit/AuditPage.tsx'), 'AuditPage');
+const SettingsPage = page(() => import('../features/settings/SettingsPage.tsx'), 'SettingsPage');
 
 function PageFor({ item }: { item: NavItem | undefined }) {
   const { set } = usePermissions();
@@ -73,7 +82,9 @@ function Console() {
       <NotificationsProvider>
         <ConsoleLayout activeId={item?.id}>
           <PageErrorBoundary resetKey={pathname}>
-            <PageFor item={item} />
+            <Suspense fallback={<BusyIndicator active text="Loading…" style={{ minHeight: '12rem' }} />}>
+              <PageFor item={item} />
+            </Suspense>
           </PageErrorBoundary>
         </ConsoleLayout>
       </NotificationsProvider>
