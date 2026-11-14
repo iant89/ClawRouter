@@ -268,3 +268,5 @@ setting (here lowered to 14 days). Devon has a custom Developer role with `api_k
 | ![Setting](18-key-lifetime-by-role/1-setting.png) | **Settings → API keys**: *Maximum key lifetime* (default 30 days) |
 | ![Too long](18-key-lifetime-by-role/2-own-key-too-long.png) | Devon: no "Never", and 30 days is more than the limit |
 | ![Within](18-key-lifetime-by-role/3-own-key-within-limit.png) | Within the limit |
+| ![Lowering](18-key-lifetime-by-role/4-lowering-lists-keys.png) | Lowering the limit to 14 days lists the active keys that outlast it, with their owners (the administrator's never-expiring key is not limited, so not listed) |
+| ![Saved](18-key-lifetime-by-role/5-after-saving.png) | After saving, the list stays until those keys expire or are revoked |

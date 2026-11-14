@@ -392,6 +392,7 @@ Asked by the owner on 2026-11-13. See [self-service keys](self-service-keys.md#m
 - [x] Administrators may create keys that never expire
 - [x] Everyone else: at most the *Maximum key lifetime* setting (default 30 days), for own keys, API Access keys and keys from requests
 - [x] Console: "Never" hidden and the length checked for users with a limit
+- [x] Lowering the limit lists the active keys that outlast it, with their owners
 
 ## Phase 16: Performance ⬜ next
 

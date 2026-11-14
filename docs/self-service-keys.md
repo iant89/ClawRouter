@@ -100,6 +100,13 @@ administrator sets, default is 30 days."
   A request sent without an expiry asks for the longest allowed.
 - **New keys only.** Lowering the setting does not shorten existing keys. A request
   approved under a longer limit fails when the key is created; the requester asks again.
+- **Lowering the limit lists the keys that outlast it.** Under the setting, while a
+  lower value is typed and after saving, Settings shows the active keys of
+  non-administrators that last longer than the limit (never-expiring first), with
+  the user who owns each, paginated on the server:
+  `GET /api/api-keys/beyond-lifetime?days=N&page&pageSize` (`api_keys.read`).
+  Suspended keys (disabled owners), revoked and expired keys are not listed.
+  Revoke keys that should stop sooner in API Access.
 - The per-provider and per-model limits below still apply on top, to everyone.
 - The session (`GET /api/auth/session`) reports `keyLifetimeLimitHours` (null for
   Administrators), so the console hides "Never" and checks the length before sending.

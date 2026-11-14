@@ -45,11 +45,11 @@ export function KeysBeyondLifetime({ days, lowering }: { days: number; lowering:
   if (!result) return null;
   const unit = `${result.days} day${result.days === 1 ? '' : 's'}`;
   if (!result.total) {
-    return lowering ? <Text size="sm" tone="secondary" role="status">No active key outlasts {unit}: lowering the limit affects new keys only.</Text> : null;
+    return lowering ? <Text as="p" size="sm" tone="secondary" role="status" style={{ marginTop: 'var(--eui-space-3, 0.75rem)' }}>No active key outlasts {unit}: lowering the limit affects new keys only.</Text> : null;
   }
 
   return (
-    <div style={{ display: 'grid', gap: 'var(--eui-space-2, 0.5rem)' }}>
+    <div style={{ display: 'grid', gap: 'var(--eui-space-2, 0.5rem)', marginTop: 'var(--eui-space-4, 1rem)' }}>
       <MessageStrip tone="warning" title={lowering ? `${result.total} active key${result.total === 1 ? '' : 's'} would outlast ${unit}` : `${result.total} active key${result.total === 1 ? '' : 's'} outlast the limit`}>
         The limit applies to new keys only; these keep working until they expire. Revoke any that should stop sooner in API Access.
       </MessageStrip>

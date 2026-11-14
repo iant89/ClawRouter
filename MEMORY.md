@@ -31,6 +31,9 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
   own keys, API Access keys through custom roles, and keys from requests (the
   requester creates them, so their limit applies even when an Administrator
   approves). New keys only. Per-provider/model limits still apply on top.
+  Owner, 2026-11-14: administrators may raise or lower the limit; when lowering,
+  Settings lists the active keys that live beyond it, with their owners
+  (`GET /api/api-keys/beyond-lifetime`, non-administrators' ACTIVE keys only).
   `creatorLimitHours` in `packages/gateway/src/api-keys.ts`; the session reports
   `keyLifetimeLimitHours`; tests in `packages/api/test/key-creator-limit-api.test.ts`.
 
