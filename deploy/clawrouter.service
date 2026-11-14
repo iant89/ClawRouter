@@ -1,0 +1,33 @@
+# systemd unit for ClawRouter (docs/deployment.md#systemd).
+#   sudo cp deploy/clawrouter.service /etc/systemd/system/
+#   sudo systemctl daemon-reload && sudo systemctl enable --now clawrouter
+[Unit]
+Description=ClawRouter AI gateway
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=clawrouter
+Group=clawrouter
+# The production build (bun run build) installed at /opt/clawrouter; it must run from dist/.
+WorkingDirectory=/opt/clawrouter/dist
+EnvironmentFile=/etc/clawrouter/clawrouter.env
+ExecStart=/usr/local/bin/bun main.js
+# SIGTERM drains in-flight requests for CLAWROUTER_SHUTDOWN_GRACE_SECONDS (30).
+KillSignal=SIGTERM
+TimeoutStopSec=45
+Restart=on-failure
+RestartSec=5
+
+# Hardening: only the data directory is writable.
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ReadWritePaths=/var/lib/clawrouter
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

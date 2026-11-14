@@ -325,7 +325,7 @@ export async function startClawRouter({ config, log, logBuffer, version, console
   log.info('configuration', {
     component: 'server', database: config.database.path, migrations: config.database.migrations, https: !!config.server.tls,
     secureCookies: config.auth.cookieSecure, trustedProxies: config.server.trustedProxies.length, reusePort: config.server.reusePort,
-    shutdownGraceSeconds: config.server.shutdownGraceSeconds, secretKey: config.secrets.key ? 'environment' : config.secrets.keyFile ? 'file' : 'development file',
+    shutdownGraceSeconds: config.server.shutdownGraceSeconds, keySource: config.secrets.key ? 'environment' : config.secrets.keyFile ? 'file' : 'development file',
     logLevel: config.log.level, logFormat: config.log.format,
   });
   if (!config.auth.cookieSecure && !['127.0.0.1', 'localhost', '::1'].includes(config.server.host)) {

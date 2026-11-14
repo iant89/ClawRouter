@@ -1,0 +1,13 @@
+# Caddy in front of ClawRouter (docs/deployment.md#https). Caddy gets and renews the
+# certificate itself. Set CLAWROUTER_TRUSTED_PROXIES to Caddy's address (127.0.0.1
+# on the same machine).
+clawrouter.example.com {
+	encode zstd gzip
+	reverse_proxy 127.0.0.1:8080 {
+		# Streamed model responses must not be buffered.
+		flush_interval -1
+		# Health checks use the readiness probe: 503 while ClawRouter drains for a restart.
+		health_uri /api/health/ready
+		health_interval 10s
+	}
+}

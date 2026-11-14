@@ -1,0 +1,30 @@
+# ClawRouter with Docker Compose (docs/deployment.md#docker).
+#   1. openssl rand -base64 32 > secret.key && sudo chown 1000:1000 secret.key && chmod 600 secret.key
+#      (uid 1000 is the image's bun user, which reads it; keep a copy of the key elsewhere)
+#   2. docker compose up -d --build
+#   3. docker compose logs clawrouter | grep -i setup    (or set CLAWROUTER_SETUP_TOKEN)
+# Put a TLS reverse proxy in front (see Caddyfile), or set the TLS variables.
+services:
+  clawrouter:
+    build: ..
+    image: clawrouter:latest
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8080:8080"
+    environment:
+      CLAWROUTER_SECRET_KEY_FILE: /run/secrets/clawrouter_key
+      # Docker's network: the proxy reaches ClawRouter from this range.
+      CLAWROUTER_TRUSTED_PROXIES: 172.16.0.0/12
+    secrets:
+      - clawrouter_key
+    volumes:
+      - clawrouter-data:/data
+    # Longer than CLAWROUTER_SHUTDOWN_GRACE_SECONDS (30), so requests in flight finish.
+    stop_grace_period: 45s
+
+secrets:
+  clawrouter_key:
+    file: ./secret.key
+
+volumes:
+  clawrouter-data:

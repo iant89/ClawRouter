@@ -1,0 +1,14 @@
+node_modules
+dist
+data
+docs
+tests
+**/test
+.git
+.github
+*.db
+*.db-*
+secret.key
+setup-token
+.env
+.env.*
