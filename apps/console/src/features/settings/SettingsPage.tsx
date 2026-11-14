@@ -6,6 +6,7 @@ import { ApiClientError } from '../../services/api-client.ts';
 import { fetchSettings, saveSettings } from '../../services/settings.ts';
 import { usePermissions } from '../auth/AuthContext.tsx';
 import { useRealtimeEvent } from '../realtime/RealtimeContext.tsx';
+import { KeysBeyondLifetime } from './KeysBeyondLifetime.tsx';
 import { MailServerCard, TwoFactorPolicyCard } from './SignInSecuritySettings.tsx';
 
 /** Draft values as typed (strings), keyed by setting. */
@@ -41,6 +42,16 @@ export function SettingsPage() {
     for (const s of data ?? []) out.set(s.group, [...(out.get(s.group) ?? []), s]);
     return [...out];
   }, [data]);
+
+  // Maximum key lifetime: list the keys that outlast the value being typed (or the saved one).
+  const keyLimit = useMemo(() => {
+    const saved = data?.find((s) => s.key === 'keyMaxLifetimeDays');
+    if (!saved) return null;
+    const typed = Number(draft.keyMaxLifetimeDays);
+    const valid = draft.keyMaxLifetimeDays?.trim() && Number.isInteger(typed) && typed >= saved.min && typed <= saved.max;
+    const days = valid ? typed : saved.value;
+    return { days, lowering: days < saved.value };
+  }, [data, draft.keyMaxLifetimeDays]);
 
   const changed = (data ?? []).filter((s) => draft[s.key] !== undefined && draft[s.key] !== String(s.value));
 
@@ -114,6 +125,7 @@ export function SettingsPage() {
               </div>
             ))}
           </div>
+          {settings.some((s) => s.key === 'keyMaxLifetimeDays') && can('api_keys.read') && keyLimit && <KeysBeyondLifetime {...keyLimit} />}
         </Card>
       ))}
       {canWrite && data && (

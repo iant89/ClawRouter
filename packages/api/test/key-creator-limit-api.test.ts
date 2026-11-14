@@ -83,4 +83,35 @@ describe('maximum key lifetime by creator', () => {
     const created = await data<CreatedApiKey>(await h.request(`/api/me/api-key-requests/${r.id}/create`, { method: 'POST', cookie: val, json: {} }));
     expect(Date.parse(created.key.expiresAt!) - h.clock.time).toBe(30 * DAY * 3_600_000);
   });
+
+  test('lowering the limit: active keys that outlast it are listed with their owners', async () => {
+    const { h, admin, dev, kim } = await world();
+    const make = async (cookie: string, path: string, name: string, days: number | null) =>
+      (await data<CreatedApiKey>(await h.request(path, { method: 'POST', cookie, json: { name, expiry: days === null ? { type: 'never' } : { type: 'after', hours: days * DAY } } }))).key;
+    const devMonth = await make(dev, '/api/me/api-keys', 'dev month', 30);
+    const devOld = await make(dev, '/api/me/api-keys', 'dev legacy', 30);
+    // A key from before the rule existed, without an expiry.
+    h.db.run('UPDATE api_keys SET expires_at = NULL WHERE id = ?', [devOld.id]);
+    const kimLong = await make(kim, '/api/api-keys', 'kim long', 20);
+    await make(kim, '/api/api-keys', 'kim short', 3);
+    const revoked = await make(kim, '/api/api-keys', 'kim revoked', 25);
+    await h.request(`/api/api-keys/${revoked.id}`, { method: 'DELETE', cookie: kim });
+    await make(admin, '/api/api-keys', 'admin forever', null); // Administrators are not limited
+
+    const list = async (query: string) => {
+      const res = await h.request(`/api/api-keys/beyond-lifetime?${query}`, { cookie: admin });
+      return { status: res.status, body: (await res.json()) as ApiSuccess<{ id: string; name: string; createdBy: { username: string } | null; expiresAt: string | null }[]> & { meta?: { total: number } } };
+    };
+    const seven = await list('days=7');
+    expect(seven.status).toBe(200);
+    expect(seven.body.data.map((k) => [k.name, k.createdBy?.username])).toEqual([['dev legacy', 'dev'], ['dev month', 'dev'], ['kim long', 'kim']]);
+    expect(seven.body.meta?.total).toBe(3);
+    expect(seven.body.data[1]!.id).toBe(devMonth.id);
+    expect((await list('days=25')).body.data.map((k) => k.id)).toEqual([devOld.id, devMonth.id]);
+    expect((await list('days=7&pageSize=1&page=3')).body.data.map((k) => k.id)).toEqual([kimLong.id]);
+    // A disabled owner's keys are suspended (not active), so they are not listed.
+    h.db.run("UPDATE users SET status = 'DISABLED' WHERE username = 'kim'");
+    expect((await list('days=7')).body.data.map((k) => k.name)).toEqual(['dev legacy', 'dev month']);
+    for (const bad of ['', 'days=0', 'days=abc', 'days=7&pageSize=500']) expect((await list(bad)).status).toBe(400);
+  });
 });

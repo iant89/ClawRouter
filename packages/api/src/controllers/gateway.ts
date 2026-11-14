@@ -83,6 +83,19 @@ const actor = (ctx: RequestContext) => ({ id: ctx.auth!.user.id, username: ctx.a
 /** /api/api-keys (spec §31): create (the only time the key is shown), list, revoke. */
 export function apiKeysController(apiKeys: ApiKeyService) {
   const list: Handler = () => ok<ApiKeyInfo[]>(apiKeys.list());
+  /** Active keys of non-administrators lasting longer than `days` (Settings shows them when the limit is lowered). */
+  const beyondLifetime: Handler = (ctx) => {
+    const int = (name: string, fallback: number | null, min: number, max: number) => {
+      const raw = ctx.url.searchParams.get(name);
+      const n = raw === null || raw === '' ? fallback : Number(raw);
+      if (n === null || !Number.isInteger(n) || n < min || n > max) throw errors.validation([{ path: name, message: `must be an integer from ${min} to ${max}` }]);
+      return n;
+    };
+    const days = int('days', null, 1, 3650);
+    const q = { page: int('page', 1, 1, 1_000_000), pageSize: int('pageSize', 25, 1, 100) };
+    const { items, total } = apiKeys.beyondLifetime(days * 24, q);
+    return ok<ApiKeyInfo[]>(items, { meta: { ...q, total } });
+  };
   const create: Handler = async (ctx) => {
     const body = await readJson(ctx, createKeyBody);
     const result = apiKeys.create(actor(ctx), body, { ip: ctx.ip, requestId: ctx.requestId });
@@ -100,5 +113,5 @@ export function apiKeysController(apiKeys: ApiKeyService) {
     const body = await readJson(ctx, updateKeyBody);
     return ok<ApiKeyInfo>(apiKeys.update(actor(ctx), ctx.params.id, body, { ip: ctx.ip, requestId: ctx.requestId }));
   };
-  return { list, create, update, revoke };
+  return { list, beyondLifetime, create, update, revoke };
 }

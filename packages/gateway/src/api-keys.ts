@@ -2,7 +2,7 @@ import { errors, newId, type Logger } from '@clawrouter/core';
 import type { AuditService } from '@clawrouter/audit';
 import type { Database } from '@clawrouter/database';
 import { checkRateLimit, normalizeLimit } from '@clawrouter/rate-limits';
-import { API_KEY_PREFIX, formatLifetime, type ApiKeyInfo, type ApiKeyStatus, type CreateApiKeyRequest, type CreatedApiKey, type FieldIssue, type KeyExpiry, type ModelAlias, type ModelInfo, type RateLimit, type UpdateApiKeyRequest } from '@clawrouter/shared';
+import { ADMIN_ROLE_ID, API_KEY_PREFIX, formatLifetime, type ApiKeyInfo, type ApiKeyStatus, type CreateApiKeyRequest, type CreatedApiKey, type FieldIssue, type KeyExpiry, type ModelAlias, type ModelInfo, type RateLimit, type UpdateApiKeyRequest } from '@clawrouter/shared';
 import { checkExpiry, resolveExpiry } from './expiry.ts';
 import { checkLifetime, strictestLifetime } from './key-lifetime.ts';
 
@@ -139,6 +139,24 @@ export function createApiKeyService(options: {
       if (!catalog || issues.length) return;
       const { models, aliases } = catalog();
       checkLifetime(at, now(), strictestLifetime(allowedModels, models, aliases), path, issues);
+    },
+
+    /**
+     * Active keys that last longer than `hours` from now (or never expire), owned by
+     * users the maximum key lifetime applies to: everyone but Administrators. Shown
+     * when an administrator lowers the limit; existing keys are not shortened.
+     * Never-expiring keys first, then the latest expiry first.
+     */
+    beyondLifetime(hours: number, query: { page: number; pageSize: number }): { items: ApiKeyInfo[]; total: number } {
+      const at = now();
+      const where = `WHERE k.revoked_at IS NULL AND (u.status IS NULL OR u.status = 'ACTIVE')
+        AND (k.expires_at IS NULL OR k.expires_at > ?)
+        AND NOT EXISTS (SELECT 1 FROM user_roles ur WHERE ur.user_id = k.created_by AND ur.role_id = '${ADMIN_ROLE_ID}')`;
+      const args = [new Date(at.getTime() + hours * 3_600_000).toISOString()];
+      const total = db.get<{ n: number }>(`SELECT COUNT(*) AS n FROM api_keys k LEFT JOIN users u ON u.id = k.created_by ${where}`, args)!.n;
+      const items = db.all<Row>(`${SELECT} ${where} ORDER BY k.expires_at IS NOT NULL, k.expires_at DESC, k.created_at DESC LIMIT ? OFFSET ?`,
+        [...args, query.pageSize, (query.page - 1) * query.pageSize]).map(toInfo);
+      return { items, total };
     },
 
     /** Keys owned by one user (their own keys page). */

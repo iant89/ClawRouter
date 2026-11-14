@@ -190,6 +190,7 @@ export function createApiApp(deps: ApiDependencies): ApiApp {
 
   // Gateway administration: API keys (spec §14, §31) and live metrics.
   router.get('/api/api-keys', 'api_keys.read', keys.list);
+  router.get('/api/api-keys/beyond-lifetime', 'api_keys.read', keys.beyondLifetime);
   router.post('/api/api-keys', 'api_keys.write', keys.create);
   router.patch('/api/api-keys/:id', 'api_keys.write', keys.update);
   router.delete('/api/api-keys/:id', 'api_keys.write', keys.revoke);
