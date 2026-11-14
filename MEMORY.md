@@ -290,19 +290,18 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 
 ### Messages
 
-- **MESSAGE** · 2026-11-14 · Phase 16 waits for review; then phase 17
-  Performance is on `claude/phase-16-performance`, branched from `main` (`415ee7b`,
-  everything before it merged), so merging is a fast-forward. Merge only when the
-  owner says so. Measurements and changes: `docs/performance.md`. Next: phase 17,
-  production packaging (see `docs/roadmap.md`).
-
-- **MESSAGE** · 2026-11-14 · Revoke from the "keys beyond the lifetime" table waits for review
-  On `claude/revoke-beyond-lifetime`, built on top of `claude/phase-16-performance`.
-  Merge order: phase 16, then this branch; both fast-forwards.
+- **MESSAGE** · 2026-11-14 · Next: phase 17, production
+  Everything built so far is merged into `main` (see Resolved). Next is phase 17,
+  production packaging (see `docs/roadmap.md`), on a new branch
+  `claude/phase-17-production`. Remember the secret-key backup (Important).
 
 ---
 
 ## Resolved
+
+- **MESSAGE** · 2026-11-14 · Phase 16 and the revoke button wait for review. Resolved
+  2026-11-14: the owner said "Merge"; `main` was fast-forwarded to phase 16
+  (`f910f6d`), then to the revoke button (`a3ff3d8`).
 
 - **MESSAGE** · 2026-11-13 · Next: phase 16; maximum key lifetime by creator waits for
   review. Resolved 2026-11-14: the owner said "Merge, then next phase"; `main` was
