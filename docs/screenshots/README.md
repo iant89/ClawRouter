@@ -338,5 +338,7 @@ User menu → Sign-in security → Authenticator app → Set up (a throwaway tes
 
 | | |
 |---|---|
-| ![Setup](23-totp-qr/1-setup.png) | The QR code, then the setup key in a read-only field with a copy button on its right (here just used: the key is on the clipboard) |
-| ![Phone](23-totp-qr/2-phone.png) | At phone width |
+| ![Setup](23-totp-qr/1-setup.png) | The QR code, centred; below it the setup key in a read-only field with a copy icon on its right |
+| ![Enlarged](23-totp-qr/2-enlarged.png) | A click on the QR code opens a larger copy in its own dialog (Escape or Close returns to the setup) |
+| ![Copied](23-totp-qr/3-copied.png) | The copy icon puts the key on the clipboard (without spaces) and shows a toast |
+| ![Phone](23-totp-qr/4-phone-enlarged.png) | The larger QR code at phone width |

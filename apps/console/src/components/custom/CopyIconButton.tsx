@@ -1,41 +1,26 @@
-import { useEffect, useRef, useState } from 'react';
-import { IconButton } from '@enterprise-ui/react';
+import { IconButton, useToast } from '@enterprise-ui/react';
 
 /**
  * An icon-only copy button that fits inside a field (an Input's `endAdornment`).
  * ENTERPRISE-UI's CopyButton always shows its label and status as text, which
- * crowds a field out. Here the icon turns into a tick (or a cross) for two seconds,
- * and the result is announced politely to screen readers.
+ * crowds a field out. The result is reported with a toast (announced to screen
+ * readers by the toast region).
  */
-export function CopyIconButton({ value, label }: { value: string; label: string }) {
-  const [state, setState] = useState<'idle' | 'copied' | 'failed'>('idle');
-  const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
-  useEffect(() => () => clearTimeout(timer.current), []);
-
+export function CopyIconButton({ value, label, copiedTitle = 'Copied to the clipboard' }: {
+  value: string;
+  /** Accessible name and tooltip, e.g. "Copy setup key". */
+  label: string;
+  /** Title of the success toast. */
+  copiedTitle?: string;
+}) {
+  const toast = useToast();
   const copy = async () => {
-    clearTimeout(timer.current);
     try {
       await navigator.clipboard.writeText(value);
-      setState('copied');
+      toast.show({ tone: 'success', title: copiedTitle });
     } catch {
-      setState('failed');
+      toast.show({ tone: 'error', title: 'Could not copy', description: 'Select the text and copy it instead.', duration: 10_000 });
     }
-    timer.current = setTimeout(() => setState('idle'), 2000);
   };
-
-  return (
-    <>
-      <IconButton
-        icon={state === 'copied' ? 'accept' : state === 'failed' ? 'error' : 'copy'}
-        label={state === 'copied' ? 'Copied' : state === 'failed' ? 'Could not copy' : label}
-        size="sm"
-        neutral={state === 'idle'}
-        type="button"
-        onClick={() => void copy()}
-      />
-      <span className="claw-visually-hidden" role="status" aria-live="polite">
-        {state === 'copied' ? 'Copied to the clipboard.' : state === 'failed' ? 'Could not copy. Select the text and copy it instead.' : ''}
-      </span>
-    </>
-  );
+  return <IconButton icon="copy" label={label} size="sm" neutral type="button" onClick={() => void copy()} />;
 }

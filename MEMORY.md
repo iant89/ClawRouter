@@ -331,7 +331,8 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
   The owner asked for a QR code, with the setup key in a read-only field and a copy
   button on its right. On `claude/totp-qr-code`: our own QR encoder (no QR library
   is vendored; installing one was refused by the session's safety check), checked
-  in tests with zxing's reader; `QrCode.tsx`; `CopyIconButton.tsx` (ENTERPRISE-UI's
+  in tests with zxing's reader; `QrCode.tsx` (centred, a click opens it larger in a dialog);
+  `CopyIconButton.tsx` (copy icon plus a toast; ENTERPRISE-UI's
   CopyButton always shows text, too wide inside a field). Merge only on the owner's word.
 
 - **MESSAGE** · 2026-11-15 · Everything is merged; what comes next is the owner's call

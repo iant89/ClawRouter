@@ -235,12 +235,30 @@ body {
 .claw-setup-key {
   max-inline-size: 28rem;
 }
-/* Read by screen readers, not shown. */
-.claw-visually-hidden {
-  position: absolute;
-  inline-size: 1px;
-  block-size: 1px;
-  overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
+/* The setup QR code: centred, clickable to enlarge. */
+.claw-qr-centre {
+  display: grid;
+  justify-items: center;
+  gap: var(--eui-space-1, 0.25rem);
+}
+.claw-qr-button {
+  padding: 0;
+  border: 0;
+  border-radius: var(--eui-radius-md, 4px);
+  background: none;
+  cursor: zoom-in;
+}
+.claw-qr-button:focus-visible {
+  outline: 2px solid var(--eui-color-focus, #4c9aff);
+  outline-offset: 3px;
+}
+.claw-qr-hint {
+  color: var(--eui-color-text-secondary, inherit);
+  font-size: var(--eui-font-size-sm, 0.875rem);
+}
+.claw-qr-code-large {
+  display: block;
+  inline-size: min(22.5rem, 100%);
+  block-size: auto;
+  border-radius: var(--eui-radius-md, 4px);
 }

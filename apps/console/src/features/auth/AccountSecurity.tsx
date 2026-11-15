@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Button, Card, CopyButton, Input, Link, MessageStrip, PasswordInput, StatusIndicator, Text } from '@enterprise-ui/react';
-import { QrCode } from '../../components/custom/QrCode.tsx';
+import { EnlargeableQrCode } from '../../components/custom/QrCode.tsx';
 import { CopyIconButton } from '../../components/custom/CopyIconButton.tsx';
 import type { TotpSetup, TwoFactorMethod, TwoFactorStatus } from '@clawrouter/shared';
 import { ApiClientError } from '../../services/api-client.ts';
@@ -156,7 +156,7 @@ function TotpCard({ enabled, onChanged }: { enabled: boolean; onChanged: (codes?
         {setup && (
           <>
             <Text as="p">1. Scan this code with your authenticator app:</Text>
-            <QrCode value={setup.uri} label="QR code for your authenticator app" />
+            <EnlargeableQrCode value={setup.uri} label="QR code for your authenticator app" />
             <Text as="p">Or add an account in the app and enter the setup key (on this phone, <Link href={setup.uri}>open it in the app</Link>):</Text>
             <Input
               label="Setup key"
@@ -164,7 +164,7 @@ function TotpCard({ enabled, onChanged }: { enabled: boolean; onChanged: (codes?
               className="claw-mono"
               value={grouped(setup.secret)}
               onFocus={(e) => e.currentTarget.select()}
-              endAdornment={<CopyIconButton value={setup.secret} label="Copy setup key" />}
+              endAdornment={<CopyIconButton value={setup.secret} label="Copy setup key" copiedTitle="Setup key copied" />}
               description="Time-based, 6 digits, every 30 seconds. The key is shown only now."
               style={{ letterSpacing: '0.04em' }}
               boxClassName="claw-setup-key"
