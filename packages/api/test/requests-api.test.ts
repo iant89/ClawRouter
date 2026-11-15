@@ -99,7 +99,7 @@ describe('every authenticated gateway request is recorded (spec §22)', () => {
     const { h, admin, key } = await world();
     const current = await data<Record<string, unknown>>(await h.request('/api/rate-limits', { cookie: admin }));
     const { unknownModels: _u, updatedAt: _a, updatedBy: _b, ...body } = current;
-    await h.request('/api/rate-limits', { method: 'PUT', cookie: admin, json: { ...body, perKey: { requestsPerMinute: 1, tokensPerMinute: null } } });
+    await h.request('/api/rate-limits', { method: 'PUT', cookie: admin, json: { ...body, perKey: { window: 'minute', requests: 1, tokens: null , bucket: null } } });
     await v1(h, key.secret, '/chat/completions', chat('gpt-4o-mini'));
     await v1(h, key.secret, '/chat/completions', chat('gpt-4o-mini'));
     const { items } = await list(h, admin, '?problems=true');

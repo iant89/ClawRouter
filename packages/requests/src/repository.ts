@@ -65,6 +65,8 @@ export interface RequestRepository {
   setStatus(id: string, status: RequestStatus): void;
   finish(id: string, outcome: RequestOutcome): void;
   addUsage(u: UsageIncrement): void;
+  /** One user's totals from the hour `fromHour` on (for usage quotas). */
+  userUsageSince(userId: string, fromHour: string): { requests: number; tokens: number; costUsd: number };
   get(id: string): RequestDetail | undefined;
   list(q: RequestQuery & { limit: number; offset: number }): { items: RequestRecord[]; total: number };
   usageTotals(from: string, to: string): UsageTotals;
@@ -233,6 +235,15 @@ export function createSqliteRequestRepository(db: Database): RequestRepository {
         [o.completedAt, o.status, o.httpStatus, o.modelRef, o.providerId, o.durationMs, o.attempts, o.retries, o.failovers,
           JSON.stringify(o.attemptLog), o.errorCode, o.errorMessage, o.inputTokens, o.outputTokens, o.usageSource, o.costUsd, id],
       );
+    },
+
+    userUsageSince(userId, fromHour) {
+      const r = db.get<{ requests: number; tokens: number; cost: number }>(
+        `SELECT COALESCE(SUM(requests - errors), 0) AS requests, COALESCE(SUM(input_tokens + output_tokens), 0) AS tokens, COALESCE(SUM(cost_usd), 0) AS cost
+         FROM usage_records WHERE user_id = ? AND hour >= ?`,
+        [userId, fromHour],
+      );
+      return { requests: r?.requests ?? 0, tokens: r?.tokens ?? 0, costUsd: r?.cost ?? 0 };
     },
 
     addUsage(u) {

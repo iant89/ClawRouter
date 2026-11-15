@@ -29,6 +29,29 @@ export interface CounterStore {
   inFlight(key: string): Promise<number>;
   /** Keys with a non-zero estimate, for the usage view. May be capped. */
   keys(prefix: string): Promise<string[]>;
+  /**
+   * Token bucket: takes `cost` when that much is available (a bucket never used
+   * is full). With `dryRun` it only reports. `retryAfterMs` says when `cost` fits.
+   */
+  takeBucket(key: string, bucket: BucketSpec, cost: number, dryRun?: boolean): Promise<BucketState & { allowed: boolean }>;
+}
+
+export interface BucketSpec {
+  capacity: number;
+  refillAmount: number;
+  refillEveryMs: number;
+}
+
+export interface BucketState {
+  /** Whole requests left in the bucket after this call. */
+  available: number;
+  retryAfterMs: number;
+}
+
+interface Bucket {
+  tokens: number;
+  /** Time of the last refill tick (or when it was last full). */
+  last: number;
 }
 
 interface Window {
@@ -48,6 +71,7 @@ interface Window {
 export class MemoryCounterStore implements CounterStore {
   private readonly windows = new Map<string, Window>();
   private readonly flights = new Map<string, number>();
+  private readonly buckets = new Map<string, Bucket>();
   private ops = 0;
 
   constructor(private readonly now: () => number = Date.now, private readonly maxKeys = 50_000) {}
@@ -141,6 +165,47 @@ export class MemoryCounterStore implements CounterStore {
       if (out.length >= 500) break;
     }
     return out;
+  }
+
+  /** Refills `b` for the ticks that have passed; a full bucket restarts its refill clock. */
+  private refill(key: string, spec: BucketSpec, create: boolean): Bucket | null {
+    const at = this.now();
+    let b = this.buckets.get(key);
+    if (!b) {
+      if (!create) return null;
+      b = { tokens: spec.capacity, last: at };
+      this.buckets.set(key, b);
+      return b;
+    }
+    const ticks = Math.floor((at - b.last) / spec.refillEveryMs);
+    if (ticks > 0) {
+      b.tokens += ticks * spec.refillAmount;
+      b.last += ticks * spec.refillEveryMs;
+    }
+    if (b.tokens >= spec.capacity) {
+      b.tokens = spec.capacity;
+      b.last = at;
+    }
+    return b;
+  }
+
+  async takeBucket(key: string, spec: BucketSpec, cost: number, dryRun = false) {
+    const b = this.refill(key, spec, !dryRun);
+    const tokens = b?.tokens ?? spec.capacity;
+    if (tokens >= cost) {
+      if (b && !dryRun) {
+        b.tokens -= cost;
+        // Memory bound: forget the oldest buckets (a forgotten bucket is full again).
+        for (const old of this.buckets.keys()) {
+          if (this.buckets.size <= this.maxKeys) break;
+          this.buckets.delete(old);
+        }
+      }
+      return { allowed: true, available: Math.floor(dryRun ? tokens : tokens - cost), retryAfterMs: 0 };
+    }
+    const ticks = Math.ceil((cost - tokens) / spec.refillAmount);
+    const retryAfterMs = Math.max(1, b!.last + ticks * spec.refillEveryMs - this.now());
+    return { allowed: false, available: Math.floor(tokens), retryAfterMs };
   }
 
   get size(): number {

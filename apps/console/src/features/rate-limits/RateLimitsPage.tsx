@@ -11,7 +11,7 @@ import { fetchModels } from '../../services/models.ts';
 import { fetchRateLimits, fetchRateLimitUsage, saveRateLimits } from '../../services/rate-limits.ts';
 import { formatTokens } from '../../services/format.ts';
 import { usePermissions } from '../auth/AuthContext.tsx';
-import { describeLimit, usageLevel, usageRatio, type UsageLevel } from './rate-limit-format.ts';
+import { describeLimit, usageLevel, usageRatio, windowShort, type UsageLevel } from './rate-limit-format.ts';
 import { RateLimitsDialog } from './RateLimitsDialog.tsx';
 
 export const USAGE_POLL_MS = 5_000;
@@ -73,18 +73,24 @@ export function RateLimitsPage() {
     { id: 'scope', header: 'Applies to', accessor: (e) => SCOPE_LABEL[e.scope] },
     { id: 'label', header: 'Name', rowHeader: true, wrap: true, accessor: 'label', cell: (e) => <span className={e.scope === 'model' || e.scope === 'ip' ? 'claw-mono' : undefined}>{e.label}</span> },
     {
-      id: 'requests', header: 'Requests (1 min)', align: 'end', accessor: (e) => e.requestsLastMinute,
-      cell: (e) => <span className="claw-mono">{e.requestsLastMinute}{e.limit.requestsPerMinute !== null ? ` / ${e.limit.requestsPerMinute}` : ''}</span>,
+      id: "window", header: "Window", accessor: (e) => e.limit.window, cell: (e) => <span className="claw-mono">{windowShort(e.limit.window)}</span> },
+    {
+      id: "requests", header: "Requests", align: "end", accessor: (e) => e.requests,
+      cell: (e) => <span className="claw-mono">{e.requests}{e.limit.requests !== null ? ` / ${e.limit.requests}` : ""}</span>,
     },
     {
-      id: 'tokens', header: 'Tokens (1 min)', align: 'end', accessor: (e) => e.tokensLastMinute,
-      cell: (e) => (e.scope === 'ip' ? <Text tone="secondary">—</Text> : <span className="claw-mono">{formatTokens(e.tokensLastMinute)}{e.limit.tokensPerMinute !== null ? ` / ${formatTokens(e.limit.tokensPerMinute)}` : ''}</span>),
+      id: "tokens", header: "Tokens", align: "end", accessor: (e) => e.tokens,
+      cell: (e) => (e.scope === "ip" ? <Text tone="secondary">—</Text> : <span className="claw-mono">{formatTokens(e.tokens)}{e.limit.tokens !== null ? ` / ${formatTokens(e.limit.tokens)}` : ""}</span>),
     },
     {
-      id: 'status', header: 'Status', accessor: (e) => usageRatio({ requests: e.requestsLastMinute, tokens: e.tokensLastMinute }, e.limit) ?? -1,
+      id: "bucket", header: "Burst left", align: "end", accessor: (e) => e.bucketAvailable ?? -1,
+      cell: (e) => (e.limit.bucket && e.bucketAvailable !== undefined ? <span className="claw-mono">{e.bucketAvailable} / {e.limit.bucket.capacity}</span> : <Text tone="secondary">—</Text>),
+    },
+    {
+      id: 'status', header: 'Status', accessor: (e) => usageRatio(e, e.limit) ?? -1,
       cell: (e) => {
         if (e.scope === 'ip') return <StatusIndicator tone={e.blocked ? 'error' : 'warning'} size="sm">{e.blocked ? 'Blocked' : 'Invalid keys seen'}</StatusIndicator>;
-        const level = LEVEL[usageLevel(usageRatio({ requests: e.requestsLastMinute, tokens: e.tokensLastMinute }, e.limit))];
+        const level = LEVEL[usageLevel(usageRatio(e, e.limit))];
         return <StatusIndicator tone={level.tone} size="sm">{level.label}</StatusIndicator>;
       },
     },

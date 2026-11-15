@@ -57,6 +57,7 @@ describe('every protected endpoint enforces its permission (phase 3 exit criteri
       ['/api/sessions', { admin: 200, operator: 403, viewer: 403, nobody: 403 }],
       ['/api/auth/session', { admin: 200, operator: 200, viewer: 200, nobody: 200 }],
       ['/api/auth/sessions', { admin: 200, operator: 200, viewer: 200, nobody: 200 }],
+      ['/api/auth/quota', { admin: 200, operator: 200, viewer: 200, nobody: 200 }],
     ];
     for (const [path, expected] of matrix) {
       for (const [who, status] of Object.entries(expected)) {

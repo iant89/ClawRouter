@@ -56,13 +56,15 @@ export function createGatewayService(options: {
   log?: Logger;
   /** Rate limits (phase 9). Without it nothing is limited (unit tests). */
   limits?: RateLimitService;
+  /** Usage quotas per user: checked before the rate limits; a used-up quota refuses the request. */
+  quotas?: { check(userId: string | null, requestId: string | null): void };
   /** Request history and usage (phase 10). Without it nothing is recorded. */
   requests?: RequestLogService;
   metrics?: GatewayMetricsRecorder;
   now?: () => Date;
   backoffMs?: number;
 }) {
-  const { routing, providers, models, events, log, limits, requests } = options;
+  const { routing, providers, models, events, log, limits, requests, quotas } = options;
   const now = options.now ?? (() => new Date());
   const metrics = options.metrics ?? new GatewayMetricsRecorder(() => now().getTime(), () => limits?.rejections() ?? { lastMinute: 0, total: 0 });
   const encoder = new TextEncoder();
@@ -137,8 +139,9 @@ export function createGatewayService(options: {
         return admission;
       },
 
-      /** Rate limits; a refused request never counts as started. */
+      /** Quota, then rate limits; a refused request never counts as started. */
       async admit() {
+        quotas?.check(key.ownerId, ctx.requestId);
         if (limits) admission = await limits.admit({ keyId: key.id, ownerId: key.ownerId, keyLimit: key.rateLimit }, ctx.requestId);
         started = true;
         metrics.started();
@@ -172,7 +175,7 @@ export function createGatewayService(options: {
       fail(caught: unknown, override?: { status: 'FAILED' | 'CANCELLED'; httpStatus: number; code: string; message: string }): unknown {
         let error = caught;
         if (caught instanceof ModelsRateLimitedError && limits) {
-          error = limits.modelsExhausted(caught.modelRef, caught.denial.retryAfterMs, caught.denial.kind, caught.denial.limit, ctx.requestId);
+          error = limits.modelsExhausted(caught.modelRef, caught.denial, ctx.requestId);
         }
         if (ended) return error;
         ended = true;

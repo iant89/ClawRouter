@@ -1,6 +1,7 @@
 import { errors, v } from '@clawrouter/core';
 import type { AuthService, UserAdminService } from '@clawrouter/authentication';
-import type { UserSummary, UserWithRoles } from '@clawrouter/shared';
+import type { QuotaService } from '@clawrouter/rate-limits';
+import type { UserQuota, UserQuotaView, UserSummary, UserWithRoles } from '@clawrouter/shared';
 import { readJson } from '../http/body.ts';
 import type { Handler, RequestContext } from '../http/context.ts';
 import { created, ok } from '../http/responses.ts';
@@ -24,13 +25,24 @@ const optionalEmail = (value: unknown, path: string, issues: { path: string; mes
   return undefined;
 };
 
+/** A quota object or null (shape only; the quota service checks the values). */
+const anyQuota = (value: unknown, path: string, issues: { path: string; message: string }[]): UserQuota | null | undefined => {
+  if (value === undefined || value === null) return value;
+  if (typeof value === 'object' && !Array.isArray(value)) return value as UserQuota;
+  issues.push({ path, message: 'must be a quota object, or null for no quota' });
+  return undefined;
+};
+
 const createBody = v.object({
   username: v.string({ min: 1, max: 64 }),
   displayName: v.string({ min: 1, max: 128 }),
   password: password(),
   roles: roleList,
   email: optionalEmail,
+  quota: anyQuota,
 });
+
+const quotaBody = v.object({ quota: (value, path, issues) => (value === undefined ? (issues.push({ path, message: 'is required (null removes the quota)' }), undefined) : anyQuota(value, path, issues)) });
 
 const updateBody = v.object({
   displayName: v.optional(v.string({ min: 1, max: 128 })),
@@ -48,11 +60,30 @@ const client = (ctx: RequestContext) => ({ ip: ctx.ip, userAgent: ctx.request.he
 const actor = (ctx: RequestContext) => ({ id: ctx.auth!.user.id, username: ctx.auth!.user.username, permissions: ctx.auth!.permissions as ReadonlySet<string> });
 
 /** Console user administration (users.write) and changing one's own password. */
-export function usersController(users: UserAdminService, auth: AuthService) {
+export function usersController(users: UserAdminService, auth: AuthService, quotas: QuotaService) {
   const create: Handler = async (ctx) => {
-    const body = await readJson(ctx, createBody);
+    const { quota, ...body } = await readJson(ctx, createBody);
+    // Checked before the user exists, so a wrong quota never leaves a user behind.
+    const issues = quotas.validate(quota);
+    if (issues.length) throw errors.validation(issues);
     const user = await users.create(actor(ctx), body, client(ctx));
+    if (quota) quotas.set(actor(ctx), user.id, quota, client(ctx));
     return created<UserWithRoles>(user, `/api/users/${user.id}`);
+  };
+
+  /** GET /api/users/:id/quota (users.read) */
+  const getQuota: Handler = (ctx) => ok<UserQuotaView>(quotas.get(ctx.params.id ?? ''));
+
+  /** PUT /api/users/:id/quota (users.write): `{ quota }`, null removes it. */
+  const putQuota: Handler = async (ctx) => {
+    const body = await readJson(ctx, quotaBody);
+    return ok<UserQuotaView>(quotas.set(actor(ctx), ctx.params.id ?? '', body.quota ?? null, client(ctx)));
+  };
+
+  /** GET /api/auth/quota ('authenticated'): only the caller's own quota. */
+  const ownQuota: Handler = (ctx) => {
+    if (!ctx.auth) throw errors.notFound();
+    return ok<UserQuotaView>(quotas.get(ctx.auth.user.id));
   };
 
   const update: Handler = async (ctx) => {
@@ -75,5 +106,5 @@ export function usersController(users: UserAdminService, auth: AuthService) {
   /** POST /api/users/:id/two-factor/reset: removes a user's methods (lost phone). */
   const resetTwoFactor: Handler = (ctx) => ok<UserWithRoles>(users.resetTwoFactor(actor(ctx), ctx.params.id ?? '', client(ctx)));
 
-  return { create, update, resetPassword, changeOwnPassword, resetTwoFactor };
+  return { create, update, resetPassword, changeOwnPassword, resetTwoFactor, getQuota, putQuota, ownQuota };
 }

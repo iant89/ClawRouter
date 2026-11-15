@@ -1,13 +1,16 @@
 import { AppError, errors, RollingSum, type EventBus, type Logger } from '@clawrouter/core';
 import type { AuditService } from '@clawrouter/audit';
-import type {
-  PutRateLimitsRequest, RateLimit, RateLimitConfig, RateLimitConfigView, RateLimitScope, RateLimitUsage, RateLimitUsageEntry,
+import {
+  NO_RATE_LIMIT, RATE_WINDOW_MS,
+  type PutRateLimitsRequest, type RateLimit, type RateLimitConfig, type RateLimitConfigView, type RateLimitScope, type RateLimitUsage,
+  type RateLimitUsageEntry, type RateWindow, type TokenBucket,
 } from '@clawrouter/shared';
 import type { RateLimitConfigStore } from './config-store.ts';
-import { diffSettings, normalizeSettings, validateRateLimits } from './config.ts';
-import type { CounterStore } from './counters.ts';
+import { diffSettings, normalizeSettings, upgradeSettings, validateRateLimits } from './config.ts';
+import type { BucketSpec, CounterStore } from './counters.ts';
 
-const WINDOW_MS = 60_000;
+/** The invalid-key limit per address is always per minute. */
+const IP_WINDOW_MS = 60_000;
 
 /** Who is making a gateway request. */
 export interface LimitSubject {
@@ -34,7 +37,16 @@ export interface Admission {
   release(): Promise<void>;
 }
 
-type Kind = 'requests' | 'tokens' | 'concurrency' | 'invalid_keys';
+type Kind = 'requests' | 'tokens' | 'burst' | 'concurrency' | 'invalid_keys';
+
+/** Why a model was skipped for its own limit. */
+export interface ModelDenial {
+  retryAfterMs: number;
+  kind: 'requests' | 'tokens' | 'burst';
+  limit: number;
+  window: RateWindow;
+  bucket?: TokenBucket | null;
+}
 
 interface Check {
   scope: RateLimitScope;
@@ -43,16 +55,30 @@ interface Check {
 }
 
 const seconds = (ms: number) => Math.max(1, Math.ceil(ms / 1000));
-const NO_LIMIT: RateLimit = { requestsPerMinute: null, tokensPerMinute: null };
+const fmt = (n: number) => n.toLocaleString('en-US');
+const W = { second: 's', minute: 'm', hour: 'h' } as const satisfies Record<RateWindow, string>;
+const WINDOW_OF = { s: 'second', m: 'minute', h: 'hour' } as const;
+const counterKey = (kind: 'req' | 'tok', c: { scope: RateLimitScope; subject: string; limit: RateLimit }) => `${kind}:${W[c.limit.window]}:${c.scope}:${c.subject}`;
+const bucketKey = (c: { scope: RateLimitScope; subject: string }) => `bkt:${c.scope}:${c.subject}`;
+const spec = (b: TokenBucket): BucketSpec => ({ capacity: b.capacity, refillAmount: b.refillAmount, refillEveryMs: b.refillEverySeconds * 1000 });
 
-function describe(scope: RateLimitScope, kind: Kind, limit: number): string {
-  const what = kind === 'tokens' ? `${limit.toLocaleString('en-US')} tokens per minute` : `${limit.toLocaleString('en-US')} requests per minute`;
+/** "1 every 2 s", "10 every second". */
+export function describeRefill(b: TokenBucket): string {
+  const every = b.refillEverySeconds === 1 ? 'second' : b.refillEverySeconds % 3600 === 0 ? `${b.refillEverySeconds / 3600} h` : b.refillEverySeconds % 60 === 0 ? `${b.refillEverySeconds / 60} min` : `${b.refillEverySeconds} s`;
+  return `${fmt(b.refillAmount)} every ${every}`;
+}
+
+function describe(scope: RateLimitScope, kind: Kind, limit: number, window: RateWindow, bucket?: TokenBucket | null): string {
+  const what = kind === 'tokens' ? `${fmt(limit)} ${limit === 1 ? 'token' : 'tokens'} per ${window}`
+    : kind === 'burst' && bucket ? `bursts of up to ${fmt(bucket.capacity)} requests, then ${describeRefill(bucket)}`
+      : `${fmt(limit)} ${limit === 1 ? 'request' : 'requests'} per ${window}`;
+  const prefix = kind === 'burst' ? 'Too many requests in a short time' : 'Rate limit reached';
   switch (scope) {
-    case 'key': return `Rate limit reached for this API key (${what}).`;
-    case 'user': return `Rate limit reached for the API keys of this key's owner (${what}).`;
-    case 'model': return `Rate limit reached for this model (${what}).`;
+    case 'key': return `${prefix} for this API key (${what}).`;
+    case 'user': return `${prefix} for your account: all of your API keys together (${what}).`;
+    case 'model': return `${prefix} for this model (${what}).`;
     case 'ip': return 'Too many requests with invalid API keys from this address.';
-    default: return kind === 'concurrency' ? 'The gateway is handling too many requests at once.' : `The gateway's overall rate limit was reached (${what}).`;
+    default: return kind === 'concurrency' ? 'The gateway is handling too many requests at once.' : `${prefix} for the whole gateway (${what}).`;
   }
 }
 
@@ -60,8 +86,10 @@ export type RateLimitService = ReturnType<typeof createRateLimitService>;
 
 /**
  * Rate limiting at the gateway (spec §12): per key, per user, per model, global
- * and per IP for invalid keys. Configuration is stored in the database; counters
- * live in a `CounterStore` (in memory today, replaceable by a shared store).
+ * and per IP for invalid keys. Each limit counts requests and tokens over a
+ * window of a second, minute or hour, and may add a token bucket against bursts.
+ * Configuration is stored in the database; counters live in a `CounterStore`
+ * (in memory today, replaceable by a shared store).
  */
 export function createRateLimitService(options: {
   store: RateLimitConfigStore;
@@ -82,14 +110,17 @@ export function createRateLimitService(options: {
   // Refusals in the last minute, in one-second buckets: constant cost even under a flood of 429s.
   const rejectedRecently = new RollingSum(1_000, 60);
 
-  function rejected(check: { scope: RateLimitScope; subject: string }, kind: Kind, limit: number, retryAfterMs: number, requestId: string | null, headers: Record<string, string> = {}): AppError {
+  function rejected(
+    check: { scope: RateLimitScope; subject: string }, kind: Kind, limit: number, retryAfterMs: number, requestId: string | null,
+    headers: Record<string, string> = {}, window: RateWindow = 'minute', bucket?: TokenBucket | null,
+  ): AppError {
     const at = now().getTime();
     rejectedTotal += 1;
     rejectedRecently.add(at);
     const retry = seconds(retryAfterMs);
     events?.emit('ratelimit.exceeded', { scope: check.scope, subject: check.subject, kind, limit, retryAfterSeconds: retry, requestId });
-    log?.info('rate limit reached', { component: 'rate-limits', scope: check.scope, kind, limit, requestId });
-    return new AppError('RATE_LIMITED', `${describe(check.scope, kind, limit)} Try again in ${retry} s.`, {
+    log?.info('rate limit reached', { component: 'rate-limits', scope: check.scope, kind, limit, window, requestId });
+    return new AppError('RATE_LIMITED', `${describe(check.scope, kind, limit, window, bucket)} Try again in ${retry} s.`, {
       expose: true,
       headers: { ...headers, 'Retry-After': String(retry) },
       details: { scope: check.scope, kind },
@@ -105,9 +136,9 @@ export function createRateLimitService(options: {
     for (const kind of ['requests', 'tokens'] as const) {
       let best: { limit: number; remaining: number; resetMs: number } | null = null;
       for (const c of checks) {
-        const limit = kind === 'requests' ? c.limit.requestsPerMinute : c.limit.tokensPerMinute;
+        const limit = kind === 'requests' ? c.limit.requests : c.limit.tokens;
         if (limit === null) continue;
-        const s = await counters.peek(`${kind === 'requests' ? 'req' : 'tok'}:${c.scope}:${c.subject}`, WINDOW_MS);
+        const s = await counters.peek(counterKey(kind === 'requests' ? 'req' : 'tok', c), RATE_WINDOW_MS[c.limit.window]);
         const remaining = Math.max(0, Math.floor(limit - s.used));
         if (!best || remaining < best.remaining) best = { limit, remaining, resetMs: s.resetMs };
       }
@@ -127,7 +158,9 @@ export function createRateLimitService(options: {
       return { ...c, unknownModels: c.perModel.map((m) => m.model).filter((m) => !known.has(m.toLowerCase())) };
     },
 
-    update(actor: { id: string; username: string }, body: PutRateLimitsRequest, client: { ip: string | null; requestId?: string | null }): RateLimitConfigView {
+    update(actor: { id: string; username: string }, raw: PutRateLimitsRequest, client: { ip: string | null; requestId?: string | null }): RateLimitConfigView {
+      // Old `{ requestsPerMinute, tokensPerMinute }` limits (older clients, exported files) are accepted.
+      const body = upgradeSettings(raw) as PutRateLimitsRequest;
       const issues = validateRateLimits(body);
       if (issues.length) throw errors.validation(issues);
       const current = store.load();
@@ -149,8 +182,8 @@ export function createRateLimitService(options: {
 
     /**
      * Admits a gateway request or throws RATE_LIMITED (429 with Retry-After).
-     * Checks concurrency, then tokens (budget left), then requests; a request is
-     * counted only when every limit lets it through.
+     * Checks concurrency, then tokens (budget left), requests and burst buckets;
+     * a request is counted only when every limit lets it through.
      */
     async admit(subject: LimitSubject, requestId: string | null): Promise<Admission> {
       const c = config();
@@ -169,18 +202,28 @@ export function createRateLimitService(options: {
       };
       try {
         for (const check of checks) {
-          const tpm = check.limit.tokensPerMinute;
-          if (tpm === null) continue;
-          const s = await counters.peek(`tok:${check.scope}:${check.subject}`, WINDOW_MS, 1, tpm);
-          if (s.retryAfterMs > 0) throw rejected(check, 'tokens', tpm, s.retryAfterMs, requestId, await headersFor(checks));
+          const { tokens, window } = check.limit;
+          if (tokens === null) continue;
+          const s = await counters.peek(counterKey('tok', check), RATE_WINDOW_MS[window], 1, tokens);
+          if (s.retryAfterMs > 0) throw rejected(check, 'tokens', tokens, s.retryAfterMs, requestId, await headersFor(checks), window);
         }
         for (const check of checks) {
-          const rpm = check.limit.requestsPerMinute;
-          if (rpm === null) continue;
-          const s = await counters.peek(`req:${check.scope}:${check.subject}`, WINDOW_MS, 1, rpm);
-          if (s.retryAfterMs > 0) throw rejected(check, 'requests', rpm, s.retryAfterMs, requestId, await headersFor(checks));
+          const { requests, window } = check.limit;
+          if (requests === null) continue;
+          const s = await counters.peek(counterKey('req', check), RATE_WINDOW_MS[window], 1, requests);
+          if (s.retryAfterMs > 0) throw rejected(check, 'requests', requests, s.retryAfterMs, requestId, await headersFor(checks), window);
         }
-        for (const check of checks) await counters.consume(`req:${check.scope}:${check.subject}`, 1, null, WINDOW_MS);
+        for (const check of checks) {
+          const { bucket, window } = check.limit;
+          if (!bucket) continue;
+          const s = await counters.takeBucket(bucketKey(check), spec(bucket), 1, true);
+          if (!s.allowed) throw rejected(check, 'burst', bucket.capacity, s.retryAfterMs, requestId, await headersFor(checks), window, bucket);
+        }
+        // Every limit allows it: count it everywhere.
+        for (const check of checks) {
+          await counters.consume(counterKey('req', check), 1, null, RATE_WINDOW_MS[check.limit.window]);
+          if (check.limit.bucket) await counters.takeBucket(bucketKey(check), spec(check.limit.bucket), 1);
+        }
       } catch (error) {
         await release();
         throw error;
@@ -191,7 +234,7 @@ export function createRateLimitService(options: {
         release,
         async charge(tokens: number) {
           if (!(tokens > 0)) return;
-          for (const check of checks) await counters.add(`tok:${check.scope}:${check.subject}`, tokens, WINDOW_MS);
+          for (const check of checks) await counters.add(counterKey('tok', check), tokens, RATE_WINDOW_MS[check.limit.window]);
         },
       };
     },
@@ -200,38 +243,46 @@ export function createRateLimitService(options: {
      * Counts an attempt on a model with a limit. Returns null when allowed, or the
      * time until it would be. A limited model is skipped like an unavailable one.
      */
-    async useModel(modelRef: string): Promise<{ retryAfterMs: number; kind: 'requests' | 'tokens'; limit: number } | null> {
+    async useModel(modelRef: string): Promise<ModelDenial | null> {
       const m = modelLimit(modelRef);
       if (!m) return null;
-      const key = m.model.toLowerCase();
-      if (m.tokensPerMinute !== null) {
-        const s = await counters.peek(`tok:model:${key}`, WINDOW_MS, 1, m.tokensPerMinute);
-        if (s.retryAfterMs > 0) return { retryAfterMs: s.retryAfterMs, kind: 'tokens', limit: m.tokensPerMinute };
+      const check = { scope: 'model' as const, subject: m.model.toLowerCase(), limit: m };
+      const ms = RATE_WINDOW_MS[m.window];
+      if (m.tokens !== null) {
+        const s = await counters.peek(counterKey('tok', check), ms, 1, m.tokens);
+        if (s.retryAfterMs > 0) return { retryAfterMs: s.retryAfterMs, kind: 'tokens', limit: m.tokens, window: m.window };
       }
-      const r = await counters.consume(`req:model:${key}`, 1, m.requestsPerMinute, WINDOW_MS);
-      if (!r.allowed) return { retryAfterMs: r.retryAfterMs, kind: 'requests', limit: m.requestsPerMinute! };
+      if (m.requests !== null) {
+        const s = await counters.peek(counterKey('req', check), ms, 1, m.requests);
+        if (s.retryAfterMs > 0) return { retryAfterMs: s.retryAfterMs, kind: 'requests', limit: m.requests, window: m.window };
+      }
+      if (m.bucket) {
+        const s = await counters.takeBucket(bucketKey(check), spec(m.bucket), 1);
+        if (!s.allowed) return { retryAfterMs: s.retryAfterMs, kind: 'burst', limit: m.bucket.capacity, window: m.window, bucket: m.bucket };
+      }
+      await counters.consume(counterKey('req', check), 1, null, ms);
       return null;
     },
 
     async chargeModel(modelRef: string, tokens: number) {
       const m = modelLimit(modelRef);
-      if (m && tokens > 0) await counters.add(`tok:model:${m.model.toLowerCase()}`, tokens, WINDOW_MS);
+      if (m && tokens > 0) await counters.add(counterKey('tok', { scope: 'model', subject: m.model.toLowerCase(), limit: m }), tokens, RATE_WINDOW_MS[m.window]);
     },
 
     /** Builds the 429 for a request whose every candidate model was rate limited. */
-    modelsExhausted(modelRef: string, retryAfterMs: number, kind: 'requests' | 'tokens', limit: number, requestId: string | null): AppError {
-      return rejected({ scope: 'model', subject: modelRef }, kind, limit, retryAfterMs, requestId);
+    modelsExhausted(modelRef: string, denial: ModelDenial, requestId: string | null): AppError {
+      return rejected({ scope: 'model', subject: modelRef }, denial.kind, denial.limit, denial.retryAfterMs, requestId, {}, denial.window, denial.bucket);
     },
 
     /** Milliseconds this IP must wait because of too many invalid keys; 0 when allowed. */
     async ipBlockedFor(ip: string | null): Promise<number> {
-      const s = await counters.peek(ipKey(ip), WINDOW_MS, 1, config().invalidKeysPerIp);
+      const s = await counters.peek(ipKey(ip), IP_WINDOW_MS, 1, config().invalidKeysPerIp);
       return s.retryAfterMs;
     },
 
     /** Records a failed API-key authentication from `ip`. */
     async invalidKey(ip: string | null) {
-      await counters.add(ipKey(ip), 1, WINDOW_MS);
+      await counters.add(ipKey(ip), 1, IP_WINDOW_MS);
     },
 
     /** 429 for a blocked IP (also counted and emitted as an event). */
@@ -247,54 +298,56 @@ export function createRateLimitService(options: {
     async usage(): Promise<RateLimitUsage> {
       const c = config();
       const entries = new Map<string, RateLimitUsageEntry>();
+      const limitOf = (scope: RateLimitScope, subject: string): { label: string; limit: RateLimit } => {
+        if (scope === 'key') {
+          const d = options.directory?.describeKey(subject);
+          return { label: d?.label ?? '(deleted key)', limit: d?.limit ?? c.perKey };
+        }
+        if (scope === 'user') return { label: options.directory?.describeUser(subject) ?? '(deleted user)', limit: c.perUser };
+        if (scope === 'model') {
+          const m = modelLimit(subject);
+          return { label: m?.model ?? subject, limit: m ? { window: m.window, requests: m.requests, tokens: m.tokens, bucket: m.bucket } : NO_RATE_LIMIT };
+        }
+        if (scope === 'global') return { label: 'All requests', limit: { window: c.global.window, requests: c.global.requests, tokens: c.global.tokens, bucket: c.global.bucket } };
+        return { label: subject, limit: { window: 'minute', requests: c.invalidKeysPerIp, tokens: null, bucket: null } };
+      };
       const entry = (scope: RateLimitScope, subject: string): RateLimitUsageEntry => {
         const id = `${scope}:${subject}`;
         let e = entries.get(id);
         if (!e) {
-          let label = subject;
-          let limit: RateLimit = NO_LIMIT;
-          if (scope === 'key') {
-            const d = options.directory?.describeKey(subject);
-            label = d?.label ?? '(deleted key)';
-            limit = d?.limit ?? c.perKey;
-          } else if (scope === 'user') {
-            label = options.directory?.describeUser(subject) ?? '(deleted user)';
-            limit = c.perUser;
-          } else if (scope === 'model') {
-            const m = modelLimit(subject);
-            label = m?.model ?? subject;
-            limit = m ? { requestsPerMinute: m.requestsPerMinute, tokensPerMinute: m.tokensPerMinute } : NO_LIMIT;
-          } else if (scope === 'global') {
-            label = 'All requests';
-            limit = { requestsPerMinute: c.global.requestsPerMinute, tokensPerMinute: c.global.tokensPerMinute };
-          } else {
-            limit = { requestsPerMinute: c.invalidKeysPerIp, tokensPerMinute: null };
-          }
-          e = { scope, subject, label, requestsLastMinute: 0, tokensLastMinute: 0, limit };
+          e = { scope, subject, requests: 0, tokens: 0, ...limitOf(scope, subject) };
           entries.set(id, e);
         }
         return e;
       };
       for (const prefix of ['req:', 'tok:'] as const) {
         for (const key of await counters.keys(prefix)) {
-          const [, scope, ...rest] = key.split(':');
-          const s = await counters.peek(key, WINDOW_MS);
+          const [, w, scope, ...rest] = key.split(':');
+          const window = WINDOW_OF[w as keyof typeof WINDOW_OF];
           const e = entry(scope as RateLimitScope, rest.join(':'));
-          if (prefix === 'req:') e.requestsLastMinute = Math.round(s.used);
-          else e.tokensLastMinute = Math.round(s.used);
+          // A counter left from before the window was changed no longer applies.
+          if (!window || window !== e.limit.window) continue;
+          const s = await counters.peek(key, RATE_WINDOW_MS[window]);
+          if (prefix === 'req:') e.requests = Math.round(s.used);
+          else e.tokens = Math.round(s.used);
         }
       }
       for (const key of await counters.keys('fail:ip:')) {
         const ip = key.slice('fail:ip:'.length);
-        const s = await counters.peek(key, WINDOW_MS, 1, c.invalidKeysPerIp);
+        const s = await counters.peek(key, IP_WINDOW_MS, 1, c.invalidKeysPerIp);
         const e = entry('ip', ip);
-        e.requestsLastMinute = Math.round(s.used);
+        e.requests = Math.round(s.used);
         e.blocked = s.retryAfterMs > 0;
       }
       const g = entry('global', 'global');
       g.concurrent = await counters.inFlight('conc:global');
+      for (const e of entries.values()) {
+        if (e.limit.bucket && e.scope !== 'ip') e.bucketAvailable = (await counters.takeBucket(bucketKey(e), spec(e.limit.bucket), 1, true)).available;
+      }
       const order: RateLimitScope[] = ['global', 'key', 'user', 'model', 'ip'];
-      const list = [...entries.values()].sort((a, b) => order.indexOf(a.scope) - order.indexOf(b.scope) || b.requestsLastMinute - a.requestsLastMinute);
+      const list = [...entries.values()]
+        .filter((e) => e.scope === 'global' || e.requests > 0 || e.tokens > 0 || (e.bucketAvailable !== undefined && e.bucketAvailable < e.limit.bucket!.capacity))
+        .sort((a, b) => order.indexOf(a.scope) - order.indexOf(b.scope) || b.requests - a.requests);
       const r = this.rejections();
       return { entries: list, rejectedLastMinute: r.lastMinute, rejectedTotal: r.total };
     },

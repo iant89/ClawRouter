@@ -1,7 +1,7 @@
 import { errors, newId, type Logger } from '@clawrouter/core';
 import type { AuditService } from '@clawrouter/audit';
 import type { Database } from '@clawrouter/database';
-import { checkRateLimit, normalizeLimit } from '@clawrouter/rate-limits';
+import { checkRateLimit, normalizeLimit, upgradeLimit } from '@clawrouter/rate-limits';
 import { ADMIN_ROLE_ID, API_KEY_PREFIX, formatLifetime, type ApiKeyInfo, type ApiKeyStatus, type CreateApiKeyRequest, type CreatedApiKey, type FieldIssue, type KeyExpiry, type ModelAlias, type ModelInfo, type RateLimit, type UpdateApiKeyRequest } from '@clawrouter/shared';
 import { checkExpiry, resolveExpiry } from './expiry.ts';
 import { checkLifetime, strictestLifetime } from './key-lifetime.ts';
@@ -104,7 +104,7 @@ export function createApiKeyService(options: {
     expiresAt: r.expires_at,
     lastUsedAt: r.last_used_at,
     revokedAt: r.revoked_at,
-    rateLimit: r.rate_limit ? (JSON.parse(r.rate_limit) as RateLimit) : null,
+    rateLimit: r.rate_limit ? normalizeLimit(JSON.parse(r.rate_limit)) : null,
   });
 
   return {
@@ -145,7 +145,7 @@ export function createApiKeyService(options: {
     /** Name and limit of a key, for the rate-limit usage view. */
     describeKey(id: string): { label: string; limit: RateLimit | null } | null {
       const r = db.get<Row>(`${SELECT} WHERE k.id = ?`, [id]);
-      return r ? { label: `${r.name} (${r.prefix}…)`, limit: r.rate_limit ? (JSON.parse(r.rate_limit) as RateLimit) : null } : null;
+      return r ? { label: `${r.name} (${r.prefix}…)`, limit: r.rate_limit ? normalizeLimit(JSON.parse(r.rate_limit)) : null } : null;
     },
 
     /** Username of a key owner, for the rate-limit usage view. */
@@ -312,7 +312,7 @@ export function createApiKeyService(options: {
       }
       return {
         id: row.id, name: row.name, prefix: row.prefix, allowedModels: JSON.parse(row.allowed_models) as string[],
-        ownerId: row.created_by, createdAt: row.created_at, rateLimit: row.rate_limit ? (JSON.parse(row.rate_limit) as RateLimit) : null,
+        ownerId: row.created_by, createdAt: row.created_at, rateLimit: row.rate_limit ? normalizeLimit(JSON.parse(row.rate_limit)) : null,
       };
     },
   };
@@ -330,11 +330,12 @@ export function checkModels(value: string[], issues: FieldIssue[]): string[] {
   return models;
 }
 
-/** A key's own limit: null means "use the default"; a limit with both values null means "no per-key limit". */
+/** A key's own limit: null means "use the default"; a limit with nothing set means "no per-key limit". Old per-minute shapes are upgraded. */
 function checkKeyLimit(value: RateLimit | null | undefined, issues: FieldIssue[]): RateLimit | null {
   if (value === undefined || value === null) return null;
-  if (!checkRateLimit(value, 'rateLimit', issues)) return null;
-  return normalizeLimit(value);
+  const limit = upgradeLimit(value);
+  if (!checkRateLimit(limit, 'rateLimit', issues)) return null;
+  return normalizeLimit(limit);
 }
 
 /** Whether a key may request `model`. Empty list: any model. Names compare case-insensitively. */

@@ -42,7 +42,10 @@ export interface EventMap {
   'request.completed': { requestId: string; apiKeyId: string; model: string; modelRef: string; providerId: string; stream: boolean; durationMs: number; attempts: number; failovers: number; usage: { inputTokens: number | null; outputTokens: number | null; source: 'provider' | 'estimated' | 'none' } };
   'request.failed': { requestId: string; apiKeyId: string | null; model: string; stream: boolean; durationMs: number; attempts: number; code: string; status: number };
   /** Rate limiting (spec §12). `subject` is a key id, user id, model reference, "global" or an IP. */
-  'ratelimit.exceeded': { scope: 'key' | 'user' | 'model' | 'global' | 'ip'; subject: string; kind: 'requests' | 'tokens' | 'concurrency' | 'invalid_keys'; limit: number; retryAfterSeconds: number; requestId: string | null };
+  'ratelimit.exceeded': { scope: 'key' | 'user' | 'model' | 'global' | 'ip'; subject: string; kind: 'requests' | 'tokens' | 'burst' | 'concurrency' | 'invalid_keys'; limit: number; retryAfterSeconds: number; requestId: string | null };
+  /** A user's usage quota was used up; their keys are refused until it resets. */
+  'quota.exceeded': { userId: string; unit: 'tokens' | 'requests' | 'cost'; limit: number; resetsAt: string; requestId: string | null };
+  'quota.changed': { userId: string; updatedBy: string };
   'ratelimits.changed': { version: number; updatedBy: string | null };
   /** Operation lifecycle and progress (spec §25, §26). */
   'operation.progress': { id: string; type: string; targetId: string | null; status: 'QUEUED' | 'RUNNING' | 'SUCCESS' | 'FAILED' | 'TIMEOUT' | 'CANCELLED'; progress: number; message: string | null };

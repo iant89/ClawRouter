@@ -51,7 +51,7 @@ describe('own API keys (api_keys.own)', () => {
 
   test('limits are for administrators; other people\'s keys cannot be seen or revoked', async () => {
     const { h, admin, dev, viewer } = await world();
-    const limited = await h.request('/api/me/api-keys', { method: 'POST', cookie: dev, json: { name: 'x', rateLimit: { requestsPerMinute: 99999, tokensPerMinute: null } } });
+    const limited = await h.request('/api/me/api-keys', { method: 'POST', cookie: dev, json: { name: 'x', rateLimit: { window: 'minute', requests: 99999, tokens: null , bucket: null } } });
     expect(limited.status).toBe(400);
     const adminKey = await data<CreatedApiKey>(await h.request('/api/api-keys', { method: 'POST', cookie: admin, json: { name: 'service', expiry: { type: 'after', hours: 1 } } }));
     expect((await h.request(`/api/me/api-keys/${adminKey.key.id}`, { method: 'DELETE', cookie: dev })).status).toBe(404);

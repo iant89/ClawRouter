@@ -56,7 +56,7 @@ const chat = (h: Harness, key: string, extra: Record<string, unknown> = {}, init
 describe('per-key request limits', () => {
   test('the default per-key limit applies, with OpenAI-style headers and a 429 once used up', async () => {
     const { h, admin, key } = await world();
-    expect((await setLimits(h, admin, { perKey: { requestsPerMinute: 3, tokensPerMinute: null } })).status).toBe(200);
+    expect((await setLimits(h, admin, { perKey: { window: 'minute', requests: 3, tokens: null , bucket: null } })).status).toBe(200);
     const first = await chat(h, key.secret);
     expect(first.status).toBe(200);
     expect(first.headers.get('x-ratelimit-limit-requests')).toBe('3');
@@ -78,10 +78,10 @@ describe('per-key request limits', () => {
 
   test('a key can have its own limit, or none, and PATCH null goes back to the default', async () => {
     const { h, admin, key } = await world();
-    await setLimits(h, admin, { perKey: { requestsPerMinute: 1, tokensPerMinute: null } });
-    const own = await h.request(`/api/api-keys/${key.key.id}`, { method: 'PATCH', cookie: admin, json: { rateLimit: { requestsPerMinute: null, tokensPerMinute: null } } });
+    await setLimits(h, admin, { perKey: { window: 'minute', requests: 1, tokens: null , bucket: null } });
+    const own = await h.request(`/api/api-keys/${key.key.id}`, { method: 'PATCH', cookie: admin, json: { rateLimit: { window: 'minute', requests: null, tokens: null , bucket: null } } });
     expect(own.status).toBe(200);
-    expect((await data<ApiKeyInfo>(own)).rateLimit).toEqual({ requestsPerMinute: null, tokensPerMinute: null });
+    expect((await data<ApiKeyInfo>(own)).rateLimit).toEqual({ window: 'minute', requests: null, tokens: null , bucket: null });
     for (let i = 0; i < 4; i++) expect((await chat(h, key.secret)).status).toBe(200);
     expect(h.audit.list({ action: 'API_KEY_UPDATED' })).toHaveLength(1);
 
@@ -93,26 +93,26 @@ describe('per-key request limits', () => {
 
     const bad = await h.request(`/api/api-keys/${key.key.id}`, { method: 'PATCH', cookie: admin, json: { rateLimit: { requestsPerMinute: -1 } } });
     expect(bad.status).toBe(400);
-    const created = await createKey(h, admin, { name: 'own', rateLimit: { requestsPerMinute: 2, tokensPerMinute: 1000 } });
-    expect(created.key.rateLimit).toEqual({ requestsPerMinute: 2, tokensPerMinute: 1000 });
+    const created = await createKey(h, admin, { name: 'own', rateLimit: { window: 'minute', requests: 2, tokens: 1000, bucket: null } });
+    expect(created.key.rateLimit).toEqual({ window: 'minute', requests: 2, tokens: 1000, bucket: null });
   });
 });
 
 describe('other scopes', () => {
   test('per-user limits add up all keys created by the same user', async () => {
     const { h, admin, key } = await world();
-    await setLimits(h, admin, { perUser: { requestsPerMinute: 2, tokensPerMinute: null } });
+    await setLimits(h, admin, { perUser: { window: 'minute', requests: 2, tokens: null , bucket: null } });
     const second = await createKey(h, admin, { name: 'second' });
     expect((await chat(h, key.secret)).status).toBe(200);
     expect((await chat(h, second.secret)).status).toBe(200);
     const limited = await chat(h, second.secret);
     expect(limited.status).toBe(429);
-    expect((await json<OpenAiError>(limited)).error.message).toContain("this key's owner");
+    expect((await json<OpenAiError>(limited)).error.message).toContain('for your account: all of your API keys together');
   });
 
   test('token limits are checked before and charged after (provider-reported usage)', async () => {
     const { h, admin, key } = await world();
-    await setLimits(h, admin, { perKey: { requestsPerMinute: null, tokensPerMinute: 20 } });
+    await setLimits(h, admin, { perKey: { window: 'minute', requests: null, tokens: 20 , bucket: null } });
     // Each mock completion reports 7 + 4 = 11 tokens.
     const first = await chat(h, key.secret);
     expect(first.status).toBe(200);
@@ -125,7 +125,7 @@ describe('other scopes', () => {
 
   test('global concurrency: a long stream holds its slot until it ends', async () => {
     const { h, admin, key } = await world();
-    await setLimits(h, admin, { global: { requestsPerMinute: null, tokensPerMinute: null, maxConcurrent: 1 } });
+    await setLimits(h, admin, { global: { window: 'minute', requests: null, tokens: null, bucket: null, maxConcurrent: 1 } });
     mock.streamDelayMs = 30;
     const stream = await chat(h, key.secret, { stream: true });
     expect(stream.status).toBe(200);
@@ -138,7 +138,7 @@ describe('other scopes', () => {
 
   test('a model at its limit is skipped like a failed one; when all are limited the client gets 429', async () => {
     const { h, admin, key } = await world();
-    const res = await setLimits(h, admin, { perModel: [{ model: 'openai/gpt-4o-mini', requestsPerMinute: 1, tokensPerMinute: null }] });
+    const res = await setLimits(h, admin, { perModel: [{ model: 'openai/gpt-4o-mini', window: 'minute', requests: 1, tokens: null , bucket: null }] });
     expect(res.status).toBe(200);
     const first = await chat(h, key.secret);
     expect(first.headers.get('x-clawrouter-model')).toBe('openai/gpt-4o-mini');
@@ -150,7 +150,7 @@ describe('other scopes', () => {
 
     const only = await chat(h, key.secret, { model: 'openai/gpt-4o-mini' });
     expect(only.status).toBe(429);
-    expect((await json<OpenAiError>(only)).error.message).toContain('this model (1 requests per minute)');
+    expect((await json<OpenAiError>(only)).error.message).toContain('this model (1 request per minute)');
   });
 
   test('an address that keeps sending invalid keys is blocked, even with a valid key, until the window passes', async () => {
@@ -172,16 +172,16 @@ describe('administration', () => {
   test('GET/PUT /api/rate-limits: validation, versioning, audit, events, unknown models', async () => {
     const { h, admin } = await world();
     const initial = await data<RateLimitConfigView>(await h.request('/api/rate-limits', { cookie: admin }));
-    expect(initial).toMatchObject({ version: 0, perKey: { requestsPerMinute: 120 }, global: { maxConcurrent: 100 }, invalidKeysPerIp: 20, unknownModels: [] });
+    expect(initial).toMatchObject({ version: 0, perKey: { window: 'minute', requests: 120 }, global: { maxConcurrent: 100 }, invalidKeysPerIp: 20, unknownModels: [] });
 
-    const bad = await setLimits(h, admin, { perKey: { requestsPerMinute: 0, tokensPerMinute: null } });
+    const bad = await setLimits(h, admin, { perKey: { window: 'minute', requests: 0, tokens: null , bucket: null } });
     expect(bad.status).toBe(400);
     const extra = await h.request('/api/rate-limits', { method: 'PUT', cookie: admin, json: { ...initial, surprise: 1 } });
     expect(extra.status).toBe(400);
 
     const changed: number[] = [];
     h.events.on('ratelimits.changed', (e) => { changed.push(e.version); });
-    const saved = await data<RateLimitConfigView>(await setLimits(h, admin, { perModel: [{ model: 'gone/model', requestsPerMinute: 5, tokensPerMinute: null }] }));
+    const saved = await data<RateLimitConfigView>(await setLimits(h, admin, { perModel: [{ model: 'gone/model', window: 'minute', requests: 5, tokens: null , bucket: null }] }));
     expect(saved.version).toBe(1);
     expect(saved.unknownModels).toEqual(['gone/model']);
     expect(changed).toEqual([1]);
@@ -206,7 +206,7 @@ describe('administration', () => {
 
   test('usage shows live counters with names, and refusals reach the dashboard metrics and events', async () => {
     const { h, admin, key } = await world();
-    await setLimits(h, admin, { perKey: { requestsPerMinute: 2, tokensPerMinute: null } });
+    await setLimits(h, admin, { perKey: { window: 'minute', requests: 2, tokens: null , bucket: null } });
     const exceeded: string[] = [];
     h.events.on('ratelimit.exceeded', (e) => { exceeded.push(`${e.scope}:${e.kind}`); });
     await chat(h, key.secret);
@@ -217,9 +217,9 @@ describe('administration', () => {
     const usage = await data<RateLimitUsage>(await h.request('/api/rate-limits/usage', { cookie: admin }));
     expect(usage.rejectedLastMinute).toBe(1);
     const k = usage.entries.find((e) => e.scope === 'key')!;
-    expect(k).toMatchObject({ subject: key.key.id, label: `ci (${key.key.prefix}…)`, requestsLastMinute: 2, tokensLastMinute: 22, limit: { requestsPerMinute: 2 } });
-    expect(usage.entries.find((e) => e.scope === 'user')).toMatchObject({ label: 'admin', requestsLastMinute: 2 });
-    expect(usage.entries.find((e) => e.scope === 'global')).toMatchObject({ requestsLastMinute: 2, concurrent: 0 });
+    expect(k).toMatchObject({ subject: key.key.id, label: `ci (${key.key.prefix}…)`, requests: 2, tokens: 22, limit: { requests: 2 } });
+    expect(usage.entries.find((e) => e.scope === 'user')).toMatchObject({ label: 'admin', requests: 2 });
+    expect(usage.entries.find((e) => e.scope === 'global')).toMatchObject({ requests: 2, concurrent: 0 });
 
     const metrics = await data<GatewayMetrics>(await h.request('/api/gateway/metrics', { cookie: admin }));
     expect(metrics).toMatchObject({ totalRequests: 2, rateLimitedLastMinute: 1, rateLimitedTotal: 1 });
@@ -234,9 +234,9 @@ describe('client addresses in usage', () => {
     await h.addUser('op', ['OPERATOR']);
     await h.addUser('viewer', ['VIEWER']);
     const ipRow = async (cookie: string) => (await data<RateLimitUsage>(await h.request('/api/rate-limits/usage', { cookie }))).entries.find((e) => e.scope === 'ip');
-    expect(await ipRow(await h.login('op'))).toMatchObject({ subject: '198.51.100.77', requestsLastMinute: 1 });
+    expect(await ipRow(await h.login('op'))).toMatchObject({ subject: '198.51.100.77', requests: 1 });
     const hidden = await ipRow(await h.login('viewer'));
-    expect(hidden).toMatchObject({ label: '(hidden)', requestsLastMinute: 1 });
+    expect(hidden).toMatchObject({ label: '(hidden)', requests: 1 });
     expect(JSON.stringify(hidden)).not.toContain('198.51.100.77');
   });
 });

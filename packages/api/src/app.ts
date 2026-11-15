@@ -9,7 +9,7 @@ import type { ProviderService } from '@clawrouter/providers';
 import type { ModelService } from '@clawrouter/models';
 import type { RoutingService } from '@clawrouter/routing';
 import type { ApiKeyService, GatewayService, KeyRequestService } from '@clawrouter/gateway';
-import type { RateLimitService } from '@clawrouter/rate-limits';
+import type { QuotaService, RateLimitService } from '@clawrouter/rate-limits';
 import type { RequestLogService } from '@clawrouter/requests';
 import type { OperationService } from '@clawrouter/operations';
 import type { HealthHistoryService, HealthService } from '@clawrouter/health';
@@ -66,6 +66,7 @@ export interface ApiDependencies {
   mail: MailService;
   gateway: GatewayService;
   limits: RateLimitService;
+  quotas: QuotaService;
   requests: RequestLogService;
   operations: OperationService;
   setup: SetupService;
@@ -90,7 +91,7 @@ export function createApiApp(deps: ApiDependencies): ApiApp {
   const router = new Router();
   const authRoutes = authController(deps);
   const access = accessController(deps.authz);
-  const usersApi = usersController(deps.userAdmin, deps.auth);
+  const usersApi = usersController(deps.userAdmin, deps.auth, deps.quotas);
   const tf = twoFactorController(deps.twoFactor, deps.mail);
   const settingsApi = settingsController(deps.settings);
   const configApi = deps.configuration ? configurationController(deps.configuration) : null;
@@ -133,6 +134,7 @@ export function createApiApp(deps: ApiDependencies): ApiApp {
   router.post('/api/auth/sessions/revoke-others', 'authenticated', authRoutes.revokeOtherSessions);
   router.delete('/api/auth/sessions/:id', 'authenticated', authRoutes.revokeSession);
   router.post('/api/auth/password', 'authenticated', usersApi.changeOwnPassword);
+  router.get('/api/auth/quota', 'authenticated', usersApi.ownQuota);
   router.put('/api/auth/email', 'authenticated', tf.changeEmail);
   router.get('/api/auth/2fa', 'authenticated', tf.status);
   router.post('/api/auth/2fa/totp', 'authenticated', tf.startTotp);
@@ -188,6 +190,8 @@ export function createApiApp(deps: ApiDependencies): ApiApp {
   router.post('/api/users/:id/password', 'users.write', usersApi.resetPassword);
   router.post('/api/users/:id/two-factor/reset', 'users.write', usersApi.resetTwoFactor);
   router.put('/api/users/:id/roles', 'roles.assign', access.setUserRoles);
+  router.get('/api/users/:id/quota', 'users.read', usersApi.getQuota);
+  router.put('/api/users/:id/quota', 'users.write', usersApi.putQuota);
 
   // System and security settings (spec §16).
   if (configApi) {

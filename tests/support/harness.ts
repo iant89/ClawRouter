@@ -16,7 +16,7 @@ import { createDefaultRegistry, createProviderService, createSqliteProviderRepos
 import { createModelService, createSqliteModelRepository, type ModelService } from '@clawrouter/models';
 import { createRoutingService, createSqliteRoutingStore, seededRandom, type RoutingService } from '@clawrouter/routing';
 import { createApiKeyService, createGatewayService, createKeyRequestService, type ApiKeyService, type GatewayService, type KeyRequestService } from '@clawrouter/gateway';
-import { createRateLimitService, createSqliteRateLimitConfigStore, MemoryCounterStore, type RateLimitService } from '@clawrouter/rate-limits';
+import { createQuotaService, createRateLimitService, createSqliteQuotaStore, createSqliteRateLimitConfigStore, MemoryCounterStore, type QuotaService, type RateLimitService } from '@clawrouter/rate-limits';
 import { createRequestLogService, createSqliteRequestRepository, type RequestLogService } from '@clawrouter/requests';
 import { createNotificationService, createSqliteNotificationRepository, type NotificationService } from '@clawrouter/notifications';
 import { createSqliteSettingsRepository, migrations, openSqlite, runMigrations, type Database } from '@clawrouter/database';
@@ -65,6 +65,7 @@ export interface Harness {
   keyRequests: KeyRequestService;
   gateway: GatewayService;
   limits: RateLimitService;
+  quotas: QuotaService;
   requests: RequestLogService;
   secrets: SecretBox;
   /** Replaces the fetch used for provider calls. */
@@ -159,7 +160,14 @@ export function createHarness(options: { idleMinutes?: number; maxHours?: number
     repo: createSqliteRequestRepository(db), models, log, now: clock.now,
     retention: { get requestDays() { return settings.get('requestRetentionDays'); }, get usageDays() { return settings.get('usageRetentionDays'); } },
   });
-  const gateway = createGatewayService({ routing, providers, models, events, log, now: clock.now, backoffMs: 0, limits, requests });
+  const quotas = createQuotaService({
+    store: createSqliteQuotaStore(db), usage: (userId, since) => requests.userUsageSince(userId, since), audit, events, log, now: clock.now,
+    access: {
+      username: (userId) => users.findById(userId)?.username ?? null,
+      assertCanManage: (actor, userId) => userAccessPolicy(authz).assertCanManageUser(actor, userId, "change this user's quota"),
+    },
+  });
+  const gateway = createGatewayService({ routing, providers, models, events, log, now: clock.now, backoffMs: 0, limits, requests, quotas });
   const health = createHealthService({
     checks: [
       createDatabaseCheck(db),
@@ -170,10 +178,10 @@ export function createHarness(options: { idleMinutes?: number; maxHours?: number
   const healthHistory = createHealthHistoryService({ repo: createSqliteHealthHistoryRepository(db), now: clock.now });
   const operations = createOperationService({ repo: createSqliteOperationRepository(db), handlers: operationHandlers({ providers, health }), audit, events, log, now: clock.now });
   const configuration = createConfigurationService({ providers, models, routing, limits, authz, settings, twoFactor, mail, audit, version: 'test', now: clock.now });
-  const api = createApiApp({ log, logBuffer, audit, health, configuration, healthHistory, auth, authz, userAdmin, settings, twoFactor, mail, notifications, providers, models, routing, apiKeys, keyRequests, gateway, limits, requests, operations, setup, cookie: { secure: options.secureCookie ?? false } });
+  const api = createApiApp({ log, logBuffer, audit, health, configuration, healthHistory, auth, authz, userAdmin, settings, twoFactor, mail, notifications, providers, models, routing, apiKeys, keyRequests, gateway, limits, quotas, requests, operations, setup, cookie: { secure: options.secureCookie ?? false } });
 
   const h: Harness = {
-    db, clock, events, users, audit, auth, authz, userAdmin, settings, twoFactor, mail, outbox, notifications, providers, models, routing, apiKeys, keyRequests, gateway, limits, requests, secrets, setup, health, healthHistory, operations, api, logs, logBuffer,
+    db, clock, events, users, audit, auth, authz, userAdmin, settings, twoFactor, mail, outbox, notifications, providers, models, routing, apiKeys, keyRequests, gateway, limits, quotas, requests, secrets, setup, health, healthHistory, operations, api, logs, logBuffer,
     setProviderFetch(fn) {
       providerFetch = fn;
     },

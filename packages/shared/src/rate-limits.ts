@@ -1,11 +1,35 @@
 /**
- * Rate limiting vocabulary (spec §12). Limits are per minute, over a sliding
- * window. `null` means "no limit" for that measure.
+ * Rate limiting vocabulary (spec §12). A limit counts requests and tokens over a
+ * sliding window of one second, minute or hour; `null` means "no limit" for that
+ * measure. A token bucket can be added on top to stop bursts (spamming).
  */
+export const RATE_WINDOWS = ['second', 'minute', 'hour'] as const;
+export type RateWindow = (typeof RATE_WINDOWS)[number];
+
+export const RATE_WINDOW_MS: Record<RateWindow, number> = { second: 1_000, minute: 60_000, hour: 3_600_000 };
+
+/**
+ * A token bucket for requests: it starts full, each request takes one, and every
+ * `refillEverySeconds` it gets `refillAmount` back, never more than `capacity`.
+ * `capacity` is the largest burst; the refill sets the sustained rate.
+ */
+export interface TokenBucket {
+  /** Requests that can be made at once when the bucket is full. */
+  capacity: number;
+  /** Requests added back at each refill. */
+  refillAmount: number;
+  /** Seconds between refills. */
+  refillEverySeconds: number;
+}
+
 export interface RateLimit {
-  requestsPerMinute: number | null;
-  /** Provider-reported tokens (input + output). Checked before a request, charged after it. */
-  tokensPerMinute: number | null;
+  window: RateWindow;
+  /** Requests per window. */
+  requests: number | null;
+  /** Provider-reported tokens (input + output) per window. Checked before a request, charged after it. */
+  tokens: number | null;
+  /** Optional burst control, in addition to the window. */
+  bucket: TokenBucket | null;
 }
 
 /** A limit on one model, usually to stay inside a provider's own quota. */
@@ -48,16 +72,21 @@ export interface PutRateLimitsRequest extends RateLimitSettings {
   version: number;
 }
 
+export const NO_RATE_LIMIT: RateLimit = { window: 'minute', requests: null, tokens: null, bucket: null };
+
 export const DEFAULT_RATE_LIMITS: RateLimitSettings = {
-  perKey: { requestsPerMinute: 120, tokensPerMinute: null },
-  perUser: { requestsPerMinute: null, tokensPerMinute: null },
+  perKey: { window: 'minute', requests: 120, tokens: null, bucket: null },
+  perUser: { ...NO_RATE_LIMIT },
   perModel: [],
-  global: { requestsPerMinute: null, tokensPerMinute: null, maxConcurrent: 100 },
+  global: { ...NO_RATE_LIMIT, maxConcurrent: 100 },
   invalidKeysPerIp: 20,
 };
 
 /** Largest value accepted for any limit. */
 export const RATE_LIMIT_MAX = 1_000_000_000;
+/** Largest token bucket, and the longest refill interval (one day). */
+export const BUCKET_CAPACITY_MAX = 1_000_000;
+export const BUCKET_REFILL_SECONDS_MAX = 86_400;
 
 export const RATE_LIMIT_SCOPES = ['key', 'user', 'model', 'global', 'ip'] as const;
 export type RateLimitScope = (typeof RATE_LIMIT_SCOPES)[number];
@@ -69,9 +98,12 @@ export interface RateLimitUsageEntry {
   subject: string;
   /** Readable name: key name and prefix, username, model reference. */
   label: string;
-  requestsLastMinute: number;
-  tokensLastMinute: number;
+  /** Requests and tokens in the limit's current window (a minute for `ip`). */
+  requests: number;
+  tokens: number;
   limit: RateLimit;
+  /** Requests left in the token bucket, when the limit has one. */
+  bucketAvailable?: number;
   /** For `global`: requests in progress. */
   concurrent?: number;
   /** For `ip`: blocked after too many invalid keys. */

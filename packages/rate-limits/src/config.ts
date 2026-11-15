@@ -1,4 +1,7 @@
-import { DEFAULT_RATE_LIMITS, RATE_LIMIT_MAX, type FieldIssue, type RateLimit, type RateLimitConfig, type RateLimitSettings } from '@clawrouter/shared';
+import {
+  BUCKET_CAPACITY_MAX, BUCKET_REFILL_SECONDS_MAX, DEFAULT_RATE_LIMITS, RATE_LIMIT_MAX, RATE_WINDOWS,
+  type FieldIssue, type RateLimit, type RateLimitConfig, type RateLimitSettings, type RateWindow, type TokenBucket,
+} from '@clawrouter/shared';
 
 export const MAX_MODEL_LIMITS = 500;
 
@@ -6,37 +9,85 @@ export function defaultConfig(): RateLimitConfig {
   return { ...structuredClone(DEFAULT_RATE_LIMITS), version: 0, updatedAt: null, updatedBy: null };
 }
 
-function checkValue(value: unknown, path: string, issues: FieldIssue[]) {
-  if (value === null) return;
-  if (typeof value !== 'number' || !Number.isInteger(value) || value < 1 || value > RATE_LIMIT_MAX) {
-    issues.push({ path, message: `must be a whole number from 1 to ${RATE_LIMIT_MAX.toLocaleString('en-US')}, or null for no limit` });
+const fmt = (n: number) => n.toLocaleString('en-US');
+
+function checkWhole(value: unknown, path: string, issues: FieldIssue[], min: number, max: number, nullable: boolean) {
+  if (value === null && nullable) return;
+  if (typeof value !== 'number' || !Number.isInteger(value) || value < min || value > max) {
+    issues.push({ path, message: `must be a whole number from ${fmt(min)} to ${fmt(max)}${nullable ? ', or null for no limit' : ''}` });
   }
 }
 
-/** Validates one `{ requestsPerMinute, tokensPerMinute }` pair. */
+/**
+ * Limits stored or sent before windows existed were `{ requestsPerMinute,
+ * tokensPerMinute }`. They become a one-minute window without a bucket; anything
+ * else is returned as it is (and validated as the current shape).
+ */
+export function upgradeLimit(value: unknown): unknown {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return value;
+  const l = value as Record<string, unknown>;
+  if (!('requestsPerMinute' in l || 'tokensPerMinute' in l) || 'window' in l) return value;
+  const { requestsPerMinute, tokensPerMinute, ...rest } = l;
+  return { ...rest, window: 'minute', requests: requestsPerMinute ?? null, tokens: tokensPerMinute ?? null, bucket: null };
+}
+
+/** `upgradeLimit` for every limit in a settings document (stored, imported or sent). */
+export function upgradeSettings(value: unknown): unknown {
+  if (typeof value !== 'object' || value === null) return value;
+  const s = { ...(value as Record<string, unknown>) };
+  for (const k of ['perKey', 'perUser', 'global'] as const) if (k in s) s[k] = upgradeLimit(s[k]);
+  if (Array.isArray(s.perModel)) s.perModel = s.perModel.map(upgradeLimit);
+  return s;
+}
+
+function checkBucket(value: unknown, path: string, issues: FieldIssue[]) {
+  if (value === null || value === undefined) return;
+  if (typeof value !== 'object' || Array.isArray(value)) {
+    issues.push({ path, message: 'must be { capacity, refillAmount, refillEverySeconds }, or null for no bucket' });
+    return;
+  }
+  const b = value as Record<string, unknown>;
+  checkWhole(b.capacity, `${path}.capacity`, issues, 1, BUCKET_CAPACITY_MAX, false);
+  checkWhole(b.refillAmount, `${path}.refillAmount`, issues, 1, BUCKET_CAPACITY_MAX, false);
+  checkWhole(b.refillEverySeconds, `${path}.refillEverySeconds`, issues, 1, BUCKET_REFILL_SECONDS_MAX, false);
+  if (typeof b.capacity === 'number' && typeof b.refillAmount === 'number' && b.refillAmount > b.capacity) {
+    issues.push({ path: `${path}.refillAmount`, message: 'cannot be more than the capacity' });
+  }
+}
+
+/** Validates one limit: `{ window, requests, tokens, bucket }`. */
 export function checkRateLimit(limit: unknown, path: string, issues: FieldIssue[]): limit is RateLimit {
-  if (typeof limit !== 'object' || limit === null) {
-    issues.push({ path, message: 'must be an object with requestsPerMinute and tokensPerMinute' });
+  if (typeof limit !== 'object' || limit === null || Array.isArray(limit)) {
+    issues.push({ path, message: 'must be an object with window, requests, tokens and bucket' });
     return false;
   }
   const l = limit as Record<string, unknown>;
-  checkValue(l.requestsPerMinute ?? null, `${path}.requestsPerMinute`, issues);
-  checkValue(l.tokensPerMinute ?? null, `${path}.tokensPerMinute`, issues);
+  if (l.window !== undefined && !RATE_WINDOWS.includes(l.window as RateWindow)) {
+    issues.push({ path: `${path}.window`, message: 'must be second, minute or hour' });
+  }
+  checkWhole(l.requests ?? null, `${path}.requests`, issues, 1, RATE_LIMIT_MAX, true);
+  checkWhole(l.tokens ?? null, `${path}.tokens`, issues, 1, RATE_LIMIT_MAX, true);
+  checkBucket(l.bucket, `${path}.bucket`, issues);
   return true;
 }
 
-/** Normalizes a limit (missing fields become null). */
-export const normalizeLimit = (l: Partial<RateLimit> | null | undefined): RateLimit => ({
-  requestsPerMinute: l?.requestsPerMinute ?? null,
-  tokensPerMinute: l?.tokensPerMinute ?? null,
-});
+const normalizeBucket = (b: Partial<TokenBucket> | null | undefined): TokenBucket | null =>
+  b ? { capacity: b.capacity!, refillAmount: b.refillAmount!, refillEverySeconds: b.refillEverySeconds! } : null;
+
+/** Normalizes a limit (missing fields become their defaults; old shapes are upgraded). */
+export const normalizeLimit = (raw: Partial<RateLimit> | null | undefined): RateLimit => {
+  const l = upgradeLimit(raw) as Partial<RateLimit> | null | undefined;
+  return { window: l?.window ?? 'minute', requests: l?.requests ?? null, tokens: l?.tokens ?? null, bucket: normalizeBucket(l?.bucket) };
+};
+
+export const limitIsEmpty = (l: RateLimit) => l.requests === null && l.tokens === null && l.bucket === null;
 
 /** Validates the settings document. Model references are checked separately (unknown ones are allowed but reported). */
 export function validateRateLimits(s: RateLimitSettings): FieldIssue[] {
   const issues: FieldIssue[] = [];
   checkRateLimit(s.perKey, 'perKey', issues);
   checkRateLimit(s.perUser, 'perUser', issues);
-  if (checkRateLimit(s.global, 'global', issues)) checkValue(s.global.maxConcurrent ?? null, 'global.maxConcurrent', issues);
+  if (checkRateLimit(s.global, 'global', issues)) checkWhole(s.global.maxConcurrent ?? null, 'global.maxConcurrent', issues, 1, RATE_LIMIT_MAX, true);
   if (!Number.isInteger(s.invalidKeysPerIp) || s.invalidKeysPerIp < 1 || s.invalidKeysPerIp > 10_000) {
     issues.push({ path: 'invalidKeysPerIp', message: 'must be a whole number from 1 to 10,000' });
   }
@@ -53,8 +104,8 @@ export function validateRateLimits(s: RateLimitSettings): FieldIssue[] {
     } else if (seen.has(m.model.toLowerCase())) {
       issues.push({ path: `${p}.model`, message: `"${m.model}" has two limits` });
     } else seen.add(m.model.toLowerCase());
-    if (checkRateLimit(m, p, issues) && m.requestsPerMinute == null && m.tokensPerMinute == null) {
-      issues.push({ path: p, message: 'set requests or tokens per minute, or remove the model' });
+    if (checkRateLimit(m, p, issues) && m.requests == null && m.tokens == null && m.bucket == null) {
+      issues.push({ path: p, message: 'set requests, tokens or a burst bucket, or remove the model' });
     }
   });
   return issues;

@@ -1,6 +1,6 @@
 import type { Database } from '@clawrouter/database';
 import type { RateLimitConfig, RateLimitSettings } from '@clawrouter/shared';
-import { defaultConfig } from './config.ts';
+import { defaultConfig, normalizeSettings, upgradeSettings } from './config.ts';
 
 /** Persistence for the rate-limit configuration: one versioned JSON document. */
 export interface RateLimitConfigStore {
@@ -21,7 +21,9 @@ export function createSqliteRateLimitConfigStore(db: Database): RateLimitConfigS
     load() {
       const row = db.get<Row>('SELECT document, version, updated_at, updated_by FROM rate_limit_config WHERE id = 1');
       if (!row) return defaultConfig();
-      return { ...defaultConfig(), ...(JSON.parse(row.document) as RateLimitSettings), version: row.version, updatedAt: row.updated_at, updatedBy: row.updated_by };
+      // Documents saved before windows and buckets existed are upgraded as they are read.
+      const settings = normalizeSettings({ ...defaultConfig(), ...(upgradeSettings(JSON.parse(row.document)) as RateLimitSettings) });
+      return { ...settings, version: row.version, updatedAt: row.updated_at, updatedBy: row.updated_by };
     },
     save(settings, expectedVersion, at, by) {
       return db.transaction((tx) => {

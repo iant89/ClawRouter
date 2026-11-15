@@ -16,7 +16,7 @@ import { createDefaultRegistry, createProviderService, createSqliteProviderRepos
 import { createModelService, createSqliteModelRepository, type ModelService } from '@clawrouter/models';
 import { createRoutingService, createSqliteRoutingStore, type RoutingService } from '@clawrouter/routing';
 import { createApiKeyService, createGatewayService, createKeyRequestService, type ApiKeyService, type GatewayService } from '@clawrouter/gateway';
-import { createRateLimitService, createSqliteRateLimitConfigStore, MemoryCounterStore, type RateLimitService } from '@clawrouter/rate-limits';
+import { createQuotaService, createRateLimitService, createSqliteQuotaStore, createSqliteRateLimitConfigStore, MemoryCounterStore, type QuotaService, type RateLimitService } from '@clawrouter/rate-limits';
 import { createRequestLogService, createSqliteRequestRepository, type RequestLogService } from '@clawrouter/requests';
 import { createSqliteSettingsRepository, migrationStatus, migrations, openSqlite, runMigrations, type Database } from '@clawrouter/database';
 import { createSettingsService, settingDefaults } from '@clawrouter/settings';
@@ -65,6 +65,7 @@ export interface ClawRouter {
   apiKeys: ApiKeyService;
   gateway: GatewayService;
   limits: RateLimitService;
+  quotas: QuotaService;
   requests: RequestLogService;
   setup: SetupService;
   audit: AuditService;
@@ -134,7 +135,15 @@ export async function startClawRouter({ config, log, logBuffer, version, console
   });
   // Requests a previous process left in progress can never finish.
   requests.recoverInterrupted();
-  const gateway = createGatewayService({ routing, providers, models, events, log, limits, requests });
+  // Usage quotas per user, read from the stored hourly usage (they survive restarts).
+  const quotas = createQuotaService({
+    store: createSqliteQuotaStore(db), usage: (userId, since) => requests.userUsageSince(userId, since), audit, events, log,
+    access: {
+      username: (userId) => users.findById(userId)?.username ?? null,
+      assertCanManage: (actor, userId) => userAccessPolicy(authz).assertCanManageUser(actor, userId, "change this user's quota"),
+    },
+  });
+  const gateway = createGatewayService({ routing, providers, models, events, log, limits, requests, quotas });
   let liveHub: RealtimeHub | null = null;
   const healthHistory = createHealthHistoryService({ repo: createSqliteHealthHistoryRepository(db), log, get retentionDays() { return settings.get('healthHistoryDays'); } });
   const health = createHealthService({
@@ -257,7 +266,7 @@ export async function startClawRouter({ config, log, logBuffer, version, console
       return path;
     },
   });
-  const api = createApiApp({ log, logBuffer, audit, health, configuration, lifecycle: { state: () => lifecycle }, healthHistory, auth, authz, userAdmin, settings, twoFactor, mail, notifications, providers, models, routing, apiKeys, keyRequests, gateway, limits, requests, operations, setup, cookie: { secure: config.auth.cookieSecure } });
+  const api = createApiApp({ log, logBuffer, audit, health, configuration, lifecycle: { state: () => lifecycle }, healthHistory, auth, authz, userAdmin, settings, twoFactor, mail, notifications, providers, models, routing, apiKeys, keyRequests, gateway, limits, quotas, requests, operations, setup, cookie: { secure: config.auth.cookieSecure } });
 
   // The console's live channel (spec §25): session-authenticated, same-origin only.
   const realtime = createRealtimeHub({
@@ -334,7 +343,7 @@ export async function startClawRouter({ config, log, logBuffer, version, console
 
   let stopped = false;
   return {
-    server, realtime, healthHistory, operations, db, events, health, auth, authz, notifications, providers, models, routing, apiKeys, gateway, limits, requests, setup, audit, api, url,
+    server, realtime, healthHistory, operations, db, events, health, auth, authz, notifications, providers, models, routing, apiKeys, gateway, limits, quotas, requests, setup, audit, api, url,
     get setupToken() {
       return setupToken;
     },

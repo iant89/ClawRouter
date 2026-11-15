@@ -164,6 +164,11 @@ export function createRequestLogService(options: {
       };
     },
 
+    /** A user's completed requests, tokens and estimated cost since `since` (hourly records: from the start of that hour). */
+    userUsageSince(userId: string, since: Date): { requests: number; tokens: number; costUsd: number } {
+      return repo.userUsageSince(userId, hourOf(since.getTime()));
+    },
+
     /** Applies the retention periods. Returns what was deleted. */
     prune(): { requests: number; usageRecords: number } {
       const t = now().getTime();

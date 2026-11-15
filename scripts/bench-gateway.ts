@@ -51,8 +51,8 @@ const limits = ((await (await h.request('/api/rate-limits', { cookie: admin })).
 const saved = await h.request('/api/rate-limits', {
   method: 'PUT', cookie: admin,
   json: {
-    version: limits.version, perKey: { requestsPerMinute: 1_000_000, tokensPerMinute: null }, perUser: { requestsPerMinute: null, tokensPerMinute: null },
-    perModel: [], global: { requestsPerMinute: null, tokensPerMinute: null, maxConcurrent: 10_000 }, invalidKeysPerIp: 20,
+    version: limits.version, perKey: { window: 'minute', requests: 1_000_000, tokens: null, bucket: null }, perUser: { window: 'minute', requests: null, tokens: null, bucket: null },
+    perModel: [], global: { window: 'minute', requests: null, tokens: null, bucket: null, maxConcurrent: 10_000 }, invalidKeysPerIp: 20,
   },
 });
 if (saved.status !== 200) throw new Error(`could not raise the rate limits: ${await saved.text()}`);

@@ -89,16 +89,16 @@ describe('validateRateLimits', () => {
 
   test('reports bad values with their path', () => {
     const s = structuredClone(DEFAULT_RATE_LIMITS);
-    s.perKey.requestsPerMinute = 0;
+    s.perKey.requests = 0;
     s.global.maxConcurrent = 1.5;
     s.invalidKeysPerIp = 0;
     s.perModel = [
-      { model: 'no-slash', requestsPerMinute: 1, tokensPerMinute: null },
-      { model: 'a/b', requestsPerMinute: null, tokensPerMinute: null },
-      { model: 'A/B', requestsPerMinute: 5, tokensPerMinute: null },
+      { model: 'no-slash', window: 'minute', requests: 1, tokens: null , bucket: null},
+      { model: 'a/b', window: 'minute', requests: null, tokens: null , bucket: null},
+      { model: 'A/B', window: 'minute', requests: 5, tokens: null , bucket: null},
     ];
     expect(validateRateLimits(s).map((i) => i.path)).toEqual([
-      'perKey.requestsPerMinute', 'global.maxConcurrent', 'invalidKeysPerIp', 'perModel[0].model', 'perModel[1]', 'perModel[2].model',
+      'perKey.requests', 'global.maxConcurrent', 'invalidKeysPerIp', 'perModel[0].model', 'perModel[1]', 'perModel[2].model',
     ]);
   });
 });

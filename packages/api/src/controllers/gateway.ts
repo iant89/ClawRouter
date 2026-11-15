@@ -36,18 +36,14 @@ export const modelList = v.optional<string[]>((value, path, issues) => {
   return undefined;
 });
 
-/** `{ requestsPerMinute, tokensPerMinute }` or null (shape only; the service checks the values). */
+const LIMIT_FIELDS = new Set(['window', 'requests', 'tokens', 'bucket', 'requestsPerMinute', 'tokensPerMinute']);
+
+/** `{ window, requests, tokens, bucket }` (or the older per-minute shape) or null. Shape only; the service checks the values. */
 const keyLimit: Validator<RateLimit | null | undefined> = (value, path, issues) => {
   if (value === undefined) return undefined;
   if (value === null) return null;
-  const isLimitValue = (x: unknown) => x === undefined || x === null || typeof x === 'number';
-  if (typeof value === 'object' && !Array.isArray(value)) {
-    const l = value as Record<string, unknown>;
-    if (Object.keys(l).every((k) => k === 'requestsPerMinute' || k === 'tokensPerMinute') && isLimitValue(l.requestsPerMinute) && isLimitValue(l.tokensPerMinute)) {
-      return { requestsPerMinute: (l.requestsPerMinute as number | null | undefined) ?? null, tokensPerMinute: (l.tokensPerMinute as number | null | undefined) ?? null };
-    }
-  }
-  issues.push({ path, message: 'must be { requestsPerMinute, tokensPerMinute } (numbers or null), or null for the default limit' });
+  if (typeof value === 'object' && !Array.isArray(value) && Object.keys(value).every((k) => LIMIT_FIELDS.has(k))) return value as RateLimit;
+  issues.push({ path, message: 'must be { window, requests, tokens, bucket }, or null for the default limit' });
   return undefined;
 };
 

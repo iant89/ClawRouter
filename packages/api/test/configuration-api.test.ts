@@ -20,7 +20,7 @@ async function source() {
     aliases: [{ name: 'chat', description: 'Default chat', enabled: true, capabilities: ['CHAT'], policy: null, targets: [{ modelRef: 'openai/gpt-4o-mini', priority: 0, weight: 1 }, { modelRef: 'local/llama-3', priority: 1, weight: 1 }] }],
   })).status).toBe(200);
   const limits = await data<{ version: number }>(await h.request('/api/rate-limits', { cookie: admin }));
-  expect((await put('/api/rate-limits', { version: limits.version, perKey: { requestsPerMinute: 300, tokensPerMinute: null }, perUser: { requestsPerMinute: null, tokensPerMinute: null }, perModel: [], global: { requestsPerMinute: null, tokensPerMinute: null, maxConcurrent: 250 }, invalidKeysPerIp: 20 })).status).toBe(200);
+  expect((await put('/api/rate-limits', { version: limits.version, perKey: { window: 'minute', requests: 300, tokens: null , bucket: null }, perUser: { window: 'minute', requests: null, tokens: null , bucket: null }, perModel: [], global: { window: 'minute', requests: null, tokens: null, bucket: null, maxConcurrent: 250 }, invalidKeysPerIp: 20 })).status).toBe(200);
   expect((await h.request('/api/roles', { method: 'POST', cookie: admin, json: { name: 'Developer', description: 'Own keys', permissions: ['models.read', 'api_keys.own'] } })).status).toBe(201);
   expect((await put('/api/settings', { values: { sessionIdleMinutes: 90, keyMaxLifetimeDays: 14 } })).status).toBe(200);
 
@@ -42,7 +42,7 @@ describe('configuration export/import (phase 17)', () => {
     expect(doc.providers.map((p) => [p.identifier, p.hadApiKey])).toEqual([['openai', true], ['local', false]]);
     expect(doc.models.map((m) => `${m.provider}/${m.providerModelId}`)).toEqual(['openai/gpt-4o-mini', 'local/llama-3']);
     expect(doc.routing.aliases.map((a) => a.name)).toEqual(['chat']);
-    expect(doc.rateLimits.perKey.requestsPerMinute).toBe(300);
+    expect(doc.rateLimits.perKey.requests).toBe(300);
     expect(doc.roles).toEqual([{ name: 'Developer', description: 'Own keys', permissions: ['api_keys.own', 'models.read'] }]);
     expect(doc.settings.system).toEqual({ sessionIdleMinutes: 90, keyMaxLifetimeDays: 14 });
     expect(doc.settings.mail).toEqual({ enabled: true, host: 'smtp.example.test', port: 587, security: 'starttls', username: 'mailer', from: 'ClawRouter <c@example.test>' });
