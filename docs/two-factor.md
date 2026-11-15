@@ -27,7 +27,7 @@ and **who must use one**; users set up their own methods.
 
 | Method | How it works |
 |---|---|
-| **Authenticator app** | RFC 6238 TOTP: SHA-1, 6 digits, 30 seconds, ±1 step of clock drift. The secret is shown once (as text and an `otpauth://` link; no QR code), stored encrypted, and confirmed with a first code. A code cannot be used twice (`totp_last_step`). |
+| **Authenticator app** | RFC 6238 TOTP: SHA-1, 6 digits, 30 seconds, ±1 step of clock drift. The secret is shown once (as a QR code drawn in the browser, a read-only setup key with a copy button, and an `otpauth://` link), stored encrypted, and confirmed with a first code. A code cannot be used twice (`totp_last_step`). |
 | **Email codes** | A 6-digit code sent to the user's email address, valid 10 minutes. Turning it on sends a code to confirm the address. A new address (changed by the user, or by an administrator) turns email codes off until confirmed again. |
 | **Recovery codes** | 10 one-time codes (`xxxx-xxxx`), shown once when the first method is turned on, stored hashed. New codes (with the password) replace the old ones. |
 
@@ -80,7 +80,7 @@ Audit actions: `TWO_FACTOR_ENABLED`, `TWO_FACTOR_DISABLED`, `TWO_FACTOR_RESET`,
 
 ## Limitations
 
-- No QR code: the setup key is shown as text with an `otpauth://` link.
+- The QR code is drawn in the browser (`components/custom/qr-code.ts`, byte mode, level M, versions 1–20), so the secret never leaves the page; tests decode every version with zxing's reader (vendored by ENTERPRISE-UI).
 - The SMTP client was tested against a local mock server without encryption.
   The TLS and STARTTLS paths have not been tried against a real mail server.
 - No passkeys or WebAuthn.

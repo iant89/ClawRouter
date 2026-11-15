@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Button, Card, CopyButton, Input, Link, MessageStrip, PasswordInput, StatusIndicator, Text } from '@enterprise-ui/react';
+import { QrCode } from '../../components/custom/QrCode.tsx';
+import { CopyIconButton } from '../../components/custom/CopyIconButton.tsx';
 import type { TotpSetup, TwoFactorMethod, TwoFactorStatus } from '@clawrouter/shared';
 import { ApiClientError } from '../../services/api-client.ts';
 import {
@@ -153,12 +155,20 @@ function TotpCard({ enabled, onChanged }: { enabled: boolean; onChanged: (codes?
         {!enabled && !setup && <div><Button variant="primary" loading={busy} onClick={() => void run(async () => setSetup(await startTotp()), 'Could not start.')}>Set up</Button></div>}
         {setup && (
           <>
-            <Text as="p">1. In your authenticator app, add an account and enter this key (or, on your phone, <Link href={setup.uri}>open it in the app</Link>):</Text>
-            <div style={{ display: 'flex', gap: 'var(--eui-space-2, 0.5rem)', alignItems: 'center', flexWrap: 'wrap' }}>
-              <code className="claw-mono claw-secret" aria-label="Setup key">{grouped(setup.secret)}</code>
-              <CopyButton value={setup.secret} label="Copy key" />
-            </div>
-            <Text size="sm" tone="secondary">Time-based, 6 digits, every 30 seconds. The key is shown only now.</Text>
+            <Text as="p">1. Scan this code with your authenticator app:</Text>
+            <QrCode value={setup.uri} label="QR code for your authenticator app" />
+            <Text as="p">Or add an account in the app and enter the setup key (on this phone, <Link href={setup.uri}>open it in the app</Link>):</Text>
+            <Input
+              label="Setup key"
+              readOnly
+              className="claw-mono"
+              value={grouped(setup.secret)}
+              onFocus={(e) => e.currentTarget.select()}
+              endAdornment={<CopyIconButton value={setup.secret} label="Copy setup key" />}
+              description="Time-based, 6 digits, every 30 seconds. The key is shown only now."
+              style={{ letterSpacing: '0.04em' }}
+              boxClassName="claw-setup-key"
+            />
             <Text as="p">2. Enter the code the app shows:</Text>
             <div style={{ display: 'flex', gap: 'var(--eui-space-2, 0.5rem)', alignItems: 'end', flexWrap: 'wrap' }}>
               <Input label="Code from the app" inputMode="numeric" autoComplete="one-time-code" className="claw-mono" value={code} onChange={(e) => setCode(e.target.value)} style={{ maxWidth: '10rem' }} />

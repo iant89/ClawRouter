@@ -223,3 +223,24 @@ body {
   grid-template-columns: auto auto;
   justify-content: start;
 }
+
+/* Authenticator setup: the QR code tile and the read-only setup key. */
+.claw-qr-code {
+  display: block;
+  inline-size: 12rem;
+  block-size: auto;
+  max-inline-size: 100%;
+  border-radius: var(--eui-radius-md, 4px);
+}
+.claw-setup-key {
+  max-inline-size: 28rem;
+}
+/* Read by screen readers, not shown. */
+.claw-visually-hidden {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

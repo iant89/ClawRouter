@@ -331,3 +331,12 @@ its own: move away, click elsewhere, start typing, or press Escape.
 | ![Model](22-field-help/6-model.png) | **Add model**: the price fields share one tip |
 | ![Routing](22-field-help/7-routing-policy.png) | **Routing policy**: what counts as a failure |
 | ![User](22-field-help/8-create-user.png) | **Create user**: username, email and temporary password |
+
+## 23 · Authenticator setup with a QR code
+
+User menu → Sign-in security → Authenticator app → Set up (a throwaway test account).
+
+| | |
+|---|---|
+| ![Setup](23-totp-qr/1-setup.png) | The QR code, then the setup key in a read-only field with a copy button on its right (here just used: the key is on the clipboard) |
+| ![Phone](23-totp-qr/2-phone.png) | At phone width |

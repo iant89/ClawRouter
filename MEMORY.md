@@ -215,11 +215,11 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
   sign-in does not help, the password step comes first); the console CSP allows
   inline styles (design system needs them; scripts are strict).
 
-- **WARNING** · 2026-11-13 · Two-factor mail and setup limits
+- **WARNING** · 2026-11-13 · Two-factor mail limits
   The SMTP client (`packages/mail/src/smtp.ts`) was only tested against
   `tests/support/mock-smtp.ts` without encryption: TLS and STARTTLS have not met a
-  real mail server. No QR code for the authenticator app (text key plus
-  `otpauth://` link). See `docs/two-factor.md`.
+  real mail server. See `docs/two-factor.md`. (The missing QR code was added on
+  2026-11-15: `components/custom/qr-code.ts`, drawn in the browser.)
 
 - **WARNING** · 2026-11-14 · Performance limits left in place (phase 16)
   - Usage charts over a whole year take ~220 ms at 290k hourly rows (shorter ranges
@@ -327,9 +327,16 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 
 ### Messages
 
+- **MESSAGE** · 2026-11-15 · Authenticator QR code waits for review
+  The owner asked for a QR code, with the setup key in a read-only field and a copy
+  button on its right. On `claude/totp-qr-code`: our own QR encoder (no QR library
+  is vendored; installing one was refused by the session's safety check), checked
+  in tests with zxing's reader; `QrCode.tsx`; `CopyIconButton.tsx` (ENTERPRISE-UI's
+  CopyButton always shows text, too wide inside a field). Merge only on the owner's word.
+
 - **MESSAGE** · 2026-11-15 · Everything is merged; what comes next is the owner's call
   `main` holds every roadmap phase (1–17), the settings tabs and the field help tips.
-  No branch waits for review. Candidates: the spec §41 future roadmap, or the open
+  Since then only the QR code branch above waits. Candidates: the spec §41 future roadmap, or the open
   warnings above (real provider tests, multi-node shared state, CI's first run).
 
 ---
