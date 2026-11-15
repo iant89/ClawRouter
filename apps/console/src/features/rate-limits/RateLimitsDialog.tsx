@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Button, Dialog, Form, IconButton, MessageStrip, NumberInput, Select, Text } from '@enterprise-ui/react';
+import { WithFieldHelp } from '../../components/custom/FieldHelp.tsx';
 import type { FieldIssue, ModelInfo, ModelRateLimit, RateLimitSettings } from '@clawrouter/shared';
 import { LimitFields } from './LimitFields.tsx';
 
@@ -104,8 +105,10 @@ export function RateLimitsDialog({ open, value, models, onClose, onSave, saving,
         <fieldset style={group}>
           <legend><Text as="strong">Invalid API keys</Text></legend>
           <div style={grid}>
-            <NumberInput label="Failed key checks per address per minute" description="Then every request from that address gets 429 until the minute has passed."
-              min={1} max={10_000} step={1} value={draft.invalidKeysPerIp} onChange={(n) => set('invalidKeysPerIp', n ?? 1)} error={issue('invalidKeysPerIp')} />
+            <WithFieldHelp label="Failed key checks per address per minute" help="Requests with a missing or wrong API key, counted per client address. Past the limit, every request from that address gets 429 until the minute has passed, even with a valid key.">
+              <NumberInput label="Failed key checks per address per minute"
+                min={1} max={10_000} step={1} value={draft.invalidKeysPerIp} onChange={(n) => set('invalidKeysPerIp', n ?? 1)} error={issue('invalidKeysPerIp')} />
+            </WithFieldHelp>
           </div>
         </fieldset>
       </Form>

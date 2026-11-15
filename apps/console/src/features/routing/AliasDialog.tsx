@@ -3,6 +3,7 @@ import { Button, Checkbox, Dialog, Form, IconButton, Input, MessageStrip, Number
 import { ALIAS_NAME_PATTERN, CAPABILITIES, DEFAULT_ROUTING_POLICY, type AliasTarget, type Capability, type ModelAlias, type ModelInfo } from '@clawrouter/shared';
 import { CAPABILITY_LABEL } from '../models/ModelDialog.tsx';
 import { PolicyFields } from './PolicyFields.tsx';
+import { FieldHelp } from '../../components/custom/FieldHelp.tsx';
 
 const blank = (): ModelAlias => ({ name: '', description: '', enabled: true, capabilities: [], targets: [], policy: null });
 
@@ -62,7 +63,8 @@ export function AliasDialog({ open, alias, models, existingNames, onClose, onSav
       <Form onSubmit={(e) => { e.preventDefault(); submit(); }} noValidate>
         {(error ?? serverError) && <MessageStrip tone="error" announce="assertive">{error ?? serverError}</MessageStrip>}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(14rem, 1fr))', gap: 'var(--eui-space-3, 0.75rem)' }}>
-          <Input label="Name" required className="claw-mono" description='What clients send as "model", e.g. fast-code.' value={value.name} onChange={(e) => set('name', e.target.value)} />
+          <Input label="Name" required className="claw-mono" value={value.name} onChange={(e) => set('name', e.target.value)}
+            endAdornment={<FieldHelp label="Name">What clients send as "model", e.g. fast-code. Requests for it go to its target models, or to models with the chosen capabilities.</FieldHelp>} />
           <Input label="Description" value={value.description} onChange={(e) => set('description', e.target.value)} />
         </div>
 

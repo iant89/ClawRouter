@@ -1,3 +1,4 @@
+import { FieldHelp, WithFieldHelp } from '../../components/custom/FieldHelp.tsx';
 import { KeyLifetimeField } from '../../components/custom/KeyLifetimeField.tsx';
 import { useEffect, useMemo, useState } from 'react';
 import { Button, Dialog, Form, Input, MessageStrip, NumberInput, PasswordInput, Select, Switch, Text } from '@enterprise-ui/react';
@@ -86,7 +87,7 @@ export function ProviderDialog({ open, provider, kinds, onClose, onSaved }: Prov
   const keyLabel = provider?.credential.configured ? 'Replace API key' : 'API key';
   const keyHelp = provider?.credential.configured
     ? `A key is stored${provider.credential.hint ? ` (ends in ${provider.credential.hint})` : ''}. Leave blank to keep it.`
-    : kind?.apiKeyRequired ? 'Required to connect. Stored encrypted on the server and never shown again.' : 'Optional for this provider type.';
+    : kind?.apiKeyRequired ? 'Required to connect.' : 'Optional for this provider type.';
 
   return (
     <Dialog
@@ -127,7 +128,8 @@ export function ProviderDialog({ open, provider, kinds, onClose, onSaved }: Prov
           required
           readOnly={!!provider}
           className="claw-mono"
-          description={provider ? 'Used by routing rules; cannot be changed.' : 'Used by routing rules. Lowercase letters, digits and dashes.'}
+          description={provider ? 'Cannot be changed.' : 'Lowercase letters, digits and dashes.'}
+          endAdornment={<FieldHelp label="Identifier">Names this provider in routing rules and in model references such as openai/gpt-4o.</FieldHelp>}
           value={values.identifier}
           onChange={(e) => {
             setIdentifierTouched(true);
@@ -151,19 +153,22 @@ export function ProviderDialog({ open, provider, kinds, onClose, onSaved }: Prov
           <NumberInput label="Timeout" unit="s" min={1} max={600} step={1} value={values.timeoutSeconds} onChange={(n) => set('timeoutSeconds', n ?? 60)} error={errors.timeoutSeconds} />
         </div>
         <div>
-          <KeyLifetimeField value={values.maxKeyLifetimeHours} onChange={(h) => set('maxKeyLifetimeHours', h)} error={errors.maxKeyLifetimeHours} description="Optional. API keys that use this provider's models must expire within it, and older keys stop working with them. Models can set a stricter limit. Blank: no limit." />
+          <KeyLifetimeField value={values.maxKeyLifetimeHours} onChange={(h) => set('maxKeyLifetimeHours', h)} error={errors.maxKeyLifetimeHours}
+            help="API keys that use this provider's models must expire within it, and older keys stop working with them. Models can set a stricter limit." />
         </div>
         {/* purpose="current": no strength meter, which means nothing for an API key. */}
-        <PasswordInput
-          label={keyLabel}
-          purpose="current"
-          autoComplete="off"
-          spellCheck={false}
-          description={keyHelp}
-          value={values.apiKey}
-          onChange={(e) => set('apiKey', e.target.value)}
-          error={errors.apiKey}
-        />
+        <WithFieldHelp label={keyLabel} help="Stored encrypted on the server and never shown again, not even to administrators. It is only sent to this provider's endpoint.">
+          <PasswordInput
+            label={keyLabel}
+            purpose="current"
+            autoComplete="off"
+            spellCheck={false}
+            description={keyHelp}
+            value={values.apiKey}
+            onChange={(e) => set('apiKey', e.target.value)}
+            error={errors.apiKey}
+          />
+        </WithFieldHelp>
         {provider?.credential.configured && (
           <div>
             <Button size="sm" variant="tertiary" disabled={saving} onClick={() => void removeKey()}>Remove stored API key</Button>

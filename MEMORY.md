@@ -14,6 +14,16 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 
 ### Important
 
+- **IMPORTANT** · 2026-11-15 · Owner rule: field explanations go in an "i" tip, everywhere
+  The owner approved the field help tip ("Perfect") and asked for it in the entire
+  application. A field's longer explanation sits behind an "i" (`FieldHelp` in an
+  Input's `endAdornment`; `WithFieldHelp` beside any other control); only what is
+  needed to fill it in stays under it (range, format, empty = ..., warnings). New
+  forms follow this: see "Field help" in `docs/console-shell.md`. The tip's look was
+  chosen by the owner: Bootstrap-shaped, page colour behind the cards, accent-blue
+  border (`--eui-color-primary`), shadow, arrow, centred on the field. Escape closes
+  only the tip, not the dialog around it.
+
 - **IMPORTANT** · 2026-11-13 · Owner rule: two-factor sign-in is configured by administrators
   "Should be configured in settings by administrator": allowed methods (authenticator
   app, email codes) and who must use it (off / administrators / everyone) are
@@ -316,23 +326,6 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
     unavailable"); retry with a short backoff and confirm with `git ls-remote`.
 
 ### Messages
-
-- **MESSAGE** · 2026-11-15 · Field help tips: design approved by the owner ("Perfect")
-  The owner asked for field descriptions behind an "i" button on the right of the
-  field, keeping the "Allowed ..." text under it, then for it to act "more like a
-  tooltip": no close button, closes on typing or clicking away. Built as a custom
-  toggletip, `components/custom/FieldHelp.tsx` (in the field's `endAdornment`), then
-  restyled like a Bootstrap tooltip (owner's request, with a reference picture), centred
-  on the field, in the colour of the page behind the cards with an accent-blue border
-  (--eui-color-primary) and a deep shadow (owner's requests):
-  hover, keyboard focus or tap opens it; a click keeps it open. ENTERPRISE-UI's
-  Tooltip was not used because it opens on hover and focus only (not on touch).
-  The tip is in a portal (cards clip their content) and sets the font itself.
-  Tried only on Settings' numeric fields, on `claude/field-help` (branches from
-  `claude/settings-tabs`). Approved 2026-11-15; still only on Settings. Next, when the
-  owner asks: apply it to the other forms with long field descriptions (providers,
-  models, routing, rate limits, API keys, mail server). Merge order: phase 17, settings
-  tabs, then this branch, only on the owner's word.
 
 - **MESSAGE** · 2026-11-14 · Settings in tabs waits for review
   The owner asked for the Settings page to be "separated and organized into tabs".

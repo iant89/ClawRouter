@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Button, Dialog, Form, Input, MessageStrip, MultiSelect, Text, TextArea } from '@enterprise-ui/react';
+import { FieldHelp, WithFieldHelp } from '../../components/custom/FieldHelp.tsx';
 import type { ApiKeyRequestInfo } from '@clawrouter/shared';
 import { requestKey } from '../../services/key-requests.ts';
 import { defaultDraft, ExpiryField, toKeyExpiry, type ExpiryDraft } from '../api-access/ExpiryField.tsx';
@@ -60,8 +61,11 @@ export function RequestKeyDialog({ open, modelOptions, onClose, onSent }: { open
         <Text as="p" size="sm" tone="secondary">
           People who can create API keys, outside your own roles, are notified. Once one approves, you create the key here and see it once.
         </Text>
-        <Input label="Name" required description="Who or what will use the key, e.g. reporting-script." value={name} onChange={(e) => setName(e.target.value)} maxLength={100} />
-        <TextArea label="What is it for?" required description="Helps the approver decide." value={purpose} onChange={(e) => setPurpose(e.target.value)} maxLength={500} showCount autoResize />
+        <Input label="Name" required value={name} onChange={(e) => setName(e.target.value)} maxLength={100}
+          endAdornment={<FieldHelp label="Name">Who or what will use the key, e.g. reporting-script.</FieldHelp>} />
+        <WithFieldHelp label="What is it for?" help="Helps the approver decide. Approvers are people who can create keys and do not share a role with you.">
+          <TextArea label="What is it for?" required value={purpose} onChange={(e) => setPurpose(e.target.value)} maxLength={500} showCount autoResize />
+        </WithFieldHelp>
         {modelOptions.length > 0 && (
           <MultiSelect label="Models" description="Leave empty to ask for every model; the approver may narrow it." options={modelOptions} value={models} onChange={setModels} placeholder="Any model" />
         )}

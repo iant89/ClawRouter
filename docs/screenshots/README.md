@@ -314,7 +314,7 @@ Administration → Settings, organized in tabs (see [administration](../administ
 
 ## 22 · Field help tips
 
-A trial on Settings: each field's explanation moves into a Bootstrap-shaped tooltip (page
+Across the console, each field's explanation moves into a Bootstrap-shaped tooltip (page
 colour behind the cards, an accent border and a shadow, centred text, an arrow, centred on the
 field) behind an "i" button
 inside the field (`components/custom/FieldHelp.tsx`); the allowed range and default
@@ -327,3 +327,7 @@ its own: move away, click elsewhere, start typing, or press Escape.
 | ![Kept open](22-field-help/2-pinned.png) | Clicked: it stays open until you click elsewhere or type |
 | ![Retention](22-field-help/3-retention-hover.png) | The same on the Data retention tab |
 | ![Phone](22-field-help/4-phone-tap.png) | On a phone, a tap opens it; a tap on the tip or anywhere else closes it |
+| ![Provider](22-field-help/5-provider.png) | **Add provider**: "i" inside the identifier field, and beside the key lifetime and the API key (controls with their own buttons); the API key tip |
+| ![Model](22-field-help/6-model.png) | **Add model**: the price fields share one tip |
+| ![Routing](22-field-help/7-routing-policy.png) | **Routing policy**: what counts as a failure |
+| ![User](22-field-help/8-create-user.png) | **Create user**: username, email and temporary password |

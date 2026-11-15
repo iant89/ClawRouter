@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Button, CopyButton, Dialog, Form, Input, MessageStrip, MultiSelect, Text } from '@enterprise-ui/react';
+import { FieldHelp } from '../../components/custom/FieldHelp.tsx';
 import type { CreateApiKeyRequest, CreatedApiKey, RateLimit } from '@clawrouter/shared';
 import { KeyLimitFields } from './KeyLimitDialog.tsx';
 import { defaultDraft, ExpiryField, toKeyExpiry, type ExpiryDraft } from './ExpiryField.tsx';
@@ -78,7 +79,8 @@ export function CreateKeyDialog({ open, modelOptions, onClose, onCreate, created
       <Form onSubmit={(e) => { e.preventDefault(); submit(); }} noValidate>
         {(error ?? serverError) && <MessageStrip tone="error" announce="assertive">{error ?? serverError}</MessageStrip>}
         {intro}
-        <Input label="Name" required description="Who or what uses this key, e.g. ci-pipeline." value={name} onChange={(e) => setName(e.target.value)} maxLength={100} />
+        <Input label="Name" required value={name} onChange={(e) => setName(e.target.value)} maxLength={100}
+          endAdornment={<FieldHelp label="Name">Who or what uses this key, e.g. ci-pipeline. Shown in request history and usage.</FieldHelp>} />
         <MultiSelect label="Allowed models" description="Leave empty to allow every model and alias." options={modelOptions} value={models} onChange={setModels} placeholder="Any model" />
         <ExpiryField value={expiry} onChange={setExpiry} maxHours={maxHours} />
         {withLimits && <KeyLimitFields value={rateLimit} onChange={setRateLimit} />}

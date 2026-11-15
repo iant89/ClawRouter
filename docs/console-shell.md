@@ -48,3 +48,24 @@ as read* and links to the related pages. New notifications arrive over the live
 connection ([real-time](realtime.md)); without it the console polls every 30 seconds and
 when the tab becomes visible. A new warning or error also appears as a toast.
 
+
+## Field help
+
+A form field's longer explanation sits behind an "i" button rather than under the
+field (owner's request): `components/custom/FieldHelp.tsx`. What stays under the
+field is only what is needed to fill it in correctly: allowed range and default,
+format, what leaving it empty means, warnings, and "Press Enter to apply".
+
+- `Input`: `endAdornment={<FieldHelp label="…">text</FieldHelp>}` puts the "i" inside
+  the field.
+- Any other control (`NumberInput`, `Select`, `MultiSelect`, `TextArea`,
+  `PasswordInput`, or a group such as `KeyLifetimeField`): wrap it in
+  `<WithFieldHelp label="…" help="…">`, which puts the "i" just outside its right
+  edge, lined up with the control.
+- The tip looks like a Bootstrap tooltip: the page colour behind the cards, an
+  accent-blue border, a shadow and an arrow, centred on the field. It opens on hover,
+  keyboard focus or a tap; a click keeps it open; it closes when the mouse leaves,
+  on a click or tap elsewhere, when typing starts, or on Escape (which then does not
+  close the surrounding dialog). Screen readers get the text as the button's
+  description.
+- Checkbox and radio option text is not field help: it stays visible.

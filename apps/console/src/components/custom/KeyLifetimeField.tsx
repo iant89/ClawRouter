@@ -1,6 +1,7 @@
-import { useEffect, useId, useState } from 'react';
+import { useEffect, useId, useState, type ReactNode } from 'react';
 import { NumberInput, Select, Text } from '@enterprise-ui/react';
 import { KEY_EXPIRY_MAX_HOURS } from '@clawrouter/shared';
+import { WithFieldHelp } from './FieldHelp.tsx';
 
 type Unit = 'hours' | 'days';
 
@@ -8,11 +9,14 @@ type Unit = 'hours' | 'days';
  * Maximum API key lifetime for a provider or model (owner's request), in hours.
  * Blank means no limit. Shown as hours or days; the server stores hours.
  */
-export function KeyLifetimeField({ value, onChange, error, description }: {
+export function KeyLifetimeField({ value, onChange, error, description = 'Optional. Blank: no limit.', help }: {
   value: number | null;
   onChange: (hours: number | null) => void;
   error?: string;
+  /** Short note under the field. */
   description?: string;
+  /** What the limit does, in the "i" tip beside the field. */
+  help?: ReactNode;
 }) {
   const helpId = useId();
   const [unit, setUnit] = useState<Unit>(value !== null && value % 24 !== 0 ? 'hours' : 'days');
@@ -24,7 +28,8 @@ export function KeyLifetimeField({ value, onChange, error, description }: {
 
   return (
     <div style={{ display: 'grid', gap: 'var(--eui-space-1, 0.25rem)' }}>
-      {/* Number and unit side by side at a fixed width; the explanation spans below. */}
+      {/* Number and unit side by side at a fixed width, the "i" beside them; the note below. */}
+      <WithFieldHelp label="Maximum key lifetime" inline help={help ?? 'API keys that use this must expire within it, and older keys stop working here.'}>
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(9rem, 13rem) minmax(7rem, 9rem)', gap: 'var(--eui-space-2, 0.5rem)', alignItems: 'start' }}>
         <NumberInput
           label="Maximum key lifetime"
@@ -49,8 +54,9 @@ export function KeyLifetimeField({ value, onChange, error, description }: {
           options={[{ value: 'days', label: 'Days' }, { value: 'hours', label: 'Hours' }]}
         />
       </div>
+      </WithFieldHelp>
       <Text id={helpId} size="sm" tone="secondary">
-        {description ?? 'Optional. API keys that use this must expire within it, and older keys stop working here. Blank: no limit.'}
+        {description}
       </Text>
     </div>
   );

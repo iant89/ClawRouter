@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Button, Checkbox, Dialog, Form, Input, MessageStrip, NumberInput, Select, Switch, Text } from '@enterprise-ui/react';
 import { CAPABILITIES, formatLifetime, type Capability, type ModelInfo, type ProviderInfo } from '@clawrouter/shared';
 import { KeyLifetimeField } from '../../components/custom/KeyLifetimeField.tsx';
+import { FieldHelp, WithFieldHelp } from '../../components/custom/FieldHelp.tsx';
 import { ApiClientError } from '../../services/api-client.ts';
 import { createModel, updateModel } from '../../services/models.ts';
 
@@ -37,6 +38,9 @@ function initial(model: ModelInfo | null, providers: ProviderInfo[]): Values {
   }
   return { providerId: providers[0]?.id ?? '', providerModelId: '', displayName: '', capabilities: ['CHAT'], contextLength: null, maxOutputTokens: null, inputPrice: null, outputPrice: null, enabled: true, maxKeyLifetimeHours: null };
 }
+
+/** Shown beside both price fields. */
+const PRICE_HELP = 'Per million tokens, used to estimate cost on the Usage page. Providers do not publish prices through their APIs, so enter them from the provider\'s price list.';
 
 /** Add a model by hand (for providers that cannot list models) or edit one. */
 export function ModelDialog({ open, model, providers, onClose, onSaved }: {
@@ -129,7 +133,8 @@ export function ModelDialog({ open, model, providers, onClose, onSaved }: {
           required
           readOnly={!!model}
           className="claw-mono"
-          description={model ? `Public reference: ${model.ref}` : 'Exactly as the provider names it, e.g. gpt-4o-mini or llama3.1:8b.'}
+          description={model ? `Public reference: ${model.ref}` : undefined}
+          endAdornment={<FieldHelp label="Provider model id">Exactly as the provider names it, e.g. gpt-4o-mini or llama3.1:8b. Clients call it as provider/id, its public reference.</FieldHelp>}
           value={values.providerModelId}
           onChange={(ev) => set('providerModelId', ev.target.value)}
           error={errors.providerModelId}
@@ -145,16 +150,20 @@ export function ModelDialog({ open, model, providers, onClose, onSaved }: {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(11rem, 1fr))', gap: 'var(--eui-space-3, 0.75rem)' }}>
           <NumberInput label="Context length" unit="tokens" min={1} step={1024} value={values.contextLength} onChange={(n) => set('contextLength', n)} error={errors.contextLength} />
           <NumberInput label="Max output" unit="tokens" min={1} step={1024} value={values.maxOutputTokens} onChange={(n) => set('maxOutputTokens', n)} error={errors.maxOutputTokens} />
-          <NumberInput label="Input price" unit="$ / 1M" min={0} step={0.05} precision={4} value={values.inputPrice} onChange={(n) => set('inputPrice', n)} error={errors.inputPrice} />
-          <NumberInput label="Output price" unit="$ / 1M" min={0} step={0.05} precision={4} value={values.outputPrice} onChange={(n) => set('outputPrice', n)} error={errors.outputPrice} />
+          <WithFieldHelp label="Input price" help={PRICE_HELP}>
+            <NumberInput label="Input price" unit="$ / 1M" min={0} step={0.05} precision={4} value={values.inputPrice} onChange={(n) => set('inputPrice', n)} error={errors.inputPrice} />
+          </WithFieldHelp>
+          <WithFieldHelp label="Output price" help={PRICE_HELP}>
+            <NumberInput label="Output price" unit="$ / 1M" min={0} step={0.05} precision={4} value={values.outputPrice} onChange={(n) => set('outputPrice', n)} error={errors.outputPrice} />
+          </WithFieldHelp>
         </div>
         <KeyLifetimeField
           value={values.maxKeyLifetimeHours}
           onChange={(h) => set('maxKeyLifetimeHours', h)}
           error={errors.maxKeyLifetimeHours}
-          description={`Optional. API keys that use this model must expire within it, and older keys stop working with it.${providerLimit ? ` The provider allows at most ${formatLifetime(providerLimit)}; the stricter limit applies.` : ''} Blank: no limit of its own.`}
+          description={providerLimit ? `Optional. The provider allows at most ${formatLifetime(providerLimit)}.` : 'Optional. Blank: no limit of its own.'}
+          help="API keys that use this model must expire within it, and older keys stop working with it. When the provider also sets a limit, the stricter one applies."
         />
-        <Text as="p" size="sm" tone="secondary">Prices are used to estimate cost (phase 10). Providers do not publish prices through their APIs, so enter them from the provider's price list.</Text>
         <Switch label="Enabled" checked={values.enabled} onChange={(on) => set('enabled', on)} />
       </Form>
     </Dialog>

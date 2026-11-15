@@ -208,3 +208,18 @@ body {
     inset: -0.5rem;
   }
 }
+
+/* WithFieldHelp: the control, then the "i" just outside its right edge. */
+.claw-field-help-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: var(--eui-space-1, 0.25rem);
+  align-items: start;
+}
+.claw-field-help-field {
+  min-inline-size: 0;
+}
+.claw-field-help-row-inline {
+  grid-template-columns: auto auto;
+  justify-content: start;
+}

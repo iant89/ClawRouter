@@ -4,6 +4,7 @@ import {
 } from '@enterprise-ui/react';
 import type { RoleInfo, UserWithRoles } from '@clawrouter/shared';
 import { RoleTags } from '../../components/custom/RoleTags.tsx';
+import { FieldHelp } from '../../components/custom/FieldHelp.tsx';
 import { useResource } from '../../hooks/useResource.ts';
 import { fetchRoles, fetchUsers, updateUser } from '../../services/access.ts';
 import { ApiClientError } from '../../services/api-client.ts';
@@ -272,7 +273,8 @@ function EditDetailsDialog({ user, isSelf, onClose, onDone }: { user: UserWithRo
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             error={errors.email}
-            description={user?.twoFactor.includes('email') && emailChanged ? 'Email codes are turned off for this user until they confirm the new address.' : 'Optional. Sign-in codes by email go here.'}
+            description={user?.twoFactor.includes('email') && emailChanged ? 'Email codes are turned off for this user until they confirm the new address.' : 'Optional.'}
+            endAdornment={<FieldHelp label="Email address">Sign-in codes by email go here, when two-factor sign-in allows them.</FieldHelp>}
           />
         )}
       </div>

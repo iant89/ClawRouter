@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Button, Checkbox, Dialog, Input, MessageStrip, Text } from '@enterprise-ui/react';
+import { FieldHelp } from '../../components/custom/FieldHelp.tsx';
 import { PERMISSION_DESCRIPTIONS, PERMISSION_GROUPS, PERMISSIONS, type Permission, type RoleInfo } from '@clawrouter/shared';
 import { createRole, updateRole } from '../../services/access.ts';
 import { ApiClientError } from '../../services/api-client.ts';
@@ -87,7 +88,8 @@ export function RoleDialog({ open, role, own, template, onClose, onSaved }: Role
           <MessageStrip tone="information">{role.memberCount} user{role.memberCount === 1 ? '' : 's'} hold{role.memberCount === 1 ? 's' : ''} this role. Changes apply to them immediately.</MessageStrip>
         )}
         <Input label="Name" required value={name} onChange={(e) => setName(e.target.value)} error={nameError} maxLength={64} />
-        <Input label="Description" value={description} onChange={(e) => setDescription(e.target.value)} maxLength={300} description="Optional. Shown next to the role when assigning it." />
+        <Input label="Description" value={description} onChange={(e) => setDescription(e.target.value)} maxLength={300} description="Optional."
+          endAdornment={<FieldHelp label="Description">Shown next to the role when assigning it to users.</FieldHelp>} />
         <div className="claw-permission-groups">
           {PERMISSION_GROUPS.map((group) => (
             <fieldset key={group.area} style={{ border: 0, margin: 0, padding: 0, display: 'grid', gap: 'var(--eui-space-2, 0.5rem)', alignContent: 'start' }}>

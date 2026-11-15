@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Button, Checkbox, Dialog, Input, MessageStrip, Text } from '@enterprise-ui/react';
+import { FieldHelp } from '../../components/custom/FieldHelp.tsx';
 import { PASSWORD_POLICY, USERNAME_PATTERN, type RoleInfo, type UserWithRoles } from '@clawrouter/shared';
 import { createUser } from '../../services/access.ts';
 import { ApiClientError } from '../../services/api-client.ts';
@@ -75,9 +76,11 @@ export function CreateUserDialog({ open, roles, own, canAssign, onClose, onCreat
     >
       <div style={{ display: 'grid', gap: 'var(--eui-space-3, 0.75rem)' }}>
         {error && <MessageStrip tone="error" announce="assertive">{error}</MessageStrip>}
-        <Input label="Username" required autoCapitalize="none" spellCheck={false} value={values.username} onChange={(e) => set('username')(e.target.value)} error={errors.username} description="Used to sign in. Cannot be changed later." />
+        <Input label="Username" required autoCapitalize="none" spellCheck={false} value={values.username} onChange={(e) => set('username')(e.target.value)} error={errors.username} description="Cannot be changed later."
+          endAdornment={<FieldHelp label="Username">What the user signs in with. It appears in the audit log.</FieldHelp>} />
         <Input label="Display name" required value={values.displayName} onChange={(e) => set('displayName')(e.target.value)} error={errors.displayName} />
-        <Input label="Email address" type="email" autoComplete="off" spellCheck={false} autoCapitalize="none" value={values.email} onChange={(e) => set('email')(e.target.value)} error={errors.email} description="Optional. Needed for sign-in codes by email." />
+        <Input label="Email address" type="email" autoComplete="off" spellCheck={false} autoCapitalize="none" value={values.email} onChange={(e) => set('email')(e.target.value)} error={errors.email} description="Optional."
+          endAdornment={<FieldHelp label="Email address">Needed for sign-in codes by email, when two-factor sign-in allows them.</FieldHelp>} />
         <TemporaryPasswordField value={values.password} onChange={set('password')} error={errors.password} />
         {canAssign ? (
           <fieldset style={{ border: 0, margin: 0, padding: 0, display: 'grid', gap: 'var(--eui-space-2, 0.5rem)' }}>

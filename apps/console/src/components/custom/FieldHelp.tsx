@@ -18,7 +18,8 @@ function fieldOf(button: HTMLElement | null): HTMLElement | null {
 
 /**
  * An "i" button for a form field's longer explanation, shown like a tooltip
- * instead of under the field. Put it in the field's `endAdornment`; keep short,
+ * instead of under the field. Put it in an Input's `endAdornment`, or wrap any other
+ * control in `WithFieldHelp` (below), which places it beside the control. Keep short,
  * essential hints (allowed range, default) under the field as its description.
  *
  * Behaves as a toggletip, so it also works on touch screens (ENTERPRISE-UI's
@@ -35,7 +36,12 @@ function fieldOf(button: HTMLElement | null): HTMLElement | null {
  * below it when there is no room above, and follows it while the page scrolls. Its text
  * is the button's description (`aria-describedby`), read by screen readers on focus.
  */
-export function FieldHelp({ label, children }: { label: string; children: ReactNode }) {
+export function FieldHelp({ label, children, anchor }: {
+  label: string;
+  children: ReactNode;
+  /** The box the tip centres on; by default the field the button sits in. */
+  anchor?: () => DOMRect | null;
+}) {
   const id = useId();
   const button = useRef<HTMLButtonElement>(null);
   const bubble = useRef<HTMLSpanElement>(null);
@@ -73,7 +79,7 @@ export function FieldHelp({ label, children }: { label: string; children: ReactN
   useLayoutEffect(() => {
     if (!open) return;
     const place = () => {
-      const r = fieldOf(button.current)?.getBoundingClientRect();
+      const r = anchor ? anchor() : fieldOf(button.current)?.getBoundingClientRect();
       const tip = bubble.current;
       if (!r || !tip) return;
       const { offsetWidth: width, offsetHeight: height } = tip;
@@ -105,7 +111,12 @@ export function FieldHelp({ label, children }: { label: string; children: ReactN
     };
     const key = (e: KeyboardEvent) => {
       const typing = e.target instanceof HTMLElement && e.target.closest('input, textarea, select, [contenteditable="true"]');
-      if (e.key === 'Escape' || typing) close();
+      if (e.key === 'Escape') {
+        // Escape closes the tip only, not the dialog the field is in (this listener runs first).
+        e.preventDefault();
+        e.stopPropagation();
+        close();
+      } else if (typing) close();
     };
     document.addEventListener('pointerdown', outside, true);
     document.addEventListener('keydown', key, true);
@@ -159,5 +170,60 @@ export function FieldHelp({ label, children }: { label: string; children: ReactN
         host,
       )}
     </>
+  );
+}
+
+const CONTROL = 'input:not([type="hidden"]), textarea, select, [role="combobox"]';
+
+/**
+ * Puts the "i" beside a control that has no `endAdornment` (NumberInput, Select,
+ * MultiSelect, TextArea, PasswordInput, or a group of controls): just outside its
+ * right edge, lined up with the control rather than its label (at the top for a
+ * multi-line text area). The tip centres on the field, like FieldHelp in an Input.
+ */
+export function WithFieldHelp({ label, help, children, inline = false }: {
+  label: string;
+  help: ReactNode;
+  children: ReactNode;
+  /** The control keeps its own width and the "i" follows it, instead of filling the row. */
+  inline?: boolean;
+}) {
+  const field = useRef<HTMLDivElement>(null);
+  const [offset, setOffset] = useState(0);
+
+  useLayoutEffect(() => {
+    const row = field.current;
+    if (!row) return;
+    const align = () => {
+      const control = row.querySelector<HTMLElement>(CONTROL);
+      if (!control) return;
+      const c = control.getBoundingClientRect();
+      const top = row.getBoundingClientRect().top;
+      const button = 28; // .claw-field-help-button block size
+      setOffset(Math.max(0, Math.round(control.tagName === 'TEXTAREA' ? c.top - top + 4 : c.top - top + (c.height - button) / 2)));
+    };
+    align();
+    const observer = new ResizeObserver(align);
+    observer.observe(row);
+    return () => observer.disconnect();
+  }, []);
+
+  // Centred on the field horizontally, on the control vertically.
+  const anchor = () => {
+    const row = field.current;
+    const control = row?.querySelector<HTMLElement>(CONTROL);
+    if (!row || !control) return row?.getBoundingClientRect() ?? null;
+    const r = row.getBoundingClientRect();
+    const c = control.getBoundingClientRect();
+    return new DOMRect(r.left, c.top, r.width, c.height);
+  };
+
+  return (
+    <div className={inline ? "claw-field-help-row claw-field-help-row-inline" : "claw-field-help-row"}>
+      <div ref={field} className="claw-field-help-field">{children}</div>
+      <span style={{ marginBlockStart: offset }}>
+        <FieldHelp label={label} anchor={anchor}>{help}</FieldHelp>
+      </span>
+    </div>
   );
 }
