@@ -1,6 +1,7 @@
 import { X509Certificate } from 'node:crypto';
 import { chmodSync, existsSync, readFileSync, rmSync, statfsSync, statSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
+import { createAuditService, createSqliteAuditRepository } from '@clawrouter/audit';
 import { checkSealedSecrets, silentLogger, type Config, type Logger, type SecretBox } from '@clawrouter/core';
 import { migrations, migrationStatus, openSqlite, runMigrations } from '@clawrouter/database';
 import { createBackup, listBackups, pruneBackups, runningServer } from './backup.ts';
@@ -173,12 +174,28 @@ export interface RepairResult {
 /**
  * `doctor --fix`: applies the repairs `runDoctor` offered, one by one, and reports each.
  * Every precondition is checked again here (the server may have started in the meantime).
- * Backups and credential clearing are audited by the functions they call; a destructive
+ * Each repair is recorded in the audit log (`DOCTOR_REPAIR`, done or failed); backups and
+ * credential clearing also write their own records. A destructive
  * repair always takes a backup first.
  */
 export async function applyRepairs(config: Config, box: SecretBox | null, repairs: DoctorRepair[], { version, log = silentLogger }: { version: string; log?: Logger }): Promise<RepairResult[]> {
   const results: RepairResult[] = [];
   const dbPath = config.database.path;
+  // Each repair, done or failed, goes to the audit log as the command line. Nothing is
+  // recorded when there is no database file (one is never created just for this).
+  const recordRepair = (result: RepairResult) => {
+    if (dbPath === ':memory:' || !existsSync(dbPath)) return;
+    const db = openSqlite({ path: dbPath });
+    try {
+      createAuditService(createSqliteAuditRepository(db), log).record({
+        action: 'DOCTOR_REPAIR', result: result.ok ? 'SUCCESS' : 'FAILURE', resource: 'system', resourceId: result.id,
+        actor: { id: null, name: 'command line' }, ip: null, requestId: null,
+        metadata: { repair: result.id, outcome: result.message },
+      });
+    } finally {
+      db.close();
+    }
+  };
   const backup = async (label: string) => {
     const db = openSqlite({ path: dbPath });
     try {
@@ -242,6 +259,7 @@ export async function applyRepairs(config: Config, box: SecretBox | null, repair
     } catch (error) {
       results.push({ id: r.id, ok: false, message: error instanceof Error ? error.message : String(error) });
     }
+    recordRepair(results[results.length - 1]!);
   }
   return results;
 }

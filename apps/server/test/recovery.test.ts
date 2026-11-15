@@ -2,6 +2,7 @@ import { afterAll, describe, expect, test } from 'bun:test';
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { createAuditService, createSqliteAuditRepository } from '@clawrouter/audit';
 import { base32Decode, hotp, totpStep } from '@clawrouter/authentication';
 import { createSecretBox, generateSecretKey, loadConfig, parseSecretKey, silentLogger } from '@clawrouter/core';
 import { migrations, openSqlite, runMigrations } from '@clawrouter/database';
@@ -83,6 +84,16 @@ describe('doctor', () => {
   });
 });
 
+/** The DOCTOR_REPAIR records in a database's audit log. */
+function repairAudit(dbPath: string) {
+  const db = openSqlite({ path: dbPath });
+  try {
+    return createAuditService(createSqliteAuditRepository(db), silentLogger).list({ action: 'DOCTOR_REPAIR' }).map((r) => ({ resourceId: r.resourceId, result: r.result, actorName: r.actorName, metadata: r.metadata }));
+  } finally {
+    db.close();
+  }
+}
+
 describe('doctor --fix', () => {
   const repairIds = (checks: Awaited<ReturnType<typeof runDoctor>>, includeDestructive = false) => plannedRepairs(checks, { includeDestructive }).map((r) => r.id);
 
@@ -114,6 +125,8 @@ describe('doctor --fix', () => {
     expect(repairIds(after)).toEqual([]);
     expect(after.find((c) => c.area === 'migrations')).toMatchObject({ level: 'ok' });
     expect(after.filter((c) => c.level === 'error')).toEqual([]);
+    // Each repair is in the audit log, in order, as the command line.
+    expect(repairAudit(dbPath).map((r) => [r.resourceId, r.result]).sort()).toEqual([["backup", "SUCCESS"], ["key-permissions", "SUCCESS"], ["migrate", "SUCCESS"], ["stale-pid", "SUCCESS"]]);
   });
 
   test('does not migrate under a running server, and refuses if one started meanwhile', async () => {
@@ -131,6 +144,7 @@ describe('doctor --fix', () => {
     expect(checks.find((c) => c.area === 'migrations')!.fix).toContain('Stop ClawRouter');
     const [result] = await applyRepairs(config, box, [{ id: 'migrate', action: 'x' }], { version: 't' });
     expect(result).toMatchObject({ ok: false, message: expect.stringContaining('stop it first') });
+    expect(repairAudit(dbPath)).toEqual([expect.objectContaining({ resourceId: "migrate", result: "FAILURE", actorName: "command line", metadata: expect.objectContaining({ outcome: expect.stringContaining("stop it first") }) })]);
   });
 
   test('forgets unreadable values only when asked, after a backup', async () => {
@@ -153,6 +167,9 @@ describe('doctor --fix', () => {
     expect(JSON.stringify(results)).not.toContain('sk-fix');
     const after = await runDoctor(config, lost, null);
     expect(after.find((c) => c.area === 'encrypted values')).toMatchObject({ level: 'ok' });
+    const audit = repairAudit(dbPath);
+    expect(audit.map((r) => [r.resourceId, r.result])).toContainEqual(["clear-credentials", "SUCCESS"]);
+    expect(JSON.stringify(audit)).not.toContain("sk-fix");
   });
 });
 

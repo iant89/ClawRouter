@@ -342,3 +342,12 @@ User menu → Sign-in security → Authenticator app → Set up (a throwaway tes
 | ![Enlarged](23-totp-qr/2-enlarged.png) | A click on the QR code opens a larger copy in its own dialog (Escape or Close returns to the setup) |
 | ![Copied](23-totp-qr/3-copied.png) | The copy icon puts the key on the clipboard (without spaces) and shows a toast |
 | ![Phone](23-totp-qr/4-phone-enlarged.png) | The larger QR code at phone width |
+
+## 24 · Doctor repairs in the audit log
+
+`bun run doctor --fix` on a scratch install (a world-readable key file and a stale
+process-ID file), then System → Audit.
+
+| | |
+|---|---|
+| ![Repair](24-doctor-fix/1-audit-repair.png) | A `DOCTOR_REPAIR` record: by "command line", the repair (`key-permissions`) and its outcome |

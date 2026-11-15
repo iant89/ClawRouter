@@ -223,7 +223,9 @@ then checks everything again and prints the result:
 
 Anything else (a damaged database, settings that live in environment variables such
 as `CLAWROUTER_ENV` or the HTTPS files, low disk space) is reported with what to do,
-never changed. Backups and cleared values are recorded in the audit log, as when
+never changed. Every repair, done or failed, is recorded in the audit log as
+`DOCTOR_REPAIR` (by "command line", with the repair and its outcome), and backups and
+cleared values also write their own records, as when
 done by hand. With `--json`, `--fix --yes` prints `{ before, repairs, after }`.
 
 ## Health probes

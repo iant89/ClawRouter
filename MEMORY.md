@@ -330,13 +330,19 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 
 - **MESSAGE** · 2026-11-15 · Everything is merged; what comes next is the owner's call
   `main` holds every roadmap phase (1–17), the settings tabs, the field help tips,
-  the authenticator QR code and `doctor --fix`. No branch waits for review. Candidates: the spec §41
+  the authenticator QR code and `doctor --fix` (audited). No branch waits for review. Candidates: the spec §41
   future roadmap, or the open warnings above (real provider tests, multi-node shared
   state, CI's first run).
 
 ---
 
 ## Resolved
+
+- **MESSAGE** · 2026-11-15 · Doctor repairs in the audit log. Resolved 2026-11-15: the
+  owner asked to "add the doctor repair audit record, and then merge". `applyRepairs`
+  records each repair, done or failed, as `DOCTOR_REPAIR` (actor "command line",
+  resource `system`, resource id = the repair, metadata = repair and outcome); never
+  when no database file exists. Merged into `main` (this commit).
 
 - **MESSAGE** · 2026-11-15 · `doctor --fix` waits for review. Resolved 2026-11-15: the
   owner said "Merge"; `main` was fast-forwarded to `claude/doctor-fix` (this commit).

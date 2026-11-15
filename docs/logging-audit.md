@@ -58,7 +58,10 @@ link to `/logs?requestId=…`.
   - models, routing, rate limits;
   - API keys (created, updated, revoked);
   - roles and sessions;
-  - operations (started, cancelled).
+  - operations (started, cancelled);
+  - maintenance from the command line ("command line" as the actor): backups and
+    restores, cleared credentials, key rotation, and each `doctor --fix` repair
+    (`DOCTOR_REPAIR`, with the repair and its outcome).
 - `GET /api/audit` (`audit.read`: Administrators and Operators):
   - **filters:** `action`, `result`, `resource`, `resourceId`, `actor` (text in
     the username), `requestId`, `from` and `to`, and `q` (text in the actor,
