@@ -333,7 +333,8 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
   icon on its right (a toast on copy), the code centred and enlargeable in a dialog,
   then for the QR code to be an ENTERPRISE-UI component with options.
   - ENTERPRISE-UI: `QrCode` + `encodeQrCode` (`src/components/qr-code`) on its branch
-    `claude/clawapi-design-spec-p0hucn` (`fbd3c69`), pushed, **not merged**: its
+    `claude/clawapi-design-spec-p0hucn` (`fbd3c69`), pull request iant89/ENTERPRISE-UI#54
+    opened 2026-11-15 at the owner's request, **not merged**: its
     `main` takes pull requests and needs the owner's explicit approval (CONTRIBUTING).
     Its full check passes (1246 tests).
   - ClawRouter `claude/totp-qr-code`: `vendor/enterprise-ui-react.tgz` is built from
