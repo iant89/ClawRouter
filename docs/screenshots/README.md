@@ -315,7 +315,8 @@ Administration → Settings, organized in tabs (see [administration](../administ
 ## 22 · Field help tips
 
 A trial on Settings: each field's explanation moves into a Bootstrap-shaped tooltip (page
-background colour with a border, centred text, an arrow, centred on the field) behind an "i" button
+colour behind the cards, an accent border and a shadow, centred text, an arrow, centred on the
+field) behind an "i" button
 inside the field (`components/custom/FieldHelp.tsx`); the allowed range and default
 stay under the field. The tip opens on hover, keyboard focus or a tap, and closes on
 its own: move away, click elsewhere, start typing, or press Escape.
