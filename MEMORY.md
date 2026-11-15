@@ -94,10 +94,10 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 
 - **IMPORTANT** · 2026-11-12 · ENTERPRISE-UI comes from a committed tarball; do not clone it
   The owner asked for the tarball to be committed rather than cloned or built at
-  install time. `vendor/enterprise-ui-react.tgz` is from ENTERPRISE-UI (on `main` at `5c01a20`;
-  on `claude/totp-qr-code`, its QrCode branch, see Messages). To update it, follow `vendor/README.md`
-  (needs a local ENTERPRISE-UI
-  checkout).
+  install time. `vendor/enterprise-ui-react.tgz` is from ENTERPRISE-UI `main` (at `5c01a20` on
+  ClawRouter `main`; at `2ae9757`, with QrCode, on `claude/totp-qr-code`). To update it, follow
+  `vendor/README.md` (needs a local ENTERPRISE-UI checkout); run `bun install --force`, because the
+  package version stays 0.1.0 and a plain install keeps the cached copy.
 
 - **IMPORTANT** · 2026-11-12 · The secret key must be backed up with the database
   Provider API keys are encrypted with `CLAWROUTER_SECRET_KEY` (required in
@@ -328,21 +328,16 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 
 ### Messages
 
-- **MESSAGE** · 2026-11-15 · Authenticator QR code waits for review (ClawRouter and ENTERPRISE-UI)
+- **MESSAGE** · 2026-11-15 · Authenticator QR code waits for review (ClawRouter)
   The owner asked for a QR code with the setup key in a read-only field and a copy
   icon on its right (a toast on copy), the code centred and enlargeable in a dialog,
   then for the QR code to be an ENTERPRISE-UI component with options.
-  - ENTERPRISE-UI: `QrCode` + `encodeQrCode` (`src/components/qr-code`) on its branch
-    `claude/clawapi-design-spec-p0hucn` (`fbd3c69`), pull request iant89/ENTERPRISE-UI#54
-    opened 2026-11-15 at the owner's request, **not merged**: its
-    `main` takes pull requests and needs the owner's explicit approval (CONTRIBUTING).
-    Its full check passes (1246 tests).
-  - ClawRouter `claude/totp-qr-code`: `vendor/enterprise-ui-react.tgz` is built from
-    that branch commit (see `vendor/README.md`); `bun install --force` was needed
-    because the package version (0.1.0) did not change. The console uses `QrCode`
-    and `CopyIconButton.tsx` (ENTERPRISE-UI's CopyButton always shows text, too wide
-    inside a field). Merge only on the owner's word; ideally after ENTERPRISE-UI's
-    change reaches its `main`, then rebuild the tarball from `main`.
+  - ENTERPRISE-UI: done. `QrCode` + `encodeQrCode` (`src/components/qr-code`), pull
+    request iant89/ENTERPRISE-UI#54, merged by the owner 2026-11-15 (`main` at `2ae9757`).
+  - ClawRouter `claude/totp-qr-code`: the tarball is built from ENTERPRISE-UI `main` at
+    `2ae9757` (see `vendor/README.md`). The console uses `QrCode` and
+    `CopyIconButton.tsx` (ENTERPRISE-UI's CopyButton always shows text, too wide inside
+    a field). Fast-forward ClawRouter `main` to it only on the owner's word.
 
 - **MESSAGE** · 2026-11-15 · Everything is merged; what comes next is the owner's call
   `main` holds every roadmap phase (1–17), the settings tabs and the field help tips.

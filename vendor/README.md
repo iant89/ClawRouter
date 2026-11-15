@@ -9,7 +9,7 @@ committed on purpose: a fresh clone needs only `bun install`.
 | | |
 |---|---|
 | Package | `@enterprise-ui/react` 0.1.0 |
-| Source | ENTERPRISE-UI branch `claude/clawapi-design-spec-p0hucn` at `fbd3c69e049eca031cf6f0eccd08fca4fabb368d` (`main` plus the QrCode component, not yet merged there) |
+| Source | ENTERPRISE-UI `main` at `2ae975794ab10049e5c08d6be2cd73b86a6f436f` (pull request 54, the QrCode component) |
 | Contents | the published files only (`dist/`, `README.md`), as `npm pack` produces them |
 
 ### Updating
