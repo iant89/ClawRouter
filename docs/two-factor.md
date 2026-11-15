@@ -80,7 +80,7 @@ Audit actions: `TWO_FACTOR_ENABLED`, `TWO_FACTOR_DISABLED`, `TWO_FACTOR_RESET`,
 
 ## Limitations
 
-- The QR code is drawn in the browser (`components/custom/qr-code.ts`, byte mode, level M, versions 1–20), so the secret never leaves the page; tests decode every version with zxing's reader (vendored by ENTERPRISE-UI).
+- The QR code is ENTERPRISE-UI's `QrCode` (level M, enlargeable): drawn in the browser, so the secret never leaves the page. Its encoder and tests (every version and level decoded with zxing's reader) live in ENTERPRISE-UI.
 - The SMTP client was tested against a local mock server without encryption.
   The TLS and STARTTLS paths have not been tried against a real mail server.
 - No passkeys or WebAuthn.

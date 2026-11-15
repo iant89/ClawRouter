@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Button, Card, CopyButton, Input, Link, MessageStrip, PasswordInput, StatusIndicator, Text } from '@enterprise-ui/react';
-import { EnlargeableQrCode } from '../../components/custom/QrCode.tsx';
+import { Button, Card, CopyButton, Input, Link, MessageStrip, PasswordInput, QrCode, StatusIndicator, Text } from '@enterprise-ui/react';
 import { CopyIconButton } from '../../components/custom/CopyIconButton.tsx';
 import type { TotpSetup, TwoFactorMethod, TwoFactorStatus } from '@clawrouter/shared';
 import { ApiClientError } from '../../services/api-client.ts';
@@ -156,7 +155,9 @@ function TotpCard({ enabled, onChanged }: { enabled: boolean; onChanged: (codes?
         {setup && (
           <>
             <Text as="p">1. Scan this code with your authenticator app:</Text>
-            <EnlargeableQrCode value={setup.uri} label="QR code for your authenticator app" />
+            <div className="claw-qr-centre">
+              <QrCode value={setup.uri} label="QR code for your authenticator app" enlargeable labels={{ dialogTitle: "Scan with your authenticator app" }} />
+            </div>
             <Text as="p">Or add an account in the app and enter the setup key (on this phone, <Link href={setup.uri}>open it in the app</Link>):</Text>
             <Input
               label="Setup key"

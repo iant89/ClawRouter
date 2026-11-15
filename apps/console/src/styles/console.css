@@ -224,41 +224,12 @@ body {
   justify-content: start;
 }
 
-/* Authenticator setup: the QR code tile and the read-only setup key. */
-.claw-qr-code {
-  display: block;
-  inline-size: 12rem;
-  block-size: auto;
-  max-inline-size: 100%;
-  border-radius: var(--eui-radius-md, 4px);
-}
+/* Authenticator setup: the read-only setup key. */
 .claw-setup-key {
   max-inline-size: 28rem;
 }
-/* The setup QR code: centred, clickable to enlarge. */
+/* The setup QR code (ENTERPRISE-UI QrCode), centred in its card. */
 .claw-qr-centre {
   display: grid;
   justify-items: center;
-  gap: var(--eui-space-1, 0.25rem);
-}
-.claw-qr-button {
-  padding: 0;
-  border: 0;
-  border-radius: var(--eui-radius-md, 4px);
-  background: none;
-  cursor: zoom-in;
-}
-.claw-qr-button:focus-visible {
-  outline: 2px solid var(--eui-color-focus, #4c9aff);
-  outline-offset: 3px;
-}
-.claw-qr-hint {
-  color: var(--eui-color-text-secondary, inherit);
-  font-size: var(--eui-font-size-sm, 0.875rem);
-}
-.claw-qr-code-large {
-  display: block;
-  inline-size: min(22.5rem, 100%);
-  block-size: auto;
-  border-radius: var(--eui-radius-md, 4px);
 }
