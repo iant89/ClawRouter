@@ -317,7 +317,7 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 
 ### Messages
 
-- **MESSAGE** · 2026-11-14 · Field help tips: a trial waiting for the owner's verdict
+- **MESSAGE** · 2026-11-15 · Field help tips: design approved by the owner ("Perfect")
   The owner asked for field descriptions behind an "i" button on the right of the
   field, keeping the "Allowed ..." text under it, then for it to act "more like a
   tooltip": no close button, closes on typing or clicking away. Built as a custom
@@ -329,8 +329,10 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
   Tooltip was not used because it opens on hover and focus only (not on touch).
   The tip is in a portal (cards clip their content) and sets the font itself.
   Tried only on Settings' numeric fields, on `claude/field-help` (branches from
-  `claude/settings-tabs`). If the owner likes it, apply it to the other forms with
-  long descriptions; if not, drop the branch.
+  `claude/settings-tabs`). Approved 2026-11-15; still only on Settings. Next, when the
+  owner asks: apply it to the other forms with long field descriptions (providers,
+  models, routing, rate limits, API keys, mail server). Merge order: phase 17, settings
+  tabs, then this branch, only on the owner's word.
 
 - **MESSAGE** · 2026-11-14 · Settings in tabs waits for review
   The owner asked for the Settings page to be "separated and organized into tabs".
