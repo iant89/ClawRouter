@@ -328,27 +328,21 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 
 ### Messages
 
-- **MESSAGE** · 2026-11-15 · `doctor --fix` waits for review
-  The owner asked for the doctor to "detect issues and attempt to fix them". On
-  `claude/doctor-fix`: checks carry an optional `repair`; `plannedRepairs` and
-  `applyRepairs` in `apps/server/src/doctor.ts`; `scripts/doctor.ts` takes `--fix`,
-  `--yes`, `--clear-unreadable`. Safe repairs only: stale process-ID file, key file
-  permissions, a backup when none or overdue, pending migrations while the server is
-  stopped (backup first). Forgetting unreadable values needs `--clear-unreadable` and
-  backs up first. Environment settings, a damaged database and disk space are only
-  reported. A new check with a safe fix should add a `repair` and a case in
-  `applyRepairs`. Tests in `apps/server/test/recovery.test.ts`. Merge only on the
-  owner's word.
-
 - **MESSAGE** · 2026-11-15 · Everything is merged; what comes next is the owner's call
-  `main` holds every roadmap phase (1–17), the settings tabs, the field help tips and
-  the authenticator QR code. No branch waits for review. Candidates: the spec §41
+  `main` holds every roadmap phase (1–17), the settings tabs, the field help tips,
+  the authenticator QR code and `doctor --fix`. No branch waits for review. Candidates: the spec §41
   future roadmap, or the open warnings above (real provider tests, multi-node shared
   state, CI's first run).
 
 ---
 
 ## Resolved
+
+- **MESSAGE** · 2026-11-15 · `doctor --fix` waits for review. Resolved 2026-11-15: the
+  owner said "Merge"; `main` was fast-forwarded to `claude/doctor-fix` (this commit).
+  How it works: checks carry an optional `repair`; `plannedRepairs`/`applyRepairs` in
+  `apps/server/src/doctor.ts`; `--fix`, `--yes`, `--clear-unreadable`. A new check with
+  a safe fix should add a `repair` and a case in `applyRepairs`.
 
 - **MESSAGE** · 2026-11-15 · Authenticator QR code waits for review. Resolved 2026-11-15:
   ENTERPRISE-UI pull request 54 (`QrCode`) was merged by the owner; the owner said
