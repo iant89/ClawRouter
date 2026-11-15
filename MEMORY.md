@@ -94,8 +94,8 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 
 - **IMPORTANT** · 2026-11-12 · ENTERPRISE-UI comes from a committed tarball; do not clone it
   The owner asked for the tarball to be committed rather than cloned or built at
-  install time. `vendor/enterprise-ui-react.tgz` is from ENTERPRISE-UI `main` (at `5c01a20` on
-  ClawRouter `main`; at `2ae9757`, with QrCode, on `claude/totp-qr-code`). To update it, follow
+  install time. `vendor/enterprise-ui-react.tgz` is from ENTERPRISE-UI `main` at `2ae9757` (with
+  QrCode, ENTERPRISE-UI pull request 54). To update it, follow
   `vendor/README.md` (needs a local ENTERPRISE-UI checkout); run `bun install --force`, because the
   package version stays 0.1.0 and a plain install keeps the cached copy.
 
@@ -328,25 +328,20 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 
 ### Messages
 
-- **MESSAGE** · 2026-11-15 · Authenticator QR code waits for review (ClawRouter)
-  The owner asked for a QR code with the setup key in a read-only field and a copy
-  icon on its right (a toast on copy), the code centred and enlargeable in a dialog,
-  then for the QR code to be an ENTERPRISE-UI component with options.
-  - ENTERPRISE-UI: done. `QrCode` + `encodeQrCode` (`src/components/qr-code`), pull
-    request iant89/ENTERPRISE-UI#54, merged by the owner 2026-11-15 (`main` at `2ae9757`).
-  - ClawRouter `claude/totp-qr-code`: the tarball is built from ENTERPRISE-UI `main` at
-    `2ae9757` (see `vendor/README.md`). The console uses `QrCode` and
-    `CopyIconButton.tsx` (ENTERPRISE-UI's CopyButton always shows text, too wide inside
-    a field). Fast-forward ClawRouter `main` to it only on the owner's word.
-
 - **MESSAGE** · 2026-11-15 · Everything is merged; what comes next is the owner's call
-  `main` holds every roadmap phase (1–17), the settings tabs and the field help tips.
-  Since then only the QR code branch above waits. Candidates: the spec §41 future roadmap, or the open
-  warnings above (real provider tests, multi-node shared state, CI's first run).
+  `main` holds every roadmap phase (1–17), the settings tabs, the field help tips and
+  the authenticator QR code. No branch waits for review. Candidates: the spec §41
+  future roadmap, or the open warnings above (real provider tests, multi-node shared
+  state, CI's first run).
 
 ---
 
 ## Resolved
+
+- **MESSAGE** · 2026-11-15 · Authenticator QR code waits for review. Resolved 2026-11-15:
+  ENTERPRISE-UI pull request 54 (`QrCode`) was merged by the owner; the owner said
+  "Merge" and ClawRouter `main` was fast-forwarded to `claude/totp-qr-code` (this
+  commit): QR code from ENTERPRISE-UI, setup key with a copy icon and a toast.
 
 - **MESSAGE** · 2026-11-14 · Phase 17, settings tabs and field help wait for review.
   Resolved 2026-11-15: the owner said "Add it to the entire application, then start
