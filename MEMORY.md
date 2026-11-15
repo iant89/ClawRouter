@@ -328,6 +328,18 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 
 ### Messages
 
+- **MESSAGE** · 2026-11-15 · `doctor --fix` waits for review
+  The owner asked for the doctor to "detect issues and attempt to fix them". On
+  `claude/doctor-fix`: checks carry an optional `repair`; `plannedRepairs` and
+  `applyRepairs` in `apps/server/src/doctor.ts`; `scripts/doctor.ts` takes `--fix`,
+  `--yes`, `--clear-unreadable`. Safe repairs only: stale process-ID file, key file
+  permissions, a backup when none or overdue, pending migrations while the server is
+  stopped (backup first). Forgetting unreadable values needs `--clear-unreadable` and
+  backs up first. Environment settings, a damaged database and disk space are only
+  reported. A new check with a safe fix should add a `repair` and a case in
+  `applyRepairs`. Tests in `apps/server/test/recovery.test.ts`. Merge only on the
+  owner's word.
+
 - **MESSAGE** · 2026-11-15 · Everything is merged; what comes next is the owner's call
   `main` holds every roadmap phase (1–17), the settings tabs, the field help tips and
   the authenticator QR code. No branch waits for review. Candidates: the spec §41

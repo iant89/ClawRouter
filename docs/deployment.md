@@ -197,14 +197,34 @@ All of these run on the server only. There is no password reset by email.
 ## Checking a deployment
 
 ```bash
-bun cli/doctor.js          # ✔ ok · ! warning · ✖ error, each with what to do
-bun cli/doctor.js --json   # for monitoring; exits 1 when something is wrong
+bun cli/doctor.js                          # ✔ ok · ! warning · ✖ error, each with what to do
+bun cli/doctor.js --json                   # for monitoring; exits 1 when something is wrong
+bun cli/doctor.js --fix                    # also repair what it safely can (asks first)
+bun cli/doctor.js --fix --yes              # the same without asking, e.g. from cron
+bun cli/doctor.js --fix --clear-unreadable # also forget values the key cannot open
 ```
 
-It changes nothing. It checks the environment, the secret key (and its file
-permissions), the database's integrity, pending or unknown migrations, whether every
-encrypted value opens with the key, whether the server runs, HTTPS (certificate
-expiry), cookies, the age of the newest backup, and free disk space.
+Without `--fix` it changes nothing. It checks the environment, the secret key (and
+its file permissions), the database's integrity, pending or unknown migrations,
+whether every encrypted value opens with the key, whether the server runs, HTTPS
+(certificate expiry), cookies, the age of the newest backup, and free disk space.
+
+With `--fix` it lists the repairs it can make, asks (`--yes` skips the question;
+without a terminal and without `--yes` it changes nothing), applies them one by one,
+then checks everything again and prints the result:
+
+| Problem | Repair |
+|---|---|
+| A process-ID file left by a crash | Removes it |
+| The key file is readable by other users | `chmod 600` |
+| No backup, or the newest is overdue | Takes a backup now (a manual one; older manual backups are kept) |
+| Pending migrations, server stopped | Backs up (`pre-migrate`), then applies them. Never while the server runs: stop it first |
+| Encrypted values the key cannot open | Only with `--clear-unreadable`: backs up (`pre-repair`), then forgets those values, which must be entered again (see [Recovery](#recovery)) |
+
+Anything else (a damaged database, settings that live in environment variables such
+as `CLAWROUTER_ENV` or the HTTPS files, low disk space) is reported with what to do,
+never changed. Backups and cleared values are recorded in the audit log, as when
+done by hand. With `--json`, `--fix --yes` prints `{ before, repairs, after }`.
 
 ## Health probes
 

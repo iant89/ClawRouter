@@ -1,5 +1,5 @@
 import { afterAll, describe, expect, test } from 'bun:test';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { base32Decode, hotp, totpStep } from '@clawrouter/authentication';
@@ -7,7 +7,9 @@ import { createSecretBox, generateSecretKey, loadConfig, parseSecretKey, silentL
 import { migrations, openSqlite, runMigrations } from '@clawrouter/database';
 import type { ApiSuccess, TotpSetup, TwoFactorStatus } from '@clawrouter/shared';
 import { clearUnreadable, findUnreadable } from '../src/clear-credentials.ts';
-import { runDoctor } from '../src/doctor.ts';
+import { applyRepairs, plannedRepairs, runDoctor } from '../src/doctor.ts';
+import { listBackups } from '../src/backup.ts';
+import { loadSecretBox } from '../src/secret-key.ts';
 import { startClawRouter } from '../src/server.ts';
 import { createHarness, fastHasher } from '../../../tests/support/harness.ts';
 
@@ -78,6 +80,79 @@ describe('doctor', () => {
     db.close();
     const checks = await runDoctor(loadConfig({ CLAWROUTER_DATABASE_PATH: dbPath }), newBox(), null);
     expect(checks.find((c) => c.area === 'migrations')).toMatchObject({ level: 'error', message: expect.stringContaining('newer ClawRouter') });
+  });
+});
+
+describe('doctor --fix', () => {
+  const repairIds = (checks: Awaited<ReturnType<typeof runDoctor>>, includeDestructive = false) => plannedRepairs(checks, { includeDestructive }).map((r) => r.id);
+
+  test('repairs a stale process-ID file, an open key file, missing backups and pending migrations', async () => {
+    const dir = join(root, 'fix');
+    mkdirSync(dir, { recursive: true });
+    const dbPath = join(dir, 'clawrouter.db');
+    const keyFile = join(dir, 'secret.key');
+    writeFileSync(keyFile, generateSecretKey(), { mode: 0o644 });
+    chmodSync(keyFile, 0o644);
+    // A database one migration behind, as after an upgrade, and a process-ID file from a crash.
+    const db = openSqlite({ path: dbPath });
+    runMigrations(db, migrations.slice(0, -1));
+    db.close();
+    writeFileSync(`${dbPath}.pid`, '2147483646\n');
+    const config = loadConfig({ CLAWROUTER_ENV: 'production', CLAWROUTER_DATABASE_PATH: dbPath, CLAWROUTER_SECRET_KEY_FILE: keyFile, CLAWROUTER_SETUP_TOKEN: 'x'.repeat(20) });
+    const box = loadSecretBox(config, silentLogger);
+
+    const before = await runDoctor(config, box, null);
+    expect(repairIds(before)).toEqual(['stale-pid', 'key-permissions', 'backup', 'migrate']);
+
+    const results = await applyRepairs(config, box, plannedRepairs(before), { version: 't' });
+    expect(results.map((r) => [r.id, r.ok])).toEqual([['stale-pid', true], ['key-permissions', true], ['backup', true], ['migrate', true]]);
+    expect(existsSync(`${dbPath}.pid`)).toBe(false);
+    expect(statSync(keyFile).mode & 0o777).toBe(0o600);
+    expect(listBackups(config.database.backupDir).map((b) => b.manifest?.label).sort()).toEqual(['manual', 'pre-migrate']);
+
+    const after = await runDoctor(config, box, null);
+    expect(repairIds(after)).toEqual([]);
+    expect(after.find((c) => c.area === 'migrations')).toMatchObject({ level: 'ok' });
+    expect(after.filter((c) => c.level === 'error')).toEqual([]);
+  });
+
+  test('does not migrate under a running server, and refuses if one started meanwhile', async () => {
+    const dir = join(root, 'fix-running');
+    mkdirSync(dir, { recursive: true });
+    const dbPath = join(dir, 'clawrouter.db');
+    const db = openSqlite({ path: dbPath });
+    runMigrations(db, migrations.slice(0, -1));
+    db.close();
+    writeFileSync(`${dbPath}.pid`, `${process.pid}\n`); // this test process stands in for the server
+    const config = loadConfig({ CLAWROUTER_DATABASE_PATH: dbPath, CLAWROUTER_SECRET_KEY: generateSecretKey() });
+    const box = loadSecretBox(config, silentLogger);
+    const checks = await runDoctor(config, box, null);
+    expect(repairIds(checks)).not.toContain('migrate');
+    expect(checks.find((c) => c.area === 'migrations')!.fix).toContain('Stop ClawRouter');
+    const [result] = await applyRepairs(config, box, [{ id: 'migrate', action: 'x' }], { version: 't' });
+    expect(result).toMatchObject({ ok: false, message: expect.stringContaining('stop it first') });
+  });
+
+  test('forgets unreadable values only when asked, after a backup', async () => {
+    const dir = join(root, 'fix-key');
+    const dbPath = join(dir, 'clawrouter.db');
+    const config = loadConfig({ CLAWROUTER_ENV: 'test', CLAWROUTER_DATABASE_PATH: dbPath, CLAWROUTER_SECRET_KEY: generateSecretKey(), CLAWROUTER_PORT: '0', CLAWROUTER_SETUP_TOKEN: 'x'.repeat(20) });
+    const app = await startClawRouter({ config, log: silentLogger, version: 't', hasher: fastHasher });
+    await app.providers.create(actor, { name: 'OpenAI', identifier: 'openai', kind: 'openai', endpoint: 'https://api.example.test/v1', apiKey: 'sk-fix-0123456789abcdef' }, { ip: null });
+    await app.stop({ graceMs: 0 });
+
+    const lost = newBox(); // the original key is gone
+    const checks = await runDoctor(config, lost, null);
+    expect(repairIds(checks)).not.toContain('clear-credentials');
+    expect(repairIds(checks, true)).toContain('clear-credentials');
+
+    const results = await applyRepairs(config, lost, plannedRepairs(checks, { includeDestructive: true }), { version: 't' });
+    const cleared = results.find((r) => r.id === 'clear-credentials')!;
+    expect(cleared).toMatchObject({ ok: true, message: expect.stringContaining('provider openai') });
+    expect(listBackups(config.database.backupDir).some((b) => b.manifest?.label === 'pre-repair')).toBe(true);
+    expect(JSON.stringify(results)).not.toContain('sk-fix');
+    const after = await runDoctor(config, lost, null);
+    expect(after.find((c) => c.area === 'encrypted values')).toMatchObject({ level: 'ok' });
   });
 });
 
