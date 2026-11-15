@@ -327,21 +327,20 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 
 ### Messages
 
-- **MESSAGE** · 2026-11-14 · Settings in tabs waits for review
-  The owner asked for the Settings page to be "separated and organized into tabs".
-  Built on `claude/settings-tabs`, which branches from `claude/phase-17-production`
-  (the Import and export tab needs phase 17). Merge phase 17 first, then this, only
-  when the owner says so. Tabs and their URL values are in `docs/administration.md`.
-
-- **MESSAGE** · 2026-11-14 · Phase 17 waits for review
-  Phase 17 (production) is on `claude/phase-17-production`, pushed, not merged.
-  Merge it into `main` (fast-forward) only when the owner says so. Every roadmap
-  phase is then done; what comes next is the owner's call (spec §41 future roadmap,
-  or the open warnings above).
+- **MESSAGE** · 2026-11-15 · Everything is merged; what comes next is the owner's call
+  `main` holds every roadmap phase (1–17), the settings tabs and the field help tips.
+  No branch waits for review. Candidates: the spec §41 future roadmap, or the open
+  warnings above (real provider tests, multi-node shared state, CI's first run).
 
 ---
 
 ## Resolved
+
+- **MESSAGE** · 2026-11-14 · Phase 17, settings tabs and field help wait for review.
+  Resolved 2026-11-15: the owner said "Add it to the entire application, then start
+  merging"; the field help was applied everywhere, then `main` was fast-forwarded in
+  order to phase 17 (`47332ec`), the settings tabs (`45de251`) and the field help
+  (this commit).
 
 - **MESSAGE** · 2026-11-14 · Next: phase 17, production. Resolved 2026-11-14: built on
   `claude/phase-17-production` (see `docs/deployment.md`); the secret-key backup is
