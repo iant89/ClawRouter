@@ -351,3 +351,17 @@ process-ID file), then System → Audit.
 | | |
 |---|---|
 | ![Repair](24-doctor-fix/1-audit-repair.png) | A `DOCTOR_REPAIR` record: by "command line", the repair (`key-permissions`) and its outcome |
+
+## 25 · User quotas and rate-limit windows
+
+A scratch server with the mock providers (each answer uses 11 tokens). The
+administrator's own key was used to use up a 50-token quota, then to hit a burst bucket.
+
+| | |
+|---|---|
+| ![Create](25-quotas-rate-limits/1-create-user-quota.png) | Create user: an optional usage quota (tokens, requests or cost per day, week or month, with the reset day, hour and time zone) |
+| ![Used up](25-quotas-rate-limits/2-quota-used-up.png) | Users → Usage quota: where the user stands, and the quota's settings |
+| ![Own](25-quotas-rate-limits/3-own-quota.png) | API Access: users see their own quota |
+| ![Dialog](25-quotas-rate-limits/4-rate-limit-dialog.png) | Edit rate limits: a window per limit (second, minute, hour) and an optional token bucket |
+| ![Page](25-quotas-rate-limits/5-rate-limits-page.png) | Rate Limits: the window, and how much of the burst bucket is left |
+| ![Phone](25-quotas-rate-limits/6-create-user-quota-phone.png) | The create dialog at phone width |

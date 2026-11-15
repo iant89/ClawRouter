@@ -48,6 +48,9 @@ With `users.write` (Administration → Users):
 - **Create** a user with a username, display name, **temporary password** and
   roles. The console can generate a readable random password; pass it on through
   a trusted channel, because it is never shown again.
+- **Usage quota** (optional, when creating, or later from the user's ⋯ menu): how much
+  all of the user's API keys may use per day, week or month, and when it resets. See
+  [user quotas](rate-limits.md#user-quotas).
 - **Change the display name.** Usernames do not change.
 - **Disable / enable.** Disabling ends all the user's sessions and refuses
   sign-in. Nobody can disable themselves, and the last active administrator

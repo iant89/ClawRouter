@@ -237,6 +237,8 @@ Goal: protect the gateway. See [rate limits](rate-limits.md).
 - [x] Rate-limit events: `ratelimit.exceeded`, `ratelimits.changed`; refusals on the dashboard
 - [x] Administrative configuration: **Rate Limits** page with live usage, versioned and audited; per-key limits on **API Access**
 - [x] Invalid API keys per address: blocked for the rest of the window after too many (phase 8 follow-up)
+- [x] Windows of a second, minute or hour per limit, and an optional token bucket against bursts (capacity, refill amount, refill interval) (owner request, 2026-11-15)
+- [x] Usage quotas per user (tokens, requests or cost per day, week or month, with reset day, hour and time zone), set when creating or editing a user; 429 `quota_exceeded` with the reset time (owner request, 2026-11-15)
 
 Exit: abusive or excessive clients cannot overwhelm the gateway ✅ (single node; counters reset on restart).
 

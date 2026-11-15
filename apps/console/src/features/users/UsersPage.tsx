@@ -15,6 +15,8 @@ import { useRealtimeEvent } from '../realtime/RealtimeContext.tsx';
 import { CreateUserDialog } from './CreateUserDialog.tsx';
 import { EditRolesDialog } from './EditRolesDialog.tsx';
 import { ResetPasswordDialog } from './ResetPasswordDialog.tsx';
+import { QuotaDialog } from './QuotaDialog.tsx';
+import { describeQuota } from './QuotaFields.tsx';
 
 const loadAll = async (signal: AbortSignal): Promise<{ users: UserWithRoles[]; roles: RoleInfo[] }> => {
   const [users, roles] = await Promise.all([fetchUsers(signal), fetchRoles(signal)]);
@@ -39,6 +41,7 @@ export function UsersPage() {
   const [renaming, setRenaming] = useState<UserWithRoles | null>(null);
   const [disabling, setDisabling] = useState<UserWithRoles | null>(null);
   const [resetting2fa, setResetting2fa] = useState<UserWithRoles | null>(null);
+  const [quotaFor, setQuotaFor] = useState<UserWithRoles | null>(null);
   useRealtimeEvent(['user.changed', 'role.changed'], () => reload(), 300);
   const names = useMemo(() => new Map((data?.roles ?? []).map((r) => [r.id, r.name])), [data]);
   const permissionsOf = useMemo(() => new Map((data?.roles ?? []).map((r) => [r.id, r.permissions])), [data]);
@@ -66,6 +69,7 @@ export function UsersPage() {
     if (canAssign) items.push({ id: 'roles', label: 'Edit roles' });
     if (canWrite) {
       items.push({ id: 'rename', label: 'Edit details', disabled: !self && !ok });
+      items.push({ id: 'quota', label: 'Usage quota', disabled: !self && !ok });
       if (!self) {
         items.push({ id: 'reset', label: 'Reset password', disabled: !ok });
         if (u.twoFactor.length) items.push({ id: 'reset2fa', label: 'Reset two-factor sign-in', disabled: !ok });
@@ -103,6 +107,7 @@ export function UsersPage() {
             onAction={(id) => {
               if (id === 'roles') setEditingRoles(u);
               if (id === 'rename') setRenaming(u);
+              if (id === 'quota') setQuotaFor(u);
               if (id === 'reset') setResetting(u);
               if (id === 'reset2fa') setResetting2fa(u);
               if (id === 'disable') setDisabling(u);
@@ -161,6 +166,14 @@ export function UsersPage() {
           setResetting(null);
           toast.show({ tone: 'success', title: 'Password reset', description: `${u.displayName} was signed out and must choose a new password.` });
           reload();
+        }}
+      />
+      <QuotaDialog
+        user={quotaFor}
+        onClose={() => setQuotaFor(null)}
+        onSaved={(u, v) => {
+          setQuotaFor(null);
+          toast.show({ tone: 'success', title: v.quota ? 'Quota saved' : 'Quota removed', description: v.quota ? `${u.displayName}: ${describeQuota(v.quota)}` : `${u.displayName} has no usage quota.` });
         }}
       />
       <EditDetailsDialog

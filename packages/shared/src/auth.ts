@@ -1,3 +1,5 @@
+import type { UserQuota } from './quotas.ts';
+
 /** Authentication DTOs shared by the server and the console. Never contain secrets. */
 export const USER_STATUSES = ['ACTIVE', 'DISABLED'] as const;
 export type UserStatus = (typeof USER_STATUSES)[number];
@@ -68,6 +70,8 @@ export interface CreateUserRequest {
   roles: string[];
   /** Optional; needed for email sign-in codes. */
   email?: string | null;
+  /** Optional usage quota (see quotas.ts); null or absent for none. */
+  quota?: UserQuota | null;
 }
 
 /** PATCH /api/users/:id (users.write). */

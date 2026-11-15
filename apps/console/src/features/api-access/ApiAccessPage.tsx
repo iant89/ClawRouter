@@ -15,6 +15,7 @@ import { useModelOptions } from './model-options.ts';
 import { KEY_STATUS } from './key-status.ts';
 import { describeKeyError } from './key-issues.ts';
 import { KeyRequestsPanel } from './KeyRequestsPanel.tsx';
+import { OwnQuotaCard } from './OwnQuotaCard.tsx';
 import { useRouter } from '../../app/router.tsx';
 
 const when = (iso: string | null) => (iso ? new Date(iso).toLocaleString() : '—');
@@ -156,6 +157,7 @@ export function ApiAccessPage() {
       }
     >
       {error && <MessageStrip tone="error" title="Cannot load API keys">{error}</MessageStrip>}
+      <OwnQuotaCard refreshKey={lastUpdated} />
       <Text tone="secondary">
         Clients send the key as <span className="claw-mono">Authorization: Bearer crk_…</span> to the OpenAI-compatible endpoints
         <span className="claw-mono"> /v1/chat/completions</span>, <span className="claw-mono">/v1/embeddings</span> and <span className="claw-mono">/v1/models</span>.

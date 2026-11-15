@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Button, Checkbox, Dialog, Input, MessageStrip, Text } from '@enterprise-ui/react';
 import { FieldHelp } from '../../components/custom/FieldHelp.tsx';
-import { PASSWORD_POLICY, USERNAME_PATTERN, type RoleInfo, type UserWithRoles } from '@clawrouter/shared';
+import { PASSWORD_POLICY, USERNAME_PATTERN, type RoleInfo, type UserQuota, type UserWithRoles } from '@clawrouter/shared';
 import { createUser } from '../../services/access.ts';
 import { ApiClientError } from '../../services/api-client.ts';
 import { TemporaryPasswordField } from './TemporaryPasswordField.tsx';
+import { QuotaFields, quotaErrors, type QuotaErrors } from './QuotaFields.tsx';
 
 type Field = 'username' | 'displayName' | 'email' | 'password';
 
@@ -23,6 +24,8 @@ export interface CreateUserDialogProps {
 export function CreateUserDialog({ open, roles, own, canAssign, onClose, onCreated }: CreateUserDialogProps) {
   const [values, setValues] = useState<Record<Field, string>>({ username: '', displayName: '', email: '', password: '' });
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [quota, setQuota] = useState<UserQuota | null>(null);
+  const [quotaIssues, setQuotaIssues] = useState<QuotaErrors>({});
   const [errors, setErrors] = useState<Partial<Record<Field, string>>>({});
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -31,6 +34,8 @@ export function CreateUserDialog({ open, roles, own, canAssign, onClose, onCreat
     if (!open) return;
     setValues({ username: '', displayName: '', email: '', password: '' });
     setSelected(new Set(roles.some((r) => r.id === 'VIEWER') ? ['VIEWER'] : []));
+    setQuota(null);
+    setQuotaIssues({});
     setErrors({});
     setError(null);
   }, [open, roles]);
@@ -44,16 +49,19 @@ export function CreateUserDialog({ open, roles, own, canAssign, onClose, onCreat
     if (values.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(values.email.trim())) local.email = 'Enter an email address, or leave it empty.';
     if (values.password.length < PASSWORD_POLICY.minLength) local.password = `Use at least ${PASSWORD_POLICY.minLength} characters.`;
     setErrors(local);
+    setQuotaIssues({});
     setError(null);
     if (Object.keys(local).length) return;
     setSaving(true);
     try {
-      onCreated(await createUser({ username: values.username.trim(), displayName: values.displayName.trim(), email: values.email.trim() || null, password: values.password, roles: canAssign ? [...selected] : [] }));
+      onCreated(await createUser({ username: values.username.trim(), displayName: values.displayName.trim(), email: values.email.trim() || null, password: values.password, roles: canAssign ? [...selected] : [], quota }));
     } catch (err) {
       if (err instanceof ApiClientError && err.issues.some((i) => i.path === 'username' || i.path === 'displayName' || i.path === 'email' || i.path === 'password')) {
         const fromServer: Partial<Record<Field, string>> = {};
         for (const i of err.issues) if (i.path === 'username' || i.path === 'displayName' || i.path === 'email' || i.path === 'password') fromServer[i.path] = `This ${i.message}.`;
         setErrors(fromServer);
+      } else if (err instanceof ApiClientError && err.issues.some((i) => i.path.startsWith('quota.'))) {
+        setQuotaIssues(quotaErrors(err.issues));
       } else {
         setError(err instanceof Error ? err.message : 'Could not create the user.');
       }
@@ -107,6 +115,10 @@ export function CreateUserDialog({ open, roles, own, canAssign, onClose, onCreat
         ) : (
           <Text size="sm" tone="secondary">The user starts with no role. Someone with permission to assign roles can give them one.</Text>
         )}
+        <fieldset style={{ border: 0, margin: 0, padding: 0, display: 'grid', gap: 'var(--eui-space-2, 0.5rem)' }}>
+          <legend><Text as="strong">Usage quota</Text></legend>
+          <QuotaFields value={quota} onChange={setQuota} errors={quotaIssues} />
+        </fieldset>
       </div>
     </Dialog>
   );

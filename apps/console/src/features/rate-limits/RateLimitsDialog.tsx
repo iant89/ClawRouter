@@ -2,11 +2,11 @@ import { useEffect, useState } from 'react';
 import { Button, Dialog, Form, IconButton, MessageStrip, NumberInput, Select, Text } from '@enterprise-ui/react';
 import { WithFieldHelp } from '../../components/custom/FieldHelp.tsx';
 import type { FieldIssue, ModelInfo, ModelRateLimit, RateLimitSettings } from '@clawrouter/shared';
-import { LimitFields, limitErrors } from "./LimitFields.tsx";
+import { LimitFields, limitErrors } from './LimitFields.tsx';
 
 const grid = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(12rem, 1fr))', gap: 'var(--eui-space-3, 0.75rem)' } as const;
 const group = { border: 0, margin: 0, padding: 0, display: 'grid', gap: 'var(--eui-space-2, 0.5rem)' } as const;
-const modelBox = { display: "grid", gap: "var(--eui-space-3, 0.75rem)", padding: "var(--eui-space-3, 0.75rem)", border: "1px solid var(--eui-color-border)", borderRadius: "var(--eui-radius-md, 6px)" } as const;
+const modelBox = { display: 'grid', gap: 'var(--eui-space-3, 0.75rem)', padding: 'var(--eui-space-3, 0.75rem)', border: '1px solid var(--eui-color-border)', borderRadius: 'var(--eui-radius-md, 6px)' } as const;
 
 /** Edits the whole rate-limit configuration; the server validates it again on save. */
 export function RateLimitsDialog({ open, value, models, onClose, onSave, saving, serverIssues, serverError }: {
@@ -36,7 +36,7 @@ export function RateLimitsDialog({ open, value, models, onClose, onSave, saving,
 
   const submit = () => {
     if (draft.perModel.some((m) => !m.model)) return setError('Choose a model for every model limit, or remove the empty row.');
-    if (draft.perModel.some((m) => m.requests === null && m.tokens === null && m.bucket === null)) return setError("Every model limit needs requests, tokens or a burst bucket.");
+    if (draft.perModel.some((m) => m.requests === null && m.tokens === null && m.bucket === null)) return setError('Every model limit needs requests, tokens or a burst bucket.');
     setError(null);
     onSave(draft);
   };
@@ -56,18 +56,18 @@ export function RateLimitsDialog({ open, value, models, onClose, onSave, saving,
         <fieldset style={group}>
           <legend><Text as="strong">Per API key</Text></legend>
           <Text size="sm" tone="secondary">Default for every key without its own limit (set on the API Access page).</Text>
-          <LimitFields labelPrefix="Per key: " value={draft.perKey} onChange={(v) => set("perKey", v)} errors={limitErrors(issue, "perKey")} />
+          <LimitFields labelPrefix="Per key: " value={draft.perKey} onChange={(v) => set('perKey', v)} errors={limitErrors(issue, 'perKey')} />
         </fieldset>
 
         <fieldset style={group}>
           <legend><Text as="strong">Per user</Text></legend>
           <Text size="sm" tone="secondary">All keys created by the same user, combined.</Text>
-          <LimitFields labelPrefix="Per user: " value={draft.perUser} onChange={(v) => set("perUser", v)} errors={limitErrors(issue, "perUser")} />
+          <LimitFields labelPrefix="Per user: " value={draft.perUser} onChange={(v) => set('perUser', v)} errors={limitErrors(issue, 'perUser')} />
         </fieldset>
 
         <fieldset style={group}>
           <legend><Text as="strong">Whole gateway</Text></legend>
-          <LimitFields labelPrefix="Gateway: " value={draft.global} onChange={(v) => set("global", { ...draft.global, ...v })} errors={limitErrors(issue, "global")} />
+          <LimitFields labelPrefix="Gateway: " value={draft.global} onChange={(v) => set('global', { ...draft.global, ...v })} errors={limitErrors(issue, 'global')} />
           <div style={grid}>
             <NumberInput label="Gateway: requests at the same time" placeholder="No limit" min={1} step={1} value={draft.global.maxConcurrent}
               onChange={(n) => set('global', { ...draft.global, maxConcurrent: n })} error={issue('global.maxConcurrent')} />
@@ -79,7 +79,7 @@ export function RateLimitsDialog({ open, value, models, onClose, onSave, saving,
           <Text size="sm" tone="secondary">Keeps a model inside its provider's quota. A model at its limit is skipped and the next model in the route is tried.</Text>
           {draft.perModel.map((m, i) => (
             <div key={i} style={modelBox}>
-              <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) auto", gap: "var(--eui-space-2, 0.5rem)", alignItems: "end" }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto', gap: 'var(--eui-space-2, 0.5rem)', alignItems: 'end' }}>
               <Select
                 label={`Model ${i + 1}`}
                 value={m.model || null}
@@ -98,7 +98,7 @@ export function RateLimitsDialog({ open, value, models, onClose, onSave, saving,
           ))}
           <div>
             <Button size="sm" variant="tertiary" icon="add" disabled={!unused.length}
-              onClick={() => set('perModel', [...draft.perModel, { model: "", window: "minute", requests: 60, tokens: null, bucket: null }])}>
+              onClick={() => set('perModel', [...draft.perModel, { model: '', window: 'minute', requests: 60, tokens: null, bucket: null }])}>
               Add model limit
             </Button>
           </div>

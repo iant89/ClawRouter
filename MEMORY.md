@@ -14,6 +14,17 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 
 ### Important
 
+- **IMPORTANT** · 2026-11-15 · Owner rule: user quotas, rate-limit windows and token buckets
+  The owner asked for "per user quotas, setup during user creation, as well as modifying
+  the user", with how much usage is allowed and when it resets; rate limits per
+  second/minute/hour; and a token bucket against spamming with how fast it refills and
+  how much is added at each refill. A limit is now `{ window, requests, tokens, bucket }`;
+  old `{ requestsPerMinute, tokensPerMinute }` limits are upgraded wherever they are read
+  (`upgradeLimit` / `upgradeSettings` in `packages/rate-limits/src/config.ts`): keep that.
+  Quotas (`packages/rate-limits/src/quotas.ts`, migration 0018) read usage from
+  `usage_records`, so any new way of recording gateway usage must still write there.
+  See `docs/rate-limits.md`; tests in `packages/api/test/windows-quotas-api.test.ts`.
+
 - **IMPORTANT** · 2026-11-15 · Owner rule: field explanations go in an "i" tip, everywhere
   The owner approved the field help tip ("Perfect") and asked for it in the entire
   application. A field's longer explanation sits behind an "i" (`FieldHelp` in an
@@ -158,6 +169,13 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
     the connecting proxy; then the right-most untrusted hop is the client.
 
 ### Warnings
+
+- **WARNING** · 2026-11-15 · Quota limits
+  Quotas are charged when a request finishes, so parallel requests can together pass
+  a quota (like token limits). Usage comes from hourly UTC records: in half-hour time
+  zones a period counts from the start of that UTC hour, and usage older than the
+  usage retention period is gone (keep it over a month for monthly quotas). Token
+  buckets live in memory per process, like the counters.
 
 - **WARNING** · 2026-11-14 · Phase 17 parts not verified
   The systemd unit (`deploy/clawrouter.service`) was never run (no systemd in the
@@ -328,11 +346,12 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 
 ### Messages
 
-- **MESSAGE** · 2026-11-15 · Everything is merged; what comes next is the owner's call
-  `main` holds every roadmap phase (1–17), the settings tabs, the field help tips,
-  the authenticator QR code and `doctor --fix` (audited). No branch waits for review. Candidates: the spec §41
-  future roadmap, or the open warnings above (real provider tests, multi-node shared
-  state, CI's first run).
+- **MESSAGE** · 2026-11-15 · User quotas and rate-limit windows wait for review
+  Built on `claude/quotas-rate-limits` (not merged): windows of a second, minute or
+  hour, token buckets, and per-user quotas (Create user, Users → Usage quota, your own
+  quota on API Access). Fast-forward `main` when the owner says "merge". Everything
+  before it is merged. Later candidates: the spec §41 future roadmap, or the open
+  warnings above (real provider tests, multi-node shared state, CI's first run).
 
 ---
 
