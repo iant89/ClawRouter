@@ -64,6 +64,7 @@ const updateBody = v.object({
   enabled: v.optional(v.boolean()),
   maxKeyLifetimeHours: keyLifetimeHours,
   cost,
+  costSource: v.optional(v.oneOf(['PROVIDER', 'MANUAL'] as const)),
 });
 
 const importBody = v.object({

@@ -44,7 +44,7 @@ function model(body: Record<string, unknown>): string {
 }
 
 /** Largest inline media item (decoded), and most media items in one request. */
-export const MAX_MEDIA_BYTES = 20 * 1024 * 1024;
+export const MAX_MEDIA_BYTES = 15 * 1024 * 1024;
 export const MAX_MEDIA_PARTS = 50;
 const IMAGE_TYPES = new Set(['image/png', 'image/jpeg', 'image/gif', 'image/webp']);
 const BASE64 = /^[A-Za-z0-9+/]+={0,2}$/;

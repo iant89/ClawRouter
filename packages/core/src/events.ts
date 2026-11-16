@@ -33,7 +33,7 @@ export interface EventMap {
   'provider.test.completed': { providerId: string; status: ProviderState; latencyMs: number | null };
   'provider.test.failed': { providerId: string; status: ProviderState; message: string };
   /** A provider returned its model list (connection test or health check). Internal only: not for WebSocket clients. */
-  'provider.models_listed': { providerId: string; models: { id: string; displayName: string | null; contextLength: number | null; maxOutputTokens: number | null; kind: 'chat' | 'embedding' | 'other' }[] };
+  'provider.models_listed': { providerId: string; models: { id: string; displayName: string | null; contextLength: number | null; maxOutputTokens: number | null; kind: 'chat' | 'embedding' | 'other'; vision?: boolean; cost?: { inputPerMTok: number | null; outputPerMTok: number | null } | null }[] };
   'model.changed': { modelId: string; providerId: string; action: 'created' | 'updated' | 'deleted' | 'enabled' | 'disabled' | 'availability' };
   'model.availability': { modelId: string; ref: string; displayName: string; previous: 'AVAILABLE' | 'UNAVAILABLE' | 'UNKNOWN'; current: 'AVAILABLE' | 'UNAVAILABLE' | 'UNKNOWN' };
   'routing.changed': { version: number; updatedBy: string | null };

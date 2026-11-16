@@ -30,15 +30,15 @@ describe('request bodies', () => {
     expect(res.status).toBe(400);
   });
 
-  test('/v1 allows 10 MB, and refuses more even when chunked', async () => {
+  test('/v1 allows 25 MB (media inline), and refuses more even when chunked', async () => {
     const h = createHarness();
     await h.completeSetup();
     const { secret } = await h.apiKeys.create({ id: null, username: 'system' } as never, { name: 'k', expiry: { type: 'after', hours: 24 } }, { ip: null });
     const res = await h.request('/v1/chat/completions', {
-      method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${secret}` }, body: chunkedBody(11 * 1024 * 1024, 256 * 1024), duplex: 'half',
+      method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${secret}` }, body: chunkedBody(26 * 1024 * 1024, 256 * 1024), duplex: 'half',
     } as RequestInit);
     expect(res.status).toBe(400);
-    expect(((await res.json()) as { error: { message: string } }).error.message).toContain('limit 10 MB');
+    expect(((await res.json()) as { error: { message: string } }).error.message).toContain('limit 25 MB');
   });
 
   test('malformed and absurdly nested JSON are 400s, never 500s', async () => {

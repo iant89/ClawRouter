@@ -1,5 +1,5 @@
 import type { Database } from '@clawrouter/database';
-import { effectiveKeyLifetime, type Capability, type ModelAvailability, type ModelInfo, type ModelSource, type ProviderKind, type ProviderState } from '@clawrouter/shared';
+import { effectiveKeyLifetime, type Capability, type ModelAvailability, type ModelCostSource, type ModelInfo, type ModelSource, type ProviderKind, type ProviderState } from '@clawrouter/shared';
 
 export interface ModelRecord {
   id: string;
@@ -15,12 +15,14 @@ export interface ModelRecord {
   source: ModelSource;
   costInputPerMTok: number | null;
   costOutputPerMTok: number | null;
+  /** PROVIDER: published price, updated automatically. MANUAL: set by an administrator. */
+  costSource: ModelCostSource | null;
   maxKeyLifetimeHours: number | null;
   createdAt: string;
   updatedAt: string;
 }
 
-export type ModelPatch = Partial<Pick<ModelRecord, 'displayName' | 'capabilities' | 'contextLength' | 'maxOutputTokens' | 'enabled' | 'costInputPerMTok' | 'costOutputPerMTok' | 'maxKeyLifetimeHours'>>;
+export type ModelPatch = Partial<Pick<ModelRecord, 'displayName' | 'capabilities' | 'contextLength' | 'maxOutputTokens' | 'enabled' | 'costInputPerMTok' | 'costOutputPerMTok' | 'costSource' | 'maxKeyLifetimeHours'>>;
 
 export interface ModelFilter {
   providerId?: string;
@@ -59,6 +61,7 @@ interface Row {
   source: ModelSource;
   cost_input_per_mtok: number | null;
   cost_output_per_mtok: number | null;
+  cost_source: ModelCostSource | null;
   max_key_lifetime_hours: number | null;
   created_at: string;
   updated_at: string;
@@ -109,6 +112,7 @@ const toRecord = (r: Omit<Row, 'p_name' | 'p_identifier' | 'p_kind' | 'p_enabled
   source: r.source,
   costInputPerMTok: r.cost_input_per_mtok,
   costOutputPerMTok: r.cost_output_per_mtok,
+  costSource: r.cost_source ?? null,
   maxKeyLifetimeHours: r.max_key_lifetime_hours,
   createdAt: r.created_at,
   updatedAt: r.updated_at,
@@ -132,6 +136,7 @@ function toInfo(r: Row): ModelInfo {
     availabilityCheckedAt: m.availabilityCheckedAt,
     source: m.source,
     cost: m.costInputPerMTok === null && m.costOutputPerMTok === null ? null : { inputPerMTok: m.costInputPerMTok, outputPerMTok: m.costOutputPerMTok, currency: 'USD' },
+    costSource: m.costSource,
     maxKeyLifetimeHours: m.maxKeyLifetimeHours,
     keyLifetimeLimit: effectiveKeyLifetime(m.maxKeyLifetimeHours, r.p_max_key_lifetime_hours),
     provider,
@@ -144,7 +149,7 @@ function toInfo(r: Row): ModelInfo {
 
 const COLUMN: Record<keyof ModelPatch, string> = {
   displayName: 'display_name', capabilities: 'capabilities', contextLength: 'context_length', maxOutputTokens: 'max_output_tokens',
-  enabled: 'enabled', costInputPerMTok: 'cost_input_per_mtok', costOutputPerMTok: 'cost_output_per_mtok', maxKeyLifetimeHours: 'max_key_lifetime_hours',
+  enabled: 'enabled', costInputPerMTok: 'cost_input_per_mtok', costOutputPerMTok: 'cost_output_per_mtok', costSource: 'cost_source', maxKeyLifetimeHours: 'max_key_lifetime_hours',
 };
 
 const escapeLike = (s: string) => s.replace(/[\\%_]/g, (c) => `\\${c}`);
@@ -184,11 +189,11 @@ export function createSqliteModelRepository(db: Database): ModelRepository {
     insert(m) {
       db.run(
         `INSERT INTO models (id, provider_id, provider_model_id, display_name, capabilities, context_length, max_output_tokens, enabled, availability,
-           availability_checked_at, source, cost_input_per_mtok, cost_output_per_mtok, cost_currency, created_at, updated_at, max_key_lifetime_hours)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+           availability_checked_at, source, cost_input_per_mtok, cost_output_per_mtok, cost_currency, created_at, updated_at, max_key_lifetime_hours, cost_source)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [m.id, m.providerId, m.providerModelId, m.displayName, JSON.stringify(m.capabilities), m.contextLength, m.maxOutputTokens, m.enabled ? 1 : 0,
           m.availability, m.availabilityCheckedAt, m.source, m.costInputPerMTok, m.costOutputPerMTok,
-          m.costInputPerMTok === null && m.costOutputPerMTok === null ? null : 'USD', m.createdAt, m.updatedAt, m.maxKeyLifetimeHours],
+          m.costInputPerMTok === null && m.costOutputPerMTok === null ? null : 'USD', m.createdAt, m.updatedAt, m.maxKeyLifetimeHours, m.costSource],
       );
     },
     update(id, patch, at) {

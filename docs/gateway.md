@@ -33,13 +33,36 @@ attempts. Every response has an `x-request-id`.
 ### Supported request fields (chat)
 
 `model`, `messages` (roles `system`, `developer` (treated as system), `user`,
-`assistant`; content as a string or text parts), `max_completion_tokens` /
+`assistant`; content as a string or parts), `max_completion_tokens` /
 `max_tokens`, `temperature` (0–2), `top_p` (0–1), `stop` (a string or up to 4),
 `stream`, `stream_options.include_usage`. Unknown fields are ignored.
 
-Rejected with a clear 400 rather than silently ignored: image or audio content,
-`tools` / `functions`, `n` other than 1, non-text `response_format`. These need
-capabilities the normalized model does not have yet.
+Rejected with a clear 400 rather than silently ignored: `tools` / `functions`,
+`n` other than 1, non-text `response_format`. These need capabilities the
+normalized model does not have yet.
+
+### Images, audio and PDFs
+
+User messages may carry media as OpenAI content parts. ClawRouter translates them
+for each provider:
+
+| Part | Sent as | OpenAI | Groq | Compatible | Anthropic | Google |
+|---|---|---|---|---|---|---|
+| `image_url` with an http(s) URL | the URL (the provider downloads it) | ✓ | ✓ | ✓ | ✓ | — |
+| `image_url` with a `data:` URL (PNG, JPEG, GIF, WebP) | inline base64 | ✓ | ✓ | ✓ | ✓ | ✓ |
+| `input_audio` (`wav`, `mp3`) | inline base64 | ✓ | — | — | — | ✓ |
+| `file` with `file_data` (PDF data URL) | inline base64 | ✓ | — | — | ✓ (document) | ✓ |
+
+- Routing only picks models whose provider takes every medium in the request, and
+  images also need a model marked **Vision**. When nothing qualifies, the client
+  gets 400 naming the media and what is needed.
+- `detail` (`auto`, `low`, `high`) is passed on where the provider has it.
+- Limits: 15 MB per item (decoded), 50 items per request, 25 MB per request body.
+  `file_id` (a file stored at one provider) is refused: send `file_data`.
+- A URL is downloaded by the provider, not by ClawRouter: it must be public, and
+  some providers do not follow redirects (Groq refuses them).
+- Media is never stored: request history, logs and events hold metadata only.
+  Provider token counts include the images, so usage and cost do too.
 
 ## API keys
 
@@ -129,7 +152,7 @@ capabilities the normalized model does not have yet.
 
 ## Not yet
 
-- `/v1/responses`, tools, images, `n > 1` (see above).
+- `/v1/responses`, tools, `n > 1` (see above). Image generation, audio output and transcription endpoints.
 - Rate limits: see [rate limits](rate-limits.md) (phase 9). A refused request gets 429 `rate_limit_error` with `Retry-After`.
 - Request history, usage and cost: see [requests and usage](requests-usage.md) (phase 10).
 - CORS: none. Browser apps should call ClawRouter from their backend.

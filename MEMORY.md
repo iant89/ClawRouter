@@ -214,7 +214,7 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
   - Request history stores metadata only; there is no payload storage at all, so
     there is nothing to configure for payload retention (spec §22). Keep it that
     way unless the owner asks for opt-in payload logging.
-  - `/v1/responses`, tools, images and `n > 1` are rejected with 400 (see
+  - `/v1/responses`, tools and `n > 1` are rejected with 400 (see
     `docs/gateway.md`). Agent clients that need tools will not work yet.
   - No CORS on `/v1`; browser apps must call it from their backend.
   - System settings (phase 14) are cached in memory per process: with several
@@ -250,6 +250,19 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
     reaches the others within 5 seconds.
 
 ### Notes
+
+- **NOTE** · 2026-11-16 · Media forwarding and automatic pricing
+  Messages may carry `parts` (`packages/providers/src/types.ts`); `content` is always
+  the joined text, so code that only needs text keeps working. Each adapter declares
+  `inputMedia` and translates parts (OpenAI parts, Anthropic blocks, Gemini inlineData);
+  the gateway's routing `exclude` hook drops providers that cannot take a request's
+  media, and images require VISION. A new provider kind must declare `inputMedia` and
+  translate parts, or media requests skip it. Prices: `models.cost_source` (migration
+  0019) is PROVIDER or MANUAL; `applyModelList` updates PROVIDER prices from each
+  model list and never touches MANUAL ones (`priceChange` in
+  `packages/models/src/service.ts` decides what an update does). Live 2026-11-16: a red
+  and a blue inline image were named correctly by Groq's Qwen; import priced both
+  models from Groq's list.
 
 - **NOTE** · 2026-11-16 · Live Groq testing
   The owner saved a Groq API key as a **network secret for api.groq.com** on this
@@ -358,11 +371,11 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 
 ### Messages
 
-- **MESSAGE** · 2026-11-16 · Groq live fixes wait for review
-  `claude/groq-live-fixes` (from `main`): richer Groq discovery (names, prices as
-  model cost, Vision, speech models not chat) and routing of model ids that contain a
-  slash. Merge when the owner says so. Everything else is merged. Candidates after it:
-  the spec §41 future roadmap, or the open warnings above.
+- **MESSAGE** · 2026-11-16 · Groq live fixes, media and automatic pricing wait for review
+  Two stacked branches, neither merged: `claude/groq-live-fixes` (from `main`: richer
+  Groq discovery, model ids with a slash) and `claude/media-pricing` (on top of it:
+  images/audio/PDF forwarding, automatic pricing). Merging `claude/media-pricing`
+  brings both. Merge when the owner says so.
 
 ---
 

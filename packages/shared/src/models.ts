@@ -32,6 +32,8 @@ export interface ModelInfo {
   availabilityCheckedAt: string | null;
   source: ModelSource;
   cost: ModelCost | null;
+  /** Where the price came from: PROVIDER (published, kept up to date automatically), MANUAL (set by an administrator), or null (none). */
+  costSource: ModelCostSource | null;
   /** This model's own maximum API key lifetime (hours); null: none of its own. */
   maxKeyLifetimeHours: number | null;
   /** The limit that applies: the stricter of the model's and its provider's, or null. */
@@ -71,7 +73,17 @@ export interface CreateModelRequest {
   maxKeyLifetimeHours?: number | null;
 }
 
-export type UpdateModelRequest = Partial<Omit<CreateModelRequest, 'providerId' | 'providerModelId'>>;
+export const MODEL_COST_SOURCES = ['PROVIDER', 'MANUAL'] as const;
+export type ModelCostSource = (typeof MODEL_COST_SOURCES)[number];
+
+export type UpdateModelRequest = Partial<Omit<CreateModelRequest, 'providerId' | 'providerModelId'>> & {
+  /**
+   * 'PROVIDER': follow the provider's published price from now on (updated at each
+   * health check or connection test). 'MANUAL': keep the current (or sent) price fixed.
+   * Sending a different `cost` also makes it 'MANUAL'; sending the same one changes nothing.
+   */
+  costSource?: ModelCostSource;
+};
 
 /** POST /api/providers/:id/models/import */
 export interface ImportModelsRequest {

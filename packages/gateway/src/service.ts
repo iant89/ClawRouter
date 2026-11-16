@@ -109,7 +109,13 @@ export function createGatewayService(options: {
         const forMedia = excluded.filter((e) => e.reason.startsWith(NO_MEDIA) || e.reason.includes('Missing capabilities: VISION'));
         if (media.size && excluded.length && forMedia.length === excluded.length) {
           const what = [...media].map((k) => MEDIA_WORDS[k]).join(', ');
-          throw invalid(`No model for '${model}' accepts ${what}. Images need a model marked Vision; Google needs images inline (data URLs), and only OpenAI and Google take audio.`, 'messages');
+          const hints = [
+            ...(media.has('image_url') || media.has('image_data') ? ['Images need a model marked Vision.'] : []),
+            ...(media.has('image_url') ? ['Google takes images inline only (data URLs).'] : []),
+            ...(media.has('audio') ? ['Audio goes to OpenAI and Google only.'] : []),
+            ...(media.has('pdf') ? ['PDFs go to OpenAI, Anthropic and Google only.'] : []),
+          ];
+          throw invalid(`No model for '${model}' accepts ${what}. ${hints.join(' ')}`, 'messages');
         }
         if (error.message.startsWith('Unknown model')) throw new AppError('NOT_FOUND', `The model '${model}' does not exist.`, { details: { param: 'model', code: 'model_not_found' } });
         throw new AppError('SERVICE_UNAVAILABLE', `No model is available for '${model}' right now.`, { expose: true, details: { param: 'model' } });

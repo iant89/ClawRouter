@@ -8,7 +8,7 @@ import { checkEndpoint } from './endpoint.ts';
 import { ProviderCallError } from './http.ts';
 import type { ProviderRecord, ProviderRepository } from './repository.ts';
 import type { ProviderRegistry } from './registry.ts';
-import type { ChatRequest, ChatResponse, EmbeddingRequest, EmbeddingResponse, ProviderAdapter, ProviderCallContext, StreamEvent } from './types.ts';
+import type { ChatRequest, ChatResponse, DiscoveredModel, EmbeddingRequest, EmbeddingResponse, ProviderAdapter, ProviderCallContext, StreamEvent } from './types.ts';
 
 export interface Actor {
   id: string;
@@ -148,7 +148,7 @@ export function createProviderService(options: ProviderServiceOptions) {
       models = result.models;
       events?.emit('provider.models_listed', {
         providerId: p.id,
-        models: result.models.map((m) => ({ id: m.id, displayName: m.displayName, contextLength: m.contextLength ?? null, maxOutputTokens: m.maxOutputTokens ?? null, kind: m.kind ?? 'chat' })),
+        models: result.models.map(listedForEvent),
       });
     } catch (e) {
       error = e;
@@ -321,7 +321,7 @@ export function createProviderService(options: ProviderServiceOptions) {
         const models = await adapter.listModels(ctx);
         events?.emit('provider.models_listed', {
           providerId: p.id,
-          models: models.map((m) => ({ id: m.id, displayName: m.displayName, contextLength: m.contextLength ?? null, maxOutputTokens: m.maxOutputTokens ?? null, kind: m.kind ?? 'chat' })),
+          models: models.map(listedForEvent),
         });
         return { provider: toInfo(p), models };
       } catch (e) {
@@ -390,4 +390,13 @@ function checkLifetime(hours: number | null | undefined): FieldIssue[] {
   return Number.isInteger(hours) && hours >= 1 && hours <= KEY_EXPIRY_MAX_HOURS
     ? []
     : [{ path: 'maxKeyLifetimeHours', message: `must be a whole number of hours from 1 to ${KEY_EXPIRY_MAX_HOURS}, or null for no limit` }];
+}
+
+/** A listed model as `provider.models_listed` carries it, published prices and image input included. */
+function listedForEvent(m: DiscoveredModel) {
+  return {
+    id: m.id, displayName: m.displayName, contextLength: m.contextLength ?? null, maxOutputTokens: m.maxOutputTokens ?? null, kind: m.kind ?? 'chat',
+    ...(m.vision !== undefined ? { vision: m.vision } : {}),
+    ...(m.cost ? { cost: m.cost } : {}),
+  } as const;
 }

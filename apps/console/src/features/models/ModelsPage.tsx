@@ -112,7 +112,9 @@ export function ModelsPage() {
     { id: 'ctx', header: 'Context', align: 'end', accessor: (m) => m.contextLength ?? 0, cell: (m) => <span className="claw-mono" title={m.maxOutputTokens ? `Max output ${m.maxOutputTokens.toLocaleString()} tokens` : undefined}>{formatTokens(m.contextLength)}</span> },
     {
       id: 'price', header: 'Price / 1M (in · out)', align: 'end', accessor: (m) => m.cost?.inputPerMTok ?? -1,
-      cell: (m) => (m.cost ? <span className="claw-mono">{formatPrice(m.cost.inputPerMTok)} · {formatPrice(m.cost.outputPerMTok)}</span> : <Text tone="secondary">—</Text>),
+      cell: (m) => (m.cost
+        ? <span title={m.costSource === 'PROVIDER' ? 'Published by the provider, updated automatically' : 'Set by hand'}><span className="claw-mono">{formatPrice(m.cost.inputPerMTok)} · {formatPrice(m.cost.outputPerMTok)}</span>{m.costSource === 'PROVIDER' && <Text size="sm" tone="secondary"> auto</Text>}</span>
+        : <Text tone="secondary">—</Text>),
     },
     { id: 'state', header: 'Availability', wrap: true, accessor: (m) => (m.usable ? 0 : 1), cell: (m) => <ModelAvailability model={m} /> },
     ...(canWrite

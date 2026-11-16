@@ -116,7 +116,7 @@ describe('media in chat messages', () => {
     expect((await json<OpenAiError>(groqPdf)).error).toMatchObject({ type: 'invalid_request_error', param: 'messages', message: expect.stringContaining('accepts PDF files') });
     const googleUrl = await v1(ask('google/gemini-2.0-flash', image('https://example.com/cat.png')));
     expect(googleUrl.status).toBe(400);
-    expect((await json<OpenAiError>(googleUrl)).error.message).toContain('Google needs images inline');
+    expect((await json<OpenAiError>(googleUrl)).error.message).toContain('Google takes images inline only');
 
     const { v1: noVision } = await world(false);
     const res = await noVision(ask('openai/gpt-4o-mini', image(`data:image/png;base64,${PNG}`)));

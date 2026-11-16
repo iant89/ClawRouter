@@ -6,7 +6,8 @@ import type { Handler, RequestContext } from '../http/context.ts';
 import { created, json, ok } from '../http/responses.ts';
 
 /** Chat requests can carry long conversations. */
-const GATEWAY_BODY_LIMIT = 10 * 1024 * 1024;
+// Room for a few images or a PDF sent inline (base64 adds a third). Each item is capped at 15 MB decoded.
+const GATEWAY_BODY_LIMIT = 25 * 1024 * 1024;
 
 /** Reads a JSON body for /v1 without imposing a schema: the gateway validates it in OpenAI terms. */
 const readGatewayBody = (ctx: RequestContext): Promise<unknown> => readJsonValue(ctx, GATEWAY_BODY_LIMIT);

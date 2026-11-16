@@ -19,6 +19,8 @@ interface Values {
   maxOutputTokens: number | null;
   inputPrice: number | null;
   outputPrice: number | null;
+  /** Follow the provider's published price (kept up to date automatically). */
+  followPrice: boolean;
   maxKeyLifetimeHours: number | null;
   enabled: boolean;
 }
@@ -33,14 +35,16 @@ function initial(model: ModelInfo | null, providers: ProviderInfo[]): Values {
     return {
       providerId: model.providerId, providerModelId: model.providerModelId, displayName: model.displayName, capabilities: model.capabilities,
       contextLength: model.contextLength, maxOutputTokens: model.maxOutputTokens, inputPrice: model.cost?.inputPerMTok ?? null,
-      outputPrice: model.cost?.outputPerMTok ?? null, enabled: model.enabled, maxKeyLifetimeHours: model.maxKeyLifetimeHours,
+      outputPrice: model.cost?.outputPerMTok ?? null, followPrice: model.costSource === 'PROVIDER', enabled: model.enabled, maxKeyLifetimeHours: model.maxKeyLifetimeHours,
     };
   }
-  return { providerId: providers[0]?.id ?? '', providerModelId: '', displayName: '', capabilities: ['CHAT'], contextLength: null, maxOutputTokens: null, inputPrice: null, outputPrice: null, enabled: true, maxKeyLifetimeHours: null };
+  return { providerId: providers[0]?.id ?? '', providerModelId: '', displayName: '', capabilities: ['CHAT'], contextLength: null, maxOutputTokens: null, inputPrice: null, outputPrice: null, followPrice: false, enabled: true, maxKeyLifetimeHours: null };
 }
 
 /** Shown beside both price fields. */
-const PRICE_HELP = 'Per million tokens, used to estimate cost on the Usage page. Providers do not publish prices through their APIs, so enter them from the provider\'s price list.';
+const PRICE_HELP = 'Per million tokens, used to estimate cost on the Usage page. Groq publishes its prices, which are filled in and kept up to date; for other providers, enter them from the provider\'s price list.';
+/** Provider kinds whose model lists include prices. */
+const PUBLISHES_PRICES = new Set(['groq']);
 
 /** Add a model by hand (for providers that cannot list models) or edit one. */
 export function ModelDialog({ open, model, providers, onClose, onSaved }: {
@@ -83,7 +87,10 @@ export function ModelDialog({ open, model, providers, onClose, onSaved }: {
       maxOutputTokens: values.maxOutputTokens,
       maxKeyLifetimeHours: values.maxKeyLifetimeHours,
       enabled: values.enabled,
-      cost,
+      // Following the provider's price: no price is sent (it stays automatic). Turning that off keeps the price as set by hand.
+      ...(values.followPrice
+        ? (model?.costSource === 'PROVIDER' ? {} : { costSource: 'PROVIDER' as const })
+        : { cost, ...(model?.costSource === 'PROVIDER' ? { costSource: 'MANUAL' as const } : {}) }),
     };
     try {
       const saved = model
@@ -151,12 +158,18 @@ export function ModelDialog({ open, model, providers, onClose, onSaved }: {
           <NumberInput label="Context length" unit="tokens" min={1} step={1024} value={values.contextLength} onChange={(n) => set('contextLength', n)} error={errors.contextLength} />
           <NumberInput label="Max output" unit="tokens" min={1} step={1024} value={values.maxOutputTokens} onChange={(n) => set('maxOutputTokens', n)} error={errors.maxOutputTokens} />
           <WithFieldHelp label="Input price" help={PRICE_HELP}>
-            <NumberInput label="Input price" unit="$ / 1M" min={0} step={0.05} precision={4} value={values.inputPrice} onChange={(n) => set('inputPrice', n)} error={errors.inputPrice} />
+            <NumberInput label="Input price" unit="$ / 1M" min={0} step={0.05} precision={4} readOnly={values.followPrice} value={values.inputPrice} onChange={(n) => set('inputPrice', n)} error={errors.inputPrice} />
           </WithFieldHelp>
           <WithFieldHelp label="Output price" help={PRICE_HELP}>
-            <NumberInput label="Output price" unit="$ / 1M" min={0} step={0.05} precision={4} value={values.outputPrice} onChange={(n) => set('outputPrice', n)} error={errors.outputPrice} />
+            <NumberInput label="Output price" unit="$ / 1M" min={0} step={0.05} precision={4} readOnly={values.followPrice} value={values.outputPrice} onChange={(n) => set('outputPrice', n)} error={errors.outputPrice} />
           </WithFieldHelp>
         </div>
+        {(model?.costSource === 'PROVIDER' || PUBLISHES_PRICES.has(providers.find((p) => p.id === values.providerId)?.kind ?? '')) && (
+          <WithFieldHelp label="Use the provider's published price" help="On: the price comes from the provider's model list and is updated at every health check and connection test (recorded in the audit log). Off: the price above is kept as you set it.">
+            <Switch label="Use the provider's published price" checked={values.followPrice} onChange={(on) => set('followPrice', on)}
+              description={values.followPrice ? (model?.costSource === 'PROVIDER' ? 'Updated automatically.' : 'Filled in at the next health check or connection test.') : undefined} />
+          </WithFieldHelp>
+        )}
         <KeyLifetimeField
           value={values.maxKeyLifetimeHours}
           onChange={(h) => set('maxKeyLifetimeHours', h)}

@@ -13,7 +13,8 @@ them, and the gateway (phase 8) calls them through the provider engine.
 | `displayName` | Defaults to the provider's display name, or the id |
 | `capabilities` | `CHAT`, `CODING`, `REASONING`, `VISION`, `EMBEDDINGS`, `TOOL_USE`, `RESEARCH` |
 | `contextLength`, `maxOutputTokens` | Filled from discovery when the provider publishes them (Google does); otherwise entered by hand |
-| `cost` | Input and output price in USD per million tokens. Entered by hand: providers do not publish prices through their APIs. Used for cost estimates in phase 10 |
+| `cost` | Input and output price in USD per million tokens, used for request costs. Filled in and kept up to date automatically where the provider publishes prices (Groq); otherwise entered by hand. See [Automatic pricing](#automatic-pricing) |
+| `costSource` | `PROVIDER` (published, updated automatically), `MANUAL` (set by hand, never overwritten) or null |
 | `enabled` | Administrator switch |
 | `availability` | The model's own state: `AVAILABLE`, `UNAVAILABLE`, `UNKNOWN` |
 | `source` | `DISCOVERED` (imported from the provider's list) or `MANUAL` |
@@ -91,6 +92,24 @@ models.listUsable('CHAT');          // usable chat models, in priority order
 models.resolveRef('openai/gpt-4o'); // ModelInfo | undefined
 providers.chat(model.providerId, { model: model.providerModelId, messages });
 ```
+
+## Automatic pricing
+
+Providers that publish prices in their model list (today Groq; OpenAI, Anthropic and
+Google do not) keep model prices current without anyone typing them in:
+
+- **Import** sets the published price (`costSource: PROVIDER`).
+- **Every model list** the provider returns (each health check and connection test)
+  updates prices that follow the provider, and fills in models without a price. Each
+  change is audited as `MODEL_UPDATED` by "automatic pricing", with the old and new
+  price. A price the provider stops publishing is kept.
+- **A price set by hand** (`PATCH /api/models/:id` with a different `cost`) is
+  `MANUAL` and never overwritten. Sending the same price (saving other fields) changes
+  nothing. `costSource: "PROVIDER"` follows the published price again (from the next
+  list); `costSource: "MANUAL"` keeps the current price fixed. In the console: the
+  model dialog's **Use the provider's published price** switch; the Models table marks
+  automatic prices "auto".
+- Prices entered before this existed count as set by hand (migration 0019).
 
 ## Console
 

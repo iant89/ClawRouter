@@ -33,6 +33,8 @@ export interface MockProviders {
   streamDelayMs: number;
   /** Stream events written so far (to see whether a cancelled stream really stopped). */
   streamEventsSent: number;
+  /** Groq prices to publish instead of the built-in ones, by model id (US$ per token, as strings); null removes them. */
+  groqPrices: Record<string, { prompt: string; completion: string } | null>;
   stop(): Promise<void>;
 }
 
@@ -41,7 +43,7 @@ const enc = new TextEncoder();
 export function startMockProviders(key = 'sk-test-0123456789abcdefWXYZ'): MockProviders {
   const state: MockProviders = {
     url: '', key, requests: [], mode: 'ok', slowMs: 0, openaiModels: ['gpt-4o-mini', 'gpt-4o', 'text-embedding-3-small'],
-    failFamilies: new Set(), badRequestFamilies: new Set(), streamBreak: false, streamDelayMs: 0, streamEventsSent: 0, stop: async () => {},
+    failFamilies: new Set(), badRequestFamilies: new Set(), streamBreak: false, streamDelayMs: 0, streamEventsSent: 0, groqPrices: {}, stop: async () => {},
   };
 
   const sse = (events: { event?: string; data: unknown }[]) =>
@@ -137,7 +139,10 @@ export function startMockProviders(key = 'sk-test-0123456789abcdefWXYZ'): MockPr
           return json({ error: { message: 'Invalid API Key', type: 'invalid_request_error', code: 'invalid_api_key' } }, 401);
         }
         if (path === '/openai/v1/models') {
-          return json({ object: 'list', data: [
+          const priced = (m: Record<string, unknown>) => (m.id as string) in state.groqPrices
+            ? { ...m, pricing: state.groqPrices[m.id as string] ?? undefined }
+            : m;
+          return json({ object: 'list', data: ([
             // Shaped like Groq's real list (2026-11): names, modalities, US$ prices per token.
             { id: 'llama-3.3-70b-versatile', object: 'model', owned_by: 'Meta', active: true, name: 'Llama 3.3 70B', context_window: 131072, max_completion_tokens: 32768, input_modalities: ['text'], output_modalities: ['text'], pricing: { prompt: '0.00000059', completion: '0.00000079' } },
             { id: 'openai/gpt-oss-120b', object: 'model', owned_by: 'OpenAI', active: true, name: 'GPT OSS 120B', context_window: 131072, max_completion_tokens: 65536, input_modalities: ['text'], output_modalities: ['text'], pricing: { prompt: '0.00000015', completion: '0.0000006' } },
@@ -146,7 +151,7 @@ export function startMockProviders(key = 'sk-test-0123456789abcdefWXYZ'): MockPr
             { id: 'canopylabs/orpheus-v1-english', object: 'model', owned_by: 'Canopy Labs', active: true, name: 'Orpheus V1 English', context_window: 4000, max_completion_tokens: 50000, input_modalities: ['text'], output_modalities: ['speech'], pricing: { prompt: '0.000022' } },
             { id: 'meta-llama/llama-guard-4-12b', object: 'model', owned_by: 'Meta', active: true, context_window: 131072 },
             { id: 'mixtral-8x7b-32768', object: 'model', owned_by: 'Mistral AI', active: false, context_window: 32768 },
-          ] });
+          ] as Record<string, unknown>[]).map(priced) });
         }
         if (path === '/openai/v1/chat/completions') {
           if (!stream) {

@@ -11,7 +11,7 @@ guarded by tests, and the risks that remain. Area details live in
 
 | # | Area | Finding | Fix |
 |---|---|---|---|
-| 1 | Input | Bodies were read in full before the size check. A chunked body (no `Content-Length`) could make the server buffer up to Bun's 128 MB default per request. | Bodies are counted while streamed and refused past 64 KB (admin API) or 10 MB (`/v1`) (`packages/api/src/http/body.ts`). |
+| 1 | Input | Bodies were read in full before the size check. A chunked body (no `Content-Length`) could make the server buffer up to Bun's 128 MB default per request. | Bodies are counted while streamed and refused past 64 KB (admin API) or 25 MB (`/v1`, which carries inline images and PDFs) (`packages/api/src/http/body.ts`). |
 | 2 | Output | The console HTML and scripts were served by Bun's HTML route, which cannot set headers: no CSP, no anti-framing (clickjacking). | Production builds are served by ClawRouter with a strict CSP, `X-Frame-Options: DENY`, `frame-ancestors 'none'`, Permissions-Policy, COOP/CORP and, on HTTPS, HSTS. API responses get a deny-all CSP (`security-headers.ts`, `console-assets.ts`). |
 | 3 | Rate limits / audit | Behind a reverse proxy, every client had the proxy's address: one client could exhaust the per-address sign-in and invalid-key limits for everyone, and audit records showed the proxy. | `CLAWROUTER_TRUSTED_PROXIES`: `X-Forwarded-For` is read only from listed proxies, right to left, so a client can never choose its own address (`client-address.ts`). |
 | 4 | API keys | A key kept working after the user who created it was disabled. | Such keys are **Suspended** (401) and work again if the user is re-enabled. |

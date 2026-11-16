@@ -124,6 +124,7 @@ export function createModelService(options: {
         source: 'MANUAL',
         costInputPerMTok: input.cost?.inputPerMTok ?? null,
         costOutputPerMTok: input.cost?.outputPerMTok ?? null,
+        costSource: input.cost && (input.cost.inputPerMTok !== null || input.cost.outputPerMTok !== null) ? 'MANUAL' : null,
         maxKeyLifetimeHours: input.maxKeyLifetimeHours ?? null,
       });
     },
@@ -132,6 +133,8 @@ export function createModelService(options: {
       const current = mustGet(id);
       const issues: FieldIssue[] = [];
       validate(input, issues);
+      if (input.costSource !== undefined && input.costSource !== 'PROVIDER' && input.costSource !== 'MANUAL') issues.push({ path: 'costSource', message: 'must be PROVIDER (follow the published price) or MANUAL (keep this price)' });
+      else if (input.costSource === 'PROVIDER' && input.cost !== undefined) issues.push({ path: 'costSource', message: 'send either a cost or costSource PROVIDER, not both' });
       if (issues.length) throw errors.validation(issues);
 
       const patch: ModelPatch = {
@@ -141,13 +144,11 @@ export function createModelService(options: {
         maxOutputTokens: input.maxOutputTokens,
         enabled: input.enabled,
         maxKeyLifetimeHours: input.maxKeyLifetimeHours,
-        ...(input.cost !== undefined
-          ? { costInputPerMTok: input.cost?.inputPerMTok ?? null, costOutputPerMTok: input.cost?.outputPerMTok ?? null }
-          : {}),
+        ...priceChange(current, input),
       };
       const before: Record<string, unknown> = {
         displayName: current.displayName, capabilities: current.capabilities, contextLength: current.contextLength, maxOutputTokens: current.maxOutputTokens,
-        enabled: current.enabled, costInputPerMTok: current.cost?.inputPerMTok ?? null, costOutputPerMTok: current.cost?.outputPerMTok ?? null, maxKeyLifetimeHours: current.maxKeyLifetimeHours,
+        enabled: current.enabled, costInputPerMTok: current.cost?.inputPerMTok ?? null, costOutputPerMTok: current.cost?.outputPerMTok ?? null, costSource: current.costSource, maxKeyLifetimeHours: current.maxKeyLifetimeHours,
       };
       const changes: Record<string, { from: unknown; to: unknown }> = {};
       for (const [key, value] of Object.entries(patch)) {
@@ -225,6 +226,7 @@ export function createModelService(options: {
             // Published prices (Groq) fill in the cost; administrators can change it.
             costInputPerMTok: m.cost?.inputPerMTok ?? null,
             costOutputPerMTok: m.cost?.outputPerMTok ?? null,
+            costSource: m.cost ? 'PROVIDER' : null,
             maxKeyLifetimeHours: null,
           });
         }),
@@ -255,6 +257,32 @@ export function createModelService(options: {
         if (info) events?.emit('model.availability', { modelId: record.id, ref: info.ref, displayName: info.displayName, previous: record.availability, current: to });
       }
       if (changed.length) log?.info('model availability changed', { component: 'models', providerId, changed: changed.length });
+
+      // Automatic pricing: published prices follow the provider, unless an administrator set the price by hand.
+      const repriced: { record: ModelRecord; to: { inputPerMTok: number | null; outputPerMTok: number | null } }[] = [];
+      for (const record of repo.recordsForProvider(providerId)) {
+        const price = byId.get(record.providerModelId)?.cost;
+        if (!price || record.costSource === 'MANUAL') continue;
+        if (price.inputPerMTok === record.costInputPerMTok && price.outputPerMTok === record.costOutputPerMTok && record.costSource === 'PROVIDER') continue;
+        repriced.push({ record, to: price });
+      }
+      if (repriced.length) {
+        repo.transaction(() => {
+          for (const { record, to } of repriced) {
+            repo.update(record.id, { costInputPerMTok: to.inputPerMTok, costOutputPerMTok: to.outputPerMTok, costSource: 'PROVIDER' }, at);
+          }
+        });
+        for (const { record, to } of repriced) {
+          const ref = repo.findById(record.id)?.ref ?? record.providerModelId;
+          audit.record({
+            action: 'MODEL_UPDATED', result: 'SUCCESS', resource: 'model', resourceId: record.id,
+            actor: { id: null, name: 'automatic pricing' }, ip: null, requestId: null,
+            metadata: { ref, automatic: true, changes: { cost: { from: { inputPerMTok: record.costInputPerMTok, outputPerMTok: record.costOutputPerMTok }, to } } },
+          });
+          events?.emit('model.changed', { modelId: record.id, providerId, action: 'updated' });
+        }
+        log?.info('model prices updated from the provider', { component: 'models', providerId, models: repriced.length });
+      }
     },
 
     /** Keeps availability current from every provider model listing. Returns an unsubscribe function. */
@@ -286,4 +314,22 @@ export function createModelService(options: {
     },
   };
   return service;
+}
+
+/**
+ * How an update changes a model's price and its source. A price that is typed in
+ * (different from the current one) is MANUAL and never overwritten; clearing it lets
+ * a published price fill it again. Sending the same price changes nothing, so saving
+ * other fields keeps a provider's price automatic. `costSource` PROVIDER follows the
+ * published price again; MANUAL keeps the current (or sent) price fixed.
+ */
+function priceChange(current: ModelInfo, input: UpdateModelRequest): Pick<ModelPatch, 'costInputPerMTok' | 'costOutputPerMTok' | 'costSource'> {
+  if (input.costSource === 'PROVIDER') return { costSource: 'PROVIDER' };
+  const was = { inputPerMTok: current.cost?.inputPerMTok ?? null, outputPerMTok: current.cost?.outputPerMTok ?? null };
+  const sent = input.cost === undefined ? was : { inputPerMTok: input.cost?.inputPerMTok ?? null, outputPerMTok: input.cost?.outputPerMTok ?? null };
+  const changed = sent.inputPerMTok !== was.inputPerMTok || sent.outputPerMTok !== was.outputPerMTok;
+  const empty = sent.inputPerMTok === null && sent.outputPerMTok === null;
+  if (input.costSource === 'MANUAL') return { costInputPerMTok: sent.inputPerMTok, costOutputPerMTok: sent.outputPerMTok, costSource: empty ? null : 'MANUAL' };
+  if (!changed) return {};
+  return { costInputPerMTok: sent.inputPerMTok, costOutputPerMTok: sent.outputPerMTok, costSource: empty ? null : 'MANUAL' };
 }
