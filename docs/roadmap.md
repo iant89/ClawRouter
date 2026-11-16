@@ -223,7 +223,7 @@ Initial external API:
 - [x] `/v1/models`
 - [x] `/v1/chat/completions`
 - [x] `/v1/embeddings` (OpenAI, OpenAI-compatible, Google)
-- [ ] `/v1/responses`: not supported by the normalized model yet; answers 400 pointing to chat completions
+- [x] `/v1/responses` (added 2026-11-16, stateless; see the provider engine above)
 
 Exit: an external AI client can point directly at ClawRouter and make an AI request without knowing which provider handled it ✅
 (tested with the mock providers and in the browser; real providers not yet tried).
@@ -438,6 +438,18 @@ Goal: package ClawRouter as a production-ready self-hosted application. See
 - [x] Deployment documentation (systemd unit, Dockerfile, Compose, proxy configurations)
 
 Exit: ClawRouter can be deployed as a standalone production AI gateway.
+
+## Owner request: ClawRouter as an MCP server ✅
+
+See [MCP server](mcp.md). Chosen by the owner on 2026-11-16 from three ways of "adding MCP" (the others: calling MCP servers for clients, an MCP gateway).
+
+- [x] `POST /v1/mcp` (Streamable HTTP, stateless, JSON answers)
+- [x] Per-key MCP access, off by default, audited when changed
+- [x] Ten read-only tools, each needing the permission of the console page it mirrors; the key owner's permissions, read on every call
+- [x] Tool calls under the key's rate limits, logged
+- [x] Console: switch when creating a key, connection instructions, MCP column and on/off action
+- [x] Checked with the official MCP SDK client and Claude Code
+
 
 ---
 

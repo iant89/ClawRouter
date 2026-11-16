@@ -150,6 +150,9 @@ and its round trip, and a streamed tool call.
 - Users with `api_keys.own` create their own keys, others request one, and every key
   can expire at the end of the day or after a length of time: see
   [self-service keys](self-service-keys.md).
+- **MCP access** (`mcpAccess`, off by default): the key may also use ClawRouter's own
+  MCP server at `/v1/mcp`, read-only tools with its owner's permissions. See
+  [MCP server](mcp.md).
 - Console: **Gateway → API Access**: list, create (with a copy button and a curl
   example), revoke.
 

@@ -14,6 +14,19 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 
 ### Important
 
+- **IMPORTANT** · 2026-11-16 · Owner choice: ClawRouter as an MCP server, read-only
+  Asked whether MCP was worth adding, the owner (who uses GitHub's MCP server, nothing else)
+  chose "option 3": ClawRouter serves MCP at `POST /v1/mcp` so agents can ask about it. Not
+  chosen: calling MCP servers for clients (SSRF, stored credentials, stateful loops) and an
+  MCP gateway; client-side MCP already works through the gateway's tool support. Decisions
+  made here, keep them unless the owner says otherwise: MCP access is a per-key flag, off by
+  default (`api_keys.mcp_access`, migration 0020); tools act with the key owner's permissions
+  read on every call, and a tool the owner may not use is "unknown"; **every tool only reads,
+  and none returns or creates a secret** (no "create key" tool: it would put a key into an
+  agent's transcript); tool calls go through the key's rate limits but not quotas; stateless
+  Streamable HTTP with JSON answers. See `docs/mcp.md`; tests in
+  `packages/api/test/mcp-api.test.ts`. A new tool needs a permission (or null for own data).
+
 - **IMPORTANT** · 2026-11-15 · Owner rule: user quotas, rate-limit windows and token buckets
   The owner asked for "per user quotas, setup during user creation, as well as modifying
   the user", with how much usage is allowed and when it resets; rate limits per
@@ -410,11 +423,13 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 
 ### Messages
 
-- **MESSAGE** · 2026-11-16 · Everything is merged; what comes next is the owner's call
-  `main` holds every roadmap phase (1–17) and the follow-ups: quotas, rate-limit windows and
-  token buckets, Groq, media forwarding, automatic pricing, tools, `/v1/responses`, and the
-  Gemini fixes (Groq and Gemini tested live). No branch waits for review. Still open: the
-  native Gemini adapter, OpenAI and Anthropic live; multi-node shared state; CI.
+- **MESSAGE** · 2026-11-16 · Two branches wait for review: the CI test fix and the MCP server
+  `claude/ci-flaky-test` fixes the one CI failure (a flaky secret-box test) and resolves the
+  "CI not yet observed" warning (CI runs on every push to `main`; this branch keeps that
+  warning open until the fix merges). `claude/mcp-server` adds ClawRouter's MCP server (see
+  the owner choice under Important). They touch different code; both edit MEMORY.md, so merge
+  one, then rebase the other (expect a MEMORY.md conflict to resolve by hand). Still open after
+  that: the native Gemini adapter, OpenAI and Anthropic live; multi-node shared state.
 
 ---
 

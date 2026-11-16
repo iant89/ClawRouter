@@ -66,7 +66,7 @@ export function MyKeysPage() {
   const create = async (body: CreateApiKeyRequest) => {
     setSaving(true);
     try {
-      setCreated(await createMyKey({ name: body.name, allowedModels: body.allowedModels, expiry: body.expiry }));
+      setCreated(await createMyKey({ name: body.name, allowedModels: body.allowedModels, expiry: body.expiry, mcpAccess: body.mcpAccess }));
       setServerError(null);
       reload();
     } catch (err) {
@@ -121,6 +121,7 @@ export function MyKeysPage() {
     { id: 'prefix', header: 'Key', accessor: (k) => k.prefix, cell: (k) => <span className="claw-mono">{k.prefix}…</span> },
     { id: 'status', header: 'Status', accessor: (k) => k.status, cell: (k) => <StatusIndicator tone={KEY_STATUS[k.status].tone} size="sm">{KEY_STATUS[k.status].label}</StatusIndicator> },
     { id: 'models', header: 'Models', wrap: true, accessor: (k) => k.allowedModels.join(', '), cell: (k) => (k.allowedModels.length ? <span className="claw-mono">{k.allowedModels.join(', ')}</span> : <Text tone="secondary">Any model</Text>) },
+    { id: 'mcp', header: 'MCP', accessor: (k) => (k.mcpAccess ? 'Allowed' : ''), cell: (k) => (k.mcpAccess ? 'Allowed' : <Text tone="secondary">No</Text>) },
     { id: 'expires', header: 'Expires', accessor: (k) => k.expiresAt ?? '', cell: (k) => (k.expiresAt ? <span title={when(k.expiresAt)}>{when(k.expiresAt)}</span> : <Text tone="secondary">Never</Text>) },
     { id: 'used', header: 'Last used', accessor: (k) => k.lastUsedAt ?? '', cell: (k) => (k.lastUsedAt ? formatRelative(k.lastUsedAt) : <Text tone="secondary">Never</Text>) },
     {

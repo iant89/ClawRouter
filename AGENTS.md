@@ -68,7 +68,7 @@ vendor/             ENTERPRISE-UI tarball (committed)
 
 Area docs: [architecture](docs/architecture.md) · [authentication](docs/authentication.md) ·
 [authorization](docs/authorization.md) · [console shell](docs/console-shell.md) ·
-[providers](docs/providers.md) · [models](docs/models.md) · [routing](docs/routing.md) · [gateway](docs/gateway.md) · [rate limits](docs/rate-limits.md) · [requests and usage](docs/requests-usage.md) · [real-time](docs/realtime.md) · [health and operations](docs/health-operations.md) · [logging and audit](docs/logging-audit.md) · [administration](docs/administration.md) · [security](docs/security.md) · [self-service keys](docs/self-service-keys.md) · [two-factor sign-in](docs/two-factor.md) · [performance](docs/performance.md) · [configuration](docs/configuration.md) · [deployment](docs/deployment.md) · [screenshots](docs/screenshots/README.md)
+[providers](docs/providers.md) · [models](docs/models.md) · [routing](docs/routing.md) · [gateway](docs/gateway.md) · [rate limits](docs/rate-limits.md) · [requests and usage](docs/requests-usage.md) · [real-time](docs/realtime.md) · [health and operations](docs/health-operations.md) · [logging and audit](docs/logging-audit.md) · [administration](docs/administration.md) · [security](docs/security.md) · [self-service keys](docs/self-service-keys.md) · [two-factor sign-in](docs/two-factor.md) · [MCP server](docs/mcp.md) · [performance](docs/performance.md) · [configuration](docs/configuration.md) · [deployment](docs/deployment.md) · [screenshots](docs/screenshots/README.md)
 
 ## Rules
 
@@ -81,7 +81,7 @@ From the specification (§2, §39), plus conventions established while building:
 3. **Database code stays in repositories.** Domain packages own a repository
    interface plus a SQLite implementation. Nothing else imports `bun:sqlite`.
 4. **Every route declares its access:** `router.get(path, access, handler)` with
-   `'public'`, `'authenticated'` (own data only), `'api_key'` (`/v1` only) or a permission. It is a required
+   `'public'`, `'authenticated'` (own data only), `'api_key'` (`/v1` only), `'mcp'` (`/v1/mcp`: a key with MCP access) or a permission. It is a required
    argument. Never add a public route without a reason in the code.
 5. **Migrations are append-only.** Never edit or rename an applied migration: the
    runner checks checksums and refuses to start. Add `NNNN_name.ts` and append it to
