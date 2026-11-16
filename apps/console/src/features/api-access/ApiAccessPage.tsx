@@ -160,7 +160,7 @@ export function ApiAccessPage() {
       <OwnQuotaCard refreshKey={lastUpdated} />
       <Text tone="secondary">
         Clients send the key as <span className="claw-mono">Authorization: Bearer crk_…</span> to the OpenAI-compatible endpoints
-        <span className="claw-mono"> /v1/chat/completions</span>, <span className="claw-mono">/v1/embeddings</span> and <span className="claw-mono">/v1/models</span>.
+        <span className="claw-mono"> /v1/chat/completions</span>, <span className="claw-mono">/v1/responses</span>, <span className="claw-mono">/v1/embeddings</span> and <span className="claw-mono">/v1/models</span>.
       </Text>
       {(() => {
         const table = (

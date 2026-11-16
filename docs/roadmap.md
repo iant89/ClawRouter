@@ -155,6 +155,7 @@ Goal: create the provider abstraction. See [providers](providers.md).
 - [x] Local/OpenAI-compatible provider
 - [x] Groq provider (OpenAI-compatible API with Groq's stream usage and model limits) (owner request, 2026-11-16)
 - [x] Tools and function calling for every provider (OpenAI format; Anthropic and Gemini translated), tested live on Groq (owner request, 2026-11-16)
+- [x] `POST /v1/responses` (OpenAI Responses API, stateless) over the same pipeline, tested live on Groq (owner request, 2026-11-16)
 - [x] Images, audio and PDFs in chat messages; automatic pricing from published price lists (owner request, 2026-11-16)
 
 Exit: ClawRouter communicates with multiple AI providers through one standardized interface ✅ (tested against local mocks of each API; **not yet against the real providers**)

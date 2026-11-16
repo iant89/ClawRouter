@@ -214,7 +214,8 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
   - Request history stores metadata only; there is no payload storage at all, so
     there is nothing to configure for payload retention (spec §22). Keep it that
     way unless the owner asks for opt-in payload logging.
-  - `/v1/responses` and `n > 1` are rejected with 400 (see `docs/gateway.md`). Tools
+  - `n > 1` is rejected with 400 (see `docs/gateway.md`). `/v1/responses` works but is
+    stateless (no `previous_response_id`, no hosted tools). Tools
     work (2026-11-16); the deprecated `functions` / `function_call` are refused.
   - No CORS on `/v1`; browser apps must call it from their backend.
   - System settings (phase 14) are cached in memory per process: with several
@@ -250,6 +251,16 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
     reaches the others within 5 seconds.
 
 ### Notes
+
+- **NOTE** · 2026-11-16 · Responses API and the chat pipeline
+  Chat completions and `/v1/responses` share `runChat()` in
+  `packages/gateway/src/service.ts`; only the parser and the `ChatFormatter`
+  (`formats.ts`, `responses.ts`) differ. A change to routing, failover, limits or
+  recording belongs in `runChat`, once. The Responses parser builds a Chat Completions
+  body and validates it with `parseChatRequest`; `renamed()` maps error params back to
+  Responses names (`messages[i]` -> `input[j]` through a source map). Stateless by
+  design (no payload storage): if the owner ever wants `previous_response_id`, it needs
+  opt-in storage of conversations, which the spec §22 decision currently rules out.
 
 - **NOTE** · 2026-11-16 · Tools and function calling
   Normalized types in `packages/providers/src/types.ts`: `ChatRequest.tools`,
@@ -383,16 +394,19 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 
 ### Messages
 
-- **MESSAGE** · 2026-11-16 · Everything is merged; what comes next is the owner's call
-  `main` holds every roadmap phase (1–17) and the follow-ups: quotas, rate-limit windows
-  and token buckets, the Groq provider, media forwarding, automatic pricing, and tools /
-  function calling (tested live on Groq). No branch waits for review. Candidates: the spec
-  §41 future roadmap, `/v1/responses`, or the open warnings above (real tests for OpenAI,
-  Anthropic and Google; multi-node shared state; CI).
+- **MESSAGE** · 2026-11-16 · The Responses API waits for review
+  Built on `claude/responses-api` (from `main`, not merged): `POST /v1/responses` over the
+  chat pipeline, tested live on Groq. Fast-forward `main` when the owner says "merge".
+  Everything before it is merged. Candidates after it: the spec §41 future roadmap, or the
+  open warnings above (real tests for OpenAI, Anthropic and Google; multi-node shared
+  state; CI).
 
 ---
 
 ## Resolved
+
+- **MESSAGE** · 2026-11-16 · Everything merged after tools. Resolved 2026-11-16: the owner
+  asked for `/v1/responses` next (see Messages).
 
 - **MESSAGE** · 2026-11-16 · Tools and function calling wait for review. Resolved
   2026-11-16: the owner said "Merge"; `main` was fast-forwarded to `claude/tools` (this commit).

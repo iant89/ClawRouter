@@ -22,7 +22,7 @@ Any OpenAI SDK works with `base_url = http://<host>/v1` and the key as its API k
 | `GET /v1/models` | Enabled aliases and usable models (`provider/model`), limited to what the key may use |
 | `POST /v1/chat/completions` | JSON or streaming (`stream: true`, `stream_options.include_usage`) |
 | `POST /v1/embeddings` | `input` as a string or up to 2048 strings; `encoding_format: "float"` only. OpenAI, OpenAI-compatible and Google; not Anthropic |
-| `POST /v1/responses` | **Not supported yet.** Answers 400 pointing to `/v1/chat/completions` |
+| `POST /v1/responses` | The Responses API (stateless), over the same pipeline: see [Responses API](#responses-api) |
 
 `model` may be an alias, a model reference (`openai/gpt-4o`) or a provider model id
 (`gpt-4o-mini`), resolved as described in [routing](routing.md). The response's
@@ -93,6 +93,43 @@ for each provider:
   some providers do not follow redirects (Groq refuses them).
 - Media is never stored: request history, logs and events hold metadata only.
   Provider token counts include the images, so usage and cost do too.
+
+## Responses API
+
+`POST /v1/responses` speaks OpenAI's Responses API and runs through the same
+pipeline as chat completions: routing, failover, rate limits, quotas, media, tools and
+request history (endpoint `responses`) all apply, with every provider. Clients such as
+the OpenAI Agents SDK and Codex can point at ClawRouter.
+
+| Request | Becomes |
+|---|---|
+| `input` as text, or items: messages (`input_text`, `input_image`, `input_file`, `input_audio`; assistant `output_text`), `function_call`, `function_call_output` | the conversation |
+| `instructions` | a system message |
+| `max_output_tokens`, `temperature`, `top_p` | the same limits |
+| `tools` (type `function`), `tool_choice`, `parallel_tool_calls` | tools (see above) |
+| `metadata` | echoed in the response |
+| `reasoning` items in `input` | skipped (ClawRouter cannot resume a provider's reasoning) |
+
+The answer is a `response` object: `message` items with `output_text`, and
+`function_call` items (`call_id`, `name`, `arguments`), with `usage`. An answer cut
+by the length limit has `status: "incomplete"` and `incomplete_details.reason:
+"max_output_tokens"`. Streaming sends the Responses events with `sequence_number`:
+`response.created`, `response.in_progress`, `response.output_item.added`,
+`response.content_part.added`, `response.output_text.delta` / `.done`,
+`response.function_call_arguments.delta` / `.done`, `response.output_item.done`, and
+`response.completed` (or `response.incomplete`, or `response.failed` when the
+provider fails mid-stream). There is no `[DONE]`.
+
+**Stateless.** ClawRouter stores no prompts or answers, so it keeps no responses:
+send the whole conversation in `input` each time (what clients do with `store:
+false`). `previous_response_id`, `conversation` and `item_reference` are refused with
+400, and `store` is always `false` in the answer. OpenAI's hosted tools
+(`web_search`, `file_search`, `code_interpreter`, …) and structured `text.format`
+(JSON schema) are refused too. Errors name the Responses field (`input[2].call_id`,
+`max_output_tokens`, …).
+
+Tested live against Groq (gpt-oss-20b): a plain answer, a streamed one, a tool call
+and its round trip, and a streamed tool call.
 
 ## API keys
 
@@ -182,7 +219,7 @@ for each provider:
 
 ## Not yet
 
-- `/v1/responses`, `n > 1` (see above). Image generation, audio output and transcription endpoints.
+- `n > 1` (see above); stored responses (`previous_response_id`) and OpenAI's hosted tools. Image generation, audio output and transcription endpoints.
 - Rate limits: see [rate limits](rate-limits.md) (phase 9). A refused request gets 429 `rate_limit_error` with `Retry-After`.
 - Request history, usage and cost: see [requests and usage](requests-usage.md) (phase 10).
 - CORS: none. Browser apps should call ClawRouter from their backend.
