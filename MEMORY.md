@@ -417,7 +417,10 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
   nothing else. "Open 3" / "Option*" meant item 3 of the follow-up list (check CI), but it was
   misread as building ClawRouter as an MCP server. That was built on `claude/mcp-server`
   and the owner said "No, I didn't want to implement a MCP Server". The branch is left on
-  GitHub, unmerged, until the owner says whether to delete it. When the owner's words are
+  GitHub, unmerged. Owner, 2026-11-16: "Delete all unmerged" (this branch and the stale
+  pre-rebase `claude/groq-provider`, whose work is in `main` as `ec98b80`). Deleting branches
+  from the session is refused (HTTP 403 from the git proxy), so the owner deletes them on
+  GitHub (Branches page); the merged branches may go too. When the owner's words are
   ambiguous between two lists, ask before building.
 
 ---
