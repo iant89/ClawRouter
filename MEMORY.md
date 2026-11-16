@@ -394,16 +394,19 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 
 ### Messages
 
-- **MESSAGE** · 2026-11-16 · The Responses API waits for review
-  Built on `claude/responses-api` (from `main`, not merged): `POST /v1/responses` over the
-  chat pipeline, tested live on Groq. Fast-forward `main` when the owner says "merge".
-  Everything before it is merged. Candidates after it: the spec §41 future roadmap, or the
-  open warnings above (real tests for OpenAI, Anthropic and Google; multi-node shared
-  state; CI).
+- **MESSAGE** · 2026-11-16 · Everything is merged; what comes next is the owner's call
+  `main` holds every roadmap phase (1–17) and the follow-ups: quotas, rate-limit windows
+  and token buckets, the Groq provider, media forwarding, automatic pricing, tools /
+  function calling and `/v1/responses` (both tested live on Groq). No branch waits for
+  review. Candidates: the spec §41 future roadmap, or the open warnings above (real tests
+  for OpenAI, Anthropic and Google; multi-node shared state; CI).
 
 ---
 
 ## Resolved
+
+- **MESSAGE** · 2026-11-16 · The Responses API waits for review. Resolved 2026-11-16: the
+  owner said "Merge"; `main` was fast-forwarded to `claude/responses-api` (this commit).
 
 - **MESSAGE** · 2026-11-16 · Everything merged after tools. Resolved 2026-11-16: the owner
   asked for `/v1/responses` next (see Messages).
