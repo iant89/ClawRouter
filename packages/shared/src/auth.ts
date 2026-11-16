@@ -1,3 +1,4 @@
+import type { OnboardingInfo } from './onboarding.ts';
 import type { UserQuota } from './quotas.ts';
 
 /** Authentication DTOs shared by the server and the console. Never contain secrets. */
@@ -43,6 +44,8 @@ export interface AuthSession {
   keyLifetimeLimitHours: number | null;
   /** Effective permissions, for showing and hiding UI. The server re-checks every request. */
   permissions: string[];
+  /** First-run setup wizard and guided tour. */
+  onboarding: OnboardingInfo;
 }
 
 /** GET /api/setup/status */

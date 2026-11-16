@@ -1,6 +1,6 @@
 import { AppError, newRequestId, type LogBuffer, type Logger } from '@clawrouter/core';
 import type { AuditService } from '@clawrouter/audit';
-import type { AuthService, SetupService, TwoFactorService, UserAdminService } from '@clawrouter/authentication';
+import type { AuthService, OnboardingService, SetupService, TwoFactorService, UserAdminService } from '@clawrouter/authentication';
 import type { MailService } from '@clawrouter/mail';
 import type { AuthorizationService } from '@clawrouter/authorization';
 import { PASSWORD_CHANGE_REQUIRED, TWO_FACTOR_SETUP_REQUIRED } from '@clawrouter/shared';
@@ -63,6 +63,7 @@ export interface ApiDependencies {
   apiKeys: ApiKeyService;
   keyRequests: KeyRequestService;
   twoFactor: TwoFactorService;
+  onboarding: OnboardingService;
   mail: MailService;
   gateway: GatewayService;
   limits: RateLimitService;
@@ -135,6 +136,7 @@ export function createApiApp(deps: ApiDependencies): ApiApp {
   router.delete('/api/auth/sessions/:id', 'authenticated', authRoutes.revokeSession);
   router.post('/api/auth/password', 'authenticated', usersApi.changeOwnPassword);
   router.get('/api/auth/quota', 'authenticated', usersApi.ownQuota);
+  router.post('/api/auth/tour', 'authenticated', authRoutes.finishTour);
   router.put('/api/auth/email', 'authenticated', tf.changeEmail);
   router.get('/api/auth/2fa', 'authenticated', tf.status);
   router.post('/api/auth/2fa/totp', 'authenticated', tf.startTotp);
@@ -200,6 +202,8 @@ export function createApiApp(deps: ApiDependencies): ApiApp {
     router.post('/api/configuration/import/preview', 'settings.write', configApi.preview);
     router.post('/api/configuration/import', 'settings.write', configApi.apply);
   }
+  // First-run setup wizard (owner request): its steps call the ordinary APIs, which check their own permissions.
+  router.put('/api/onboarding/setup-wizard', 'settings.write', authRoutes.updateSetupWizard);
   router.get('/api/settings', 'settings.read', settingsApi.list);
   router.get('/api/settings/sign-in', 'settings.read', tf.signInSettings);
   router.put('/api/settings/sign-in', 'settings.write', tf.updateSignInSettings);

@@ -9,7 +9,7 @@ committed on purpose: a fresh clone needs only `bun install`.
 | | |
 |---|---|
 | Package | `@enterprise-ui/react` 0.1.0 |
-| Source | ENTERPRISE-UI `main` at `2ae975794ab10049e5c08d6be2cd73b86a6f436f` (pull request 54, the QrCode component) |
+| Source | ENTERPRISE-UI pull request 55 (the Tour component) at `6bc2c2a21838da1cb28ad2bb50e79c5ec95cd8c8`, **not merged yet**: re-vendor from `main` once it is |
 | Contents | the published files only (`dist/`, `README.md`), as `npm pack` produces them |
 
 ### Updating

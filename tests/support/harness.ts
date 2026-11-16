@@ -7,8 +7,8 @@ import { operationHandlers } from '../../apps/server/src/operation-handlers.ts';
 import { createApiApp, type ApiApp } from '@clawrouter/api';
 import { createAuditService, createSqliteAuditRepository, type AuditService } from '@clawrouter/audit';
 import {
-  createArgon2Hasher, createAuthService, createSetupService, createSqliteSessionRepository, createSqliteUserRepository, createTwoFactorService, createUserAdminService,
-  type AuthService, type PasswordHasher, type SetupService, type TwoFactorService, type UserAdminService, type UserRepository,
+  createArgon2Hasher, createAuthService, createOnboardingService, createSetupService, createSqliteSessionRepository, createSqliteUserRepository, createTwoFactorService, createUserAdminService,
+  type AuthService, type OnboardingService, type PasswordHasher, type SetupService, type TwoFactorService, type UserAdminService, type UserRepository,
 } from '@clawrouter/authentication';
 import { createAuthorizationService, createSqliteRoleRepository, peopleDirectory, userAccessPolicy, type AuthorizationService } from '@clawrouter/authorization';
 import { createEventBus, createLogger, createSecretBox, generateSecretKey, LogBuffer, parseSecretKey, type EventBus, type LogRecord, type SecretBox } from '@clawrouter/core';
@@ -54,6 +54,7 @@ export interface Harness {
   userAdmin: UserAdminService;
   settings: SettingsService;
   twoFactor: TwoFactorService;
+  onboarding: OnboardingService;
   mail: MailService;
   /** Messages "sent" by the mail service. */
   outbox: { to: string; subject: string; text: string }[];
@@ -137,6 +138,7 @@ export function createHarness(options: { idleMinutes?: number; maxHours?: number
     db, users, hasher: fastHasher, secrets, settings: createSqliteSettingsRepository(db, clock.now), mail, audit, events, log, now: clock.now,
     isAdministrator: (userId) => authz.principalFor(userId).roles.includes('ADMIN'),
   });
+  const onboarding = createOnboardingService({ db, settings: createSqliteSettingsRepository(db, clock.now), audit, log });
   let providerFetch: typeof fetch = (() => Promise.reject(new Error('no network in tests'))) as unknown as typeof fetch;
   const providers = createProviderService({
     repo: createSqliteProviderRepository(db), registry: createDefaultRegistry(), secrets, audit, events, log, now: clock.now,
@@ -179,10 +181,10 @@ export function createHarness(options: { idleMinutes?: number; maxHours?: number
   const healthHistory = createHealthHistoryService({ repo: createSqliteHealthHistoryRepository(db), now: clock.now });
   const operations = createOperationService({ repo: createSqliteOperationRepository(db), handlers: operationHandlers({ providers, health }), audit, events, log, now: clock.now });
   const configuration = createConfigurationService({ providers, models, routing, limits, authz, settings, twoFactor, mail, audit, version: 'test', now: clock.now });
-  const api = createApiApp({ log, logBuffer, audit, health, configuration, healthHistory, auth, authz, userAdmin, settings, twoFactor, mail, notifications, providers, models, routing, apiKeys, keyRequests, gateway, limits, quotas, requests, operations, setup, cookie: { secure: options.secureCookie ?? false } });
+  const api = createApiApp({ log, logBuffer, audit, health, configuration, onboarding, healthHistory, auth, authz, userAdmin, settings, twoFactor, mail, notifications, providers, models, routing, apiKeys, keyRequests, gateway, limits, quotas, requests, operations, setup, cookie: { secure: options.secureCookie ?? false } });
 
   const h: Harness = {
-    db, clock, events, users, audit, auth, authz, userAdmin, settings, twoFactor, mail, outbox, notifications, providers, models, routing, apiKeys, keyRequests, gateway, limits, quotas, requests, secrets, setup, health, healthHistory, operations, api, logs, logBuffer,
+    db, clock, events, users, audit, auth, authz, userAdmin, settings, twoFactor, onboarding, mail, outbox, notifications, providers, models, routing, apiKeys, keyRequests, gateway, limits, quotas, requests, secrets, setup, health, healthHistory, operations, api, logs, logBuffer,
     setProviderFetch(fn) {
       providerFetch = fn;
     },
