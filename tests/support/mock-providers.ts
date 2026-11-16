@@ -138,9 +138,12 @@ export function startMockProviders(key = 'sk-test-0123456789abcdefWXYZ'): MockPr
         }
         if (path === '/openai/v1/models') {
           return json({ object: 'list', data: [
-            { id: 'llama-3.3-70b-versatile', object: 'model', owned_by: 'Meta', active: true, context_window: 131072, max_completion_tokens: 32768 },
-            { id: 'openai/gpt-oss-120b', object: 'model', owned_by: 'OpenAI', active: true, context_window: 131072, max_completion_tokens: 65536 },
-            { id: 'whisper-large-v3', object: 'model', owned_by: 'OpenAI', active: true, context_window: 448 },
+            // Shaped like Groq's real list (2026-11): names, modalities, US$ prices per token.
+            { id: 'llama-3.3-70b-versatile', object: 'model', owned_by: 'Meta', active: true, name: 'Llama 3.3 70B', context_window: 131072, max_completion_tokens: 32768, input_modalities: ['text'], output_modalities: ['text'], pricing: { prompt: '0.00000059', completion: '0.00000079' } },
+            { id: 'openai/gpt-oss-120b', object: 'model', owned_by: 'OpenAI', active: true, name: 'GPT OSS 120B', context_window: 131072, max_completion_tokens: 65536, input_modalities: ['text'], output_modalities: ['text'], pricing: { prompt: '0.00000015', completion: '0.0000006' } },
+            { id: 'qwen/qwen3.8-27b', object: 'model', owned_by: 'Alibaba', active: true, name: 'Qwen 3.8 27B', context_window: 131072, max_completion_tokens: 16384, input_modalities: ['text', 'image'], output_modalities: ['text'], pricing: { prompt: '0.0000008', completion: '0.000004' } },
+            { id: 'whisper-large-v3', object: 'model', owned_by: 'OpenAI', active: true, name: 'Whisper', context_window: 448, input_modalities: ['audio'], output_modalities: ['transcription'] },
+            { id: 'canopylabs/orpheus-v1-english', object: 'model', owned_by: 'Canopy Labs', active: true, name: 'Orpheus V1 English', context_window: 4000, max_completion_tokens: 50000, input_modalities: ['text'], output_modalities: ['speech'], pricing: { prompt: '0.000022' } },
             { id: 'meta-llama/llama-guard-4-12b', object: 'model', owned_by: 'Meta', active: true, context_window: 131072 },
             { id: 'mixtral-8x7b-32768', object: 'model', owned_by: 'Mistral AI', active: false, context_window: 32768 },
           ] });

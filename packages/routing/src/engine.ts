@@ -68,12 +68,15 @@ export function planRoute(request: RouteRequest, snap: RoutingSnapshot): RouteRe
     resolvedAs = 'alias';
     aliasCaps = alias.capabilities;
     pending = aliasCandidates(alias, snap, excluded);
-  } else if (name.includes('/')) {
+  } else if (name.includes('/') && snap.models.some((m) => m.ref === name)) {
     resolvedAs = 'model_ref';
-    const model = snap.models.find((m) => m.ref === name);
-    if (!model) return fail(`Unknown model "${name}".`, resolvedAs);
-    pending = [{ model, priority: 0, weight: 1 }];
+    pending = [{ model: snap.models.find((m) => m.ref === name)!, priority: 0, weight: 1 }];
+  } else if (name.includes('/') && !snap.models.some((m) => m.providerModelId === name)) {
+    // Not a reference, and no provider offers a model with this id either.
+    return fail(`Unknown model "${name}". Use a model alias, a model reference such as "openai/gpt-4o", or a model id offered by a provider.`, 'model_ref');
   } else {
+    // A provider's own model id. Some contain a slash (Groq: "openai/gpt-oss-120b",
+    // "qwen/qwen3.8-27b"); a reference with the same spelling wins (above).
     resolvedAs = 'model_id';
     pending = snap.models
       .filter((m) => m.providerModelId === name)

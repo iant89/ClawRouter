@@ -1,7 +1,7 @@
 import type { Capability, ProviderKind, ProviderKindInfo } from '@clawrouter/shared';
 import { invalidResponse, joinUrl, providerFetch, readJson } from '../http.ts';
 import { parseSse } from '../sse.ts';
-import type { ChatRequest, ChatResponse, EmbeddingResponse, FinishReason, ProviderAdapter, ProviderCallContext, StreamEvent, Usage } from '../types.ts';
+import type { ChatRequest, ChatResponse, DiscoveredModel, EmbeddingResponse, FinishReason, ProviderAdapter, ProviderCallContext, StreamEvent, Usage } from '../types.ts';
 import { baseValidation, connectionChecks, guessKind } from './common.ts';
 
 interface OpenAiUsage {
@@ -16,6 +16,27 @@ const finish = (reason: string | null | undefined): FinishReason =>
 const usageOf = (u: OpenAiUsage | undefined | null): Usage =>
   u ? { inputTokens: u.prompt_tokens ?? null, outputTokens: u.completion_tokens ?? null, totalTokens: u.total_tokens ?? null, source: 'provider' }
     : { inputTokens: null, outputTokens: null, totalTokens: null, source: 'none' };
+
+/** A model in an OpenAI-style list. OpenAI sends only `id`; Groq adds the rest. */
+interface ListedOpenAiModel {
+  id?: unknown;
+  name?: unknown;
+  active?: unknown;
+  context_window?: unknown;
+  max_completion_tokens?: unknown;
+  input_modalities?: unknown;
+  output_modalities?: unknown;
+  /** US$ per token, as decimal strings. */
+  pricing?: { prompt?: unknown; completion?: unknown } | null;
+}
+
+const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) && v > 0 ? v : null);
+const strings = (v: unknown) => (Array.isArray(v) && v.every((x) => typeof x === 'string') ? (v as string[]) : null);
+/** "0.00000015" US$ per token -> 0.15 per million tokens (null when absent or not a number). */
+const perMillion = (v: unknown): number | null => {
+  const n = typeof v === 'string' ? Number(v) : typeof v === 'number' ? v : NaN;
+  return Number.isFinite(n) && n >= 0 ? Math.round(n * 1e6 * 1e6) / 1e6 : null;
+};
 
 export interface OpenAiStyleOptions {
   kind: Extract<ProviderKind, 'openai' | 'groq' | 'openai_compatible'>;
@@ -60,19 +81,30 @@ export function createOpenAiStyleAdapter(options: OpenAiStyleOptions): ProviderA
     ...(stream && options.streamOptions ? { stream_options: { include_usage: true } } : {}),
   });
 
-  async function listModels(ctx: ProviderCallContext) {
+  async function listModels(ctx: ProviderCallContext): Promise<DiscoveredModel[]> {
     const res = await providerFetch(ctx, joinUrl(ctx.endpoint, '/models'), { method: 'GET', headers: headers(ctx) });
-    const json = await readJson<{ data?: { id?: unknown; active?: unknown; context_window?: unknown; max_completion_tokens?: unknown }[] }>(res, ctx.apiKey);
+    const json = await readJson<{ data?: ListedOpenAiModel[] }>(res, ctx.apiKey);
     if (!Array.isArray(json.data)) throw invalidResponse('model list has no "data" array');
-    const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) && v > 0 ? v : null);
     return json.data
       // Groq marks retired models `active: false`; they cannot be called.
-      .filter((m): m is { id: string; active?: unknown; context_window?: unknown; max_completion_tokens?: unknown } => typeof m.id === 'string' && m.active !== false)
-      .map((m) => ({
-        id: m.id, displayName: null, kind: guessKind(m.id),
-        // Groq (and some compatible servers) report these; OpenAI does not.
-        contextLength: num(m.context_window), maxOutputTokens: num(m.max_completion_tokens),
-      }));
+      .filter((m): m is ListedOpenAiModel & { id: string } => typeof m.id === 'string' && m.active !== false)
+      .map((m) => {
+        const inputs = strings(m.input_modalities);
+        const outputs = strings(m.output_modalities);
+        // Groq says what goes in and out: a model that does not answer in text (speech, transcription) is not a chat model.
+        const kind = outputs && !outputs.includes('text') ? 'other' : guessKind(m.id);
+        const input = perMillion(m.pricing?.prompt);
+        const output = perMillion(m.pricing?.completion);
+        return {
+          id: m.id,
+          displayName: typeof m.name === 'string' && m.name.trim() ? m.name.trim().slice(0, 200) : null,
+          kind,
+          // Groq (and some compatible servers) report these; OpenAI does not.
+          contextLength: num(m.context_window), maxOutputTokens: num(m.max_completion_tokens),
+          ...(inputs ? { vision: inputs.includes('image') } : {}),
+          ...(input !== null || output !== null ? { cost: { inputPerMTok: input, outputPerMTok: output } } : {}),
+        };
+      });
   }
 
   return {

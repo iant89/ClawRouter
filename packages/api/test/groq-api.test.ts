@@ -38,15 +38,21 @@ describe('Groq provider', () => {
   test('discovery lists active models with their limits; import registers them', async () => {
     const { h, admin, provider } = await world();
     const found = await data<DiscoveredModelInfo[]>(await h.request(`/api/providers/${provider.id}/models/discover`, { cookie: admin }));
-    expect(found.map((m) => m.providerModelId)).toEqual(['llama-3.3-70b-versatile', 'meta-llama/llama-guard-4-12b', 'openai/gpt-oss-120b', 'whisper-large-v3']);
-    expect(found[0]).toMatchObject({ contextLength: 131072, maxOutputTokens: 32768, registered: false });
-    expect(found[0]!.capabilities).toContain('CHAT');
+    expect(found.map((m) => m.providerModelId)).toEqual(['canopylabs/orpheus-v1-english', 'llama-3.3-70b-versatile', 'meta-llama/llama-guard-4-12b', 'openai/gpt-oss-120b', 'qwen/qwen3.8-27b', 'whisper-large-v3']);
+    const by = (id: string) => found.find((m) => m.providerModelId === id)!;
+    expect(by('llama-3.3-70b-versatile')).toMatchObject({ displayName: 'Llama 3.3 70B', contextLength: 131072, maxOutputTokens: 32768, capabilities: ['CHAT'], cost: { inputPerMTok: 0.59, outputPerMTok: 0.79 }, registered: false });
+    expect(by('qwen/qwen3.8-27b').capabilities).toEqual(['CHAT', 'VISION']);
+    expect(by('canopylabs/orpheus-v1-english').capabilities).toEqual([]); // speech: not a chat model
+    expect(by('whisper-large-v3').capabilities).toEqual([]);
 
     const imported = await data<ImportModelsResult>(await h.request(`/api/providers/${provider.id}/models/import`, {
       method: 'POST', cookie: admin, json: { providerModelIds: ['llama-3.3-70b-versatile', 'openai/gpt-oss-120b'] },
     }));
     expect(imported.imported).toBe(2);
-    expect(imported.models.map((m) => [m.ref, m.contextLength])).toEqual([['groq/llama-3.3-70b-versatile', 131072], ['groq/openai/gpt-oss-120b', 131072]]);
+    expect(imported.models.map((m) => [m.ref, m.displayName, m.contextLength, m.cost])).toEqual([
+      ['groq/llama-3.3-70b-versatile', 'Llama 3.3 70B', 131072, { inputPerMTok: 0.59, outputPerMTok: 0.79, currency: 'USD' }],
+      ['groq/openai/gpt-oss-120b', 'GPT OSS 120B', 131072, { inputPerMTok: 0.15, outputPerMTok: 0.6, currency: 'USD' }],
+    ]);
   });
 
   test('chat completions go through the gateway, streamed or not, with usage recorded', async () => {
@@ -76,6 +82,8 @@ describe('Groq provider', () => {
     const id = streamed.headers.get('x-request-id')!;
     const detail = await data<RequestDetail>(await h.request(`/api/requests/${id}`, { cookie: admin }));
     expect(detail).toMatchObject({ modelRef: 'groq/llama-3.3-70b-versatile', inputTokens: 12, outputTokens: 2, usageSource: 'provider' });
+    // The cost comes from Groq's published prices, set when the model was imported.
+    expect(detail.costUsd).toBeCloseTo((12 * 0.59 + 2 * 0.79) / 1e6, 12);
   });
 
   test('a wrong Groq key fails the connection test without showing the key', async () => {

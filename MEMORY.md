@@ -186,12 +186,11 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
   the second kept answering when the first stopped); no automated test, and not tried on macOS or Windows.
   Caddy's automatic certificates were not tried (no public host).
 
-- **WARNING** · 2026-11-12 · Provider adapters never tested against the real APIs
-  OpenAI, Anthropic, Google, Groq and OpenAI-compatible adapters were only tested
-  against `tests/support/mock-providers.ts`. No real provider was reachable from
-  the development environment. Expect small fixes the first time real keys are
-  used: request fields, streaming events, model list paging (Anthropic lists at
-  most 100).
+- **WARNING** · 2026-11-12 · Provider adapters never tested against the real APIs (Groq is)
+  OpenAI, Anthropic, Google and OpenAI-compatible adapters were only tested against
+  `tests/support/mock-providers.ts`. Expect small fixes the first time real keys are
+  used: request fields, streaming events, model list paging (Anthropic lists at most
+  100). Groq was tested live on 2026-11-16 (see the note under Notes).
 
 - **WARNING** · 2026-11-12 · ENTERPRISE-UI branch `claude/clawapi-design-spec-p0hucn` still exists
   The owner asked for it to be deleted after the move. The deletion was blocked by
@@ -251,6 +250,17 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
     reaches the others within 5 seconds.
 
 ### Notes
+
+- **NOTE** · 2026-11-16 · Live Groq testing
+  The owner saved a Groq API key as a **network secret for api.groq.com** on this
+  cloud environment (not in the repository, not an environment variable). The session
+  proxy injects it into requests to that host: give a ClawRouter Groq provider any
+  placeholder key and it reaches the real API. Live results 2026-11-16: discovery (11
+  models), plain and streamed chat on gpt-oss-20b and qwen3.8-27b, usage from
+  `x_groq.usage`, cost from Groq's prices, `finish_reason: length`, stream usage
+  when the client asks. Found live and fixed: speech models offered as chat,
+  names/prices/vision ignored, and model ids with a slash (`openai/gpt-oss-20b`) read
+  as provider/model. The fake Groq in the mock mirrors the real list's shape.
 
 - **NOTE** · 2026-11-14 · Phase 17 mechanisms to keep in mind
   - Every encrypted value belongs to a `SealedSecretStore` (`apps/server/src/secret-stores.ts`):
@@ -348,11 +358,11 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 
 ### Messages
 
-- **MESSAGE** · 2026-11-16 · Everything is merged; what comes next is the owner's call
-  `main` holds every roadmap phase (1–17) and the follow-ups: user quotas (with per-user
-  and global off switches), rate-limit windows and token buckets, and the Groq provider.
-  No branch waits for review. Candidates: the spec §41 future roadmap, or the open
-  warnings above (real provider tests, Groq included; multi-node shared state; CI's first run).
+- **MESSAGE** · 2026-11-16 · Groq live fixes wait for review
+  `claude/groq-live-fixes` (from `main`): richer Groq discovery (names, prices as
+  model cost, Vision, speech models not chat) and routing of model ids that contain a
+  slash. Merge when the owner says so. Everything else is merged. Candidates after it:
+  the spec §41 future roadmap, or the open warnings above.
 
 ---
 

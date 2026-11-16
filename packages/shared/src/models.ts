@@ -52,6 +52,8 @@ export interface DiscoveredModelInfo {
   contextLength: number | null;
   maxOutputTokens: number | null;
   capabilities: Capability[];
+  /** Prices the provider publishes, in US$ per million tokens (Groq); null when none. */
+  cost: { inputPerMTok: number | null; outputPerMTok: number | null } | null;
   /** Already in the registry. */
   registered: boolean;
 }

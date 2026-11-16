@@ -51,6 +51,10 @@ export interface DiscoveredModel {
   maxOutputTokens?: number | null;
   /** Best guess from the provider's metadata or the model id. */
   kind?: 'chat' | 'embedding' | 'other';
+  /** Accepts images, when the provider says so (Groq: `input_modalities`). */
+  vision?: boolean;
+  /** Prices in US$ per million tokens, when the provider publishes them (Groq: `pricing`). */
+  cost?: { inputPerMTok: number | null; outputPerMTok: number | null } | null;
 }
 
 /** Everything an adapter needs for one call. The API key is decrypted just for the call. */

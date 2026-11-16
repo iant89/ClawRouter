@@ -16,11 +16,14 @@ export interface ClientInfo {
   requestId?: string | null;
 }
 
-type ListedModel = { id: string; displayName: string | null; contextLength: number | null; maxOutputTokens: number | null; kind: 'chat' | 'embedding' | 'other' };
+type ListedModel = {
+  id: string; displayName: string | null; contextLength: number | null; maxOutputTokens: number | null; kind: 'chat' | 'embedding' | 'other';
+  vision?: boolean; cost?: { inputPerMTok: number | null; outputPerMTok: number | null } | null;
+};
 
 /** Capabilities pre-selected for a discovered model; administrators refine them. */
-export function defaultCapabilities(kind: ListedModel['kind'], providerCaps: readonly Capability[]): Capability[] {
-  const want: Capability[] = kind === 'chat' ? ['CHAT'] : kind === 'embedding' ? ['EMBEDDINGS'] : [];
+export function defaultCapabilities(kind: ListedModel['kind'], providerCaps: readonly Capability[], vision = false): Capability[] {
+  const want: Capability[] = kind === 'chat' ? ['CHAT', ...(vision ? ['VISION' as const] : [])] : kind === 'embedding' ? ['EMBEDDINGS'] : [];
   return want.filter((c) => providerCaps.includes(c));
 }
 
@@ -183,7 +186,8 @@ export function createModelService(options: {
           displayName: m.displayName,
           contextLength: m.contextLength ?? null,
           maxOutputTokens: m.maxOutputTokens ?? null,
-          capabilities: defaultCapabilities(m.kind ?? 'chat', provider.capabilities),
+          capabilities: defaultCapabilities(m.kind ?? 'chat', provider.capabilities, m.vision),
+          cost: m.cost ?? null,
           registered: existing.has(m.id),
         }))
         .sort((a, b) => Number(a.registered) - Number(b.registered) || a.providerModelId.localeCompare(b.providerModelId));
@@ -211,15 +215,16 @@ export function createModelService(options: {
             providerId,
             providerModelId: id,
             displayName: m.displayName ?? id,
-            capabilities: defaultCapabilities(m.kind ?? 'chat', provider.capabilities),
+            capabilities: defaultCapabilities(m.kind ?? 'chat', provider.capabilities, m.vision),
             contextLength: m.contextLength ?? null,
             maxOutputTokens: m.maxOutputTokens ?? null,
             enabled: true,
             availability: 'AVAILABLE',
             availabilityCheckedAt: at,
             source: 'DISCOVERED',
-            costInputPerMTok: null,
-            costOutputPerMTok: null,
+            // Published prices (Groq) fill in the cost; administrators can change it.
+            costInputPerMTok: m.cost?.inputPerMTok ?? null,
+            costOutputPerMTok: m.cost?.outputPerMTok ?? null,
             maxKeyLifetimeHours: null,
           });
         }),

@@ -13,7 +13,7 @@ const cases = [
   { kind: 'openai', base: '/openai/v1', model: 'gpt-4o-mini', text: 'Hello from OpenAI', streamText: 'Hello', models: 3, usage: [7, 4, 11], streamUsage: [7, 2, 9], streamFinish: 'stop' },
   { kind: 'anthropic', base: '/anthropic', model: 'claude-sonnet-4-5', text: 'Hello from Anthropic', streamText: 'Hi there', models: 1, usage: [9, 5, 14], streamUsage: [9, 2, 11], streamFinish: 'length' },
   { kind: 'google', base: '/google/v1beta', model: 'gemini-2.0-flash', text: 'Hello from Gemini', streamText: 'Gemini', models: 2, usage: [6, 3, 9], streamUsage: [6, 2, 8], streamFinish: 'stop' },
-  { kind: 'groq', base: '/groq/openai/v1', model: 'llama-3.3-70b-versatile', text: 'Hello from Groq', streamText: 'Hello', models: 4, usage: [12, 5, 17], streamUsage: [12, 2, 14], streamFinish: 'stop' },
+  { kind: 'groq', base: '/groq/openai/v1', model: 'llama-3.3-70b-versatile', text: 'Hello from Groq', streamText: 'Hello', models: 6, usage: [12, 5, 17], streamUsage: [12, 2, 14], streamFinish: 'stop' },
   { kind: 'openai_compatible', base: '/local/v1', model: 'llama3', text: 'Hello from OpenAI', streamText: 'Hello', models: 3, usage: [7, 4, 11], streamUsage: [7, 2, 9], streamFinish: 'stop' },
 ] as const;
 
@@ -152,12 +152,15 @@ describe('discovery metadata', () => {
     ]);
     const openai = await registry.get('openai').listModels(ctx('/openai/v1'));
     expect(openai.map((m) => [m.id, m.kind])).toEqual([['gpt-4o-mini', 'chat'], ['gpt-4o', 'chat'], ['text-embedding-3-small', 'embedding']]);
-    // Groq: limits from the listing; retired models (active: false) are left out; audio and guard models are not chat.
+    // Groq: names, limits, image input and prices from the listing; retired models (active: false) are left out;
+    // models that do not answer in text (transcription, speech) and guard models are not chat models.
     const groq = await registry.get('groq').listModels(ctx('/groq/openai/v1'));
     expect(groq).toEqual([
-      { id: 'llama-3.3-70b-versatile', displayName: null, kind: 'chat', contextLength: 131072, maxOutputTokens: 32768 },
-      { id: 'openai/gpt-oss-120b', displayName: null, kind: 'chat', contextLength: 131072, maxOutputTokens: 65536 },
-      { id: 'whisper-large-v3', displayName: null, kind: 'other', contextLength: 448, maxOutputTokens: null },
+      { id: 'llama-3.3-70b-versatile', displayName: 'Llama 3.3 70B', kind: 'chat', contextLength: 131072, maxOutputTokens: 32768, vision: false, cost: { inputPerMTok: 0.59, outputPerMTok: 0.79 } },
+      { id: 'openai/gpt-oss-120b', displayName: 'GPT OSS 120B', kind: 'chat', contextLength: 131072, maxOutputTokens: 65536, vision: false, cost: { inputPerMTok: 0.15, outputPerMTok: 0.6 } },
+      { id: 'qwen/qwen3.8-27b', displayName: 'Qwen 3.8 27B', kind: 'chat', contextLength: 131072, maxOutputTokens: 16384, vision: true, cost: { inputPerMTok: 0.8, outputPerMTok: 4 } },
+      { id: 'whisper-large-v3', displayName: 'Whisper', kind: 'other', contextLength: 448, maxOutputTokens: null, vision: false },
+      { id: 'canopylabs/orpheus-v1-english', displayName: 'Orpheus V1 English', kind: 'other', contextLength: 4000, maxOutputTokens: 50000, vision: false, cost: { inputPerMTok: 22, outputPerMTok: null } },
       { id: 'meta-llama/llama-guard-4-12b', displayName: null, kind: 'other', contextLength: 131072, maxOutputTokens: null },
     ]);
   });

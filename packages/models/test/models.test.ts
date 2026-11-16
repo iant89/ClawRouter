@@ -27,8 +27,8 @@ describe('discovery and import', () => {
     const { h, google } = await withProviders();
     const found = await h.models.discover(google.id);
     expect(found).toEqual([
-      { providerModelId: 'gemini-2.0-flash', displayName: 'Gemini 2.0 Flash', contextLength: 1048576, maxOutputTokens: 8192, capabilities: ['CHAT'], registered: false },
-      { providerModelId: 'text-embedding-004', displayName: 'Text Embedding 004', contextLength: 2048, maxOutputTokens: 1, capabilities: ['EMBEDDINGS'], registered: false },
+      { providerModelId: 'gemini-2.0-flash', displayName: 'Gemini 2.0 Flash', contextLength: 1048576, maxOutputTokens: 8192, capabilities: ['CHAT'], cost: null, registered: false },
+      { providerModelId: 'text-embedding-004', displayName: 'Text Embedding 004', contextLength: 2048, maxOutputTokens: 1, capabilities: ['EMBEDDINGS'], cost: null, registered: false },
     ]);
   });
 

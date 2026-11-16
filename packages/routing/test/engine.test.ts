@@ -47,6 +47,23 @@ describe('resolution (spec §10: explicit model, alias, provider model id)', () 
     expect(r.ok && r.plan.resolvedAs).toBe('model_ref');
   });
 
+  test('a provider model id with a slash (Groq: openai/gpt-oss-120b) resolves like any model id', () => {
+    // model('groq/openai/gpt-oss-120b') is provider "groq", model id "openai/gpt-oss-120b".
+    const withGroq = [...models, model('a/openai/gpt-oss-120b'), model('b/openai/gpt-oss-120b')];
+    const r = planRoute({ model: 'openai/gpt-oss-120b' }, snap(withGroq));
+    expect(refs(r)).toEqual(['a/openai/gpt-oss-120b', 'b/openai/gpt-oss-120b']);
+    expect(r.ok && r.plan.resolvedAs).toBe('model_id');
+    // The full reference still means exactly that model.
+    expect(refs(planRoute({ model: 'b/openai/gpt-oss-120b' }, snap(withGroq)))).toEqual(['b/openai/gpt-oss-120b']);
+  });
+
+  test('a reference wins over a model id with the same spelling; unknown names with a slash fail', () => {
+    // "b/x" is a reference (provider b, model x) and also the id of a model on provider a.
+    const both = [...models, model('a/b/x')];
+    expect(refs(planRoute({ model: 'b/x' }, snap(both)))).toEqual(['b/x']);
+    expect(refs(planRoute({ model: 'nope/thing' }, snap(both)))).toContain('Unknown model "nope/thing"');
+  });
+
   test('a provider model id matches every provider offering it, by provider priority', () => {
     const r = planRoute({ model: 'x' }, snap(models));
     expect(refs(r)).toEqual(['a/x', 'b/x']);
@@ -59,7 +76,7 @@ describe('resolution (spec §10: explicit model, alias, provider model id)', () 
 
   test('unknown names and disabled aliases fail with a clear reason', () => {
     expect(planRoute({ model: 'nope' }, snap(models))).toMatchObject({ ok: false, reason: expect.stringContaining('Unknown model "nope"') });
-    expect(planRoute({ model: 'a/nope' }, snap(models))).toMatchObject({ ok: false, reason: 'Unknown model "a/nope".' });
+    expect(planRoute({ model: 'a/nope' }, snap(models))).toMatchObject({ ok: false, reason: expect.stringContaining('Unknown model "a/nope"') });
     expect(planRoute({ model: 'off' }, snap(models, [alias('off', [['a/x', 0]], { enabled: false })]))).toMatchObject({ ok: false, reason: 'The alias "off" is disabled.' });
     expect(planRoute({ model: '  ' }, snap(models))).toMatchObject({ ok: false });
   });

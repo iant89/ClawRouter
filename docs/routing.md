@@ -24,7 +24,7 @@ What a client sends as `model` is resolved in this order:
 |---|---|---|---|
 | 1 | Alias | `fast-code` | The alias's targets (case-insensitive name). Aliases win over model ids with the same name |
 | 2 | Model reference | `openai/gpt-4o` | Exactly that model |
-| 3 | Provider model id | `gpt-4o-mini` | That model on **every** provider offering it, by provider priority |
+| 3 | Provider model id | `gpt-4o-mini`, `openai/gpt-oss-120b` | That model on **every** provider offering it, by provider priority. Some providers' ids contain a slash (Groq); such a name is a reference first (2) and a model id only when no reference matches |
 
 Anything else fails with "Unknown model". A disabled alias fails with "The alias … is disabled".
 
