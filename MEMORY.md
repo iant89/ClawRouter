@@ -258,7 +258,8 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
   The owner saved a Gemini API key as a **network secret for generativelanguage.googleapis.com,
   sent as `Authorization: Bearer`**. That works only for Google's OpenAI-compatible endpoint
   (`/v1beta/openai`): configure an `openai_compatible` provider there with any placeholder
-  key. The native API answers 401 to it. Live 2026-11-16 on gemini-3.5-flash: discovery (64
+  key. The native API answers 401 to it. Live 2026-11-16 on gemini-3.5-flash and
+  gemini-3.5-flash-lite (both pass everything, streamed tool calls included): discovery (64
   models), chat, stream, an inline image, tools with the round trip, `/v1/responses`,
   embeddings (gemini-embedding-001). Found and fixed: thought signatures dropped (tool
   results refused by Gemini 3), `models/` ids, `display_name`, Google's error lists, stream
