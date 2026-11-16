@@ -6,7 +6,7 @@
  */
 
 /** Steps of the setup wizard, in order. */
-export const SETUP_WIZARD_STEPS = ['provider', 'models', 'api_key', 'test_request', 'sign_in', 'mail'] as const;
+export const SETUP_WIZARD_STEPS = ['provider', 'models', 'api_key', 'test_request', 'mail', 'sign_in'] as const;
 export type SetupWizardStep = (typeof SETUP_WIZARD_STEPS)[number];
 
 export const SETUP_WIZARD_STATUSES = ['PENDING', 'COMPLETED', 'DISMISSED'] as const;

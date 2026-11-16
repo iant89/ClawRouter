@@ -42,6 +42,7 @@ const OperationsPage = page(() => import('../features/operations/OperationsPage.
 const LogsPage = page(() => import('../features/logs/LogsPage.tsx'), 'LogsPage');
 const AuditPage = page(() => import('../features/audit/AuditPage.tsx'), 'AuditPage');
 const SettingsPage = page(() => import('../features/settings/SettingsPage.tsx'), 'SettingsPage');
+const SetupWizard = page(() => import('../features/onboarding/SetupWizard.tsx'), 'SetupWizard');
 
 function PageFor({ item }: { item: NavItem | undefined }) {
   const { set } = usePermissions();
@@ -124,7 +125,12 @@ function Gate() {
     case 'signed-in':
       if (target) return null;
       if (state.session.user.mustChangePassword) return <ForcedPasswordChange />;
-      return state.session.twoFactorSetupRequired ? <ForcedTwoFactorSetup /> : <Console />;
+      if (state.session.twoFactorSetupRequired) return <ForcedTwoFactorSetup />;
+      // First-run setup wizard (owner request): until it is finished or dismissed, for those who can change settings.
+      if (state.session.onboarding.setupWizard?.status === 'PENDING') {
+        return <Suspense fallback={<BusyIndicator active text="Loading…" style={{ height: '100%' }} />}><SetupWizard /></Suspense>;
+      }
+      return <Console />;
   }
 }
 

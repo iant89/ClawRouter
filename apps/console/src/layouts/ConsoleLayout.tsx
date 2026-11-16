@@ -10,6 +10,8 @@ import { MySessionsDialog } from '../features/sessions/MySessionsDialog.tsx';
 import { ChangePasswordDialog } from '../features/auth/ChangePasswordDialog.tsx';
 import { AccountSecurityDialog } from '../features/auth/AccountSecurityDialog.tsx';
 import { NotificationsPanel } from '../features/notifications/NotificationsPanel.tsx';
+import { ConsoleTour } from '../features/onboarding/ConsoleTour.tsx';
+import { updateSetupWizard } from '../services/onboarding.ts';
 import { useNotifications } from '../features/notifications/NotificationsContext.tsx';
 
 function NavLink({ item }: { item: NavItem }) {
@@ -21,8 +23,10 @@ const roleLabel = (id: string) => ROLE_LABELS[id] ?? id;
 
 export function ConsoleLayout({ activeId, children }: { activeId: string | undefined; children: ReactNode }) {
   const { navigate } = useRouter();
-  const { signOut } = useAuth();
-  const { user, roles } = useSession();
+  const { signOut, refresh } = useAuth();
+  const { user, roles, onboarding } = useSession();
+  // A new user's tour opens by itself once; afterwards only from the help menu.
+  const [tourOpen, setTourOpen] = useState(onboarding.tour === 'PENDING');
   const { set: permissions } = usePermissions();
   const { data, error } = useHealth();
   const [sessionsOpen, setSessionsOpen] = useState(false);
@@ -40,9 +44,18 @@ export function ConsoleLayout({ activeId, children }: { activeId: string | undef
           logo={<Icon name="it-host" color="var(--eui-color-primary)" />}
           homeHref="/"
           context={[
-            { id: 'gateway', content: <HealthStateIndicator state={gatewayState} label="System" size="sm" />, priority: 1 },
+            { id: 'gateway', content: <span data-tour="health"><HealthStateIndicator state={gatewayState} label="System" size="sm" /></span>, priority: 1 },
             { id: 'live', content: <LiveIndicator />, priority: 2 },
           ]}
+          helpItems={[
+            { id: 'tour', label: 'Take the guided tour', icon: 'map' },
+            ...(onboarding.setupWizard ? [{ id: 'setup', label: 'Run the setup wizard', icon: 'action-settings' as const }] : []),
+          ]}
+          onHelpAction={(id) => {
+            if (id === 'tour') setTourOpen(true);
+            // Back to the start of the wizard; the console shows it when the session says it is pending.
+            if (id === 'setup') void updateSetupWizard({ status: 'PENDING', step: null }).then(() => refresh());
+          }}
           notificationCount={unread}
           notifications={<NotificationsPanel />}
           user={{ name: user.displayName, email: user.username, role: roles.length ? roles.map(roleLabel).join(', ') : 'No role' }}
@@ -88,6 +101,7 @@ export function ConsoleLayout({ activeId, children }: { activeId: string | undef
       <MySessionsDialog open={sessionsOpen} onClose={() => setSessionsOpen(false)} />
       <ChangePasswordDialog open={passwordOpen} onClose={() => setPasswordOpen(false)} />
       <AccountSecurityDialog open={securityOpen} onClose={() => setSecurityOpen(false)} />
+      <ConsoleTour open={tourOpen} onClose={() => setTourOpen(false)} />
     </AppShell>
   );
 }
