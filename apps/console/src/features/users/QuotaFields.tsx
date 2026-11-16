@@ -77,6 +77,9 @@ export function QuotaFields({ value, onChange, errors = {}, disabled }: {
       </WithFieldHelp>
       {value && (
         <>
+          <WithFieldHelp label="Enforce this quota" help="Off keeps the quota and its usage, but the user's keys are not refused when it is used up. Turn it on again at any time.">
+            <Switch label="Enforce this quota" checked={value.enabled} disabled={disabled} onChange={(on) => set({ enabled: on })} />
+          </WithFieldHelp>
           <div style={grid}>
             <Select label="Measured in" value={value.unit} options={UNIT_OPTIONS} disabled={disabled} error={errors.unit}
               onChange={(v) => v && set({ unit: v as QuotaUnit, amount: v === value.unit ? value.amount : v === 'cost' ? 10 : v === 'requests' ? 1000 : 1_000_000 })} />
@@ -106,7 +109,7 @@ export function QuotaFields({ value, onChange, errors = {}, disabled }: {
                 onChange={(tz) => tz && set({ timeZone: tz })} />
             </WithFieldHelp>
           </div>
-          <Text size="sm" tone="secondary">{describeQuota(value)}. {describeReset(value)}.</Text>
+          <Text size="sm" tone="secondary">{describeQuota(value)}. {describeReset(value)}.{value.enabled ? '' : ' Turned off: not enforced.'}</Text>
         </>
       )}
     </div>
@@ -114,17 +117,18 @@ export function QuotaFields({ value, onChange, errors = {}, disabled }: {
 }
 
 /** Where a user stands: "12,345 of 1,000,000 tokens · resets in 3 days". */
-export function QuotaUsageBar({ quota, usage }: { quota: UserQuota; usage: QuotaUsage }) {
+export function QuotaUsageBar({ quota, usage, enforced = true }: { quota: UserQuota; usage: QuotaUsage; enforced?: boolean }) {
   const ratio = usage.limit > 0 ? usage.used / usage.limit : 0;
-  const tone = ratio >= 1 ? 'error' : ratio >= 0.8 ? 'warning' : 'success';
+  // Not enforced: no red or amber, since nothing will be refused.
+  const tone = !enforced ? 'information' : ratio >= 1 ? 'error' : ratio >= 0.8 ? 'warning' : 'success';
   const resets = new Date(usage.resetsAt);
   return (
     <div style={{ display: 'grid', gap: 'var(--eui-space-1, 0.25rem)' }}>
       <ProgressBar value={Math.min(usage.used, usage.limit)} max={usage.limit} tone={tone}
-        label={ratio >= 1 ? 'Quota used up' : 'Used this period'}
+        label={!enforced ? 'Used this period (not enforced)' : ratio >= 1 ? 'Quota used up' : 'Used this period'}
         showValue formatValue={() => `${formatQuota(quota.unit, usage.used)} of ${formatQuota(quota.unit, usage.limit)}`} />
       <Text size="sm" tone="secondary">
-        {ratio >= 1 ? 'API keys are refused until ' : 'Resets '}
+        {enforced && ratio >= 1 ? 'API keys are refused until ' : 'Resets '}
         {resets.toLocaleString(undefined, { timeZone: quota.timeZone, weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })} ({quota.timeZone})
       </Text>
     </div>

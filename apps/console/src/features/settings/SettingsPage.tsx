@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Button, Card, Input, MessageStrip, Page, RefreshControl, StatusIndicator, Tab, TabList, TabPanel, Tabs, Text, useToast } from '@enterprise-ui/react';
+import { Button, Card, Input, MessageStrip, Page, RefreshControl, StatusIndicator, Switch, Tab, TabList, TabPanel, Tabs, Text, useToast } from '@enterprise-ui/react';
 import { useRouter } from '../../app/router.tsx';
-import { FieldHelp } from '../../components/custom/FieldHelp.tsx';
+import { FieldHelp, WithFieldHelp } from '../../components/custom/FieldHelp.tsx';
 import type { MailServerSettings, SettingInfo, SettingKey } from '@clawrouter/shared';
 import { useResource } from '../../hooks/useResource.ts';
 import { ApiClientError } from '../../services/api-client.ts';
@@ -16,6 +16,8 @@ import { MailServerCard, TwoFactorPolicyCard } from './SignInSecuritySettings.ts
 type Draft = Partial<Record<SettingKey, string>>;
 
 /** Under the field: only what is needed to type a valid value. */
+/** "30 days", or "on" / "off" for a switch. */
+const valueText = (s: SettingInfo, v: number) => (s.kind === 'switch' ? (v ? 'on' : 'off') : `${v} ${s.unit}`);
 const describeRange = (s: SettingInfo) => `Allowed ${s.min}–${s.max}. Default ${s.defaultValue}.`;
 /** In the field's help tip: what it does, and where the default comes from. */
 const settingHelp = (s: SettingInfo) => (
@@ -30,7 +32,7 @@ const settingHelp = (s: SettingInfo) => (
 /** The tabs, in order, and which groups of numeric settings each one shows. */
 const TABS = [
   { value: 'security', label: 'Sign-in and sessions', groups: ['Security'] },
-  { value: 'api-keys', label: 'API keys', groups: ['API keys'] },
+  { value: 'api-keys', label: 'API keys and quotas', groups: ['API keys', 'Usage quotas'] },
   { value: 'mail', label: 'Mail server', groups: [] },
   { value: 'retention', label: 'Data retention', groups: ['Data retention'] },
   { value: 'configuration', label: 'Import and export', groups: [] },
@@ -138,6 +140,12 @@ export function SettingsPage() {
             <div className="claw-settings-grid">
               {settings.map((s) => (
                 <div key={s.key} style={{ display: 'grid', gap: 'var(--eui-space-1, 0.25rem)', alignContent: 'start' }}>
+                  {s.kind === 'switch' ? (
+                    <WithFieldHelp label={s.label} help={s.description}>
+                      <Switch label={s.label} checked={draft[s.key] === '1'} disabled={!canWrite}
+                        onChange={(on) => setDraft((d) => ({ ...d, [s.key]: on ? '1' : '0' }))} />
+                    </WithFieldHelp>
+                  ) : (
                   <Input
                     label={`${s.label} (${s.unit})`}
                     type="number"
@@ -152,12 +160,13 @@ export function SettingsPage() {
                     description={describeRange(s)}
                     endAdornment={<FieldHelp label={s.label}>{settingHelp(s)}</FieldHelp>}
                   />
+                  )}
                   <div style={{ display: 'flex', gap: 'var(--eui-space-2, 0.5rem)', alignItems: 'center', flexWrap: 'wrap' }}>
                     {s.overridden
                       ? <StatusIndicator tone="information" size="sm">Changed in the console</StatusIndicator>
                       : <StatusIndicator tone="neutral" size="sm">Default</StatusIndicator>}
                     {s.overridden && canWrite && (
-                      <Button size="sm" variant="tertiary" disabled={saving} onClick={() => void submit({ [s.key]: null }, `${s.label} reset to ${s.defaultValue} ${s.unit}`)}>
+                      <Button size="sm" variant="tertiary" disabled={saving} onClick={() => void submit({ [s.key]: null }, `${s.label} reset to ${valueText(s, s.defaultValue)}`)}>
                         Reset to default
                       </Button>
                     )}

@@ -12,6 +12,8 @@ export const QUOTA_PERIODS = ['day', 'week', 'month'] as const;
 export type QuotaPeriod = (typeof QUOTA_PERIODS)[number];
 
 export interface UserQuota {
+  /** Whether this quota is enforced. Off keeps the settings without refusing anything. */
+  enabled: boolean;
   unit: QuotaUnit;
   /** Allowed per period: tokens, requests, or US dollars (two decimals). */
   amount: number;
@@ -29,7 +31,7 @@ export interface UserQuota {
 export const QUOTA_AMOUNT_MAX = 1_000_000_000_000;
 
 export const DEFAULT_QUOTA: UserQuota = {
-  unit: 'tokens', amount: 1_000_000, period: 'month', resetHour: 0, resetWeekday: 1, resetDayOfMonth: 1, timeZone: 'UTC',
+  enabled: true, unit: 'tokens', amount: 1_000_000, period: 'month', resetHour: 0, resetWeekday: 1, resetDayOfMonth: 1, timeZone: 'UTC',
 };
 
 /** Where a user stands in the current period. */
@@ -48,6 +50,10 @@ export interface UserQuotaView {
   quota: UserQuota | null;
   /** Null when the user has no quota. */
   usage: QuotaUsage | null;
+  /** Whether quotas are enforced at all (the "Enforce user quotas" setting). */
+  quotasEnabled: boolean;
+  /** Whether this user's quota refuses requests now: a quota, turned on, with quotas enforced. */
+  enforced: boolean;
 }
 
 /** PUT /api/users/:id/quota: null removes the quota. */

@@ -105,7 +105,7 @@ export function createHarness(options: { idleMinutes?: number; maxHours?: number
   const audit = createAuditService(createSqliteAuditRepository(db), log, clock.now);
   const settings = createSettingsService({
     repo: createSqliteSettingsRepository(db, clock.now), audit, events, log,
-    defaults: { sessionIdleMinutes: options.idleMinutes ?? 60, sessionMaxHours: options.maxHours ?? 12, signInMaxFailures: 10, requestRetentionDays: 30, usageRetentionDays: 400, healthHistoryDays: 7, keyMaxLifetimeDays: 30 },
+    defaults: { sessionIdleMinutes: options.idleMinutes ?? 60, sessionMaxHours: options.maxHours ?? 12, signInMaxFailures: 10, requestRetentionDays: 30, usageRetentionDays: 400, healthHistoryDays: 7, keyMaxLifetimeDays: 30, quotasEnabled: 1 },
   });
   const auth = createAuthService({
     users,
@@ -161,7 +161,8 @@ export function createHarness(options: { idleMinutes?: number; maxHours?: number
     retention: { get requestDays() { return settings.get('requestRetentionDays'); }, get usageDays() { return settings.get('usageRetentionDays'); } },
   });
   const quotas = createQuotaService({
-    store: createSqliteQuotaStore(db), usage: (userId, since) => requests.userUsageSince(userId, since), audit, events, log, now: clock.now,
+    store: createSqliteQuotaStore(db), usage: (userId, since) => requests.userUsageSince(userId, since), audit, events, log,
+    enabled: () => settings.get('quotasEnabled') === 1, now: clock.now,
     access: {
       username: (userId) => users.findById(userId)?.username ?? null,
       assertCanManage: (actor, userId) => userAccessPolicy(authz).assertCanManageUser(actor, userId, "change this user's quota"),

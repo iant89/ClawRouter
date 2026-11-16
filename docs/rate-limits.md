@@ -84,6 +84,7 @@ not about traffic shape: once used up, the user's keys are refused until it rese
 
 | Field | Values |
 |---|---|
+| `enabled` | `true` (default) or `false`: off keeps the quota and its usage but refuses nothing |
 | `unit` | `tokens` (input + output), `requests` (completed only: failed and refused requests do not count), `cost` (estimated US$, from model prices) |
 | `amount` | tokens or requests 1–10¹², or dollars 0.01–10⁹ (two decimals) |
 | `period` | `day`, `week` or `month` |
@@ -106,6 +107,12 @@ Refused requests get 429 with code `quota_exceeded` and `Retry-After` until the 
   longer than a month when using monthly quotas.
 - Like token limits, usage is charged when a request finishes: requests running at
   the same time can together go past the quota.
+- **Turning quotas off.** One quota: **Enforce this quota** in its dialog (`enabled: false`).
+  Everyone's at once: Settings → API keys and quotas → **Enforce user quotas** (the
+  `quotasEnabled` setting, 1 or 0; audited like every setting). Either way the
+  quotas and their usage are kept, and the console shows "not enforced"; users do not
+  see a quota that is not enforced. `GET` quota views report `enabled`,
+  `quotasEnabled` and `enforced`.
 - The quota is checked before the rate limits. Quotas are cached for 30 s per
   process, so on several nodes a change reaches the others within that time.
 - API: `GET /api/users/:id/quota` (`users.read`), `PUT /api/users/:id/quota` with

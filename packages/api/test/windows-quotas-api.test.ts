@@ -48,7 +48,7 @@ async function setLimits(h: Harness, cookie: string, patch: Partial<PutRateLimit
 const chat = (h: Harness, key: string) =>
   h.request('/v1/chat/completions', { method: 'POST', headers: { authorization: `Bearer ${key}` }, json: { model: 'gpt-4o-mini', messages: [{ role: 'user', content: 'Hi' }] } });
 
-const quota = (q: Partial<UserQuota> = {}): UserQuota => ({ unit: 'tokens', amount: 20, period: 'day', resetHour: 0, resetWeekday: 1, resetDayOfMonth: 1, timeZone: 'UTC', ...q });
+const quota = (q: Partial<UserQuota> = {}): UserQuota => ({ enabled: true, unit: 'tokens', amount: 20, period: 'day', resetHour: 0, resetWeekday: 1, resetDayOfMonth: 1, timeZone: 'UTC', ...q });
 
 describe('rate-limit windows', () => {
   test('a per-second limit refuses the third request in a second and allows it a second later', async () => {
@@ -246,13 +246,13 @@ describe('user quotas', () => {
     expect(created.status).toBe(201);
     const sam = await data<UserWithRoles>(created);
     const view = await data<UserQuotaView>(await h.request(`/api/users/${sam.id}/quota`, { cookie: admin }));
-    expect(view.quota).toEqual({ unit: 'cost', amount: 12.35, period: 'week', resetHour: 9, resetWeekday: 3, resetDayOfMonth: 1, timeZone: 'Europe/London' });
+    expect(view.quota).toEqual({ enabled: true, unit: 'cost', amount: 12.35, period: 'week', resetHour: 9, resetWeekday: 3, resetDayOfMonth: 1, timeZone: 'Europe/London' });
     expect(view.usage?.used).toBe(0);
 
     const edited = await h.request(`/api/users/${sam.id}/quota`, { method: 'PUT', cookie: admin, json: { quota: quota({ unit: 'tokens', amount: 5000, period: 'month', resetDayOfMonth: 10 }) } });
     expect((await data<UserQuotaView>(edited)).quota).toMatchObject({ amount: 5000, period: 'month', resetDayOfMonth: 10 });
     const removed = await h.request(`/api/users/${sam.id}/quota`, { method: 'PUT', cookie: admin, json: { quota: null } });
-    expect(await data<UserQuotaView>(removed)).toEqual({ userId: sam.id, quota: null, usage: null });
+    expect(await data<UserQuotaView>(removed)).toEqual({ userId: sam.id, quota: null, usage: null, quotasEnabled: true, enforced: false });
 
     const records = h.audit.search({ action: 'USER_QUOTA_UPDATED' }).items.filter((r) => r.resourceId === sam.id);
     expect(records.length).toBe(3);
@@ -285,5 +285,51 @@ describe('user quotas', () => {
     const manager = await h.login('uma');
     const refused = await h.request(`/api/users/${adminId}/quota`, { method: 'PUT', cookie: manager, json: { quota: quota() } });
     expect(refused.status).toBe(403);
+  });
+});
+
+describe('turning quotas off', () => {
+  /** Uses up a 20-token daily quota (two answers of 11 tokens). */
+  async function usedUp() {
+    const w = await world();
+    await w.h.request(`/api/users/${w.adminId}/quota`, { method: 'PUT', cookie: w.admin, json: { quota: quota({ amount: 20 }) } });
+    expect((await chat(w.h, w.key.secret)).status).toBe(200);
+    expect((await chat(w.h, w.key.secret)).status).toBe(200);
+    expect((await chat(w.h, w.key.secret)).status).toBe(429);
+    return w;
+  }
+
+  test('one user\'s quota can be turned off and on again, keeping its settings and usage', async () => {
+    const { h, admin, key, adminId } = await usedUp();
+    const off = await data<UserQuotaView>(await h.request(`/api/users/${adminId}/quota`, { method: 'PUT', cookie: admin, json: { quota: quota({ amount: 20, enabled: false }) } }));
+    expect(off).toMatchObject({ quota: { enabled: false, amount: 20 }, usage: { used: 22 }, quotasEnabled: true, enforced: false });
+    expect((await chat(h, key.secret)).status).toBe(200);
+
+    const on = await data<UserQuotaView>(await h.request(`/api/users/${adminId}/quota`, { method: 'PUT', cookie: admin, json: { quota: quota({ amount: 20, enabled: true }) } }));
+    expect(on.enforced).toBe(true);
+    expect((await chat(h, key.secret)).status).toBe(429);
+    const audit = h.audit.search({ action: 'USER_QUOTA_UPDATED' }).items.filter((r) => r.resourceId === adminId);
+    expect(audit.length).toBe(3);
+  });
+
+  test('the "Enforce user quotas" setting turns every quota off at once', async () => {
+    const { h, admin, key } = await usedUp();
+    const saved = await h.request('/api/settings', { method: 'PUT', cookie: admin, json: { values: { quotasEnabled: 0 } } });
+    expect(saved.status).toBe(200);
+    expect((await chat(h, key.secret)).status).toBe(200);
+    expect(await data<UserQuotaView>(await h.request('/api/auth/quota', { cookie: admin }))).toMatchObject({ quotasEnabled: false, enforced: false, quota: { enabled: true } });
+
+    await h.request('/api/settings', { method: 'PUT', cookie: admin, json: { values: { quotasEnabled: null } } }); // back to the default: on
+    expect((await chat(h, key.secret)).status).toBe(429);
+    expect((await h.request('/api/settings', { method: 'PUT', cookie: admin, json: { values: { quotasEnabled: 2 } } })).status).toBe(400);
+  });
+
+  test('quotas saved before they could be turned off are on; "enabled" must be true or false', async () => {
+    const { h, admin, adminId } = await world();
+    h.db.run('INSERT INTO user_quotas (user_id, quota, updated_at) VALUES (?, ?, ?)', [adminId, JSON.stringify({ unit: 'requests', amount: 5, period: 'day', resetHour: 0, resetWeekday: 1, resetDayOfMonth: 1, timeZone: 'UTC' }), '2026-01-01T00:00:00Z']);
+    h.clock.advance(31_000); // past the quota cache
+    expect((await data<UserQuotaView>(await h.request('/api/auth/quota', { cookie: admin }))).quota?.enabled).toBe(true);
+    const bad = await h.request(`/api/users/${adminId}/quota`, { method: 'PUT', cookie: admin, json: { quota: { ...quota(), enabled: 'no' } } });
+    expect(bad.status).toBe(400);
   });
 });

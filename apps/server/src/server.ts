@@ -138,6 +138,7 @@ export async function startClawRouter({ config, log, logBuffer, version, console
   // Usage quotas per user, read from the stored hourly usage (they survive restarts).
   const quotas = createQuotaService({
     store: createSqliteQuotaStore(db), usage: (userId, since) => requests.userUsageSince(userId, since), audit, events, log,
+    enabled: () => settings.get('quotasEnabled') === 1,
     access: {
       username: (userId) => users.findById(userId)?.username ?? null,
       assertCanManage: (actor, userId) => userAccessPolicy(authz).assertCanManageUser(actor, userId, "change this user's quota"),

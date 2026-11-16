@@ -33,6 +33,10 @@ export const SETTING_DEFINITIONS = {
     group: 'API keys', label: 'Maximum key lifetime', unit: 'days', min: 1, max: 3650, env: null,
     description: 'The longest an API key may last when anyone other than an Administrator creates it (their own keys, keys from requests). Administrators may create keys that never expire. Applies to new keys.',
   },
+  quotasEnabled: {
+    group: 'Usage quotas', label: 'Enforce user quotas', unit: 'on/off', min: 0, max: 1, env: null, kind: 'switch',
+    description: 'When off, no user quota refuses requests: quotas keep their settings and usage is still shown, but nothing is enforced until it is turned on again. Each quota can also be turned off on its own (Users → Usage quota).',
+  },
 } as const;
 
 export type SettingKey = keyof typeof SETTING_DEFINITIONS;
@@ -49,6 +53,8 @@ export interface SettingInfo {
   unit: string;
   min: number;
   max: number;
+  /** How the console shows it: a number, or a switch stored as 1 (on) or 0 (off). */
+  kind: 'number' | 'switch';
   /** Environment variable that sets the default, if any. */
   env: string | null;
   /** The value in effect. */

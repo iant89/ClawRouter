@@ -48,7 +48,7 @@ export function createSettingsService(options: {
     SETTING_KEYS.map((key) => {
       const d = SETTING_DEFINITIONS[key];
       return {
-        key, group: d.group, label: d.label, description: d.description, unit: d.unit, min: d.min, max: d.max, env: d.env,
+        key, group: d.group, label: d.label, description: d.description, unit: d.unit, min: d.min, max: d.max, env: d.env, kind: 'kind' in d ? d.kind : 'number',
         value: get(key), defaultValue: defaults[key], overridden: stored.has(key), updatedAt: stored.get(key)?.updatedAt ?? null,
       };
     });
@@ -104,5 +104,6 @@ export function settingDefaults(config: Pick<Config, 'auth' | 'requests' | 'heal
     usageRetentionDays: config.requests.usageRetentionDays,
     healthHistoryDays: config.health.historyDays,
     keyMaxLifetimeDays: 30,
+    quotasEnabled: 1,
   };
 }

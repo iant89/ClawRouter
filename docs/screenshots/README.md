@@ -365,3 +365,5 @@ administrator's own key was used to use up a 50-token quota, then to hit a burst
 | ![Dialog](25-quotas-rate-limits/4-rate-limit-dialog.png) | Edit rate limits: a window per limit (second, minute, hour) and an optional token bucket |
 | ![Page](25-quotas-rate-limits/5-rate-limits-page.png) | Rate Limits: the window, and how much of the burst bucket is left |
 | ![Phone](25-quotas-rate-limits/6-create-user-quota-phone.png) | The create dialog at phone width |
+| ![Setting](25-quotas-rate-limits/7-settings-enforce-quotas.png) | Settings → API keys and quotas: **Enforce user quotas** turns every quota off at once |
+| ![Off](25-quotas-rate-limits/8-quota-turned-off.png) | One quota turned off (**Enforce this quota**), with the notice shown while all quotas are off |

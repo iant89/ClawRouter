@@ -60,7 +60,10 @@ export function QuotaDialog({ user, onClose, onSaved }: {
       <div style={{ display: 'grid', gap: 'var(--eui-space-4, 1rem)' }}>
         {error && <MessageStrip tone="error" announce="assertive">{error}</MessageStrip>}
         {!view && !error && <BusyIndicator text="Loading the quota" />}
-        {view?.quota && view.usage && <QuotaUsageBar quota={view.quota} usage={view.usage} />}
+        {view && !view.quotasEnabled && (
+          <MessageStrip tone="information">User quotas are turned off for everyone (Settings → API keys and quotas). This quota is kept but nothing is refused.</MessageStrip>
+        )}
+        {view?.quota && view.usage && <QuotaUsageBar quota={view.quota} usage={view.usage} enforced={view.enforced} />}
         {view && <QuotaFields value={draft} onChange={setDraft} errors={errors} />}
       </div>
     </Dialog>

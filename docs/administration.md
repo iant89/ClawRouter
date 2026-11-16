@@ -112,7 +112,7 @@ link can open it directly:
 | Tab | Contains |
 |---|---|
 | Sign-in and sessions (`security`, the default) | Session lifetimes, failed sign-ins before blocking, the [two-factor policy](two-factor.md) |
-| API keys (`api-keys`) | Maximum key lifetime, with the keys that would outlast a lowered limit |
+| API keys and quotas (`api-keys`) | Maximum key lifetime, with the keys that would outlast a lowered limit; **Enforce user quotas** |
 | Mail server (`mail`) | SMTP server for emailed sign-in codes |
 | Data retention (`retention`) | Request history, usage records, health history |
 | Import and export (`configuration`) | [Configuration export and import](configuration.md#configuration-export-and-import) |
@@ -132,6 +132,7 @@ The numeric settings:
 | Usage records (days, 0 = forever) | `CLAWROUTER_USAGE_RETENTION_DAYS` (400) | 0–3650 | Next hourly cleanup |
 | Health history (days, 0 = forever) | `CLAWROUTER_HEALTH_HISTORY_DAYS` (7) | 0–365 | Next hourly cleanup |
 | Maximum key lifetime (days), for keys not created by an Administrator | built in (30) | 1–3650 | For new keys (see [self-service keys](self-service-keys.md#maximum-key-lifetime-by-creator)) |
+| Enforce user quotas (on/off) | built in (on) | on, off | At once: off means no [user quota](rate-limits.md#user-quotas) refuses anything; quotas are kept |
 
 The environment provides the defaults. **A value changed in the console takes
 precedence** until it is reset to the default. Values are stored in the

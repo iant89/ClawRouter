@@ -23,6 +23,8 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
   (`upgradeLimit` / `upgradeSettings` in `packages/rate-limits/src/config.ts`): keep that.
   Quotas (`packages/rate-limits/src/quotas.ts`, migration 0018) read usage from
   `usage_records`, so any new way of recording gateway usage must still write there.
+  Owner, 2026-11-16: quotas can be turned off per user (`enabled` on the quota) or for
+  everyone (`quotasEnabled` setting); both keep the quota and its usage.
   See `docs/rate-limits.md`; tests in `packages/api/test/windows-quotas-api.test.ts`.
 
 - **IMPORTANT** · 2026-11-15 · Owner rule: field explanations go in an "i" tip, everywhere

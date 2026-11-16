@@ -16,7 +16,8 @@ export function createSqliteQuotaStore(db: Database): QuotaStore {
   return {
     all() {
       const rows = db.all<{ user_id: string; quota: string }>('SELECT user_id, quota FROM user_quotas');
-      return new Map(rows.map((r) => [r.user_id, JSON.parse(r.quota) as UserQuota]));
+      // Quotas saved before they could be turned off are on.
+      return new Map(rows.map((r) => [r.user_id, { enabled: true, ...(JSON.parse(r.quota) as Partial<UserQuota>) } as UserQuota]));
     },
     set(userId, quota, at, by) {
       if (!quota) db.run('DELETE FROM user_quotas WHERE user_id = ?', [userId]);
@@ -31,7 +32,7 @@ export function createSqliteQuotaStore(db: Database): QuotaStore {
   };
 }
 
-const QUOTA_FIELDS = new Set(['unit', 'amount', 'period', 'resetHour', 'resetWeekday', 'resetDayOfMonth', 'timeZone']);
+const QUOTA_FIELDS = new Set(['enabled', 'unit', 'amount', 'period', 'resetHour', 'resetWeekday', 'resetDayOfMonth', 'timeZone']);
 
 function whole(v: unknown, path: string, min: number, max: number, issues: FieldIssue[]) {
   if (typeof v !== 'number' || !Number.isInteger(v) || v < min || v > max) issues.push({ path, message: `must be a whole number from ${min.toLocaleString('en-US')} to ${max.toLocaleString('en-US')}` });
@@ -46,6 +47,7 @@ export function checkQuota(value: unknown, path: string, issues: FieldIssue[]): 
   const q = value as Record<string, unknown>;
   const before = issues.length;
   for (const k of Object.keys(q)) if (!QUOTA_FIELDS.has(k)) issues.push({ path: `${path}.${k}`, message: 'is not a quota field' });
+  if (q.enabled !== undefined && typeof q.enabled !== 'boolean') issues.push({ path: `${path}.enabled`, message: 'must be true or false' });
   if (!QUOTA_UNITS.includes(q.unit as QuotaUnit)) issues.push({ path: `${path}.unit`, message: 'must be tokens, requests or cost' });
   if (q.unit === 'cost') {
     if (typeof q.amount !== 'number' || !Number.isFinite(q.amount) || q.amount < 0.01 || q.amount > 1_000_000_000) {
@@ -59,6 +61,7 @@ export function checkQuota(value: unknown, path: string, issues: FieldIssue[]): 
   if (!isTimeZone(q.timeZone ?? 'UTC')) issues.push({ path: `${path}.timeZone`, message: 'must be an IANA time zone, e.g. Europe/London' });
   if (issues.length > before) return null;
   return {
+    enabled: (q.enabled as boolean | undefined) ?? true,
     unit: q.unit as QuotaUnit,
     amount: q.unit === 'cost' ? Math.round((q.amount as number) * 100) / 100 : (q.amount as number),
     period: q.period as QuotaPeriod,
@@ -138,10 +141,13 @@ export function createQuotaService(options: {
   now?: () => Date;
   /** How long the quota list is cached; changes made on another node show up after this (default 30 s). */
   cacheMs?: number;
+  /** The "Enforce user quotas" setting: when it returns false, no quota refuses anything. */
+  enabled?: () => boolean;
 }) {
   const { store, audit, events, log } = options;
   const now = options.now ?? (() => new Date());
   const cacheMs = options.cacheMs ?? 30_000;
+  const globallyOn = () => options.enabled?.() ?? true;
   let cache: { at: number; quotas: Map<string, UserQuota> } | null = null;
   const quotas = () => {
     const t = now().getTime();
@@ -158,7 +164,8 @@ export function createQuotaService(options: {
 
   const view = (userId: string): UserQuotaView => {
     const quota = quotas().get(userId) ?? null;
-    return { userId, quota, usage: quota ? usageOf(userId, quota) : null };
+    const quotasEnabled = globallyOn();
+    return { userId, quota, usage: quota ? usageOf(userId, quota) : null, quotasEnabled, enforced: !!quota && quota.enabled && quotasEnabled };
   };
 
   return {
@@ -204,7 +211,7 @@ export function createQuotaService(options: {
     check(userId: string | null, requestId: string | null): void {
       if (!userId) return;
       const quota = quotas().get(userId);
-      if (!quota) return;
+      if (!quota || !quota.enabled || !globallyOn()) return;
       const u = usageOf(userId, quota);
       if (u.used < quota.amount) return;
       const resetsAt = new Date(u.resetsAt);
