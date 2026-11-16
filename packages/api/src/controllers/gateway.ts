@@ -26,7 +26,7 @@ export function gatewayController(gateway: GatewayService) {
   const models: Handler = (ctx) => json(gateway.listModels(key(ctx)));
   const chat: Handler = async (ctx) => toResponse(await gateway.chat(key(ctx), await readGatewayBody(ctx), gwContext(ctx)));
   const embeddings: Handler = async (ctx) => toResponse(await gateway.embeddings(key(ctx), await readGatewayBody(ctx), gwContext(ctx)));
-  const responses: Handler = () => gateway.responses();
+  const responses: Handler = async (ctx) => toResponse(await gateway.responses(key(ctx), await readGatewayBody(ctx), gwContext(ctx)));
   const metrics: Handler = () => ok<GatewayMetrics>(gateway.metrics.snapshot());
   return { models, chat, embeddings, responses, metrics };
 }

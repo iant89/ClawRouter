@@ -310,13 +310,6 @@ describe('POST /v1/embeddings', () => {
 });
 
 describe('other endpoints', () => {
-  test('/v1/responses explains it is not supported yet', async () => {
-    const { h, key } = await world();
-    const res = await v1(h, key, '/responses', { model: 'x', input: 'hi' });
-    expect(res.status).toBe(400);
-    expect((await json<OpenAiError>(res)).error.message).toContain('/v1/chat/completions');
-  });
-
   test('GET /api/gateway/metrics counts requests, errors, latency and tokens', async () => {
     const { h, admin, key } = await world();
     await v1(h, key, '/chat/completions', chat('openai/gpt-4o-mini'));

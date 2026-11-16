@@ -7,7 +7,7 @@ export type RequestStatus = (typeof REQUEST_STATUSES)[number];
 /** Statuses of requests that have ended. */
 export const FINAL_REQUEST_STATUSES: readonly RequestStatus[] = ['COMPLETED', 'FAILED', 'CANCELLED', 'TIMEOUT'];
 
-export const GATEWAY_ENDPOINTS = ['chat.completions', 'embeddings'] as const;
+export const GATEWAY_ENDPOINTS = ['chat.completions', 'responses', 'embeddings'] as const;
 export type GatewayEndpoint = (typeof GATEWAY_ENDPOINTS)[number];
 
 /** Where token counts came from (spec §23). */

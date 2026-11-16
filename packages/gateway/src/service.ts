@@ -13,7 +13,9 @@ const MEDIA_WORDS: Record<MediaKind, string> = { image_url: 'image URLs', image_
 import { modelAllowed, type ApiKeyPrincipal } from './api-keys.ts';
 import { cancelled, ModelsRateLimitedError, runAttempts, type AttemptOutcome } from './executor.ts';
 import { GatewayMetricsRecorder } from './metrics.ts';
-import { assistantMessage, finishReason, invalid, parseChatRequest, parseEmbeddingRequest, sse, toolCallDelta, unixTime, usageBlock } from './openai.ts';
+import { invalid, parseChatRequest, parseEmbeddingRequest, unixTime, type ParsedChatRequest } from './openai.ts';
+import { chatCompletionsFormat, type ChatFormatter } from './formats.ts';
+import { parseResponsesRequest, renamed, responsesFormat } from './responses.ts';
 
 export interface GatewayRequestContext {
   requestId: string;
@@ -240,6 +242,131 @@ export function createGatewayService(options: {
     }
   }
 
+  /**
+   * One chat request, whatever API it came in through: parse, route, admit, call
+   * with failover, record, and write the answer with the API's formatter. Streams
+   * can fail over until the first event arrives; after that the response is
+   * committed and a failure ends the stream with the format's error event.
+   */
+  function runChat(
+    key: ApiKeyPrincipal, endpoint: GatewayEndpoint, body: unknown, ctx: GatewayRequestContext,
+    prepare: (body: unknown) => { req: ParsedChatRequest; format: ChatFormatter },
+  ): Promise<GatewayResult> {
+    const run = startRun(key, endpoint, body, ctx);
+    return recorded(run, async () => {
+      const { req, format } = prepare(body);
+      const route = plan(key, req.model, 'CHAT', mediaOf(req.messages), req.usesTools);
+      await run.admit();
+      const promptChars = req.messages.reduce((n, m) => n + m.content.length, 0);
+      const chatRequest = (c: RouteCandidate) => ({
+        model: c.providerModelId, messages: req.messages, maxTokens: req.maxTokens, temperature: req.temperature, topP: req.topP, stop: req.stop,
+        tools: req.tools, toolChoice: req.toolChoice, parallelToolCalls: req.parallelToolCalls,
+      });
+
+      if (!req.stream) {
+        const o = await runAttempts(route, {
+          signal: ctx.signal, failures: routing.failures, log, backoffMs: options.backoffMs, checkModel, trace: run.trace,
+          call: (c, signal) => providers.chat(c.providerId, chatRequest(c), signal),
+        });
+        run.succeed(o, withEstimate(o.value.usage, promptChars, o.value.content.length));
+        return { kind: 'json', status: 200, headers: routeHeaders(o), body: format.complete(o.value, o.candidate.modelRef) };
+      }
+
+      const abort = new AbortController();
+      const onClientGone = () => abort.abort();
+      ctx.signal.addEventListener('abort', onClientGone, { once: true });
+      let o: AttemptOutcome<{ it: AsyncIterator<StreamEvent>; first: IteratorResult<StreamEvent> }>;
+      try {
+        o = await runAttempts(route, {
+          signal: abort.signal, failures: routing.failures, log, backoffMs: options.backoffMs, checkModel, trace: run.trace,
+          call: async (c, signal) => {
+            const it = providers.chatStream(c.providerId, chatRequest(c), signal)[Symbol.asyncIterator]();
+            const first = await it.next();
+            return { it, first };
+          },
+        });
+      } catch (error) {
+        ctx.signal.removeEventListener('abort', onClientGone);
+        throw error;
+      }
+      run.streaming();
+      const model = o.candidate.modelRef;
+      let outputChars = 0;
+      let done = false;
+      const finishStream = (outcome: { ok: true; usage: Usage } | { ok: false }) => {
+        if (done) return;
+        done = true;
+        ctx.signal.removeEventListener('abort', onClientGone);
+        if (outcome.ok) run.succeed(o, withEstimate(outcome.usage, promptChars, outputChars));
+        else if (abort.signal.aborted) run.fail(cancelled());
+        else run.fail(null, { status: 'FAILED', httpStatus: 200, code: 'STREAM_INTERRUPTED', message: 'The model provider failed while streaming the response.' });
+      };
+      const send = (controller: ReadableStreamDefaultController<Uint8Array>, events: string[]) => {
+        for (const e of events) controller.enqueue(encoder.encode(e));
+      };
+
+      let pending: IteratorResult<StreamEvent> | null = o.value.first;
+      let started = false;
+      const stream = new ReadableStream<Uint8Array>({
+        // pull() is called only when the client is ready for more: nothing is buffered beyond one event.
+        async pull(controller) {
+          try {
+            if (!started) {
+              started = true;
+              send(controller, format.start(model));
+              return;
+            }
+            const next = pending ?? (await o.value.it.next());
+            pending = null;
+            if (abort.signal.aborted) throw cancelled();
+            if (next.done) {
+              send(controller, format.end());
+              controller.close();
+              finishStream({ ok: true, usage: { inputTokens: null, outputTokens: null, source: 'none' } });
+              return;
+            }
+            const event = next.value;
+            if (event.type === 'delta') {
+              outputChars += event.text.length;
+              send(controller, format.text(event.text));
+              return;
+            }
+            if (event.type === 'tool_call') {
+              outputChars += (event.name?.length ?? 0) + (event.arguments?.length ?? 0);
+              send(controller, format.toolCall(event));
+              return;
+            }
+            send(controller, format.finish(event.finishReason, event.usage));
+            controller.close();
+            finishStream({ ok: true, usage: event.usage });
+          } catch (error) {
+            if (!abort.signal.aborted) routing.failures.recordFailure(o.candidate.providerId);
+            log?.info('stream ended with an error', { component: 'gateway', model, error: error instanceof Error ? error.message : String(error) });
+            try {
+              send(controller, format.error());
+              controller.close();
+            } catch {
+              // the client is already gone
+            }
+            finishStream({ ok: false });
+          }
+        },
+        async cancel() {
+          // The client disconnected: stop the provider call too (spec §13).
+          abort.abort();
+          await o.value.it.return?.(undefined).catch(() => {});
+          finishStream({ ok: false });
+        },
+      });
+      return {
+        kind: 'stream',
+        stream,
+        headers: { ...routeHeaders(o), 'content-type': 'text/event-stream; charset=utf-8', 'cache-control': 'no-cache', 'x-accel-buffering': 'no' },
+      };
+    });
+  }
+
+
   return {
     metrics,
 
@@ -253,134 +380,21 @@ export function createGatewayService(options: {
     },
 
     /** POST /v1/chat/completions */
-    async chat(key: ApiKeyPrincipal, body: unknown, ctx: GatewayRequestContext): Promise<GatewayResult> {
-      const run = startRun(key, 'chat.completions', body, ctx);
-      return recorded(run, async () => {
-        const req = parseChatRequest(body);
-        const route = plan(key, req.model, 'CHAT', mediaOf(req.messages), req.usesTools);
-        await run.admit();
-        const id = `chatcmpl-${ctx.requestId.replace(/^req_/, '')}`;
-        const created = unixTime(now());
-        const promptChars = req.messages.reduce((n, m) => n + m.content.length, 0);
-        const chatRequest = (c: RouteCandidate) => ({
-          model: c.providerModelId, messages: req.messages, maxTokens: req.maxTokens, temperature: req.temperature, topP: req.topP, stop: req.stop,
-          tools: req.tools, toolChoice: req.toolChoice, parallelToolCalls: req.parallelToolCalls,
-        });
+    chat(key: ApiKeyPrincipal, body: unknown, ctx: GatewayRequestContext): Promise<GatewayResult> {
+      return runChat(key, 'chat.completions', body, ctx, (raw) => {
+        const req = parseChatRequest(raw);
+        return { req, format: chatCompletionsFormat({ id: `chatcmpl-${ctx.requestId.replace(/^req_/, '')}`, created: unixTime(now()), includeUsage: req.includeUsage }) };
+      });
+    },
 
-        if (!req.stream) {
-          const o = await runAttempts(route, {
-            signal: ctx.signal, failures: routing.failures, log, backoffMs: options.backoffMs, checkModel, trace: run.trace,
-            call: (c, signal) => providers.chat(c.providerId, chatRequest(c), signal),
-          });
-          run.succeed(o, withEstimate(o.value.usage, promptChars, o.value.content.length));
-          const usage = usageBlock(o.value.usage);
-          return {
-            kind: 'json', status: 200, headers: routeHeaders(o),
-            body: {
-              id, object: 'chat.completion', created, model: o.candidate.modelRef,
-              choices: [{ index: 0, message: assistantMessage(o.value), finish_reason: finishReason(o.value.finishReason), logprobs: null }],
-              ...(usage ? { usage } : {}),
-            },
-          };
-        }
-
-        // Streaming. Failover is possible until the first event arrives; after that
-        // the response is committed and a failure ends the stream with an error event.
-        const abort = new AbortController();
-        const onClientGone = () => abort.abort();
-        ctx.signal.addEventListener('abort', onClientGone, { once: true });
-        let o: AttemptOutcome<{ it: AsyncIterator<StreamEvent>; first: IteratorResult<StreamEvent> }>;
-        try {
-          o = await runAttempts(route, {
-            signal: abort.signal, failures: routing.failures, log, backoffMs: options.backoffMs, checkModel, trace: run.trace,
-            call: async (c, signal) => {
-              const it = providers.chatStream(c.providerId, chatRequest(c), signal)[Symbol.asyncIterator]();
-              const first = await it.next();
-              return { it, first };
-            },
-          });
-        } catch (error) {
-          ctx.signal.removeEventListener('abort', onClientGone);
-          throw error;
-        }
-        run.streaming();
-        const model = o.candidate.modelRef;
-        const chunk = (delta: Record<string, unknown>, finish: string | null) => ({
-          id, object: 'chat.completion.chunk', created, model, choices: [{ index: 0, delta, finish_reason: finish, logprobs: null }],
-        });
-        let outputChars = 0;
-        let done = false;
-        const finishStream = (outcome: { ok: true; usage: Usage } | { ok: false }) => {
-          if (done) return;
-          done = true;
-          ctx.signal.removeEventListener('abort', onClientGone);
-          if (outcome.ok) run.succeed(o, withEstimate(outcome.usage, promptChars, outputChars));
-          else if (abort.signal.aborted) run.fail(cancelled());
-          else run.fail(null, { status: 'FAILED', httpStatus: 200, code: 'STREAM_INTERRUPTED', message: 'The model provider failed while streaming the response.' });
-        };
-
-        let pending: IteratorResult<StreamEvent> | null = o.value.first;
-        let sentRole = false;
-        const stream = new ReadableStream<Uint8Array>({
-          // pull() is called only when the client is ready for more: nothing is buffered beyond one event.
-          async pull(controller) {
-            try {
-              if (!sentRole) {
-                sentRole = true;
-                controller.enqueue(encoder.encode(sse(chunk({ role: 'assistant', content: '' }, null))));
-                return;
-              }
-              const next = pending ?? (await o.value.it.next());
-              pending = null;
-              if (abort.signal.aborted) throw cancelled();
-              if (next.done) {
-                // A stream that ends without a final event: close it cleanly anyway.
-                controller.enqueue(encoder.encode(sse('[DONE]')));
-                controller.close();
-                finishStream({ ok: true, usage: { inputTokens: null, outputTokens: null, source: 'none' } });
-                return;
-              }
-              const event = next.value;
-              if (event.type === 'delta') {
-                outputChars += event.text.length;
-                controller.enqueue(encoder.encode(sse(chunk({ content: event.text }, null))));
-                return;
-              }
-              if (event.type === 'tool_call') {
-                outputChars += (event.name?.length ?? 0) + (event.arguments?.length ?? 0);
-                controller.enqueue(encoder.encode(sse(chunk({ tool_calls: [toolCallDelta(event)] }, null))));
-                return;
-              }
-              controller.enqueue(encoder.encode(sse(chunk({}, finishReason(event.finishReason)))));
-              const usage = usageBlock(event.usage);
-              if (req.includeUsage) controller.enqueue(encoder.encode(sse({ id, object: 'chat.completion.chunk', created, model, choices: [], usage: usage ?? null })));
-              controller.enqueue(encoder.encode(sse('[DONE]')));
-              controller.close();
-              finishStream({ ok: true, usage: event.usage });
-            } catch (error) {
-              if (!abort.signal.aborted) routing.failures.recordFailure(o.candidate.providerId);
-              log?.info('stream ended with an error', { component: 'gateway', model, error: error instanceof Error ? error.message : String(error) });
-              try {
-                controller.enqueue(encoder.encode(sse({ error: { message: 'The model provider failed while streaming the response.', type: 'api_error', code: 'stream_interrupted', param: null } })));
-                controller.close();
-              } catch {
-                // the client is already gone
-              }
-              finishStream({ ok: false });
-            }
-          },
-          async cancel() {
-            // The client disconnected: stop the provider call too (spec §13).
-            abort.abort();
-            await o.value.it.return?.(undefined).catch(() => {});
-            finishStream({ ok: false });
-          },
-        });
-        return {
-          kind: 'stream',
-          stream,
-          headers: { ...routeHeaders(o), 'content-type': 'text/event-stream; charset=utf-8', 'cache-control': 'no-cache', 'x-accel-buffering': 'no' },
-        };
+    /** POST /v1/responses: the Responses API, translated to the same pipeline (stateless: nothing is stored). */
+    responses(key: ApiKeyPrincipal, body: unknown, ctx: GatewayRequestContext): Promise<GatewayResult> {
+      return runChat(key, 'responses', body, ctx, (raw) => {
+        const { req, echo } = parseResponsesRequest(raw);
+        return { req, format: responsesFormat({ id: `resp_${ctx.requestId.replace(/^req_/, '')}`, createdAt: unixTime(now()), echo }) };
+      }).catch((error: unknown) => {
+        // Refusals from routing name Chat Completions fields; say them in Responses terms.
+        throw renamed(error);
       });
     },
 
@@ -410,8 +424,5 @@ export function createGatewayService(options: {
     },
 
     /** POST /v1/responses: not offered yet; a clear error instead of a generic 404. */
-    responses(): never {
-      throw invalid("The Responses API is not supported yet. Use /v1/chat/completions.");
-    },
   };
 }
