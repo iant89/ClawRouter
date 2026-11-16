@@ -47,7 +47,7 @@ usage tracking and an administration console built on
   A new installation opens with a **setup wizard** (provider, models, API key, a real test
   request, mail, two-factor policy) and every new user gets a skippable **guided tour** of the
   pages their role can open; see [onboarding](docs/onboarding.md).
-  ClawRouter is also an **MCP server** at `/v1/mcp`: agents such as Claude Code can ask
+  ClawRouter is also an **MCP server** at `/v1/mcp` (off by default; Settings): agents such as Claude Code can ask
   it about health, usage, requests and models with read-only tools (keys need MCP
   access; see [MCP server](docs/mcp.md)).
 - **Architecture:** [`docs/architecture.md`](docs/architecture.md) ·

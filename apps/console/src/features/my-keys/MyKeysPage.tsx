@@ -6,7 +6,7 @@ import type { ApiKeyInfo, ApiKeyRequestInfo, CreateApiKeyRequest, CreatedApiKey,
 import { formatRelative } from '../../services/format.ts';
 import { cancelRequest, createKeyFromRequest, createMyKey, fetchMyKeys, fetchMyRequests, revokeMyKey } from '../../services/key-requests.ts';
 import { useRouter } from '../../app/router.tsx';
-import { usePermissions } from '../auth/AuthContext.tsx';
+import { usePermissions, useSession } from '../auth/AuthContext.tsx';
 import { useRealtimeEvent } from '../realtime/RealtimeContext.tsx';
 import { CreateKeyDialog } from '../api-access/CreateKeyDialog.tsx';
 import { describeExpiry } from '../api-access/ExpiryField.tsx';
@@ -116,7 +116,8 @@ export function MyKeysPage() {
     setServerError(null);
   };
 
-  const keyColumns: TableColumn<ApiKeyInfo>[] = [
+  const { mcpServer } = useSession();
+  const allKeyColumns: TableColumn<ApiKeyInfo>[] = [
     { id: 'name', header: 'Name', rowHeader: true, accessor: (k) => k.name, wrap: true },
     { id: 'prefix', header: 'Key', accessor: (k) => k.prefix, cell: (k) => <span className="claw-mono">{k.prefix}…</span> },
     { id: 'status', header: 'Status', accessor: (k) => k.status, cell: (k) => <StatusIndicator tone={KEY_STATUS[k.status].tone} size="sm">{KEY_STATUS[k.status].label}</StatusIndicator> },
@@ -129,6 +130,7 @@ export function MyKeysPage() {
       cell: (k) => (k.status === 'ACTIVE' || k.status === 'SUSPENDED' ? <Button size="sm" variant="tertiary" onClick={() => setRevoking(k)}>Revoke</Button> : null),
     },
   ];
+  const keyColumns = allKeyColumns.filter((c) => mcpServer || c.id !== 'mcp');
 
   const requestColumns: TableColumn<ApiKeyRequestInfo>[] = [
     { id: 'name', header: 'Key', rowHeader: true, accessor: (r) => r.name, wrap: true, cell: (r) => <span>{r.name}<br /><Text size="sm" tone="secondary">{r.purpose}</Text></span> },

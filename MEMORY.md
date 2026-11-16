@@ -14,6 +14,16 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 
 ### Important
 
+- **IMPORTANT** · 2026-11-16 · Owner rule: the MCP server stays, switchable, off by default
+  After first rejecting it, the owner asked to keep ClawRouter's own MCP server (`/v1/mcp`, read-only
+  tools for agents) "with the ability to enable/disable it", **off by default**. The switch is the
+  `mcpEnabled` setting (Settings → API keys and quotas); while off, `/v1/mcp` is a 404 checked
+  before any key (do not reveal it exists), and the console hides MCP controls (session
+  `mcpServer`, compared in `sameSession`). On top of that, each key needs its own MCP access
+  (migration 0021). Every tool only reads; none returns or creates a secret (no "create key" tool).
+  Tools use the key owner's permissions, read on every call; calls go through the key's rate
+  limits, not quotas. See `docs/mcp.md`; tests in `packages/api/test/mcp-api.test.ts`.
+
 - **IMPORTANT** · 2026-11-16 · Owner rule: setup wizard and guided tour, always skippable
   "A setup wizard, then a simple tour that walks new users … It can be skipped of course."
   Owner's choices: the wizard covers a first request (provider, models, API key, test
@@ -426,20 +436,23 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
   adapter (needs the key in `x-goog-api-key`, which the owner adds in the environment
   settings; the credential form cannot), OpenAI and Anthropic live; multi-node shared state.
 
-- **IMPORTANT** · 2026-11-16 · Do not merge `claude/mcp-server`: the owner did not want it
-  The owner asked whether MCP was worth adding, then said they use GitHub's MCP server and
-  nothing else. "Open 3" / "Option*" meant item 3 of the follow-up list (check CI), but it was
-  misread as building ClawRouter as an MCP server. That was built on `claude/mcp-server`
-  and the owner said "No, I didn't want to implement a MCP Server". The branch is left on
-  GitHub, unmerged. Owner, 2026-11-16: "Delete all unmerged" (this branch and the stale
-  pre-rebase `claude/groq-provider`, whose work is in `main` as `ec98b80`). Deleting branches
-  from the session is refused (HTTP 403 from the git proxy), so the owner deletes them on
-  GitHub (Branches page); the merged branches may go too. When the owner's words are
-  ambiguous between two lists, ask before building.
+- **MESSAGE** · 2026-11-16 · The MCP server (with its switch) waits for review, after onboarding
+  `claude/mcp-server-toggle` is built on `claude/onboarding` (merge that first): the MCP server
+  from the old `claude/mcp-server` branch, its migration renumbered to 0021, plus the Settings
+  switch (see the owner rule under Important). Fast-forward `main` to it after onboarding when
+  the owner says "merge". The old `claude/mcp-server` branch is superseded; the owner may delete it.
 
 ---
 
 ## Resolved
+
+- **IMPORTANT** · 2026-11-16 · Do not merge `claude/mcp-server`. Resolved 2026-11-16: the owner
+  first did not want the MCP server (it was built from a misread "Option 3"; lesson: when the
+  owner's words could point to two lists, ask before building), then asked to keep it "with the
+  ability to enable/disable it", off by default. It now lives on `claude/mcp-server-toggle`; the
+  old branch is superseded. Deleting branches from the session is refused (HTTP 403), so the
+  owner deletes old branches on GitHub (`claude/mcp-server`, the stale pre-rebase
+  `claude/groq-provider` whose work is in `main` as `ec98b80`, and the merged ones).
 
 - **WARNING** · 2026-11-12 · CI not yet observed. Resolved 2026-11-16: CI ran on every push
   to `main` (29 runs, about 30 s each, `bun audit` never failed). One failure (run 28) was a

@@ -12,6 +12,17 @@ ClawRouter does not call MCP servers on anyone's behalf.
 
 ## Turning it on
 
+Two switches, both **off by default** (owner, 2026-11-16: "off by default", with the
+ability to enable or disable it):
+
+1. **The server:** Settings → API keys and quotas → MCP server → "Let agents use the MCP
+   server (/v1/mcp)" (setting `mcpEnabled`, `settings.write`, audited as
+   `SETTINGS_CHANGED`, applies at once). While it is off, `/v1/mcp` answers **404 before
+   any key is checked**, so its existence is not revealed, and the console hides every
+   MCP control (the session reports `mcpServer`). Keys keep their MCP access for when it
+   is turned on again.
+2. **Each key**, as below.
+
 MCP access is a per-key switch, **off by default** and off for every key that
 existed before it. A key made for an application that only calls models can never
 read administration data, even if it leaks.
@@ -104,5 +115,5 @@ they are not protocol errors.
 `packages/api/src/mcp/server.ts` (protocol), `packages/api/src/mcp/tools.ts` (tools,
 which call the same services as the console's API); the route is registered with the
 `'mcp'` access level in `packages/api/src/app.ts`. Migration
-`0020_api_key_mcp_access`. A new tool needs a permission (or `null` for the caller's
+`0021_api_key_mcp_access`. A new tool needs a permission (or `null` for the caller's
 own data), an input schema, argument checks with `ToolInputError`, and a test.

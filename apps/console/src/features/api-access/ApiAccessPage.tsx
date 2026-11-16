@@ -9,7 +9,7 @@ import { formatRelative } from '../../services/format.ts';
 import { updateApiKey } from '../../services/rate-limits.ts';
 import { describeLimit } from '../rate-limits/rate-limit-format.ts';
 import { KeyLimitDialog } from './KeyLimitDialog.tsx';
-import { usePermissions } from '../auth/AuthContext.tsx';
+import { usePermissions, useSession } from '../auth/AuthContext.tsx';
 import { CreateKeyDialog } from './CreateKeyDialog.tsx';
 import { useModelOptions } from './model-options.ts';
 import { KEY_STATUS } from './key-status.ts';
@@ -135,7 +135,9 @@ export function ApiAccessPage() {
     }
   };
 
-  const columns: TableColumn<ApiKeyInfo>[] = [
+  // MCP access is shown only while the MCP server is on (Settings; off by default).
+  const { mcpServer } = useSession();
+  const allColumns: TableColumn<ApiKeyInfo>[] = [
     { id: 'name', header: 'Name', rowHeader: true, accessor: (k) => k.name, wrap: true },
     { id: 'prefix', header: 'Key', accessor: (k) => k.prefix, cell: (k) => <span className="claw-mono">{k.prefix}…</span> },
     { id: 'status', header: 'Status', accessor: (k) => k.status, cell: (k) => <StatusIndicator tone={KEY_STATUS[k.status].tone} size="sm">{KEY_STATUS[k.status].label}</StatusIndicator> },
@@ -151,11 +153,12 @@ export function ApiAccessPage() {
     {
       id: 'actions', header: 'Actions', align: 'end',
       cell: (k) => (canWrite && (k.status === 'ACTIVE' || k.status === 'SUSPENDED')
-        ? <OverflowMenu label={`Actions for ${k.name}`} items={[{ id: 'limit', label: 'Change rate limit' }, { id: 'mcp', label: k.mcpAccess ? 'Turn off MCP access' : 'Turn on MCP access' }, { type: 'separator' }, { id: 'revoke', label: 'Revoke key', destructive: true }]}
+        ? <OverflowMenu label={`Actions for ${k.name}`} items={[{ id: 'limit', label: 'Change rate limit' }, ...(mcpServer ? [{ id: 'mcp', label: k.mcpAccess ? 'Turn off MCP access' : 'Turn on MCP access' }] : []), { type: 'separator' }, { id: 'revoke', label: 'Revoke key', destructive: true }]}
             onAction={(id) => (id === 'limit' ? (setLimitError(null), setLimitKey(k)) : id === 'mcp' ? void toggleMcp(k) : setRevoking(k))} />
         : null),
     },
   ];
+  const columns = allColumns.filter((c) => mcpServer || c.id !== 'mcp');
 
   return (
     <Page
@@ -173,7 +176,7 @@ export function ApiAccessPage() {
       <Text tone="secondary">
         Clients send the key as <span className="claw-mono">Authorization: Bearer crk_…</span> to the OpenAI-compatible endpoints
         <span className="claw-mono"> /v1/chat/completions</span>, <span className="claw-mono">/v1/responses</span>, <span className="claw-mono">/v1/embeddings</span> and <span className="claw-mono">/v1/models</span>.
-        {' '}Keys with MCP access can also connect agents to <span className="claw-mono">/v1/mcp</span>, ClawRouter's own MCP server (read-only tools).
+        {mcpServer && <>{' '}Keys with MCP access can also connect agents to <span className="claw-mono">/v1/mcp</span>, ClawRouter's own MCP server (read-only tools).</>}
       </Text>
       {(() => {
         const table = (

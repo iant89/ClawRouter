@@ -25,7 +25,7 @@ export function CreateKeyDialog({ open, modelOptions, onClose, onCreate, created
   serverError: string | null;
 }) {
   // The signed-in user creates the key: their limit applies (none for Administrators).
-  const maxHours = useSession().keyLifetimeLimitHours;
+  const { keyLifetimeLimitHours: maxHours, mcpServer } = useSession();
   const [name, setName] = useState('');
   const [models, setModels] = useState<string[]>([]);
   const [expiry, setExpiry] = useState<ExpiryDraft>(defaultDraft(maxHours));
@@ -48,7 +48,7 @@ export function CreateKeyDialog({ open, modelOptions, onClose, onCreate, created
     const { expiry: chosen, error: invalid } = toKeyExpiry(expiry, maxHours);
     if (!chosen) return setError(invalid ?? 'Check the expiry.');
     setError(null);
-    onCreate({ name: name.trim(), allowedModels: models, expiry: chosen, mcpAccess, ...(withLimits ? { rateLimit } : {}) });
+    onCreate({ name: name.trim(), allowedModels: models, expiry: chosen, mcpAccess: mcpServer && mcpAccess, ...(withLimits ? { rateLimit } : {}) });
   };
 
   if (created) {
@@ -66,7 +66,7 @@ export function CreateKeyDialog({ open, modelOptions, onClose, onCreate, created
         <Text as="strong">Example request</Text>
         <pre className="claw-mono claw-code">{example}</pre>
         <div><CopyButton value={example} label="Copy example" size="sm" /></div>
-        {created.key.mcpAccess && <McpSetup secret={created.secret} />}
+        {mcpServer && created.key.mcpAccess && <McpSetup secret={created.secret} />}
       </Dialog>
     );
   }
@@ -87,9 +87,12 @@ export function CreateKeyDialog({ open, modelOptions, onClose, onCreate, created
         <MultiSelect label="Allowed models" description="Leave empty to allow every model and alias." options={modelOptions} value={models} onChange={setModels} placeholder="Any model" />
         <ExpiryField value={expiry} onChange={setExpiry} maxHours={maxHours} />
         {withLimits && <KeyLimitFields value={rateLimit} onChange={setRateLimit} />}
-        <WithFieldHelp label="MCP access" help={<>Lets an agent such as Claude Code connect to ClawRouter's MCP server (/v1/mcp) with this key and ask about health, usage, requests, providers and models. The tools only read, and answer with your permissions: what you cannot see in the console, the agent cannot see either. Leave it off for keys that only call models.</>}>
-          <Switch label="Allow MCP access (read-only tools for agents)" checked={mcpAccess} onChange={setMcpAccess} />
-        </WithFieldHelp>
+        {/* Only while the MCP server is on (Settings; off by default). */}
+        {mcpServer && (
+          <WithFieldHelp label="MCP access" help={<>Lets an agent such as Claude Code connect to ClawRouter's MCP server (/v1/mcp) with this key and ask about health, usage, requests, providers and models. The tools only read, and answer with your permissions: what you cannot see in the console, the agent cannot see either. Leave it off for keys that only call models.</>}>
+            <Switch label="Allow MCP access (read-only tools for agents)" checked={mcpAccess} onChange={setMcpAccess} />
+          </WithFieldHelp>
+        )}
       </Form>
     </Dialog>
   );

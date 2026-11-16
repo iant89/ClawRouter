@@ -391,6 +391,8 @@ A scratch production build on 2026-11-16, with one real Groq request in its hist
 | ![Created](27-mcp-server/04-key-created-mcp-setup.png) | The key is shown once, with a Claude Code command and an `mcpServers` configuration |
 | ![Toggle](27-mcp-server/05-mcp-turned-on.png) | Turning MCP access on from a key's menu |
 | ![Phone](27-mcp-server/06-api-access-phone.png) | The same page at phone width (no horizontal scroll) |
+| ![Off](27-mcp-server/07-api-access-mcp-off.png) | With the MCP server off (the default): no MCP column, hint or switch anywhere |
+| ![Setting](27-mcp-server/08-settings-mcp-switch.png) | Settings → API keys and quotas: the MCP server switch, off by default |
 
 ## 28 · First-run setup wizard and guided tour
 
