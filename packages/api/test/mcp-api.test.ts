@@ -40,6 +40,8 @@ async function world() {
   const h = createHarness();
   h.setProviderFetch(fetch);
   const admin = await h.completeSetup();
+  // The MCP server is off by default (owner, 2026-11-16): these tests turn it on.
+  expect((await h.request('/api/settings', { method: 'PUT', cookie: admin, json: { values: { mcpEnabled: 1 } } })).status).toBe(200);
   const openai = await h.providers.create(actor, { name: 'OpenAI', identifier: 'openai', kind: 'openai', endpoint: `${mock.url}/openai/v1`, apiKey: mock.key, priority: 10 }, client);
   h.models.create(actor, { providerId: openai.id, providerModelId: 'gpt-4o-mini', capabilities: ['CHAT'], cost: { inputPerMTok: 2.5, outputPerMTok: 10 } }, client);
   const mcpKey = await data<CreatedApiKey>(await h.request('/api/api-keys', { method: 'POST', cookie: admin, json: { name: 'agent', mcpAccess: true } }));
@@ -48,6 +50,43 @@ async function world() {
   const viewerKey = h.apiKeys.create({ id: viewer.id, username: 'vera' }, { name: 'vera agent', mcpAccess: true, expiry: { type: 'after', hours: 24 } }, client);
   return { h, admin, mcpKey, gatewayKey, viewer, viewerKey };
 }
+
+describe('MCP server: off by default, turned on and off in Settings (owner, 2026-11-16)', () => {
+  test('a fresh installation: /v1/mcp does not exist, whatever the key; the session says it is off', async () => {
+    const h = createHarness();
+    const admin = await h.completeSetup();
+    const key = await data<CreatedApiKey>(await h.request('/api/api-keys', { method: 'POST', cookie: admin, json: { name: 'agent', mcpAccess: true } }));
+    for (const k of [key.secret, null, 'crk_00000000_' + 'x'.repeat(43)]) {
+      expect((await post(h, k, { jsonrpc: '2.0', id: 1, method: 'ping' })).status).toBe(404);
+    }
+    expect((await data<{ mcpServer: boolean }>(await h.request('/api/auth/session', { cookie: admin }))).mcpServer).toBe(false);
+    // Probing it does not count as presenting invalid keys.
+    expect(h.logs.some((l) => l.msg === 'mcp tool call')).toBe(false);
+  });
+
+  test('turning it on and off takes effect at once, is audited, and keys keep their MCP access', async () => {
+    const h = createHarness();
+    const admin = await h.completeSetup();
+    const key = await data<CreatedApiKey>(await h.request('/api/api-keys', { method: 'POST', cookie: admin, json: { name: 'agent', mcpAccess: true } }));
+    const set = (on: number) => h.request('/api/settings', { method: 'PUT', cookie: admin, json: { values: { mcpEnabled: on } } });
+    expect((await set(1)).status).toBe(200);
+    expect((await call(h, key.secret, 'ping')).result).toEqual({});
+    expect((await data<{ mcpServer: boolean }>(await h.request('/api/auth/session', { cookie: admin }))).mcpServer).toBe(true);
+    expect((await set(0)).status).toBe(200);
+    expect((await post(h, key.secret, { jsonrpc: '2.0', id: 1, method: 'ping' })).status).toBe(404);
+    expect((await set(1)).status).toBe(200);
+    expect((await call(h, key.secret, 'ping')).result).toEqual({});
+    expect(h.audit.search({ page: 1, pageSize: 10, action: 'SETTINGS_CHANGED' }).total).toBeGreaterThanOrEqual(3);
+  });
+
+  test('only someone who can change settings can turn it on', async () => {
+    const h = createHarness();
+    await h.completeSetup();
+    await h.addUser('vera', ['VIEWER'], 'quiet meadow lantern 42');
+    const viewer = await h.login('vera', 'quiet meadow lantern 42');
+    expect((await h.request('/api/settings', { method: 'PUT', cookie: viewer, json: { values: { mcpEnabled: 1 } } })).status).toBe(403);
+  });
+});
 
 describe('MCP server: who may connect', () => {
   test('no key 401; a console session is not enough; a key without MCP access 403', async () => {

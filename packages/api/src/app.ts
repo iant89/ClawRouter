@@ -1,4 +1,4 @@
-import { AppError, newRequestId, type LogBuffer, type Logger } from '@clawrouter/core';
+import { AppError, errors, newRequestId, type LogBuffer, type Logger } from '@clawrouter/core';
 import type { AuditService } from '@clawrouter/audit';
 import type { AuthService, OnboardingService, SetupService, TwoFactorService, UserAdminService } from '@clawrouter/authentication';
 import type { MailService } from '@clawrouter/mail';
@@ -75,6 +75,8 @@ export interface ApiDependencies {
   cookie: SessionCookieConfig;
   /** Reported to MCP clients (serverInfo.version). */
   version?: string;
+  /** Whether the MCP server (/v1/mcp) is on: the mcpEnabled setting, read on every request. Absent: off. */
+  mcpEnabled?: () => boolean;
   /** The services' clock (tests use a fake one). */
   now?: () => Date;
 }
@@ -263,6 +265,8 @@ export function createApiApp(deps: ApiDependencies): ApiApp {
 
   const dispatch: Handler = (ctx) => {
     const match = router.match(ctx.method, ctx.url.pathname);
+    // The MCP server is off unless an administrator turned it on: then /v1/mcp does not exist, before any key is checked.
+    if (match.access === 'mcp' && !(deps.mcpEnabled?.() ?? false)) throw errors.notFound();
     if (match.access === 'api_key' || match.access === 'mcp') {
       if (!ctx.apiKey) {
         const presented = ctx.request.headers.has('authorization') || ctx.request.headers.has('x-api-key');

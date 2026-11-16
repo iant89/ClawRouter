@@ -32,7 +32,7 @@ const settingHelp = (s: SettingInfo) => (
 /** The tabs, in order, and which groups of numeric settings each one shows. */
 const TABS = [
   { value: 'security', label: 'Sign-in and sessions', groups: ['Security'] },
-  { value: 'api-keys', label: 'API keys and quotas', groups: ['API keys', 'Usage quotas'] },
+  { value: 'api-keys', label: 'API keys and quotas', groups: ['API keys', 'Usage quotas', 'MCP server'] },
   { value: 'mail', label: 'Mail server', groups: [] },
   { value: 'retention', label: 'Data retention', groups: ['Data retention'] },
   { value: 'configuration', label: 'Import and export', groups: [] },

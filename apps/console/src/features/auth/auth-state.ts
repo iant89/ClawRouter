@@ -80,6 +80,7 @@ function sameSession(a: AuthSession, b: AuthSession): boolean {
     a.roles.join() === b.roles.join() &&
     a.permissions.join() === b.permissions.join() &&
     // The setup wizard and tour state decide what the console shows.
-    JSON.stringify(a.onboarding) === JSON.stringify(b.onboarding)
+    JSON.stringify(a.onboarding) === JSON.stringify(b.onboarding) &&
+    a.mcpServer === b.mcpServer
   );
 }

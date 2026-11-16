@@ -46,6 +46,8 @@ export interface AuthSession {
   permissions: string[];
   /** First-run setup wizard and guided tour. */
   onboarding: OnboardingInfo;
+  /** Whether ClawRouter's MCP server (/v1/mcp) is on (the mcpEnabled setting): the console shows MCP access on keys only then. */
+  mcpServer: boolean;
 }
 
 /** GET /api/setup/status */

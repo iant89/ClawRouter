@@ -105,5 +105,7 @@ export function settingDefaults(config: Pick<Config, 'auth' | 'requests' | 'heal
     healthHistoryDays: config.health.historyDays,
     keyMaxLifetimeDays: 30,
     quotasEnabled: 1,
+    // Owner, 2026-11-16: the MCP server is off until an administrator turns it on.
+    mcpEnabled: 0,
   };
 }

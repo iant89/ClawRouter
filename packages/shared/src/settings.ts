@@ -37,6 +37,10 @@ export const SETTING_DEFINITIONS = {
     group: 'Usage quotas', label: 'Enforce user quotas', unit: 'on/off', min: 0, max: 1, env: null, kind: 'switch',
     description: 'When off, no user quota refuses requests: quotas keep their settings and usage is still shown, but nothing is enforced until it is turned on again. Each quota can also be turned off on its own (Users → Usage quota).',
   },
+  mcpEnabled: {
+    group: 'MCP server', label: 'MCP server', unit: 'on/off', min: 0, max: 1, env: null, kind: 'switch',
+    description: "ClawRouter's own MCP server at /v1/mcp: read-only tools an agent such as Claude Code can use to ask about health, usage, requests, providers and models, with the permissions of its API key's owner. When off, /v1/mcp does not exist (404) and the console hides MCP access on keys; keys keep their MCP access for when it is turned on again.",
+  },
 } as const;
 
 export type SettingKey = keyof typeof SETTING_DEFINITIONS;
