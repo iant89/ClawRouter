@@ -201,7 +201,8 @@ export function SetupWizard() {
   };
 
   const steps: WizardStep[] = SETUP_WIZARD_STEPS.map((id) => ({
-    id, title: content[id].title, description: content[id].description, optional: true,
+    // Every step can be skipped with Next (the intro says so); marking each one Optional only adds noise.
+    id, title: content[id].title, description: content[id].description,
     content: <div style={{ display: 'grid', gap: 'var(--eui-space-3, 0.75rem)' }}>{loadError && <MessageStrip tone="error">{loadError}</MessageStrip>}{content[id].body}</div>,
   }));
 

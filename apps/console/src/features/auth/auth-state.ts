@@ -78,6 +78,8 @@ function sameSession(a: AuthSession, b: AuthSession): boolean {
     a.user.email === b.user.email &&
     a.session.id === b.session.id &&
     a.roles.join() === b.roles.join() &&
-    a.permissions.join() === b.permissions.join()
+    a.permissions.join() === b.permissions.join() &&
+    // The setup wizard and tour state decide what the console shows.
+    JSON.stringify(a.onboarding) === JSON.stringify(b.onboarding)
   );
 }

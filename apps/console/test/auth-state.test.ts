@@ -75,6 +75,14 @@ describe('refreshed', () => {
     expect(authReducer(state, { type: 'refreshed', session: next })).toEqual({ status: 'signed-in', session: next });
   });
 
+  test('applies onboarding changes (the setup wizard ending, a tour finished)', () => {
+    const pending = { ...base, onboarding: { tour: 'PENDING', setupWizard: { status: 'PENDING', step: 'sign_in' } } } as AuthSession;
+    const done = { ...base, onboarding: { tour: 'PENDING', setupWizard: { status: 'COMPLETED', step: null } } } as AuthSession;
+    const before: AuthState = { status: 'signed-in', session: pending };
+    expect(authReducer(before, { type: 'refreshed', session: done })).toEqual({ status: 'signed-in', session: done });
+    expect(authReducer(before, { type: 'refreshed', session: { ...pending, onboarding: { ...pending.onboarding } } })).toBe(before);
+  });
+
   test('never signs anyone in', () => {
     const out: AuthState = { status: 'signed-out', reason: 'none' };
     expect(authReducer(out, { type: 'refreshed', session: base })).toBe(out);

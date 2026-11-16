@@ -376,3 +376,27 @@ Groq account was used).
 |---|---|
 | ![Add](26-groq/1-add-groq.png) | Add provider → Groq: the endpoint defaults to `https://api.groq.com/openai/v1`, an API key is required |
 | ![Tested](26-groq/2-groq-tested.png) | The connection test lists the models and marks the provider healthy |
+
+## 28 · First-run setup wizard and guided tour
+
+A scratch production build on 2026-11-16. The provider is the real Groq API (the key is a
+network secret of the development environment), so the test request is a real answer.
+See [onboarding](../onboarding.md).
+
+| | |
+|---|---|
+| ![Provider](28-onboarding/01-wizard-provider.png) | Right after the first administrator: the wizard's first step |
+| ![Connected](28-onboarding/03-wizard-provider-connected.png) | Groq added and tested at once |
+| ![Models](28-onboarding/04-wizard-models.png) | Models imported (chat models preselected in discovery) |
+| ![Key](28-onboarding/05-wizard-api-key.png) | An API key created (shown once in its dialog; only the prefix here) |
+| ![Test](28-onboarding/06-wizard-test-request.png) | A real request through the gateway with that key: answer, latency, tokens, request id |
+| ![Mail](28-onboarding/07-wizard-mail.png) | Mail server (the Settings card), skippable |
+| ![Sign-in](28-onboarding/08-wizard-sign-in.png) | Two-factor policy (the Settings card) |
+| ![Phone](28-onboarding/09-wizard-phone.png) | The wizard at phone width |
+| ![Welcome](28-onboarding/10-tour-welcome.png) | After Finish setup: the tour's welcome, centred |
+| ![Gateway](28-onboarding/12-tour-the-gateway.png) | A step pointing at an area in the sidebar, describing its pages |
+| ![Admin](28-onboarding/15-tour-administration.png) | Administration, only for roles that can open it |
+| ![Help](28-onboarding/18-tour-help.png) | The last step: where to replay it |
+| ![Help menu](28-onboarding/19-help-menu.png) | Help menu: take the tour, run the setup wizard |
+| ![Viewer](28-onboarding/20-tour-viewer-gateway.png) | A Viewer's tour: only the pages a Viewer can open |
+| ![Phone tour](28-onboarding/21-tour-phone.png) | At phone width the sidebar is collapsed, so steps are centred |

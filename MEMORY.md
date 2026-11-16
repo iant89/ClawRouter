@@ -14,6 +14,18 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 
 ### Important
 
+- **IMPORTANT** · 2026-11-16 · Owner rule: setup wizard and guided tour, always skippable
+  "A setup wizard, then a simple tour that walks new users … It can be skipped of course."
+  Owner's choices: the wizard covers a first request (provider, models, API key, test
+  request) **plus** sign-in security (mail, two-factor policy); the tour is for **every new
+  user, by role** (only pages they can open); the tour component lives in **ENTERPRISE-UI**
+  (`Tour`, pull request 55). Keep: every wizard step and the whole wizard skippable, the tour
+  skippable and replayable from the help menu, existing users and installations never shown
+  either after an upgrade (migration 0020), a new console area must get a sentence in
+  `features/onboarding/tour-steps.ts` (AREA_TEXT) or its group is left out of the tour.
+  The session's onboarding field must stay in `sameSession` (`auth-state.ts`), or finishing
+  the wizard does not reach the console. See `docs/onboarding.md`.
+
 - **IMPORTANT** · 2026-11-15 · Owner rule: user quotas, rate-limit windows and token buckets
   The owner asked for "per user quotas, setup during user creation, as well as modifying
   the user", with how much usage is allowed and when it resets; rate limits per
@@ -405,12 +417,14 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 
 ### Messages
 
-- **MESSAGE** · 2026-11-16 · Everything is merged; what comes next is the owner's call
-  `main` holds every roadmap phase (1–17) and the follow-ups: quotas, rate-limit windows and
-  token buckets, Groq, media forwarding, automatic pricing, tools, `/v1/responses`, and the
-  Gemini fixes (Groq and Gemini tested live), and the CI test fix (2026-11-16). No branch
-  waits for review. Still open: the native Gemini adapter, OpenAI and Anthropic live;
-  multi-node shared state.
+- **MESSAGE** · 2026-11-16 · Onboarding waits for review, after ENTERPRISE-UI pull request 55
+  `claude/onboarding` adds the setup wizard and the guided tour (see the owner rule under
+  Important). Order: the owner merges ENTERPRISE-UI pull request 55 (the Tour component),
+  then ClawRouter re-vendors from ENTERPRISE-UI `main` (`vendor/README.md`; the tarball is
+  from the pull request branch until then), runs `bun run check`, and `main` is
+  fast-forwarded when the owner says "merge". Still open after that: the native Gemini
+  adapter (needs the key in `x-goog-api-key`, which the owner adds in the environment
+  settings; the credential form cannot), OpenAI and Anthropic live; multi-node shared state.
 
 - **IMPORTANT** · 2026-11-16 · Do not merge `claude/mcp-server`: the owner did not want it
   The owner asked whether MCP was worth adding, then said they use GitHub's MCP server and

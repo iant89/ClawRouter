@@ -439,6 +439,16 @@ Goal: package ClawRouter as a production-ready self-hosted application. See
 
 Exit: ClawRouter can be deployed as a standalone production AI gateway.
 
+## Owner request: setup wizard and guided tour ✅
+
+See [onboarding](onboarding.md). Requested 2026-11-16: "a setup wizard, then a simple tour that walks new users … It can be skipped".
+
+- [x] Onboarding state: each user's tour, the installation's wizard progress (migration 0020; existing users and installations marked as onboarded)
+- [x] Setup wizard after the first administrator: provider (tested), models, API key, a real test request, mail server, two-factor policy; every step skippable, resumable, rerunnable from the help menu
+- [x] Guided tour for every new user, limited to the pages their role can open; skippable, replayable from the help menu
+- [x] ENTERPRISE-UI `Tour` component (ENTERPRISE-UI pull request 55; vendored from the pull request until it is merged)
+- [x] Checked in Chromium with a real provider, for an administrator, a Viewer and at phone width
+
 ---
 
 ## Future roadmap (§41)

@@ -32,6 +32,8 @@ export function ConsoleTour({ open, onClose }: { open: boolean; onClose: () => v
       onFinish={() => end('COMPLETED')}
       onSkip={() => end('SKIPPED')}
       aria-label="Guided tour of the console"
+      // Targets are already on the page (the tour never navigates); a missing one (a collapsed sidebar on a phone) is centred quickly.
+      targetTimeout={300}
       labels={{ finish: 'Start using ClawRouter' }}
     />
   );

@@ -68,7 +68,7 @@ export function tourSteps(permissions: ReadonlySet<string>, displayName: string)
   steps.push(
     { id: 'health', title: 'System health, everywhere', text: 'The header always shows the system health and whether the console is live. It changes as soon as something does.', target: '[data-tour="health"]', placement: 'bottom' },
     { id: 'notifications', title: 'Notifications', text: 'Problems, finished operations and requests that need you (such as API key requests) arrive here.', target: 'header button[aria-label^="Notifications"]', placement: 'bottom-end' },
-    { id: 'help', title: 'Help', text: permissions.has('settings.write') ? 'Take this tour again, or run the setup wizard again, from the help menu.' : 'Take this tour again from the help menu.', target: 'header button[aria-label="Help"]', placement: 'bottom-end' },
+    { id: 'help', title: 'Help', text: permissions.has('settings.write') ? 'Take this tour again, or run the setup wizard again, from the help menu (? in the header; under More on a small screen).' : 'Take this tour again from the help menu (? in the header; under More on a small screen).', target: 'header button[aria-label="Help"]', placement: 'bottom-end' },
   );
   return steps;
 }
