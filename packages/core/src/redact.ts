@@ -15,6 +15,8 @@ const SECRET_PATTERNS: [RegExp, string][] = [
   [/\b(crk_[0-9a-f]{8})_[A-Za-z0-9_-]{43}\b/g, `$1_${REDACTED}`],
   // OpenAI / Anthropic style keys (sk-…, sk-ant-…, sk-proj-…).
   [/\bsk-[A-Za-z0-9_-]{16,}/g, `sk-${REDACTED}`],
+  // Groq API keys (gsk_…).
+  [/\bgsk_[A-Za-z0-9]{20,}/g, `gsk_${REDACTED}`],
   // Google API keys.
   [/\bAIza[0-9A-Za-z_-]{35}\b/g, `AIza${REDACTED}`],
   // Bearer tokens in header-like text.

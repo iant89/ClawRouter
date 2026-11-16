@@ -187,7 +187,7 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
   Caddy's automatic certificates were not tried (no public host).
 
 - **WARNING** · 2026-11-12 · Provider adapters never tested against the real APIs
-  OpenAI, Anthropic, Google and OpenAI-compatible adapters were only tested
+  OpenAI, Anthropic, Google, Groq and OpenAI-compatible adapters were only tested
   against `tests/support/mock-providers.ts`. No real provider was reachable from
   the development environment. Expect small fixes the first time real keys are
   used: request fields, streaming events, model list paging (Anthropic lists at
@@ -348,16 +348,20 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 
 ### Messages
 
-- **MESSAGE** · 2026-11-15 · User quotas and rate-limit windows wait for review
-  Built on `claude/quotas-rate-limits` (not merged): windows of a second, minute or
-  hour, token buckets, and per-user quotas (Create user, Users → Usage quota, your own
-  quota on API Access). Fast-forward `main` when the owner says "merge". Everything
-  before it is merged. Later candidates: the spec §41 future roadmap, or the open
-  warnings above (real provider tests, multi-node shared state, CI's first run).
+- **MESSAGE** · 2026-11-16 · Everything is merged; what comes next is the owner's call
+  `main` holds every roadmap phase (1–17) and the follow-ups: user quotas (with per-user
+  and global off switches), rate-limit windows and token buckets, and the Groq provider.
+  No branch waits for review. Candidates: the spec §41 future roadmap, or the open
+  warnings above (real provider tests, Groq included; multi-node shared state; CI's first run).
 
 ---
 
 ## Resolved
+
+- **MESSAGE** · 2026-11-16 · Groq provider and user quotas wait for review. Resolved
+  2026-11-16: the owner asked for quotas to be turned off per user or entirely, then to
+  merge both. `main` was fast-forwarded to `claude/quotas-rate-limits` (`9c605f5`), then
+  to `claude/groq-provider` rebased onto it (this commit).
 
 - **MESSAGE** · 2026-11-15 · Doctor repairs in the audit log. Resolved 2026-11-15: the
   owner asked to "add the doctor repair audit record, and then merge". `applyRepairs`

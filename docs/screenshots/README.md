@@ -367,3 +367,12 @@ administrator's own key was used to use up a 50-token quota, then to hit a burst
 | ![Phone](25-quotas-rate-limits/6-create-user-quota-phone.png) | The create dialog at phone width |
 | ![Setting](25-quotas-rate-limits/7-settings-enforce-quotas.png) | Settings → API keys and quotas: **Enforce user quotas** turns every quota off at once |
 | ![Off](25-quotas-rate-limits/8-quota-turned-off.png) | One quota turned off (**Enforce this quota**), with the notice shown while all quotas are off |
+## 26 · Groq provider
+
+A scratch server; the Groq provider was then pointed at the mock providers (no real
+Groq account was used).
+
+| | |
+|---|---|
+| ![Add](26-groq/1-add-groq.png) | Add provider → Groq: the endpoint defaults to `https://api.groq.com/openai/v1`, an API key is required |
+| ![Tested](26-groq/2-groq-tested.png) | The connection test lists the models and marks the provider healthy |

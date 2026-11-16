@@ -7,6 +7,7 @@ describe('scrubSecrets', () => {
     expect(scrubSecrets(`key ${crk} rejected`)).toBe('key crk_0a1b2c3d_[REDACTED] rejected');
     expect(scrubSecrets('Incorrect API key provided: sk-proj-abcdefghijklmnop1234')).toBe('Incorrect API key provided: sk-[REDACTED]');
     expect(scrubSecrets('x-goog-api-key AIzaSyA1234567890abcdefghijklmnopqrstuv')).toBe('x-goog-api-key AIza[REDACTED]');
+    expect(scrubSecrets('Invalid API Key gsk_AbCdEfGhIjKlMnOpQrStUvWxYz0123456789abcdefghijklmnop')).toBe('Invalid API Key gsk_[REDACTED]');
     expect(scrubSecrets('Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.payload')).toBe('Authorization: Bearer [REDACTED]');
     expect(scrubSecrets('nothing secret here, sk-short')).toBe('nothing secret here, sk-short');
   });

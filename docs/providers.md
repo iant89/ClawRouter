@@ -24,6 +24,7 @@ Each provider kind is an **adapter** implementing `ProviderAdapter`
 | `openai` | Chat Completions, `https://api.openai.com/v1` | `Authorization: Bearer` | `max_completion_tokens`; asks for streamed usage |
 | `anthropic` | Messages API, `https://api.anthropic.com` | `x-api-key`, `anthropic-version: 2023-06-01` | System messages moved to `system`; `max_tokens` defaults to 4096 |
 | `google` | Gemini `generateContent`, `https://generativelanguage.googleapis.com/v1beta` | `x-goog-api-key` header (never `?key=`) | `assistant` → `model` role; system → `systemInstruction` |
+| `groq` | Chat Completions, `https://api.groq.com/openai/v1` | `Authorization: Bearer` (`gsk_…` keys) | `max_completion_tokens`; streamed usage read from `x_groq.usage`; the model list gives each model's context window and output limit, and retired models (`active: false`) are left out. Chat only: no embeddings |
 | `openai_compatible` | Chat Completions at any URL | optional Bearer | Ollama, vLLM, LM Studio, llama.cpp, LiteLLM… Endpoint required |
 
 Adding a provider means writing an adapter and registering it in

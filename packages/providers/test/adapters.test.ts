@@ -13,6 +13,7 @@ const cases = [
   { kind: 'openai', base: '/openai/v1', model: 'gpt-4o-mini', text: 'Hello from OpenAI', streamText: 'Hello', models: 3, usage: [7, 4, 11], streamUsage: [7, 2, 9], streamFinish: 'stop' },
   { kind: 'anthropic', base: '/anthropic', model: 'claude-sonnet-4-5', text: 'Hello from Anthropic', streamText: 'Hi there', models: 1, usage: [9, 5, 14], streamUsage: [9, 2, 11], streamFinish: 'length' },
   { kind: 'google', base: '/google/v1beta', model: 'gemini-2.0-flash', text: 'Hello from Gemini', streamText: 'Gemini', models: 2, usage: [6, 3, 9], streamUsage: [6, 2, 8], streamFinish: 'stop' },
+  { kind: 'groq', base: '/groq/openai/v1', model: 'llama-3.3-70b-versatile', text: 'Hello from Groq', streamText: 'Hello', models: 4, usage: [12, 5, 17], streamUsage: [12, 2, 14], streamFinish: 'stop' },
   { kind: 'openai_compatible', base: '/local/v1', model: 'llama3', text: 'Hello from OpenAI', streamText: 'Hello', models: 3, usage: [7, 4, 11], streamUsage: [7, 2, 9], streamFinish: 'stop' },
 ] as const;
 
@@ -81,6 +82,17 @@ describe('wire format', () => {
     expect(sent.body).not.toHaveProperty('stream_options');
   });
 
+  test('Groq: bearer auth, max_completion_tokens, no stream_options (usage comes in x_groq)', async () => {
+    mock.requests.length = 0;
+    for await (const _ of registry.get('groq').sendStreamingRequest(ctx('/groq/openai/v1'), request('llama-3.3-70b-versatile'))) void _;
+    const sent = mock.requests.at(-1)!;
+    expect(sent.path).toBe('/groq/openai/v1/chat/completions');
+    expect(sent.headers.authorization).toBe(`Bearer ${mock.key}`);
+    expect(sent.body).toMatchObject({ model: 'llama-3.3-70b-versatile', max_completion_tokens: 50, temperature: 0.2, stream: true });
+    expect(sent.body).not.toHaveProperty('max_tokens');
+    expect(sent.body).not.toHaveProperty('stream_options');
+  });
+
   test('Anthropic: system prompt separated, version header, default max_tokens', async () => {
     mock.requests.length = 0;
     await registry.get('anthropic').sendRequest(ctx('/anthropic'), { model: 'claude-sonnet-4-5', messages: [{ role: 'system', content: 'S' }, { role: 'user', content: 'U' }] });
@@ -140,5 +152,13 @@ describe('discovery metadata', () => {
     ]);
     const openai = await registry.get('openai').listModels(ctx('/openai/v1'));
     expect(openai.map((m) => [m.id, m.kind])).toEqual([['gpt-4o-mini', 'chat'], ['gpt-4o', 'chat'], ['text-embedding-3-small', 'embedding']]);
+    // Groq: limits from the listing; retired models (active: false) are left out; audio and guard models are not chat.
+    const groq = await registry.get('groq').listModels(ctx('/groq/openai/v1'));
+    expect(groq).toEqual([
+      { id: 'llama-3.3-70b-versatile', displayName: null, kind: 'chat', contextLength: 131072, maxOutputTokens: 32768 },
+      { id: 'openai/gpt-oss-120b', displayName: null, kind: 'chat', contextLength: 131072, maxOutputTokens: 65536 },
+      { id: 'whisper-large-v3', displayName: null, kind: 'other', contextLength: 448, maxOutputTokens: null },
+      { id: 'meta-llama/llama-guard-4-12b', displayName: null, kind: 'other', contextLength: 131072, maxOutputTokens: null },
+    ]);
   });
 });
