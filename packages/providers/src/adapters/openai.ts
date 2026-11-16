@@ -18,14 +18,16 @@ const usageOf = (u: OpenAiUsage | undefined | null): Usage =>
     : { inputTokens: null, outputTokens: null, totalTokens: null, source: 'none' };
 
 export interface OpenAiStyleOptions {
-  kind: Extract<ProviderKind, 'openai' | 'openai_compatible'>;
+  kind: Extract<ProviderKind, 'openai' | 'groq' | 'openai_compatible'>;
   displayName: string;
   description: string;
   defaultEndpoint: string | null;
   apiKeyRequired: boolean;
   capabilities: Capability[];
-  /** OpenAI's own API: `max_completion_tokens` and streamed usage. Compatible servers get the classic fields. */
-  official: boolean;
+  /** Field for the answer length: `max_completion_tokens` (OpenAI, Groq) or the classic `max_tokens` (most compatible servers). */
+  maxTokensField: 'max_completion_tokens' | 'max_tokens';
+  /** Ask for usage in streams with `stream_options` (OpenAI). Groq sends it in `x_groq.usage` without being asked; both are read. */
+  streamOptions: boolean;
 }
 
 /** OpenAI Chat Completions, and the many servers that implement the same API. */
@@ -50,19 +52,27 @@ export function createOpenAiStyleAdapter(options: OpenAiStyleOptions): ProviderA
   const body = (req: ChatRequest, stream: boolean) => ({
     model: req.model,
     messages: req.messages.map((m) => ({ role: m.role, content: m.content })),
-    ...(req.maxTokens !== undefined ? { [options.official ? 'max_completion_tokens' : 'max_tokens']: req.maxTokens } : {}),
+    ...(req.maxTokens !== undefined ? { [options.maxTokensField]: req.maxTokens } : {}),
     ...(req.temperature !== undefined ? { temperature: req.temperature } : {}),
     ...(req.topP !== undefined ? { top_p: req.topP } : {}),
     ...(req.stop?.length ? { stop: req.stop } : {}),
     stream,
-    ...(stream && options.official ? { stream_options: { include_usage: true } } : {}),
+    ...(stream && options.streamOptions ? { stream_options: { include_usage: true } } : {}),
   });
 
   async function listModels(ctx: ProviderCallContext) {
     const res = await providerFetch(ctx, joinUrl(ctx.endpoint, '/models'), { method: 'GET', headers: headers(ctx) });
-    const json = await readJson<{ data?: { id?: unknown }[] }>(res, ctx.apiKey);
+    const json = await readJson<{ data?: { id?: unknown; active?: unknown; context_window?: unknown; max_completion_tokens?: unknown }[] }>(res, ctx.apiKey);
     if (!Array.isArray(json.data)) throw invalidResponse('model list has no "data" array');
-    return json.data.filter((m): m is { id: string } => typeof m.id === 'string').map((m) => ({ id: m.id, displayName: null, kind: guessKind(m.id) }));
+    const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) && v > 0 ? v : null);
+    return json.data
+      // Groq marks retired models `active: false`; they cannot be called.
+      .filter((m): m is { id: string; active?: unknown; context_window?: unknown; max_completion_tokens?: unknown } => typeof m.id === 'string' && m.active !== false)
+      .map((m) => ({
+        id: m.id, displayName: null, kind: guessKind(m.id),
+        // Groq (and some compatible servers) report these; OpenAI does not.
+        contextLength: num(m.context_window), maxOutputTokens: num(m.max_completion_tokens),
+      }));
   }
 
   return {
@@ -104,7 +114,7 @@ export function createOpenAiStyleAdapter(options: OpenAiStyleOptions): ProviderA
       let model = req.model;
       for await (const event of parseSse(res.body, ctx.signal)) {
         if (event.data === '[DONE]') break;
-        let chunk: { model?: string; choices?: { delta?: { content?: string | null }; finish_reason?: string | null }[]; usage?: OpenAiUsage | null };
+        let chunk: { model?: string; choices?: { delta?: { content?: string | null }; finish_reason?: string | null }[]; usage?: OpenAiUsage | null; x_groq?: { usage?: OpenAiUsage | null } };
         try {
           chunk = JSON.parse(event.data);
         } catch {
@@ -114,7 +124,8 @@ export function createOpenAiStyleAdapter(options: OpenAiStyleOptions): ProviderA
         const choice = chunk.choices?.[0];
         if (choice?.delta?.content) yield { type: 'delta', text: choice.delta.content };
         if (choice?.finish_reason) reason = finish(choice.finish_reason);
-        if (chunk.usage) usage = usageOf(chunk.usage);
+        const reported = chunk.usage ?? chunk.x_groq?.usage;
+        if (reported) usage = usageOf(reported);
       }
       yield { type: 'done', finishReason: reason, usage, model };
     },
@@ -128,7 +139,8 @@ export const openAiAdapter = createOpenAiStyleAdapter({
   defaultEndpoint: 'https://api.openai.com/v1',
   apiKeyRequired: true,
   capabilities: ['CHAT', 'CODING', 'REASONING', 'VISION', 'EMBEDDINGS', 'TOOL_USE'],
-  official: true,
+  maxTokensField: 'max_completion_tokens',
+  streamOptions: true,
 });
 
 export const openAiCompatibleAdapter = createOpenAiStyleAdapter({
@@ -138,5 +150,22 @@ export const openAiCompatibleAdapter = createOpenAiStyleAdapter({
   defaultEndpoint: null,
   apiKeyRequired: false,
   capabilities: ['CHAT', 'CODING', 'EMBEDDINGS'],
-  official: false,
+  maxTokensField: 'max_tokens',
+  streamOptions: false,
+});
+
+/**
+ * Groq: the OpenAI API shape at https://api.groq.com/openai/v1, on Groq's own
+ * hardware. Usage in streams arrives in `x_groq.usage`; the model list reports
+ * each model's context window and output limit. No embeddings.
+ */
+export const groqAdapter = createOpenAiStyleAdapter({
+  kind: 'groq',
+  displayName: 'Groq',
+  description: 'Groq API (OpenAI-compatible): very fast inference for open models such as Llama, Qwen, Kimi and GPT-OSS.',
+  defaultEndpoint: 'https://api.groq.com/openai/v1',
+  apiKeyRequired: true,
+  capabilities: ['CHAT', 'CODING', 'REASONING', 'VISION'],
+  maxTokensField: 'max_completion_tokens',
+  streamOptions: false,
 });

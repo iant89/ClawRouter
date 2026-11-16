@@ -351,3 +351,13 @@ process-ID file), then System → Audit.
 | | |
 |---|---|
 | ![Repair](24-doctor-fix/1-audit-repair.png) | A `DOCTOR_REPAIR` record: by "command line", the repair (`key-permissions`) and its outcome |
+
+## 26 · Groq provider
+
+A scratch server; the Groq provider was then pointed at the mock providers (no real
+Groq account was used).
+
+| | |
+|---|---|
+| ![Add](26-groq/1-add-groq.png) | Add provider → Groq: the endpoint defaults to `https://api.groq.com/openai/v1`, an API key is required |
+| ![Tested](26-groq/2-groq-tested.png) | The connection test lists the models and marks the provider healthy |

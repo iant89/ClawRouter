@@ -12,6 +12,7 @@
 const PATTERNS: [string, RegExp][] = [
   ['OpenAI / Anthropic key', /sk-(?:proj-|ant-)?[A-Za-z0-9_-]{32,}/],
   ['Google API key', /AIza[0-9A-Za-z_-]{35}/],
+  ['Groq API key', /gsk_[A-Za-z0-9]{40,}/],
   ['ClawRouter API key', /crk_[0-9a-f]{8}_[A-Za-z0-9_-]{43}/],
   ['GitHub token', /gh[pousr]_[A-Za-z0-9]{36}|github_pat_[A-Za-z0-9_]{50,}/],
   ['AWS access key', /AKIA[0-9A-Z]{16}/],

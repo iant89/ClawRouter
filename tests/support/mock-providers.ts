@@ -131,6 +131,36 @@ export function startMockProviders(key = 'sk-test-0123456789abcdefWXYZ'): MockPr
         }
       }
 
+      // Groq: the OpenAI shape under /openai/v1, usage in streams as `x_groq.usage`.
+      if (family === 'groq') {
+        if (state.mode === 'auth' || h.get('authorization') !== `Bearer ${key}`) {
+          return json({ error: { message: 'Invalid API Key', type: 'invalid_request_error', code: 'invalid_api_key' } }, 401);
+        }
+        if (path === '/openai/v1/models') {
+          return json({ object: 'list', data: [
+            { id: 'llama-3.3-70b-versatile', object: 'model', owned_by: 'Meta', active: true, context_window: 131072, max_completion_tokens: 32768 },
+            { id: 'openai/gpt-oss-120b', object: 'model', owned_by: 'OpenAI', active: true, context_window: 131072, max_completion_tokens: 65536 },
+            { id: 'whisper-large-v3', object: 'model', owned_by: 'OpenAI', active: true, context_window: 448 },
+            { id: 'meta-llama/llama-guard-4-12b', object: 'model', owned_by: 'Meta', active: true, context_window: 131072 },
+            { id: 'mixtral-8x7b-32768', object: 'model', owned_by: 'Mistral AI', active: false, context_window: 32768 },
+          ] });
+        }
+        if (path === '/openai/v1/chat/completions') {
+          if (!stream) {
+            return json({ id: 'chatcmpl-g1', object: 'chat.completion', model: 'llama-3.3-70b-versatile', choices: [{ index: 0, message: { role: 'assistant', content: 'Hello from Groq' }, finish_reason: 'stop' }],
+              usage: { prompt_tokens: 12, completion_tokens: 5, total_tokens: 17, queue_time: 0.01, prompt_time: 0.002, completion_time: 0.01, total_time: 0.012 }, x_groq: { id: 'req_01' } });
+          }
+          return sse([
+            { data: { id: 'chatcmpl-g2', model: 'llama-3.3-70b-versatile', choices: [{ index: 0, delta: { role: 'assistant', content: '' } }], x_groq: { id: 'req_02' } } },
+            { data: { id: 'chatcmpl-g2', choices: [{ index: 0, delta: { content: 'Hel' } }] } },
+            { data: { id: 'chatcmpl-g2', choices: [{ index: 0, delta: { content: 'lo' } }] } },
+            { data: { id: 'chatcmpl-g2', choices: [{ index: 0, delta: {}, finish_reason: 'stop' }], x_groq: { id: 'req_02', usage: { prompt_tokens: 12, completion_tokens: 2, total_tokens: 14 } } } },
+            { data: '[DONE]' },
+          ]);
+        }
+        return json({ error: { message: `Unknown request URL: ${path}`, type: 'invalid_request_error', code: 'unknown_url' } }, 404);
+      }
+
       if (family === 'anthropic') {
         if (state.mode === 'auth' || h.get('x-api-key') !== key) return json({ type: 'error', error: { type: 'authentication_error', message: 'invalid x-api-key' } }, 401);
         if (h.get('anthropic-version') !== '2023-06-01') return json({ type: 'error', error: { message: 'missing version' } }, 400);

@@ -167,7 +167,7 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
   Caddy's automatic certificates were not tried (no public host).
 
 - **WARNING** · 2026-11-12 · Provider adapters never tested against the real APIs
-  OpenAI, Anthropic, Google and OpenAI-compatible adapters were only tested
+  OpenAI, Anthropic, Google, Groq and OpenAI-compatible adapters were only tested
   against `tests/support/mock-providers.ts`. No real provider was reachable from
   the development environment. Expect small fixes the first time real keys are
   used: request fields, streaming events, model list paging (Anthropic lists at
@@ -328,11 +328,13 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 
 ### Messages
 
-- **MESSAGE** · 2026-11-15 · Everything is merged; what comes next is the owner's call
-  `main` holds every roadmap phase (1–17), the settings tabs, the field help tips,
-  the authenticator QR code and `doctor --fix` (audited). No branch waits for review. Candidates: the spec §41
-  future roadmap, or the open warnings above (real provider tests, multi-node shared
-  state, CI's first run).
+- **MESSAGE** · 2026-11-16 · Groq provider waits for review (and quotas before it)
+  `claude/groq-provider` (from `main`) adds the `groq` provider kind: the OpenAI-style
+  adapter with `max_completion_tokens`, stream usage from `x_groq.usage`, model limits
+  from the listing, retired models left out, `gsk_` keys scrubbed and scanned. Tests:
+  `packages/api/test/groq-api.test.ts` and the adapter suite. Separately,
+  `claude/quotas-rate-limits` also waits. Both branch from `main`; merging the second
+  needs a rebase (MEMORY.md and the mock provider file will conflict lightly).
 
 ---
 
