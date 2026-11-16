@@ -410,15 +410,18 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 
 ### Messages
 
-- **MESSAGE** · 2026-11-16 · Gemini live fixes wait for review
-  Built on `claude/gemini-live-fixes` (from `main`, not merged): fixes found testing Gemini live
-  through Google's OpenAI-compatible endpoint. Fast-forward `main` when the owner says "merge".
-  Everything before it is merged. Still open: the native Gemini adapter, OpenAI and Anthropic
-  live; multi-node shared state; CI.
+- **MESSAGE** · 2026-11-16 · Everything is merged; what comes next is the owner's call
+  `main` holds every roadmap phase (1–17) and the follow-ups: quotas, rate-limit windows and
+  token buckets, Groq, media forwarding, automatic pricing, tools, `/v1/responses`, and the
+  Gemini fixes (Groq and Gemini tested live). No branch waits for review. Still open: the
+  native Gemini adapter, OpenAI and Anthropic live; multi-node shared state; CI.
 
 ---
 
 ## Resolved
+
+- **MESSAGE** · 2026-11-16 · Gemini live fixes wait for review. Resolved 2026-11-16: the owner
+  said "Merge"; `main` was fast-forwarded to `claude/gemini-live-fixes` (this commit).
 
 - **MESSAGE** · 2026-11-16 · Everything merged after the Responses API. Resolved 2026-11-16: the
   owner provided a Gemini key for live testing (see Messages).
