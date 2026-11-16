@@ -181,7 +181,7 @@ export function createHarness(options: { idleMinutes?: number; maxHours?: number
   const healthHistory = createHealthHistoryService({ repo: createSqliteHealthHistoryRepository(db), now: clock.now });
   const operations = createOperationService({ repo: createSqliteOperationRepository(db), handlers: operationHandlers({ providers, health }), audit, events, log, now: clock.now });
   const configuration = createConfigurationService({ providers, models, routing, limits, authz, settings, twoFactor, mail, audit, version: 'test', now: clock.now });
-  const api = createApiApp({ log, logBuffer, audit, health, configuration, onboarding, healthHistory, auth, authz, userAdmin, settings, twoFactor, mail, notifications, providers, models, routing, apiKeys, keyRequests, gateway, limits, quotas, requests, operations, setup, cookie: { secure: options.secureCookie ?? false } });
+  const api = createApiApp({ log, logBuffer, audit, health, configuration, onboarding, healthHistory, auth, authz, userAdmin, settings, twoFactor, mail, notifications, providers, models, routing, apiKeys, keyRequests, gateway, limits, quotas, requests, operations, setup, now: clock.now, cookie: { secure: options.secureCookie ?? false } });
 
   const h: Harness = {
     db, clock, events, users, audit, auth, authz, userAdmin, settings, twoFactor, onboarding, mail, outbox, notifications, providers, models, routing, apiKeys, keyRequests, gateway, limits, quotas, requests, secrets, setup, health, healthHistory, operations, api, logs, logBuffer,

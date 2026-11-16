@@ -26,6 +26,8 @@ export interface ApiKeyInfo {
   revokedAt: string | null;
   /** This key's own limits; null uses the default per-key limit. */
   rateLimit: RateLimit | null;
+  /** May use ClawRouter's MCP server (/v1/mcp), with its owner's permissions. */
+  mcpAccess: boolean;
 }
 
 /**
@@ -53,6 +55,8 @@ export interface CreateApiKeyRequest {
   expiry?: KeyExpiry;
   /** Own limits for this key; omit or null for the default. Administrators only. */
   rateLimit?: RateLimit | null;
+  /** Allow the MCP server (/v1/mcp). Off when omitted. */
+  mcpAccess?: boolean;
 }
 
 /**
@@ -109,6 +113,7 @@ export interface UpdateApiKeyRequest {
   name?: string;
   allowedModels?: string[];
   rateLimit?: RateLimit | null;
+  mcpAccess?: boolean;
 }
 
 /** The only response that ever contains the full key. */

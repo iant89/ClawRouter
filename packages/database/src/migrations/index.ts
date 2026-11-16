@@ -19,6 +19,7 @@ import { m0017PerformanceIndexes } from './0017_performance_indexes.ts';
 import { m0018UserQuotas } from './0018_user_quotas.ts';
 import { m0019ModelCostSource } from './0019_model_cost_source.ts';
 import { m0020Onboarding } from './0020_onboarding.ts';
+import { m0021ApiKeyMcpAccess } from './0021_api_key_mcp_access.ts';
 
 /** All migrations, in order. Append only. */
-export const migrations: readonly Migration[] = [m0001Settings, m0002UsersSessions, m0003AuditLog, m0004Roles, m0005Notifications, m0006Providers, m0007Models, m0008Routing, m0009ApiKeys, m0010RateLimits, m0011Requests, m0012HealthOperations, m0013CustomRolesUsers, m0014ApiKeyRequests, m0015KeyLifetimeLimits, m0016TwoFactor, m0017PerformanceIndexes, m0018UserQuotas, m0019ModelCostSource, m0020Onboarding];
+export const migrations: readonly Migration[] = [m0001Settings, m0002UsersSessions, m0003AuditLog, m0004Roles, m0005Notifications, m0006Providers, m0007Models, m0008Routing, m0009ApiKeys, m0010RateLimits, m0011Requests, m0012HealthOperations, m0013CustomRolesUsers, m0014ApiKeyRequests, m0015KeyLifetimeLimits, m0016TwoFactor, m0017PerformanceIndexes, m0018UserQuotas, m0019ModelCostSource, m0020Onboarding, m0021ApiKeyMcpAccess];

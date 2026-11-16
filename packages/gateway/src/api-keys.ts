@@ -18,6 +18,8 @@ export interface ApiKeyPrincipal {
   createdAt: string;
   /** Own limit, or null for the default per-key limit. */
   rateLimit: RateLimit | null;
+  /** May use the MCP server (/v1/mcp), acting with the owner's permissions. */
+  mcpAccess: boolean;
 }
 
 interface Row {
@@ -34,6 +36,7 @@ interface Row {
   last_used_at: string | null;
   revoked_at: string | null;
   rate_limit: string | null;
+  mcp_access: number;
 }
 
 const sha256 = (text: string) => new Bun.CryptoHasher('sha256').update(text).digest('hex');
@@ -105,6 +108,7 @@ export function createApiKeyService(options: {
     lastUsedAt: r.last_used_at,
     revokedAt: r.revoked_at,
     rateLimit: r.rate_limit ? normalizeLimit(JSON.parse(r.rate_limit)) : null,
+    mcpAccess: r.mcp_access === 1,
   });
 
   return {
@@ -208,6 +212,7 @@ export function createApiKeyService(options: {
       const name = checkName(input.name, issues);
       const allowedModels = checkModels(input.allowedModels ?? [], issues);
       const rateLimit = checkKeyLimit(input.rateLimit, issues);
+      const mcpAccess = input.mcpAccess === true;
       let expiresAt: string | null = null;
       if (input.expiry !== undefined && input.expiresAt) issues.push({ path: 'expiry', message: 'send either expiry or expiresAt, not both' });
       else if (input.expiry !== undefined) {
@@ -234,18 +239,18 @@ export function createApiKeyService(options: {
       const prefix = `${API_KEY_PREFIX}${publicId}`;
       const at = now().toISOString();
       db.run(
-        `INSERT INTO api_keys (id, name, prefix, secret_hash, allowed_models, created_by, created_at, expires_at, rate_limit) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [id, name, prefix, sha256(secret), JSON.stringify(allowedModels), owner, at, expiresAt, rateLimit ? JSON.stringify(rateLimit) : null],
+        `INSERT INTO api_keys (id, name, prefix, secret_hash, allowed_models, created_by, created_at, expires_at, rate_limit, mcp_access) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [id, name, prefix, sha256(secret), JSON.stringify(allowedModels), owner, at, expiresAt, rateLimit ? JSON.stringify(rateLimit) : null, mcpAccess ? 1 : 0],
       );
       audit.record({
         action: 'API_KEY_CREATED', result: 'SUCCESS', resource: 'api_key', resourceId: id,
         actor: { id: actor.id, name: actor.username }, ip: client.ip, requestId: client.requestId ?? null,
-        metadata: { name, prefix, allowedModels, expiresAt, rateLimit, ...(owner !== actor.id ? { ownerId: owner } : {}), ...(options.via ? { via: options.via } : {}) },
+        metadata: { name, prefix, allowedModels, expiresAt, rateLimit, mcpAccess, ...(owner !== actor.id ? { ownerId: owner } : {}), ...(options.via ? { via: options.via } : {}) },
       });
       return { key: toInfo(db.get<Row>(`${SELECT} WHERE k.id = ?`, [id])!), secret };
     },
 
-    /** Changes a key's name, allowed models or limit. The secret never changes. */
+    /** Changes a key's name, allowed models, limit or MCP access. The secret never changes. */
     update(actor: { id: string; username: string }, id: string, input: UpdateApiKeyRequest, client: { ip: string | null; requestId?: string | null }): ApiKeyInfo {
       const row = db.get<Row>(`${SELECT} WHERE k.id = ?`, [id]);
       if (!row) throw errors.notFound('API key not found.');
@@ -254,14 +259,16 @@ export function createApiKeyService(options: {
       const name = input.name === undefined ? before.name : checkName(input.name, issues);
       const allowedModels = input.allowedModels === undefined ? before.allowedModels : checkModels(input.allowedModels, issues);
       const rateLimit = input.rateLimit === undefined ? before.rateLimit : checkKeyLimit(input.rateLimit, issues);
+      const mcpAccess = input.mcpAccess === undefined ? before.mcpAccess : input.mcpAccess === true;
       if (issues.length) throw errors.validation(issues);
       if (row.revoked_at) throw errors.conflict('A revoked API key cannot be changed.');
       const changes: Record<string, unknown> = {};
       if (name !== before.name) changes.name = { from: before.name, to: name };
       if (JSON.stringify(allowedModels) !== JSON.stringify(before.allowedModels)) changes.allowedModels = { from: before.allowedModels, to: allowedModels };
       if (JSON.stringify(rateLimit) !== JSON.stringify(before.rateLimit)) changes.rateLimit = { from: before.rateLimit, to: rateLimit };
+      if (mcpAccess !== before.mcpAccess) changes.mcpAccess = { from: before.mcpAccess, to: mcpAccess };
       if (Object.keys(changes).length) {
-        db.run('UPDATE api_keys SET name = ?, allowed_models = ?, rate_limit = ? WHERE id = ?', [name, JSON.stringify(allowedModels), rateLimit ? JSON.stringify(rateLimit) : null, id]);
+        db.run('UPDATE api_keys SET name = ?, allowed_models = ?, rate_limit = ?, mcp_access = ? WHERE id = ?', [name, JSON.stringify(allowedModels), rateLimit ? JSON.stringify(rateLimit) : null, mcpAccess ? 1 : 0, id]);
         audit.record({
           action: 'API_KEY_UPDATED', result: 'SUCCESS', resource: 'api_key', resourceId: id,
           actor: { id: actor.id, name: actor.username }, ip: client.ip, requestId: client.requestId ?? null,
@@ -312,7 +319,7 @@ export function createApiKeyService(options: {
       }
       return {
         id: row.id, name: row.name, prefix: row.prefix, allowedModels: JSON.parse(row.allowed_models) as string[],
-        ownerId: row.created_by, createdAt: row.created_at, rateLimit: row.rate_limit ? normalizeLimit(JSON.parse(row.rate_limit)) : null,
+        ownerId: row.created_by, createdAt: row.created_at, rateLimit: row.rate_limit ? normalizeLimit(JSON.parse(row.rate_limit)) : null, mcpAccess: row.mcp_access === 1,
       };
     },
   };

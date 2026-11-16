@@ -67,12 +67,14 @@ const createKeyBody = v.object({
   },
   expiry: expiryField,
   rateLimit: keyLimit,
+  mcpAccess: v.optional(v.boolean()),
 });
 
 const updateKeyBody = v.object({
   name: v.optional(v.string({ min: 1, max: 100 })),
   allowedModels: modelList,
   rateLimit: keyLimit,
+  mcpAccess: v.optional(v.boolean()),
 });
 
 const actor = (ctx: RequestContext) => ({ id: ctx.auth!.user.id, username: ctx.auth!.user.username });

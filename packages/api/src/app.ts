@@ -37,6 +37,7 @@ import { twoFactorController } from './controllers/two-factor.ts';
 import { settingsController } from './controllers/settings.ts';
 import { configurationController } from './controllers/configuration.ts';
 import type { ConfigurationService } from '@clawrouter/configuration';
+import { createMcpHandler } from './mcp/server.ts';
 
 /** What a user with a temporary password may still do: see their session, change the password, sign out. */
 const ALLOWED_BEFORE_PASSWORD_CHANGE = new Set(['GET /api/auth/session', 'POST /api/auth/password', 'POST /api/auth/logout']);
@@ -72,6 +73,10 @@ export interface ApiDependencies {
   operations: OperationService;
   setup: SetupService;
   cookie: SessionCookieConfig;
+  /** Reported to MCP clients (serverInfo.version). */
+  version?: string;
+  /** The services' clock (tests use a fake one). */
+  now?: () => Date;
 }
 
 export interface ApiApp {
@@ -247,12 +252,24 @@ export function createApiApp(deps: ApiDependencies): ApiApp {
   router.post('/v1/embeddings', 'api_key', gw.embeddings);
   router.post('/v1/responses', 'api_key', gw.responses);
 
+  // ClawRouter's own MCP server (read-only tools for agents): API keys with MCP access, acting with the owner's permissions.
+  router.post('/v1/mcp', 'mcp', createMcpHandler({
+    health: deps.health, requests: deps.requests, providers: deps.providers, models: deps.models, audit: deps.audit,
+    limits: deps.limits, quotas: deps.quotas, apiKeys: deps.apiKeys,
+    now: deps.now ?? (() => new Date()),
+    permissionsOf: (userId) => deps.authz.principalFor(userId).permissions,
+    version: deps.version ?? 'dev', log: deps.log,
+  }));
+
   const dispatch: Handler = (ctx) => {
     const match = router.match(ctx.method, ctx.url.pathname);
-    if (match.access === 'api_key') {
+    if (match.access === 'api_key' || match.access === 'mcp') {
       if (!ctx.apiKey) {
         const presented = ctx.request.headers.has('authorization') || ctx.request.headers.has('x-api-key');
         throw new AppError('AUTHENTICATION_ERROR', presented ? 'Invalid, expired or revoked API key.' : 'Missing API key. Send it as "Authorization: Bearer <key>".', { expose: true });
+      }
+      if (match.access === 'mcp' && !ctx.apiKey.mcpAccess) {
+        throw new AppError('AUTHORIZATION_ERROR', 'This API key may not use the MCP server. Turn on MCP access for it in API Access.', { expose: true });
       }
     } else if (match.access !== 'public') {
       if (!ctx.auth) throw new AppError('AUTHENTICATION_ERROR');
