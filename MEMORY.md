@@ -383,16 +383,19 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 
 ### Messages
 
-- **MESSAGE** · 2026-11-16 · Tools and function calling wait for review
-  Built on `claude/tools` (from `main`, not merged): OpenAI-format tools for every
-  provider, tested live on Groq. Fast-forward `main` when the owner says "merge".
-  Everything before it is merged. Candidates after it: the spec §41 future roadmap, or
-  the open warnings above (real tests for OpenAI, Anthropic and Google; multi-node
-  shared state; CI).
+- **MESSAGE** · 2026-11-16 · Everything is merged; what comes next is the owner's call
+  `main` holds every roadmap phase (1–17) and the follow-ups: quotas, rate-limit windows
+  and token buckets, the Groq provider, media forwarding, automatic pricing, and tools /
+  function calling (tested live on Groq). No branch waits for review. Candidates: the spec
+  §41 future roadmap, `/v1/responses`, or the open warnings above (real tests for OpenAI,
+  Anthropic and Google; multi-node shared state; CI).
 
 ---
 
 ## Resolved
+
+- **MESSAGE** · 2026-11-16 · Tools and function calling wait for review. Resolved
+  2026-11-16: the owner said "Merge"; `main` was fast-forwarded to `claude/tools` (this commit).
 
 - **MESSAGE** · 2026-11-16 · Everything merged after media and pricing. Resolved
   2026-11-16: the owner asked for tools and function calling next (see Messages).
