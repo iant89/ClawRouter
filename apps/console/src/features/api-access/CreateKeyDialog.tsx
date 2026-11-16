@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Button, CopyButton, Dialog, Form, Input, MessageStrip, MultiSelect, Text } from '@enterprise-ui/react';
-import { FieldHelp } from '../../components/custom/FieldHelp.tsx';
+import { Button, CopyButton, Dialog, Form, Input, MessageStrip, MultiSelect, Switch, Text } from '@enterprise-ui/react';
+import { FieldHelp, WithFieldHelp } from '../../components/custom/FieldHelp.tsx';
 import type { CreateApiKeyRequest, CreatedApiKey, RateLimit } from '@clawrouter/shared';
 import { KeyLimitFields } from './KeyLimitDialog.tsx';
 import { defaultDraft, ExpiryField, toKeyExpiry, type ExpiryDraft } from './ExpiryField.tsx';
@@ -30,6 +30,7 @@ export function CreateKeyDialog({ open, modelOptions, onClose, onCreate, created
   const [models, setModels] = useState<string[]>([]);
   const [expiry, setExpiry] = useState<ExpiryDraft>(defaultDraft(maxHours));
   const [rateLimit, setRateLimit] = useState<RateLimit | null>(null);
+  const [mcpAccess, setMcpAccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -38,6 +39,7 @@ export function CreateKeyDialog({ open, modelOptions, onClose, onCreate, created
     setModels([]);
     setExpiry(defaultDraft(maxHours));
     setRateLimit(null);
+    setMcpAccess(false);
     setError(null);
   }, [open]);
 
@@ -46,7 +48,7 @@ export function CreateKeyDialog({ open, modelOptions, onClose, onCreate, created
     const { expiry: chosen, error: invalid } = toKeyExpiry(expiry, maxHours);
     if (!chosen) return setError(invalid ?? 'Check the expiry.');
     setError(null);
-    onCreate({ name: name.trim(), allowedModels: models, expiry: chosen, ...(withLimits ? { rateLimit } : {}) });
+    onCreate({ name: name.trim(), allowedModels: models, expiry: chosen, mcpAccess, ...(withLimits ? { rateLimit } : {}) });
   };
 
   if (created) {
@@ -64,6 +66,7 @@ export function CreateKeyDialog({ open, modelOptions, onClose, onCreate, created
         <Text as="strong">Example request</Text>
         <pre className="claw-mono claw-code">{example}</pre>
         <div><CopyButton value={example} label="Copy example" size="sm" /></div>
+        {created.key.mcpAccess && <McpSetup secret={created.secret} />}
       </Dialog>
     );
   }
@@ -84,7 +87,28 @@ export function CreateKeyDialog({ open, modelOptions, onClose, onCreate, created
         <MultiSelect label="Allowed models" description="Leave empty to allow every model and alias." options={modelOptions} value={models} onChange={setModels} placeholder="Any model" />
         <ExpiryField value={expiry} onChange={setExpiry} maxHours={maxHours} />
         {withLimits && <KeyLimitFields value={rateLimit} onChange={setRateLimit} />}
+        <WithFieldHelp label="MCP access" help={<>Lets an agent such as Claude Code connect to ClawRouter's MCP server (/v1/mcp) with this key and ask about health, usage, requests, providers and models. The tools only read, and answer with your permissions: what you cannot see in the console, the agent cannot see either. Leave it off for keys that only call models.</>}>
+          <Switch label="Allow MCP access (read-only tools for agents)" checked={mcpAccess} onChange={setMcpAccess} />
+        </WithFieldHelp>
       </Form>
     </Dialog>
+  );
+}
+
+/** How to connect an agent to ClawRouter's MCP server with the key just created. */
+function McpSetup({ secret }: { secret: string }) {
+  const url = `${location.origin}/v1/mcp`;
+  const claudeCode = `claude mcp add --transport http clawrouter ${url} \\\n  --header "Authorization: Bearer ${secret}"`;
+  const config = JSON.stringify({ mcpServers: { clawrouter: { type: 'http', url, headers: { Authorization: `Bearer ${secret}` } } } }, null, 2);
+  return (
+    <div style={{ display: 'grid', gap: 'var(--eui-space-2, 0.5rem)', marginBlockStart: 'var(--eui-space-3, 0.75rem)' }}>
+      <Text as="strong">Connect an agent (MCP)</Text>
+      <Text tone="secondary">Claude Code:</Text>
+      <pre className="claw-mono claw-code">{claudeCode}</pre>
+      <div><CopyButton value={claudeCode} label="Copy command" size="sm" /></div>
+      <Text tone="secondary">Other clients that read an <span className="claw-mono">mcpServers</span> file:</Text>
+      <pre className="claw-mono claw-code">{config}</pre>
+      <div><CopyButton value={config} label="Copy configuration" size="sm" /></div>
+    </div>
   );
 }

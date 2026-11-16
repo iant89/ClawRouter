@@ -377,6 +377,21 @@ Groq account was used).
 | ![Add](26-groq/1-add-groq.png) | Add provider → Groq: the endpoint defaults to `https://api.groq.com/openai/v1`, an API key is required |
 | ![Tested](26-groq/2-groq-tested.png) | The connection test lists the models and marks the provider healthy |
 
+## 27 · MCP server
+
+A scratch production build on 2026-11-16, with one real Groq request in its history
+(the keys shown belong to that scratch server, which no longer exists). See
+[MCP server](../mcp.md).
+
+| | |
+|---|---|
+| ![Column](27-mcp-server/01-api-access-mcp-column.png) | API Access: the MCP column ("Allowed" / "No", in words) |
+| ![Switch](27-mcp-server/02-create-key-mcp-switch.png) | Create key: "Allow MCP access" switch, off by default |
+| ![Help](27-mcp-server/03-mcp-field-help.png) | Its "i" tip: what MCP access allows and whose permissions apply |
+| ![Created](27-mcp-server/04-key-created-mcp-setup.png) | The key is shown once, with a Claude Code command and an `mcpServers` configuration |
+| ![Toggle](27-mcp-server/05-mcp-turned-on.png) | Turning MCP access on from a key's menu |
+| ![Phone](27-mcp-server/06-api-access-phone.png) | The same page at phone width (no horizontal scroll) |
+
 ## 28 · First-run setup wizard and guided tour
 
 A scratch production build on 2026-11-16. The provider is the real Groq API (the key is a

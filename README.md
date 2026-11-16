@@ -47,12 +47,15 @@ usage tracking and an administration console built on
   A new installation opens with a **setup wizard** (provider, models, API key, a real test
   request, mail, two-factor policy) and every new user gets a skippable **guided tour** of the
   pages their role can open; see [onboarding](docs/onboarding.md).
+  ClawRouter is also an **MCP server** at `/v1/mcp`: agents such as Claude Code can ask
+  it about health, usage, requests and models with read-only tools (keys need MCP
+  access; see [MCP server](docs/mcp.md)).
 - **Architecture:** [`docs/architecture.md`](docs/architecture.md) ·
   **Security model:** [`docs/authentication.md`](docs/authentication.md),
   [`docs/authorization.md`](docs/authorization.md) · **Console:**
   [`docs/console-shell.md`](docs/console-shell.md) · **Providers:**
   [`docs/providers.md`](docs/providers.md) · **Models:** [`docs/models.md`](docs/models.md) ·
-  **Routing:** [`docs/routing.md`](docs/routing.md) · **Gateway:** [`docs/gateway.md`](docs/gateway.md) · **Rate limits:** [`docs/rate-limits.md`](docs/rate-limits.md) · **Requests and usage:** [`docs/requests-usage.md`](docs/requests-usage.md) · **Real-time:** [`docs/realtime.md`](docs/realtime.md) · **Health and operations:** [`docs/health-operations.md`](docs/health-operations.md) · **Logging and audit:** [`docs/logging-audit.md`](docs/logging-audit.md) · **Onboarding:** [`docs/onboarding.md`](docs/onboarding.md)
+  **Routing:** [`docs/routing.md`](docs/routing.md) · **Gateway:** [`docs/gateway.md`](docs/gateway.md) · **Rate limits:** [`docs/rate-limits.md`](docs/rate-limits.md) · **Requests and usage:** [`docs/requests-usage.md`](docs/requests-usage.md) · **Real-time:** [`docs/realtime.md`](docs/realtime.md) · **Health and operations:** [`docs/health-operations.md`](docs/health-operations.md) · **Logging and audit:** [`docs/logging-audit.md`](docs/logging-audit.md) · **Onboarding:** [`docs/onboarding.md`](docs/onboarding.md) · **MCP server:** [`docs/mcp.md`](docs/mcp.md)
 - **Screenshots:** [`docs/screenshots/`](docs/screenshots/README.md)
 - **Working on the code:** [`AGENTS.md`](AGENTS.md) (rules, commands, definition
   of done) and [`MEMORY.md`](MEMORY.md) (important notes carried between sessions).

@@ -223,7 +223,7 @@ Initial external API:
 - [x] `/v1/models`
 - [x] `/v1/chat/completions`
 - [x] `/v1/embeddings` (OpenAI, OpenAI-compatible, Google)
-- [ ] `/v1/responses`: not supported by the normalized model yet; answers 400 pointing to chat completions
+- [x] `/v1/responses` (added 2026-11-16, stateless; see the provider engine above)
 
 Exit: an external AI client can point directly at ClawRouter and make an AI request without knowing which provider handled it ✅
 (tested with the mock providers and in the browser; real providers not yet tried).
@@ -448,6 +448,17 @@ See [onboarding](onboarding.md). Requested 2026-11-16: "a setup wizard, then a s
 - [x] Guided tour for every new user, limited to the pages their role can open; skippable, replayable from the help menu
 - [x] ENTERPRISE-UI `Tour` component (ENTERPRISE-UI pull request 55; vendored from the pull request until it is merged)
 - [x] Checked in Chromium with a real provider, for an administrator, a Viewer and at phone width
+## Owner request: ClawRouter as an MCP server ✅
+
+See [MCP server](mcp.md). Chosen by the owner on 2026-11-16 from three ways of "adding MCP" (the others: calling MCP servers for clients, an MCP gateway).
+
+- [x] `POST /v1/mcp` (Streamable HTTP, stateless, JSON answers)
+- [x] Per-key MCP access, off by default, audited when changed
+- [x] Ten read-only tools, each needing the permission of the console page it mirrors; the key owner's permissions, read on every call
+- [x] Tool calls under the key's rate limits, logged
+- [x] Console: switch when creating a key, connection instructions, MCP column and on/off action
+- [x] Checked with the official MCP SDK client and Claude Code
+
 
 ---
 
