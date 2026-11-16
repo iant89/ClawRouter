@@ -392,7 +392,7 @@ See [onboarding](../onboarding.md).
 | ![Test](28-onboarding/06-wizard-test-request.png) | A real request through the gateway with that key: answer, latency, tokens, request id |
 | ![Mail](28-onboarding/07-wizard-mail.png) | Mail server (the Settings card), skippable |
 | ![Sign-in](28-onboarding/08-wizard-sign-in.png) | Two-factor policy (the Settings card) |
-| ![Phone](28-onboarding/09-wizard-phone.png) | The wizard at phone width |
+| ![Phone](28-onboarding/09-wizard-phone.png) | The wizard at phone width: every step fits one row; the heading names the current one |
 | ![Welcome](28-onboarding/10-tour-welcome.png) | After Finish setup: the tour's welcome, centred |
 | ![Gateway](28-onboarding/12-tour-the-gateway.png) | A step pointing at an area in the sidebar, describing its pages |
 | ![Admin](28-onboarding/15-tour-administration.png) | Administration, only for roles that can open it |

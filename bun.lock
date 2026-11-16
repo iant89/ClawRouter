@@ -315,7 +315,7 @@
 
     "@clawrouter/shared": ["@clawrouter/shared@workspace:packages/shared"],
 
-    "@enterprise-ui/react": ["@enterprise-ui/react@../../vendor/enterprise-ui-react.tgz", { "dependencies": { "lucide-react": "^1.63.0" }, "peerDependencies": { "react": ">=18.2.0", "react-dom": ">=18.2.0" } }, "sha512-JMrcJqGmoRd65KE3J5ABo49TUflPp63KrNF2TkwENCD5M/XyqnvoU4zQ7nTp31CoQh5EM2jv/LoqnKISr0mfqw=="],
+    "@enterprise-ui/react": ["@enterprise-ui/react@../../vendor/enterprise-ui-react.tgz", { "dependencies": { "lucide-react": "^1.63.0" }, "peerDependencies": { "react": ">=18.2.0", "react-dom": ">=18.2.0" } }, "sha512-V+3eD2xpAJbSIEqXyEeKcbrQsLdajbEVcgMP+lIB9F+dK2oJLuf7lafhpy81allkmvtCa83R7eJnH4VCGKox7Q=="],
 
     "@types/bun": ["@types/bun@1.4.4", "", { "dependencies": { "bun-types": "1.4.4" } }, "sha512-9wkRDXUXK124pEnAutE6n/l18j+i9GC5IAHK8TmX/2nlySETmky0OU6yL5U8pW1AoKh++AN9auDCr647BfurjQ=="],
 
