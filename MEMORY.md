@@ -371,15 +371,20 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 
 ### Messages
 
-- **MESSAGE** · 2026-11-16 · Groq live fixes, media and automatic pricing wait for review
-  Two stacked branches, neither merged: `claude/groq-live-fixes` (from `main`: richer
-  Groq discovery, model ids with a slash) and `claude/media-pricing` (on top of it:
-  images/audio/PDF forwarding, automatic pricing). Merging `claude/media-pricing`
-  brings both. Merge when the owner says so.
+- **MESSAGE** · 2026-11-16 · Everything is merged; what comes next is the owner's call
+  `main` holds every roadmap phase (1–17) and the follow-ups: quotas (with off switches),
+  rate-limit windows and token buckets, the Groq provider (tested live), media forwarding
+  (images, audio, PDFs) and automatic pricing. No branch waits for review. Candidates:
+  the spec §41 future roadmap, tools/function calling (agent clients need it), or the open
+  warnings above (real tests for OpenAI, Anthropic and Google; multi-node shared state; CI).
 
 ---
 
 ## Resolved
+
+- **MESSAGE** · 2026-11-16 · Groq live fixes, media and automatic pricing wait for review.
+  Resolved 2026-11-16: the owner said "Merge"; `main` was fast-forwarded to
+  `claude/media-pricing` (which contains `claude/groq-live-fixes`), this commit.
 
 - **MESSAGE** · 2026-11-16 · Groq provider and user quotas wait for review. Resolved
   2026-11-16: the owner asked for quotas to be turned off per user or entirely, then to
