@@ -30,8 +30,17 @@ describe('secret box', () => {
   test('tampering is detected', async () => {
     const b = await box();
     const sealed = await b.encrypt('secret', 'c');
-    const tampered = sealed.slice(0, -2) + (sealed.endsWith('A') ? 'BB' : 'AA');
-    await expect(b.decrypt(tampered, 'c')).rejects.toThrow();
+    // Flip one bit of a decoded byte. (Replacing trailing base64 characters can leave
+    // the bytes unchanged: the last character carries unused bits. CI caught that once.)
+    const [version, iv, data] = sealed.split('.');
+    for (let i = 0; i < Buffer.from(data!, 'base64url').length; i++) {
+      const bytes = Buffer.from(data!, 'base64url');
+      bytes[i]! ^= 0x01;
+      await expect(b.decrypt(`${version}.${iv}.${bytes.toString('base64url')}`, 'c')).rejects.toThrow('could not be decrypted');
+    }
+    const ivBytes = Buffer.from(iv!, 'base64url');
+    ivBytes[0]! ^= 0x01;
+    await expect(b.decrypt(`${version}.${ivBytes.toString('base64url')}.${data}`, 'c')).rejects.toThrow('could not be decrypted');
   });
 
   test('accepts hex and base64 keys, rejects anything else', () => {

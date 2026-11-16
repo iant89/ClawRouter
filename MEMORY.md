@@ -228,11 +228,6 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
     Redis pub/sub). A reverse proxy must pass WebSocket upgrades on `/api/ws` and
     keep the `Host` header (the origin check uses it).
 
-- **WARNING** · 2026-11-12 · CI not yet observed
-  `.github/workflows/ci.yml` (frozen install, secret scan, `bun audit`, typecheck,
-  tests, build) has not been seen running on GitHub. Check the first run; `bun
-  audit` needs the npm registry and could be flaky.
-
 - **WARNING** · 2026-11-13 · Accepted security risks (see `docs/security.md`)
   A known username can be locked out by repeated wrong passwords (15 min; two-factor
   sign-in does not help, the password step comes first); the console CSP allows
@@ -419,6 +414,12 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 ---
 
 ## Resolved
+
+- **WARNING** · 2026-11-12 · CI not yet observed. Resolved 2026-11-16: CI ran on every push
+  to `main` (29 runs, about 30 s each, `bun audit` never failed). One failure (run 28) was a
+  flaky test, "secret box > tampering is detected": it changed trailing base64 characters,
+  which sometimes decode to the same bytes (about 1 in 250). It now flips real bytes. When a
+  test tampers with encoded data, change the decoded bytes, not the text.
 
 - **MESSAGE** · 2026-11-16 · Gemini live fixes wait for review. Resolved 2026-11-16: the owner
   said "Merge"; `main` was fast-forwarded to `claude/gemini-live-fixes` (this commit).
