@@ -119,8 +119,8 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 
 - **IMPORTANT** · 2026-11-12 · ENTERPRISE-UI comes from a committed tarball; do not clone it
   The owner asked for the tarball to be committed rather than cloned or built at
-  install time. `vendor/enterprise-ui-react.tgz` is from ENTERPRISE-UI `main` at `2ae9757` (with
-  QrCode, ENTERPRISE-UI pull request 54). To update it, follow
+  install time. `vendor/enterprise-ui-react.tgz` is from ENTERPRISE-UI `main` at `ac70db0` (with
+  QrCode, pull request 54, and Tour and the small-screen Wizard, pull request 55). To update it, follow
   `vendor/README.md` (needs a local ENTERPRISE-UI checkout); run `bun install --force`, because the
   package version stays 0.1.0 and a plain install keeps the cached copy.
 
@@ -417,14 +417,10 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 
 ### Messages
 
-- **MESSAGE** · 2026-11-16 · Onboarding waits for review, after ENTERPRISE-UI pull request 55
-  `claude/onboarding` adds the setup wizard and the guided tour (see the owner rule under
-  Important). Order: the owner merges ENTERPRISE-UI pull request 55 (the Tour component),
-  then ClawRouter re-vendors from ENTERPRISE-UI `main` (`vendor/README.md`; the tarball is
-  from the pull request branch until then), runs `bun run check`, and `main` is
-  fast-forwarded when the owner says "merge". Still open after that: the native Gemini
-  adapter (needs the key in `x-goog-api-key`, which the owner adds in the environment
-  settings; the credential form cannot), OpenAI and Anthropic live; multi-node shared state.
+- **MESSAGE** · 2026-11-16 · Onboarding merged; still open
+  `main` has the setup wizard and the guided tour. Still open: the native Gemini adapter
+  (needs the key in `x-goog-api-key`, which the owner adds in the environment settings; the
+  credential form cannot), OpenAI and Anthropic live; multi-node shared state.
 
 - **IMPORTANT** · 2026-11-16 · Do not merge `claude/mcp-server`: the owner did not want it
   The owner asked whether MCP was worth adding, then said they use GitHub's MCP server and
@@ -440,6 +436,11 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 ---
 
 ## Resolved
+
+- **MESSAGE** · 2026-11-16 · Onboarding waits for review, after ENTERPRISE-UI pull request 55.
+  Resolved 2026-11-16: the owner said "Start merging". ENTERPRISE-UI pull request 55 (all four
+  CI checks green) was squash-merged as `ac70db0`; ClawRouter re-vendored from that `main` (the
+  tarball was byte-identical), and `main` was fast-forwarded to `claude/onboarding` (this commit).
 
 - **WARNING** · 2026-11-12 · CI not yet observed. Resolved 2026-11-16: CI ran on every push
   to `main` (29 runs, about 30 s each, `bun audit` never failed). One failure (run 28) was a

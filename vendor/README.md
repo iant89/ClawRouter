@@ -9,7 +9,7 @@ committed on purpose: a fresh clone needs only `bun install`.
 | | |
 |---|---|
 | Package | `@enterprise-ui/react` 0.1.0 |
-| Source | ENTERPRISE-UI pull request 55 (the Tour component, and the Wizard on small screens) at `a1baa45`, **not merged yet**: re-vendor from `main` once it is |
+| Source | ENTERPRISE-UI `main` at `ac70db04463b80837986eb8692beac46378d5c3e` (pull request 55: the Tour component, and the Wizard on small screens) |
 | Contents | the published files only (`dist/`, `README.md`), as `npm pack` produces them |
 
 ### Updating
