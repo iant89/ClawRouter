@@ -129,8 +129,8 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 
 - **IMPORTANT** · 2026-11-12 · ENTERPRISE-UI comes from a committed tarball; do not clone it
   The owner asked for the tarball to be committed rather than cloned or built at
-  install time. `vendor/enterprise-ui-react.tgz` is from ENTERPRISE-UI `main` at `2ae9757` (with
-  QrCode, ENTERPRISE-UI pull request 54). To update it, follow
+  install time. `vendor/enterprise-ui-react.tgz` is from ENTERPRISE-UI `main` at `ac70db0` (with
+  QrCode, pull request 54, and Tour and the small-screen Wizard, pull request 55). To update it, follow
   `vendor/README.md` (needs a local ENTERPRISE-UI checkout); run `bun install --force`, because the
   package version stays 0.1.0 and a plain install keeps the cached copy.
 
@@ -427,24 +427,26 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 
 ### Messages
 
-- **MESSAGE** · 2026-11-16 · Onboarding waits for review, after ENTERPRISE-UI pull request 55
-  `claude/onboarding` adds the setup wizard and the guided tour (see the owner rule under
-  Important). Order: the owner merges ENTERPRISE-UI pull request 55 (the Tour component),
-  then ClawRouter re-vendors from ENTERPRISE-UI `main` (`vendor/README.md`; the tarball is
-  from the pull request branch until then), runs `bun run check`, and `main` is
-  fast-forwarded when the owner says "merge". Still open after that: the native Gemini
-  adapter (needs the key in `x-goog-api-key`, which the owner adds in the environment
-  settings; the credential form cannot), OpenAI and Anthropic live; multi-node shared state.
-
-- **MESSAGE** · 2026-11-16 · The MCP server (with its switch) waits for review, after onboarding
-  `claude/mcp-server-toggle` is built on `claude/onboarding` (merge that first): the MCP server
-  from the old `claude/mcp-server` branch, its migration renumbered to 0021, plus the Settings
-  switch (see the owner rule under Important). Fast-forward `main` to it after onboarding when
-  the owner says "merge". The old `claude/mcp-server` branch is superseded; the owner may delete it.
+- **MESSAGE** · 2026-11-16 · Everything merged; what comes next is the owner's call
+  `main` has the setup wizard, the guided tour and the switchable MCP server (off by default).
+  No branch waits for review. Old branches to delete on GitHub (the session cannot): every
+  merged `claude/*` branch, the superseded `claude/mcp-server` and the stale
+  `claude/groq-provider`. Still open: the native Gemini adapter (needs the key in
+  `x-goog-api-key`, which the owner adds in the environment settings; the credential form
+  cannot), OpenAI and Anthropic live; multi-node shared state.
 
 ---
 
 ## Resolved
+
+- **MESSAGE** · 2026-11-16 · The MCP server (with its switch) waits for review, after onboarding.
+  Resolved 2026-11-16: on the owner's "Start merging", `main` was fast-forwarded to
+  `claude/mcp-server-toggle` (after onboarding; this commit). Migration 0021 is the MCP access.
+
+- **MESSAGE** · 2026-11-16 · Onboarding waits for review, after ENTERPRISE-UI pull request 55.
+  Resolved 2026-11-16: the owner said "Start merging". ENTERPRISE-UI pull request 55 (all four
+  CI checks green) was squash-merged as `ac70db0`; ClawRouter re-vendored from that `main` (the
+  tarball was byte-identical), and `main` was fast-forwarded to `claude/onboarding` (this commit).
 
 - **IMPORTANT** · 2026-11-16 · Do not merge `claude/mcp-server`. Resolved 2026-11-16: the owner
   first did not want the MCP server (it was built from a misread "Option 3"; lesson: when the
