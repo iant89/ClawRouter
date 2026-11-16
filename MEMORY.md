@@ -214,8 +214,8 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
   - Request history stores metadata only; there is no payload storage at all, so
     there is nothing to configure for payload retention (spec §22). Keep it that
     way unless the owner asks for opt-in payload logging.
-  - `/v1/responses`, tools and `n > 1` are rejected with 400 (see
-    `docs/gateway.md`). Agent clients that need tools will not work yet.
+  - `/v1/responses` and `n > 1` are rejected with 400 (see `docs/gateway.md`). Tools
+    work (2026-11-16); the deprecated `functions` / `function_call` are refused.
   - No CORS on `/v1`; browser apps must call it from their backend.
   - System settings (phase 14) are cached in memory per process: with several
     nodes, a change made through one node reaches the others only after their
@@ -250,6 +250,18 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
     reaches the others within 5 seconds.
 
 ### Notes
+
+- **NOTE** · 2026-11-16 · Tools and function calling
+  Normalized types in `packages/providers/src/types.ts`: `ChatRequest.tools`,
+  `toolChoice`, `parallelToolCalls`; assistant `toolCalls`, role `tool` with
+  `toolCallId`; `ChatResponse.toolCalls`; stream event `tool_call` (index; id and name
+  on the first piece; argument pieces after). Every adapter translates them (OpenAI pass
+  through; Anthropic tool_use/tool_result; Gemini functionCall/functionResponse). A new
+  provider kind must do the same, or tool requests fail at the provider. Gemini's thought
+  signature is carried in the tool call id (`call_<hex>~<signature>`, `signatureOf` in
+  `google.ts`): do not shorten or rewrite tool call ids anywhere. Routing requires
+  TOOL_USE for tool requests (`plan()` in `packages/gateway/src/service.ts`). The mock
+  providers answer with a tool call when tools are offered and no tool result exists yet.
 
 - **NOTE** · 2026-11-16 · Media forwarding and automatic pricing
   Messages may carry `parts` (`packages/providers/src/types.ts`); `content` is always
@@ -371,16 +383,19 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 
 ### Messages
 
-- **MESSAGE** · 2026-11-16 · Everything is merged; what comes next is the owner's call
-  `main` holds every roadmap phase (1–17) and the follow-ups: quotas (with off switches),
-  rate-limit windows and token buckets, the Groq provider (tested live), media forwarding
-  (images, audio, PDFs) and automatic pricing. No branch waits for review. Candidates:
-  the spec §41 future roadmap, tools/function calling (agent clients need it), or the open
-  warnings above (real tests for OpenAI, Anthropic and Google; multi-node shared state; CI).
+- **MESSAGE** · 2026-11-16 · Tools and function calling wait for review
+  Built on `claude/tools` (from `main`, not merged): OpenAI-format tools for every
+  provider, tested live on Groq. Fast-forward `main` when the owner says "merge".
+  Everything before it is merged. Candidates after it: the spec §41 future roadmap, or
+  the open warnings above (real tests for OpenAI, Anthropic and Google; multi-node
+  shared state; CI).
 
 ---
 
 ## Resolved
+
+- **MESSAGE** · 2026-11-16 · Everything merged after media and pricing. Resolved
+  2026-11-16: the owner asked for tools and function calling next (see Messages).
 
 - **MESSAGE** · 2026-11-16 · Groq live fixes, media and automatic pricing wait for review.
   Resolved 2026-11-16: the owner said "Merge"; `main` was fast-forwarded to

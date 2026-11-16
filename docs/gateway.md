@@ -33,13 +33,43 @@ attempts. Every response has an `x-request-id`.
 ### Supported request fields (chat)
 
 `model`, `messages` (roles `system`, `developer` (treated as system), `user`,
-`assistant`; content as a string or parts), `max_completion_tokens` /
+`assistant`, `tool`; content as a string or parts), `max_completion_tokens` /
 `max_tokens`, `temperature` (0–2), `top_p` (0–1), `stop` (a string or up to 4),
-`stream`, `stream_options.include_usage`. Unknown fields are ignored.
+`tools`, `tool_choice`, `parallel_tool_calls`, `stream`,
+`stream_options.include_usage`. Unknown fields are ignored.
 
-Rejected with a clear 400 rather than silently ignored: `tools` / `functions`,
-`n` other than 1, non-text `response_format`. These need capabilities the
-normalized model does not have yet.
+Rejected with a clear 400 rather than silently ignored: `n` other than 1,
+non-text `response_format`, and the deprecated `functions` / `function_call` / role
+`function` (send `tools` instead).
+
+### Tools (function calling)
+
+The OpenAI format, for every provider: `tools` (up to 128 function tools with a JSON
+Schema `parameters`), `tool_choice` (`auto`, `none`, `required` or
+`{ "type": "function", "function": { "name": … } }`) and `parallel_tool_calls`. The
+answer carries `tool_calls` with `finish_reason: "tool_calls"`; when streaming, each
+call arrives in pieces (`index`, then `id`, `type` and `name`, then `arguments`
+pieces), exactly as OpenAI streams them. The client runs the tool and sends the
+result back as a `tool` message with the call's `tool_call_id`.
+
+| | OpenAI, Groq, compatible | Anthropic | Google (Gemini) |
+|---|---|---|---|
+| Tools | passed through | `input_schema` | `functionDeclarations` (`parametersJsonSchema`) |
+| `tool_choice` | passed through | `auto` / `any` / `tool` / `none` | `AUTO` / `ANY` (+ allowed name) / `NONE` |
+| `parallel_tool_calls: false` | passed through | `disable_parallel_tool_use` | not available (ignored) |
+| Calls in the answer | `tool_calls` | `tool_use` blocks | `functionCall` parts |
+| Results sent back | `tool` messages | `tool_result` blocks, together in one user turn | `functionResponse` parts, named after the call |
+
+- Routing needs a model marked **Tool use** when a request has tools, or tool calls or
+  results in its history; otherwise 400 says so. Import pre-selects Tool use for chat
+  models; Groq says per model (`supported_features`).
+- Gemini 3 requires each call's *thought signature* on the next turn. ClawRouter keeps
+  no state between requests, so the signature travels inside the tool call id
+  (`call_…~<signature>`): send ids back unchanged.
+- A `tool` message must answer a tool call earlier in the conversation.
+- Tested live against Groq (gpt-oss-20b): a call, the round trip with a result, a
+  streamed call and a named `tool_choice`. Anthropic and Gemini are tested against
+  fake providers only.
 
 ### Images, audio and PDFs
 
@@ -152,7 +182,7 @@ for each provider:
 
 ## Not yet
 
-- `/v1/responses`, tools, `n > 1` (see above). Image generation, audio output and transcription endpoints.
+- `/v1/responses`, `n > 1` (see above). Image generation, audio output and transcription endpoints.
 - Rate limits: see [rate limits](rate-limits.md) (phase 9). A refused request gets 429 `rate_limit_error` with `Retry-After`.
 - Request history, usage and cost: see [requests and usage](requests-usage.md) (phase 10).
 - CORS: none. Browser apps should call ClawRouter from their backend.
