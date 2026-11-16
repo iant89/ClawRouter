@@ -408,8 +408,17 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 - **MESSAGE** · 2026-11-16 · Everything is merged; what comes next is the owner's call
   `main` holds every roadmap phase (1–17) and the follow-ups: quotas, rate-limit windows and
   token buckets, Groq, media forwarding, automatic pricing, tools, `/v1/responses`, and the
-  Gemini fixes (Groq and Gemini tested live). No branch waits for review. Still open: the
-  native Gemini adapter, OpenAI and Anthropic live; multi-node shared state; CI.
+  Gemini fixes (Groq and Gemini tested live), and the CI test fix (2026-11-16). No branch
+  waits for review. Still open: the native Gemini adapter, OpenAI and Anthropic live;
+  multi-node shared state.
+
+- **IMPORTANT** · 2026-11-16 · Do not merge `claude/mcp-server`: the owner did not want it
+  The owner asked whether MCP was worth adding, then said they use GitHub's MCP server and
+  nothing else. "Open 3" / "Option*" meant item 3 of the follow-up list (check CI), but it was
+  misread as building ClawRouter as an MCP server. That was built on `claude/mcp-server`
+  and the owner said "No, I didn't want to implement a MCP Server". The branch is left on
+  GitHub, unmerged, until the owner says whether to delete it. When the owner's words are
+  ambiguous between two lists, ask before building.
 
 ---
 
