@@ -186,11 +186,13 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
   the second kept answering when the first stopped); no automated test, and not tried on macOS or Windows.
   Caddy's automatic certificates were not tried (no public host).
 
-- **WARNING** · 2026-11-12 · Provider adapters never tested against the real APIs (Groq is)
-  OpenAI, Anthropic, Google and OpenAI-compatible adapters were only tested against
-  `tests/support/mock-providers.ts`. Expect small fixes the first time real keys are
-  used: request fields, streaming events, model list paging (Anthropic lists at most
-  100). Groq was tested live on 2026-11-16 (see the note under Notes).
+- **WARNING** · 2026-11-12 · Provider adapters never tested against the real APIs (Groq and Gemini via compat are)
+  OpenAI, Anthropic and the **native** Google adapter were only tested against
+  `tests/support/mock-providers.ts`. Expect small fixes the first time real keys are used:
+  request fields, streaming events, model list paging (Anthropic lists at most 100). Groq was
+  tested live on 2026-11-16, and Gemini through Google's OpenAI-compatible endpoint the same
+  day (see Notes). The native Gemini adapter needs the key in the `x-goog-api-key` header,
+  which the credential form cannot save: the owner adds it in the environment settings.
 
 - **WARNING** · 2026-11-12 · ENTERPRISE-UI branch `claude/clawapi-design-spec-p0hucn` still exists
   The owner asked for it to be deleted after the move. The deletion was blocked by
@@ -251,6 +253,19 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
     reaches the others within 5 seconds.
 
 ### Notes
+
+- **NOTE** · 2026-11-16 · Live Gemini testing (OpenAI-compatible endpoint)
+  The owner saved a Gemini API key as a **network secret for generativelanguage.googleapis.com,
+  sent as `Authorization: Bearer`**. That works only for Google's OpenAI-compatible endpoint
+  (`/v1beta/openai`): configure an `openai_compatible` provider there with any placeholder
+  key. The native API answers 401 to it. Live 2026-11-16 on gemini-3.5-flash: discovery (64
+  models), chat, stream, an inline image, tools with the round trip, `/v1/responses`,
+  embeddings (gemini-embedding-001). Found and fixed: thought signatures dropped (tool
+  results refused by Gemini 3), `models/` ids, `display_name`, Google's error lists, stream
+  finish "stop" for tool calls, retired-model errors hidden. gemini-2.5-flash is retired for new
+  users and gemini-3.8-flash did not answer in 110 s that day; gemini-3.5-flash works. Streams
+  get no usage from this endpoint (ClawRouter does not send `stream_options` to compatible
+  servers), so streamed usage is estimated.
 
 - **NOTE** · 2026-11-16 · Responses API and the chat pipeline
   Chat completions and `/v1/responses` share `runChat()` in
@@ -394,16 +409,18 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 
 ### Messages
 
-- **MESSAGE** · 2026-11-16 · Everything is merged; what comes next is the owner's call
-  `main` holds every roadmap phase (1–17) and the follow-ups: quotas, rate-limit windows
-  and token buckets, the Groq provider, media forwarding, automatic pricing, tools /
-  function calling and `/v1/responses` (both tested live on Groq). No branch waits for
-  review. Candidates: the spec §41 future roadmap, or the open warnings above (real tests
-  for OpenAI, Anthropic and Google; multi-node shared state; CI).
+- **MESSAGE** · 2026-11-16 · Gemini live fixes wait for review
+  Built on `claude/gemini-live-fixes` (from `main`, not merged): fixes found testing Gemini live
+  through Google's OpenAI-compatible endpoint. Fast-forward `main` when the owner says "merge".
+  Everything before it is merged. Still open: the native Gemini adapter, OpenAI and Anthropic
+  live; multi-node shared state; CI.
 
 ---
 
 ## Resolved
+
+- **MESSAGE** · 2026-11-16 · Everything merged after the Responses API. Resolved 2026-11-16: the
+  owner provided a Gemini key for live testing (see Messages).
 
 - **MESSAGE** · 2026-11-16 · The Responses API waits for review. Resolved 2026-11-16: the
   owner said "Merge"; `main` was fast-forwarded to `claude/responses-api` (this commit).

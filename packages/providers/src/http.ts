@@ -30,7 +30,9 @@ async function errorText(response: Response, apiKey: string | null): Promise<str
   try {
     const raw = await response.text();
     try {
-      const body = JSON.parse(raw) as { error?: { message?: unknown } | string; message?: unknown };
+      // Google wraps its error in a list: [{ "error": { … } }].
+      const parsed = JSON.parse(raw) as unknown;
+      const body = (Array.isArray(parsed) ? parsed[0] ?? {} : parsed ?? {}) as { error?: { message?: unknown } | string; message?: unknown };
       const candidate = typeof body.error === 'object' ? body.error?.message : body.error ?? body.message;
       detail = typeof candidate === 'string' ? candidate : raw;
     } catch {

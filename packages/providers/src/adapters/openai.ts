@@ -32,15 +32,20 @@ interface OpenAiToolCall {
   id?: string;
   type?: string;
   function?: { name?: string; arguments?: string };
+  /** Google (OpenAI-compatible endpoint): Gemini 3's thought signature, needed back on the next turn. */
+  extra_content?: { google?: { thought_signature?: string } };
 }
 
 /** A message in OpenAI's format, tool calls and tool results included. */
 function openAiMessage(m: ChatMessage): Record<string, unknown> {
-  if (m.role === 'tool') return { role: 'tool', tool_call_id: m.toolCallId, content: m.content };
+  if (m.role === 'tool') return { role: 'tool', tool_call_id: splitSignature(m.toolCallId ?? '').id, content: m.content };
   if (m.role === 'assistant' && m.toolCalls?.length) {
     return {
       role: 'assistant', content: m.content || null,
-      tool_calls: m.toolCalls.map((c) => ({ id: c.id, type: 'function', function: { name: c.name, arguments: c.arguments } })),
+      tool_calls: m.toolCalls.map((c) => {
+        const { id, signature } = splitSignature(c.id);
+        return { id, type: 'function', function: { name: c.name, arguments: c.arguments }, ...(signature ? { extra_content: { google: { thought_signature: signature } } } : {}) };
+      }),
     };
   }
   return { role: m.role, content: m.parts ? m.parts.map(openAiPart) : m.content };
@@ -51,10 +56,34 @@ const openAiTool = (t: ToolDefinition) => ({
   function: { name: t.name, ...(t.description ? { description: t.description } : {}), ...(t.parameters ? { parameters: t.parameters } : {}), ...(t.strict !== undefined ? { strict: t.strict } : {}) },
 });
 
+/**
+ * Gemini 3, through Google's OpenAI-compatible endpoint, needs each tool call's
+ * thought signature back on the next turn. ClawRouter keeps no state, so the signature
+ * travels in the tool call id the client receives (`<id>~<signature>`), as in the
+ * native Gemini adapter, and goes back to Google in `extra_content`.
+ */
+const SIGNATURE_MARK = '~';
+function withSignature(id: string, call: OpenAiToolCall): string {
+  const signature = call.extra_content?.google?.thought_signature;
+  return typeof signature === 'string' && signature ? `${id}${SIGNATURE_MARK}${signature}` : id;
+}
+function splitSignature(id: string): { id: string; signature: string | null } {
+  const at = id.indexOf(SIGNATURE_MARK);
+  return at > 0 ? { id: id.slice(0, at), signature: id.slice(at + 1) } : { id, signature: null };
+}
+
+/** A listed model's name: Groq says `name`, Google says `display_name`. */
+const nameOf = (m: { name?: unknown; display_name?: unknown }): string | null => {
+  const n = typeof m.name === 'string' && m.name.trim() ? m.name : typeof m.display_name === 'string' && m.display_name.trim() ? m.display_name : null;
+  return n ? n.trim().slice(0, 200) : null;
+};
+
 /** A model in an OpenAI-style list. OpenAI sends only `id`; Groq adds the rest. */
 interface ListedOpenAiModel {
   id?: unknown;
   name?: unknown;
+  /** Google's OpenAI-compatible endpoint. */
+  display_name?: unknown;
   active?: unknown;
   context_window?: unknown;
   max_completion_tokens?: unknown;
@@ -138,8 +167,9 @@ export function createOpenAiStyleAdapter(options: OpenAiStyleOptions): ProviderA
         const input = perMillion(m.pricing?.prompt);
         const output = perMillion(m.pricing?.completion);
         return {
-          id: m.id,
-          displayName: typeof m.name === 'string' && m.name.trim() ? m.name.trim().slice(0, 200) : null,
+          // Google's OpenAI-compatible list says "models/gemini-…"; its API takes the name without the prefix too.
+          id: m.id.replace(/^models\//, ''),
+          displayName: nameOf(m),
           kind,
           // Groq (and some compatible servers) report these; OpenAI does not.
           contextLength: num(m.context_window), maxOutputTokens: num(m.max_completion_tokens),
@@ -163,7 +193,7 @@ export function createOpenAiStyleAdapter(options: OpenAiStyleOptions): ProviderA
       const choice = json.choices?.[0];
       if (!choice) throw invalidResponse('no choices in response');
       const toolCalls = (choice.message?.tool_calls ?? []).filter((c) => typeof c.function?.name === 'string').map((c, i) => ({
-        id: typeof c.id === 'string' && c.id ? c.id : `call_${i}`, name: c.function!.name!, arguments: typeof c.function!.arguments === 'string' ? c.function!.arguments : '{}',
+        id: withSignature(typeof c.id === 'string' && c.id ? c.id : `call_${i}`, c), name: c.function!.name!, arguments: typeof c.function!.arguments === 'string' ? c.function!.arguments : '{}',
       }));
       return {
         model: json.model ?? req.model, content: choice.message?.content ?? '', finishReason: finish(choice.finish_reason), usage: usageOf(json.usage),
@@ -192,6 +222,7 @@ export function createOpenAiStyleAdapter(options: OpenAiStyleOptions): ProviderA
       if (!res.body) throw invalidResponse('empty stream');
       let reason: FinishReason = 'other';
       let usage: Usage = usageOf(null);
+      let sawToolCall = false;
       let model = req.model;
       for await (const event of parseSse(res.body, ctx.signal)) {
         if (event.data === '[DONE]') break;
@@ -205,9 +236,10 @@ export function createOpenAiStyleAdapter(options: OpenAiStyleOptions): ProviderA
         const choice = chunk.choices?.[0];
         if (choice?.delta?.content) yield { type: 'delta', text: choice.delta.content };
         for (const t of choice?.delta?.tool_calls ?? []) {
+          sawToolCall = true;
           yield {
             type: 'tool_call', index: typeof t.index === 'number' ? t.index : 0,
-            ...(typeof t.id === 'string' && t.id ? { id: t.id } : {}),
+            ...(typeof t.id === 'string' && t.id ? { id: withSignature(t.id, t) } : {}),
             ...(typeof t.function?.name === 'string' && t.function.name ? { name: t.function.name } : {}),
             ...(typeof t.function?.arguments === 'string' && t.function.arguments ? { arguments: t.function.arguments } : {}),
           };
@@ -216,7 +248,8 @@ export function createOpenAiStyleAdapter(options: OpenAiStyleOptions): ProviderA
         const reported = chunk.usage ?? chunk.x_groq?.usage;
         if (reported) usage = usageOf(reported);
       }
-      yield { type: 'done', finishReason: reason, usage, model };
+      // Google's stream ends tool calls with "stop"; clients expect tool_calls.
+      yield { type: 'done', finishReason: sawToolCall && reason === 'stop' ? 'tool_use' : reason, usage, model };
     },
   };
 }

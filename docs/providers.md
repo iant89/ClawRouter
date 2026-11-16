@@ -25,7 +25,7 @@ Each provider kind is an **adapter** implementing `ProviderAdapter`
 | `anthropic` | Messages API, `https://api.anthropic.com` | `x-api-key`, `anthropic-version: 2023-06-01` | System messages moved to `system`; `max_tokens` defaults to 4096 |
 | `google` | Gemini `generateContent`, `https://generativelanguage.googleapis.com/v1beta` | `x-goog-api-key` header (never `?key=`) | `assistant` → `model` role; system → `systemInstruction` |
 | `groq` | Chat Completions, `https://api.groq.com/openai/v1` | `Authorization: Bearer` (`gsk_…` keys) | `max_completion_tokens`; streamed usage read from `x_groq.usage`. The model list gives names, context window and output limit, image input (Vision) and prices (filled in as the model's cost on import); retired models and models that do not answer in text (Whisper, Orpheus speech) are not chat models. Ids may contain a slash (`openai/gpt-oss-120b`): clients can send them as they are. Chat only: no embeddings. Tested live 2026-11-16 |
-| `openai_compatible` | Chat Completions at any URL | optional Bearer | Ollama, vLLM, LM Studio, llama.cpp, LiteLLM… Endpoint required |
+| `openai_compatible` | Chat Completions at any URL | optional Bearer | Ollama, vLLM, LM Studio, llama.cpp, LiteLLM… Endpoint required. Also Google's compatible endpoint `https://generativelanguage.googleapis.com/v1beta/openai` (Bearer = the Gemini API key): `models/` is dropped from ids, `display_name` is read, Gemini 3 thought signatures travel in tool call ids and go back in `extra_content`, and a stream that ends tool calls with "stop" is reported as `tool_calls`. Tested live 2026-11-16 |
 
 Adding a provider means writing an adapter and registering it in
 `createDefaultRegistry()`. Nothing else changes: adapters contain no routing

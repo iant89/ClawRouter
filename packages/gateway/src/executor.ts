@@ -148,7 +148,9 @@ export async function runAttempts<T>(
   if (last?.kind === 'timeout') {
     throw new AppError('PROVIDER_TIMEOUT', `The model provider did not respond in time (${n} attempt${n === 1 ? '' : 's'}).`, { expose: true, details: { attempts: n } });
   }
-  throw new AppError('PROVIDER_ERROR', `The model providers could not complete the request (${n} attempt${n === 1 ? '' : 's'}; last error: ${last?.kind ?? 'none'}).`, {
+  // A model the provider no longer has: its explanation (scrubbed) usually names the replacement.
+  const said = last?.kind === 'not_found' && last.error instanceof ProviderCallError ? last.error.message.replace(/^.*?\(HTTP \d+\)(: )?/, '') : '';
+  throw new AppError('PROVIDER_ERROR', `The model providers could not complete the request (${n} attempt${n === 1 ? '' : 's'}; last error: ${last?.kind ?? 'none'}).${said ? ` The provider said: ${said}` : ''}`, {
     expose: true, details: { attempts: n },
   });
 }
