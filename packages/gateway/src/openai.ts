@@ -1,5 +1,5 @@
 import { AppError } from '@clawrouter/core';
-import type { ChatMessage, FinishReason, Usage } from '@clawrouter/providers';
+import type { ChatMessage, FinishReason, MessagePart, Usage } from '@clawrouter/providers';
 
 /**
  * The external API speaks the OpenAI wire format (spec §7): requests are parsed
@@ -43,23 +43,86 @@ function model(body: Record<string, unknown>): string {
   return body.model.trim();
 }
 
-/** Text from an OpenAI content value: a string, or an array of text parts. */
-function text(content: unknown, param: string): string {
-  if (typeof content === 'string') return content;
-  if (Array.isArray(content)) {
-    return content
-      .map((part, i) => {
-        if (!isObject(part)) throw invalid('Content parts must be objects.', `${param}[${i}]`);
-        if (part.type === 'text' && typeof part.text === 'string') return part.text;
-        if (part.type === 'image_url' || part.type === 'input_audio' || part.type === 'file') {
-          throw invalid(`Content of type '${String(part.type)}' is not supported yet; send text only.`, `${param}[${i}]`);
-        }
-        throw invalid(`Unknown content part type '${String(part.type)}'.`, `${param}[${i}]`);
-      })
-      .join('');
+/** Largest inline media item (decoded), and most media items in one request. */
+export const MAX_MEDIA_BYTES = 20 * 1024 * 1024;
+export const MAX_MEDIA_PARTS = 50;
+const IMAGE_TYPES = new Set(['image/png', 'image/jpeg', 'image/gif', 'image/webp']);
+const BASE64 = /^[A-Za-z0-9+/]+={0,2}$/;
+
+/** Base64 data checked for shape and size (decoded); returned without whitespace. */
+function base64(value: unknown, what: string, param: string): string {
+  if (typeof value !== 'string' || !value) throw invalid(`${what} must be base64 data.`, param);
+  const data = value.replace(/\s+/g, '');
+  if (!BASE64.test(data) || data.length % 4 !== 0) throw invalid(`${what} is not valid base64.`, param);
+  if ((data.length / 4) * 3 > MAX_MEDIA_BYTES) throw invalid(`${what} is larger than ${MAX_MEDIA_BYTES / 1024 / 1024} MB.`, param);
+  return data;
+}
+
+/** `data:<type>;base64,<data>` split into its type and data. */
+function dataUrl(url: string, param: string): { mediaType: string; data: string } {
+  const m = /^data:([\w.+-]+\/[\w.+-]+);base64,(.*)$/s.exec(url);
+  if (!m) throw invalid('A data URL must look like data:<type>;base64,<data>.', param);
+  return { mediaType: m[1]!.toLowerCase(), data: base64(m[2], 'The data URL', param) };
+}
+
+function mediaPart(part: Record<string, unknown>, param: string): MessagePart {
+  if (part.type === 'image_url') {
+    const raw = isObject(part.image_url) ? part.image_url : typeof part.image_url === 'string' ? { url: part.image_url } : null;
+    if (!raw || typeof raw.url !== 'string') throw invalid("An image part needs 'image_url.url'.", `${param}.image_url`);
+    const detail = raw.detail === undefined || raw.detail === null ? undefined : raw.detail;
+    if (detail !== undefined && detail !== 'auto' && detail !== 'low' && detail !== 'high') throw invalid("'detail' must be auto, low or high.", `${param}.image_url.detail`);
+    if (raw.url.startsWith('data:')) {
+      const { mediaType, data } = dataUrl(raw.url, `${param}.image_url.url`);
+      if (!IMAGE_TYPES.has(mediaType)) throw invalid('Images must be PNG, JPEG, GIF or WebP.', `${param}.image_url.url`);
+      return { type: 'image', source: { kind: 'data', mediaType, data }, ...(detail ? { detail } : {}) };
+    }
+    let url: URL;
+    try {
+      url = new URL(raw.url);
+    } catch {
+      throw invalid('The image URL is not valid.', `${param}.image_url.url`);
+    }
+    if ((url.protocol !== 'https:' && url.protocol !== 'http:') || raw.url.length > 8192) throw invalid('Image URLs must be http(s) URLs, or data URLs.', `${param}.image_url.url`);
+    return { type: 'image', source: { kind: 'url', url: raw.url }, ...(detail ? { detail } : {}) };
   }
-  if (content === null || content === undefined) return '';
-  throw invalid('Message content must be a string or an array of text parts.', param);
+  if (part.type === 'input_audio') {
+    const a = isObject(part.input_audio) ? part.input_audio : null;
+    if (!a || (a.format !== 'wav' && a.format !== 'mp3')) throw invalid("An audio part needs 'input_audio' with 'data' and 'format' (wav or mp3).", `${param}.input_audio`);
+    return { type: 'audio', format: a.format, data: base64(a.data, 'The audio', `${param}.input_audio.data`) };
+  }
+  if (part.type === 'file') {
+    const f = isObject(part.file) ? part.file : null;
+    if (f && typeof f.file_id === 'string') throw invalid("'file_id' refers to a file stored at one provider; send the file inline as 'file_data'.", `${param}.file.file_id`);
+    if (!f || typeof f.file_data !== 'string') throw invalid("A file part needs 'file.file_data' (a data URL).", `${param}.file`);
+    const { mediaType, data } = dataUrl(f.file_data, `${param}.file.file_data`);
+    if (mediaType !== 'application/pdf') throw invalid('Only PDF files are supported.', `${param}.file.file_data`);
+    const filename = typeof f.filename === 'string' && f.filename.trim() ? f.filename.trim().slice(0, 255) : null;
+    return { type: 'pdf', filename, data };
+  }
+  throw invalid(`Unknown content part type '${String(part.type)}'.`, param);
+}
+
+/**
+ * An OpenAI content value: a string, or an array of parts. Text parts are joined
+ * into `content`; with media (user messages only) the parts are kept in order.
+ */
+function content(value: unknown, param: string, mayHaveMedia: boolean): { content: string; parts?: MessagePart[] } {
+  if (typeof value === 'string') return { content: value };
+  if (value === null || value === undefined) return { content: '' };
+  if (!Array.isArray(value)) throw invalid('Message content must be a string or an array of parts.', param);
+  const parts = value.map((part, i): MessagePart => {
+    if (!isObject(part)) throw invalid('Content parts must be objects.', `${param}[${i}]`);
+    if (part.type === 'text') {
+      if (typeof part.text !== 'string') throw invalid("A text part needs 'text'.", `${param}[${i}].text`);
+      return { type: 'text', text: part.text };
+    }
+    if (!mayHaveMedia && (part.type === 'image_url' || part.type === 'input_audio' || part.type === 'file')) {
+      throw invalid('Only user messages can carry images, audio or files.', `${param}[${i}]`);
+    }
+    return mediaPart(part, `${param}[${i}]`);
+  });
+  const text = parts.map((p) => (p.type === 'text' ? p.text : '')).join('');
+  return parts.some((p) => p.type !== 'text') ? { content: text, parts } : { content: text };
 }
 
 /** Parses POST /v1/chat/completions. Unsupported features fail clearly instead of being ignored. */
@@ -81,9 +144,11 @@ export function parseChatRequest(body: unknown): ParsedChatRequest {
     const role = raw.role === 'developer' ? 'system' : raw.role;
     if (role === 'tool' || role === 'function' || raw.tool_calls) throw invalid('Tool messages are not supported yet.', `${param}.role`);
     if (role !== 'system' && role !== 'user' && role !== 'assistant') throw invalid("Role must be 'system', 'developer', 'user' or 'assistant'.", `${param}.role`);
-    return { role, content: text(raw.content, `${param}.content`) };
+    return { role, ...content(raw.content, `${param}.content`, role === 'user') };
   });
   if (!messages.some((m2) => m2.role === 'user')) throw invalid('At least one user message is required.', 'messages');
+  const media = messages.reduce((n, m2) => n + (m2.parts ?? []).filter((p) => p.type !== 'text').length, 0);
+  if (media > MAX_MEDIA_PARTS) throw invalid(`At most ${MAX_MEDIA_PARTS} images, audio clips or files per request.`, 'messages');
 
   let stop: string[] | undefined;
   if (typeof body.stop === 'string') stop = [body.stop];

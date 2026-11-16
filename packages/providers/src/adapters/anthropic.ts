@@ -1,7 +1,7 @@
 import type { ProviderKindInfo } from '@clawrouter/shared';
 import { invalidResponse, joinUrl, ProviderCallError, providerFetch, readJson } from '../http.ts';
 import { parseSse } from '../sse.ts';
-import type { ChatRequest, ChatResponse, FinishReason, ProviderAdapter, ProviderCallContext, StreamEvent, Usage } from '../types.ts';
+import type { ChatRequest, MessagePart, ChatResponse, FinishReason, ProviderAdapter, ProviderCallContext, StreamEvent, Usage } from '../types.ts';
 import { baseValidation, connectionChecks, splitSystem } from './common.ts';
 
 const API_VERSION = '2023-06-01';
@@ -27,6 +27,8 @@ const info: ProviderKindInfo = {
   apiKeyRequired: true,
   capabilities: ['CHAT', 'CODING', 'REASONING', 'VISION', 'TOOL_USE'],
   supportsStreaming: true,
+  // Images by URL or inline, PDFs inline (as a document block). No audio.
+  inputMedia: ['image_url', 'image_data', 'pdf'],
 };
 
 const headers = (ctx: ProviderCallContext): Record<string, string> => ({
@@ -36,12 +38,22 @@ const headers = (ctx: ProviderCallContext): Record<string, string> => ({
   ...(ctx.apiKey ? { 'x-api-key': ctx.apiKey } : {}),
 });
 
+/** A message part as an Anthropic content block. Audio never reaches here (not in inputMedia). */
+function anthropicBlock(p: MessagePart): Record<string, unknown> {
+  switch (p.type) {
+    case 'text': return { type: 'text', text: p.text };
+    case 'image': return { type: 'image', source: p.source.kind === 'url' ? { type: 'url', url: p.source.url } : { type: 'base64', media_type: p.source.mediaType, data: p.source.data } };
+    case 'pdf': return { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: p.data }, ...(p.filename ? { title: p.filename } : {}) };
+    case 'audio': throw new Error('Anthropic does not accept audio');
+  }
+}
+
 function body(req: ChatRequest, stream: boolean) {
   const { system, rest } = splitSystem(req.messages);
   return {
     model: req.model,
     max_tokens: req.maxTokens ?? ANTHROPIC_DEFAULT_MAX_TOKENS,
-    messages: rest.map((m) => ({ role: m.role, content: m.content })),
+    messages: rest.map((m) => ({ role: m.role, content: m.parts ? m.parts.map(anthropicBlock) : m.content })),
     ...(system ? { system } : {}),
     ...(req.temperature !== undefined ? { temperature: req.temperature } : {}),
     ...(req.topP !== undefined ? { top_p: req.topP } : {}),

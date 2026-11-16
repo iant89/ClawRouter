@@ -1,13 +1,15 @@
 import { AppError, type EventBus, type Logger } from '@clawrouter/core';
 import type { ModelService } from '@clawrouter/models';
-import { ProviderCallError, type ProviderService, type StreamEvent } from '@clawrouter/providers';
+import { mediaOf, ProviderCallError, type ProviderService, type StreamEvent } from '@clawrouter/providers';
 import type { Admission, RateLimitService } from '@clawrouter/rate-limits';
 import type { RequestHandle, RequestLogService } from '@clawrouter/requests';
 import type { RoutingService } from '@clawrouter/routing';
-import { formatLifetime, type Capability, type GatewayEndpoint, type ModelInfo, type RequestAttempt, type RouteCandidate, type RoutePlan, type UsageSource } from '@clawrouter/shared';
+import { formatLifetime, type Capability, type GatewayEndpoint, type MediaKind, type ModelInfo, type RequestAttempt, type RouteCandidate, type RoutePlan, type UsageSource } from '@clawrouter/shared';
 
 /** Routing exclusions caused by the key's age start with this (a readable sentence: plans and request history show it). */
 const KEY_TOO_OLD = 'This API key is older than';
+const NO_MEDIA = 'This provider does not accept';
+const MEDIA_WORDS: Record<MediaKind, string> = { image_url: 'image URLs', image_data: 'inline images', audio: 'audio', pdf: 'PDF files' };
 import { modelAllowed, type ApiKeyPrincipal } from './api-keys.ts';
 import { cancelled, ModelsRateLimitedError, runAttempts, type AttemptOutcome } from './executor.ts';
 import { GatewayMetricsRecorder } from './metrics.ts';
@@ -84,10 +86,17 @@ export function createGatewayService(options: {
   }
 
   /** Route, translating "nothing to route to" into client-facing errors. */
-  function plan(key: ApiKeyPrincipal, model: string, capability: Capability): RoutePlan {
+  function plan(key: ApiKeyPrincipal, model: string, capability: Capability, media: Set<MediaKind> = new Set()): RoutePlan {
     if (!modelAllowed(key, model)) throw new AppError('AUTHORIZATION_ERROR', `This API key is not allowed to use the model '${model}'.`, { details: { param: 'model' } });
+    // Media: images need a model marked Vision, and every medium a provider that accepts it.
+    const capabilities: Capability[] = media.has('image_url') || media.has('image_data') ? [capability, 'VISION'] : [capability];
+    const accepted = new Map(providers.kinds().map((k) => [k.kind, new Set(k.inputMedia)]));
+    const refusesMedia = (m: ModelInfo): string | null => {
+      const missing = [...media].filter((kind) => !accepted.get(m.provider.kind)?.has(kind));
+      return missing.length ? `${NO_MEDIA} ${missing.map((k) => MEDIA_WORDS[k]).join(' or ')}.` : null;
+    };
     try {
-      return routing.plan({ model, capabilities: [capability], exclude: (m) => tooOldFor(key, m) });
+      return routing.plan({ model, capabilities, exclude: (m) => tooOldFor(key, m) ?? (media.size ? refusesMedia(m) : null) });
     } catch (error) {
       if (error instanceof AppError && error.code === 'ROUTING_ERROR') {
         // Everything left out because the key outlived the models' maximum lifetime: a 403 that says so.
@@ -95,6 +104,12 @@ export function createGatewayService(options: {
         const stale = excluded.filter((e) => e.reason.startsWith(KEY_TOO_OLD));
         if (stale.length && stale.length === excluded.length) {
           throw new AppError('AUTHORIZATION_ERROR', `${stale[0]!.reason} Create a new key.`, { expose: true, details: { param: 'model', code: 'key_too_old' } });
+        }
+        // Everything left out because of the media: the request cannot be served as sent (400, not a retry).
+        const forMedia = excluded.filter((e) => e.reason.startsWith(NO_MEDIA) || e.reason.includes('Missing capabilities: VISION'));
+        if (media.size && excluded.length && forMedia.length === excluded.length) {
+          const what = [...media].map((k) => MEDIA_WORDS[k]).join(', ');
+          throw invalid(`No model for '${model}' accepts ${what}. Images need a model marked Vision; Google needs images inline (data URLs), and only OpenAI and Google take audio.`, 'messages');
         }
         if (error.message.startsWith('Unknown model')) throw new AppError('NOT_FOUND', `The model '${model}' does not exist.`, { details: { param: 'model', code: 'model_not_found' } });
         throw new AppError('SERVICE_UNAVAILABLE', `No model is available for '${model}' right now.`, { expose: true, details: { param: 'model' } });
@@ -231,7 +246,7 @@ export function createGatewayService(options: {
       const run = startRun(key, 'chat.completions', body, ctx);
       return recorded(run, async () => {
         const req = parseChatRequest(body);
-        const route = plan(key, req.model, 'CHAT');
+        const route = plan(key, req.model, 'CHAT', mediaOf(req.messages));
         await run.admit();
         const id = `chatcmpl-${ctx.requestId.replace(/^req_/, '')}`;
         const created = unixTime(now());

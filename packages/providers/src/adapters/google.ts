@@ -1,7 +1,7 @@
 import type { ProviderKindInfo } from '@clawrouter/shared';
 import { invalidResponse, joinUrl, providerFetch, readJson } from '../http.ts';
 import { parseSse } from '../sse.ts';
-import type { ChatRequest, ChatResponse, EmbeddingResponse, FinishReason, ProviderAdapter, ProviderCallContext, StreamEvent, Usage } from '../types.ts';
+import type { ChatRequest, MessagePart, ChatResponse, EmbeddingResponse, FinishReason, ProviderAdapter, ProviderCallContext, StreamEvent, Usage } from '../types.ts';
 import { baseValidation, connectionChecks, guessKind, splitSystem } from './common.ts';
 
 interface GeminiUsage {
@@ -32,6 +32,8 @@ const info: ProviderKindInfo = {
   apiKeyRequired: true,
   capabilities: ['CHAT', 'CODING', 'REASONING', 'VISION', 'EMBEDDINGS', 'TOOL_USE'],
   supportsStreaming: true,
+  // Everything inline (Gemini cannot fetch arbitrary image URLs).
+  inputMedia: ['image_data', 'audio', 'pdf'],
 };
 
 /** The key goes in a header, never in the URL (spec §29). */
@@ -52,7 +54,7 @@ function body(req: ChatRequest) {
     ...(req.stop?.length ? { stopSequences: req.stop } : {}),
   };
   return {
-    contents: rest.map((m) => ({ role: m.role === 'assistant' ? 'model' : 'user', parts: [{ text: m.content }] })),
+    contents: rest.map((m) => ({ role: m.role === 'assistant' ? 'model' : 'user', parts: m.parts ? m.parts.map(geminiPart) : [{ text: m.content }] })),
     ...(system ? { systemInstruction: { parts: [{ text: system }] } } : {}),
     ...(Object.keys(generationConfig).length ? { generationConfig } : {}),
   };
@@ -133,3 +135,15 @@ export const googleAdapter: ProviderAdapter = {
     yield { type: 'done', finishReason: reason, usage, model };
   },
 };
+
+/** A message part as a Gemini part. Image URLs never reach here (not in inputMedia). */
+function geminiPart(p: MessagePart): Record<string, unknown> {
+  switch (p.type) {
+    case 'text': return { text: p.text };
+    case 'image':
+      if (p.source.kind === 'url') throw new Error('Gemini needs images inline');
+      return { inlineData: { mimeType: p.source.mediaType, data: p.source.data } };
+    case 'audio': return { inlineData: { mimeType: p.format === 'mp3' ? 'audio/mp3' : 'audio/wav', data: p.data } };
+    case 'pdf': return { inlineData: { mimeType: 'application/pdf', data: p.data } };
+  }
+}

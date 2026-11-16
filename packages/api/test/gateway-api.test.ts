@@ -168,7 +168,8 @@ describe('POST /v1/chat/completions', () => {
       [chat('openai/gpt-4o-mini', { n: 2 }), 'n'],
       [chat('openai/gpt-4o-mini', { tools: [{}] }), 'tools'],
       [chat('openai/gpt-4o-mini', { temperature: 5 }), 'temperature'],
-      [{ model: 'openai/gpt-4o-mini', messages: [{ role: 'user', content: [{ type: 'image_url', image_url: { url: 'x' } }] }] }, 'messages[0].content[0]'],
+      [{ model: 'openai/gpt-4o-mini', messages: [{ role: 'user', content: [{ type: 'image_url', image_url: { url: 'x' } }] }] }, 'messages[0].content[0].image_url.url'],
+      [{ model: 'openai/gpt-4o-mini', messages: [{ role: 'user', content: [{ type: 'video', video: {} }] }] }, 'messages[0].content[0]'],
     ];
     for (const [body, param] of cases) {
       const res = await v1(h, key, '/chat/completions', body);

@@ -1,4 +1,4 @@
-import type { Capability, FieldIssue, ProviderKind, ProviderKindInfo } from '@clawrouter/shared';
+import type { Capability, FieldIssue, MediaKind, ProviderKind, ProviderKindInfo } from '@clawrouter/shared';
 
 /**
  * Normalized request/response types: what the gateway (phase 8) speaks.
@@ -8,7 +8,33 @@ export type ChatRole = 'system' | 'user' | 'assistant';
 
 export interface ChatMessage {
   role: ChatRole;
+  /** The message's text (all text parts joined). Always set, also when `parts` is. */
   content: string;
+  /**
+   * Text and media in order, when the message carries media (user messages only).
+   * Absent for plain text: adapters then send `content` as before.
+   */
+  parts?: MessagePart[];
+}
+
+/** One piece of a message with media. Inline data is base64 without a `data:` prefix. */
+export type MessagePart =
+  | { type: 'text'; text: string }
+  | { type: 'image'; source: { kind: 'url'; url: string } | { kind: 'data'; mediaType: string; data: string }; detail?: 'auto' | 'low' | 'high' }
+  | { type: 'audio'; format: 'wav' | 'mp3'; data: string }
+  | { type: 'pdf'; filename: string | null; data: string };
+
+/** The media kinds a message list needs from a provider. */
+export function mediaOf(messages: ChatMessage[]): Set<MediaKind> {
+  const kinds = new Set<MediaKind>();
+  for (const m of messages) {
+    for (const p of m.parts ?? []) {
+      if (p.type === 'image') kinds.add(p.source.kind === 'url' ? 'image_url' : 'image_data');
+      else if (p.type === 'audio') kinds.add('audio');
+      else if (p.type === 'pdf') kinds.add('pdf');
+    }
+  }
+  return kinds;
 }
 
 export interface ChatRequest {

@@ -1,7 +1,7 @@
-import type { Capability, ProviderKind, ProviderKindInfo } from '@clawrouter/shared';
+import type { Capability, MediaKind, ProviderKind, ProviderKindInfo } from '@clawrouter/shared';
 import { invalidResponse, joinUrl, providerFetch, readJson } from '../http.ts';
 import { parseSse } from '../sse.ts';
-import type { ChatRequest, ChatResponse, DiscoveredModel, EmbeddingResponse, FinishReason, ProviderAdapter, ProviderCallContext, StreamEvent, Usage } from '../types.ts';
+import type { ChatRequest, ChatResponse, DiscoveredModel, EmbeddingResponse, MessagePart, FinishReason, ProviderAdapter, ProviderCallContext, StreamEvent, Usage } from '../types.ts';
 import { baseValidation, connectionChecks, guessKind } from './common.ts';
 
 interface OpenAiUsage {
@@ -16,6 +16,16 @@ const finish = (reason: string | null | undefined): FinishReason =>
 const usageOf = (u: OpenAiUsage | undefined | null): Usage =>
   u ? { inputTokens: u.prompt_tokens ?? null, outputTokens: u.completion_tokens ?? null, totalTokens: u.total_tokens ?? null, source: 'provider' }
     : { inputTokens: null, outputTokens: null, totalTokens: null, source: 'none' };
+
+/** A message part in OpenAI's format (the format clients send it in). */
+function openAiPart(p: MessagePart): Record<string, unknown> {
+  switch (p.type) {
+    case 'text': return { type: 'text', text: p.text };
+    case 'image': return { type: 'image_url', image_url: { url: p.source.kind === 'url' ? p.source.url : `data:${p.source.mediaType};base64,${p.source.data}`, ...(p.detail ? { detail: p.detail } : {}) } };
+    case 'audio': return { type: 'input_audio', input_audio: { data: p.data, format: p.format } };
+    case 'pdf': return { type: 'file', file: { filename: p.filename ?? 'document.pdf', file_data: `data:application/pdf;base64,${p.data}` } };
+  }
+}
 
 /** A model in an OpenAI-style list. OpenAI sends only `id`; Groq adds the rest. */
 interface ListedOpenAiModel {
@@ -45,6 +55,8 @@ export interface OpenAiStyleOptions {
   defaultEndpoint: string | null;
   apiKeyRequired: boolean;
   capabilities: Capability[];
+  /** Media this API accepts in messages (sent in OpenAI's own part format). */
+  inputMedia: MediaKind[];
   /** Field for the answer length: `max_completion_tokens` (OpenAI, Groq) or the classic `max_tokens` (most compatible servers). */
   maxTokensField: 'max_completion_tokens' | 'max_tokens';
   /** Ask for usage in streams with `stream_options` (OpenAI). Groq sends it in `x_groq.usage` without being asked; both are read. */
@@ -62,6 +74,7 @@ export function createOpenAiStyleAdapter(options: OpenAiStyleOptions): ProviderA
     apiKeyRequired: options.apiKeyRequired,
     capabilities: options.capabilities,
     supportsStreaming: true,
+    inputMedia: options.inputMedia,
   };
 
   const headers = (ctx: ProviderCallContext): Record<string, string> => ({
@@ -72,7 +85,7 @@ export function createOpenAiStyleAdapter(options: OpenAiStyleOptions): ProviderA
 
   const body = (req: ChatRequest, stream: boolean) => ({
     model: req.model,
-    messages: req.messages.map((m) => ({ role: m.role, content: m.content })),
+    messages: req.messages.map((m) => ({ role: m.role, content: m.parts ? m.parts.map(openAiPart) : m.content })),
     ...(req.maxTokens !== undefined ? { [options.maxTokensField]: req.maxTokens } : {}),
     ...(req.temperature !== undefined ? { temperature: req.temperature } : {}),
     ...(req.topP !== undefined ? { top_p: req.topP } : {}),
@@ -173,6 +186,7 @@ export const openAiAdapter = createOpenAiStyleAdapter({
   capabilities: ['CHAT', 'CODING', 'REASONING', 'VISION', 'EMBEDDINGS', 'TOOL_USE'],
   maxTokensField: 'max_completion_tokens',
   streamOptions: true,
+  inputMedia: ['image_url', 'image_data', 'audio', 'pdf'],
 });
 
 export const openAiCompatibleAdapter = createOpenAiStyleAdapter({
@@ -184,6 +198,8 @@ export const openAiCompatibleAdapter = createOpenAiStyleAdapter({
   capabilities: ['CHAT', 'CODING', 'EMBEDDINGS'],
   maxTokensField: 'max_tokens',
   streamOptions: false,
+  // Ollama, vLLM, LM Studio and others take OpenAI-style images; audio and files vary too much.
+  inputMedia: ['image_url', 'image_data'],
 });
 
 /**
@@ -200,4 +216,6 @@ export const groqAdapter = createOpenAiStyleAdapter({
   capabilities: ['CHAT', 'CODING', 'REASONING', 'VISION'],
   maxTokensField: 'max_completion_tokens',
   streamOptions: false,
+  // Groq's vision models take images by URL or inline; no audio or files in chat.
+  inputMedia: ['image_url', 'image_data'],
 });

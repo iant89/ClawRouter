@@ -9,6 +9,13 @@ export type ProviderState = (typeof PROVIDER_STATES)[number];
 export const CAPABILITIES = ['CHAT', 'CODING', 'REASONING', 'VISION', 'EMBEDDINGS', 'TOOL_USE', 'RESEARCH'] as const;
 export type Capability = (typeof CAPABILITIES)[number];
 
+/**
+ * Media a provider kind accepts inside chat messages: images by URL, images sent
+ * inline (base64), audio (wav, mp3) and PDF documents (both inline).
+ */
+export const MEDIA_KINDS = ['image_url', 'image_data', 'audio', 'pdf'] as const;
+export type MediaKind = (typeof MEDIA_KINDS)[number];
+
 /** What a provider kind needs, for building forms. GET /api/providers/kinds */
 export interface ProviderKindInfo {
   kind: ProviderKind;
@@ -19,6 +26,8 @@ export interface ProviderKindInfo {
   apiKeyRequired: boolean;
   capabilities: Capability[];
   supportsStreaming: boolean;
+  /** Media accepted in chat messages; empty for text only. */
+  inputMedia: MediaKind[];
 }
 
 /** The stored credential, as the console may see it: never the value. */
