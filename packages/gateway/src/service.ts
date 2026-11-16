@@ -13,7 +13,7 @@ const MEDIA_WORDS: Record<MediaKind, string> = { image_url: 'image URLs', image_
 import { modelAllowed, type ApiKeyPrincipal } from './api-keys.ts';
 import { cancelled, ModelsRateLimitedError, runAttempts, type AttemptOutcome } from './executor.ts';
 import { GatewayMetricsRecorder } from './metrics.ts';
-import { finishReason, invalid, parseChatRequest, parseEmbeddingRequest, sse, unixTime, usageBlock } from './openai.ts';
+import { assistantMessage, finishReason, invalid, parseChatRequest, parseEmbeddingRequest, sse, toolCallDelta, unixTime, usageBlock } from './openai.ts';
 
 export interface GatewayRequestContext {
   requestId: string;
@@ -86,10 +86,11 @@ export function createGatewayService(options: {
   }
 
   /** Route, translating "nothing to route to" into client-facing errors. */
-  function plan(key: ApiKeyPrincipal, model: string, capability: Capability, media: Set<MediaKind> = new Set()): RoutePlan {
+  function plan(key: ApiKeyPrincipal, model: string, capability: Capability, media: Set<MediaKind> = new Set(), tools = false): RoutePlan {
     if (!modelAllowed(key, model)) throw new AppError('AUTHORIZATION_ERROR', `This API key is not allowed to use the model '${model}'.`, { details: { param: 'model' } });
     // Media: images need a model marked Vision, and every medium a provider that accepts it.
-    const capabilities: Capability[] = media.has('image_url') || media.has('image_data') ? [capability, 'VISION'] : [capability];
+    // Tools need a model marked Tool use.
+    const capabilities: Capability[] = [capability, ...(media.has('image_url') || media.has('image_data') ? ['VISION' as const] : []), ...(tools ? ['TOOL_USE' as const] : [])];
     const accepted = new Map(providers.kinds().map((k) => [k.kind, new Set(k.inputMedia)]));
     const refusesMedia = (m: ModelInfo): string | null => {
       const missing = [...media].filter((kind) => !accepted.get(m.provider.kind)?.has(kind));
@@ -106,6 +107,10 @@ export function createGatewayService(options: {
           throw new AppError('AUTHORIZATION_ERROR', `${stale[0]!.reason} Create a new key.`, { expose: true, details: { param: 'model', code: 'key_too_old' } });
         }
         // Everything left out because of the media: the request cannot be served as sent (400, not a retry).
+        // Everything left out because no model supports tools: also the request as sent.
+        if (tools && excluded.length && excluded.every((e) => /Missing capabilities:.*TOOL_USE/.test(e.reason))) {
+          throw invalid(`No model for '${model}' supports tools. Mark the models that do as Tool use (Models → edit).`, 'tools');
+        }
         const forMedia = excluded.filter((e) => e.reason.startsWith(NO_MEDIA) || e.reason.includes('Missing capabilities: VISION'));
         if (media.size && excluded.length && forMedia.length === excluded.length) {
           const what = [...media].map((k) => MEDIA_WORDS[k]).join(', ');
@@ -252,13 +257,14 @@ export function createGatewayService(options: {
       const run = startRun(key, 'chat.completions', body, ctx);
       return recorded(run, async () => {
         const req = parseChatRequest(body);
-        const route = plan(key, req.model, 'CHAT', mediaOf(req.messages));
+        const route = plan(key, req.model, 'CHAT', mediaOf(req.messages), req.usesTools);
         await run.admit();
         const id = `chatcmpl-${ctx.requestId.replace(/^req_/, '')}`;
         const created = unixTime(now());
         const promptChars = req.messages.reduce((n, m) => n + m.content.length, 0);
         const chatRequest = (c: RouteCandidate) => ({
           model: c.providerModelId, messages: req.messages, maxTokens: req.maxTokens, temperature: req.temperature, topP: req.topP, stop: req.stop,
+          tools: req.tools, toolChoice: req.toolChoice, parallelToolCalls: req.parallelToolCalls,
         });
 
         if (!req.stream) {
@@ -272,7 +278,7 @@ export function createGatewayService(options: {
             kind: 'json', status: 200, headers: routeHeaders(o),
             body: {
               id, object: 'chat.completion', created, model: o.candidate.modelRef,
-              choices: [{ index: 0, message: { role: 'assistant', content: o.value.content }, finish_reason: finishReason(o.value.finishReason), logprobs: null }],
+              choices: [{ index: 0, message: assistantMessage(o.value), finish_reason: finishReason(o.value.finishReason), logprobs: null }],
               ...(usage ? { usage } : {}),
             },
           };
@@ -338,6 +344,11 @@ export function createGatewayService(options: {
               if (event.type === 'delta') {
                 outputChars += event.text.length;
                 controller.enqueue(encoder.encode(sse(chunk({ content: event.text }, null))));
+                return;
+              }
+              if (event.type === 'tool_call') {
+                outputChars += (event.name?.length ?? 0) + (event.arguments?.length ?? 0);
+                controller.enqueue(encoder.encode(sse(chunk({ tool_calls: [toolCallDelta(event)] }, null))));
                 return;
               }
               controller.enqueue(encoder.encode(sse(chunk({}, finishReason(event.finishReason)))));

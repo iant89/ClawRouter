@@ -397,6 +397,7 @@ function listedForEvent(m: DiscoveredModel) {
   return {
     id: m.id, displayName: m.displayName, contextLength: m.contextLength ?? null, maxOutputTokens: m.maxOutputTokens ?? null, kind: m.kind ?? 'chat',
     ...(m.vision !== undefined ? { vision: m.vision } : {}),
+    ...(m.tools !== undefined ? { tools: m.tools } : {}),
     ...(m.cost ? { cost: m.cost } : {}),
   } as const;
 }

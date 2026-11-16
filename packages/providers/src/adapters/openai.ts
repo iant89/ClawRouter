@@ -1,7 +1,7 @@
 import type { Capability, MediaKind, ProviderKind, ProviderKindInfo } from '@clawrouter/shared';
 import { invalidResponse, joinUrl, providerFetch, readJson } from '../http.ts';
 import { parseSse } from '../sse.ts';
-import type { ChatRequest, ChatResponse, DiscoveredModel, EmbeddingResponse, MessagePart, FinishReason, ProviderAdapter, ProviderCallContext, StreamEvent, Usage } from '../types.ts';
+import type { ChatMessage, ChatRequest, ChatResponse, DiscoveredModel, EmbeddingResponse, MessagePart, ToolDefinition, FinishReason, ProviderAdapter, ProviderCallContext, StreamEvent, Usage } from '../types.ts';
 import { baseValidation, connectionChecks, guessKind } from './common.ts';
 
 interface OpenAiUsage {
@@ -27,6 +27,30 @@ function openAiPart(p: MessagePart): Record<string, unknown> {
   }
 }
 
+/** A tool call as OpenAI-style APIs send it. */
+interface OpenAiToolCall {
+  id?: string;
+  type?: string;
+  function?: { name?: string; arguments?: string };
+}
+
+/** A message in OpenAI's format, tool calls and tool results included. */
+function openAiMessage(m: ChatMessage): Record<string, unknown> {
+  if (m.role === 'tool') return { role: 'tool', tool_call_id: m.toolCallId, content: m.content };
+  if (m.role === 'assistant' && m.toolCalls?.length) {
+    return {
+      role: 'assistant', content: m.content || null,
+      tool_calls: m.toolCalls.map((c) => ({ id: c.id, type: 'function', function: { name: c.name, arguments: c.arguments } })),
+    };
+  }
+  return { role: m.role, content: m.parts ? m.parts.map(openAiPart) : m.content };
+}
+
+const openAiTool = (t: ToolDefinition) => ({
+  type: 'function',
+  function: { name: t.name, ...(t.description ? { description: t.description } : {}), ...(t.parameters ? { parameters: t.parameters } : {}), ...(t.strict !== undefined ? { strict: t.strict } : {}) },
+});
+
 /** A model in an OpenAI-style list. OpenAI sends only `id`; Groq adds the rest. */
 interface ListedOpenAiModel {
   id?: unknown;
@@ -36,6 +60,8 @@ interface ListedOpenAiModel {
   max_completion_tokens?: unknown;
   input_modalities?: unknown;
   output_modalities?: unknown;
+  /** Groq: e.g. ["tools", "json_mode", "reasoning"]. */
+  supported_features?: unknown;
   /** US$ per token, as decimal strings. */
   pricing?: { prompt?: unknown; completion?: unknown } | null;
 }
@@ -85,7 +111,10 @@ export function createOpenAiStyleAdapter(options: OpenAiStyleOptions): ProviderA
 
   const body = (req: ChatRequest, stream: boolean) => ({
     model: req.model,
-    messages: req.messages.map((m) => ({ role: m.role, content: m.parts ? m.parts.map(openAiPart) : m.content })),
+    messages: req.messages.map(openAiMessage),
+    ...(req.tools?.length ? { tools: req.tools.map(openAiTool) } : {}),
+    ...(req.toolChoice !== undefined ? { tool_choice: typeof req.toolChoice === 'string' ? req.toolChoice : { type: 'function', function: { name: req.toolChoice.name } } } : {}),
+    ...(req.parallelToolCalls !== undefined && req.tools?.length ? { parallel_tool_calls: req.parallelToolCalls } : {}),
     ...(req.maxTokens !== undefined ? { [options.maxTokensField]: req.maxTokens } : {}),
     ...(req.temperature !== undefined ? { temperature: req.temperature } : {}),
     ...(req.topP !== undefined ? { top_p: req.topP } : {}),
@@ -115,6 +144,7 @@ export function createOpenAiStyleAdapter(options: OpenAiStyleOptions): ProviderA
           // Groq (and some compatible servers) report these; OpenAI does not.
           contextLength: num(m.context_window), maxOutputTokens: num(m.max_completion_tokens),
           ...(inputs ? { vision: inputs.includes('image') } : {}),
+          ...(strings(m.supported_features) ? { tools: strings(m.supported_features)!.includes('tools') } : {}),
           ...(input !== null || output !== null ? { cost: { inputPerMTok: input, outputPerMTok: output } } : {}),
         };
       });
@@ -129,10 +159,16 @@ export function createOpenAiStyleAdapter(options: OpenAiStyleOptions): ProviderA
 
     async sendRequest(ctx, req): Promise<ChatResponse> {
       const res = await providerFetch(ctx, joinUrl(ctx.endpoint, '/chat/completions'), { method: 'POST', headers: headers(ctx), body: JSON.stringify(body(req, false)) });
-      const json = await readJson<{ model?: string; choices?: { message?: { content?: string | null }; finish_reason?: string }[]; usage?: OpenAiUsage }>(res, ctx.apiKey);
+      const json = await readJson<{ model?: string; choices?: { message?: { content?: string | null; tool_calls?: OpenAiToolCall[] }; finish_reason?: string }[]; usage?: OpenAiUsage }>(res, ctx.apiKey);
       const choice = json.choices?.[0];
       if (!choice) throw invalidResponse('no choices in response');
-      return { model: json.model ?? req.model, content: choice.message?.content ?? '', finishReason: finish(choice.finish_reason), usage: usageOf(json.usage) };
+      const toolCalls = (choice.message?.tool_calls ?? []).filter((c) => typeof c.function?.name === 'string').map((c, i) => ({
+        id: typeof c.id === 'string' && c.id ? c.id : `call_${i}`, name: c.function!.name!, arguments: typeof c.function!.arguments === 'string' ? c.function!.arguments : '{}',
+      }));
+      return {
+        model: json.model ?? req.model, content: choice.message?.content ?? '', finishReason: finish(choice.finish_reason), usage: usageOf(json.usage),
+        ...(toolCalls.length ? { toolCalls } : {}),
+      };
     },
 
     async embed(ctx, req): Promise<EmbeddingResponse> {
@@ -159,7 +195,7 @@ export function createOpenAiStyleAdapter(options: OpenAiStyleOptions): ProviderA
       let model = req.model;
       for await (const event of parseSse(res.body, ctx.signal)) {
         if (event.data === '[DONE]') break;
-        let chunk: { model?: string; choices?: { delta?: { content?: string | null }; finish_reason?: string | null }[]; usage?: OpenAiUsage | null; x_groq?: { usage?: OpenAiUsage | null } };
+        let chunk: { model?: string; choices?: { delta?: { content?: string | null; tool_calls?: (OpenAiToolCall & { index?: number })[] }; finish_reason?: string | null }[]; usage?: OpenAiUsage | null; x_groq?: { usage?: OpenAiUsage | null } };
         try {
           chunk = JSON.parse(event.data);
         } catch {
@@ -168,6 +204,14 @@ export function createOpenAiStyleAdapter(options: OpenAiStyleOptions): ProviderA
         if (chunk.model) model = chunk.model;
         const choice = chunk.choices?.[0];
         if (choice?.delta?.content) yield { type: 'delta', text: choice.delta.content };
+        for (const t of choice?.delta?.tool_calls ?? []) {
+          yield {
+            type: 'tool_call', index: typeof t.index === 'number' ? t.index : 0,
+            ...(typeof t.id === 'string' && t.id ? { id: t.id } : {}),
+            ...(typeof t.function?.name === 'string' && t.function.name ? { name: t.function.name } : {}),
+            ...(typeof t.function?.arguments === 'string' && t.function.arguments ? { arguments: t.function.arguments } : {}),
+          };
+        }
         if (choice?.finish_reason) reason = finish(choice.finish_reason);
         const reported = chunk.usage ?? chunk.x_groq?.usage;
         if (reported) usage = usageOf(reported);
@@ -213,7 +257,7 @@ export const groqAdapter = createOpenAiStyleAdapter({
   description: 'Groq API (OpenAI-compatible): very fast inference for open models such as Llama, Qwen, Kimi and GPT-OSS.',
   defaultEndpoint: 'https://api.groq.com/openai/v1',
   apiKeyRequired: true,
-  capabilities: ['CHAT', 'CODING', 'REASONING', 'VISION'],
+  capabilities: ['CHAT', 'CODING', 'REASONING', 'VISION', 'TOOL_USE'],
   maxTokensField: 'max_completion_tokens',
   streamOptions: false,
   // Groq's vision models take images by URL or inline; no audio or files in chat.

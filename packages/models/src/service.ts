@@ -18,12 +18,18 @@ export interface ClientInfo {
 
 type ListedModel = {
   id: string; displayName: string | null; contextLength: number | null; maxOutputTokens: number | null; kind: 'chat' | 'embedding' | 'other';
-  vision?: boolean; cost?: { inputPerMTok: number | null; outputPerMTok: number | null } | null;
+  vision?: boolean; tools?: boolean; cost?: { inputPerMTok: number | null; outputPerMTok: number | null } | null;
 };
 
 /** Capabilities pre-selected for a discovered model; administrators refine them. */
-export function defaultCapabilities(kind: ListedModel['kind'], providerCaps: readonly Capability[], vision = false): Capability[] {
-  const want: Capability[] = kind === 'chat' ? ['CHAT', ...(vision ? ['VISION' as const] : [])] : kind === 'embedding' ? ['EMBEDDINGS'] : [];
+/**
+ * Tool use is pre-selected for chat models when the provider supports tools and the
+ * model list does not say otherwise (Groq says per model; others do not say at all).
+ */
+export function defaultCapabilities(kind: ListedModel['kind'], providerCaps: readonly Capability[], vision = false, tools?: boolean): Capability[] {
+  const want: Capability[] = kind === 'chat'
+    ? ['CHAT', ...(vision ? ['VISION' as const] : []), ...(tools !== false ? ['TOOL_USE' as const] : [])]
+    : kind === 'embedding' ? ['EMBEDDINGS'] : [];
   return want.filter((c) => providerCaps.includes(c));
 }
 
@@ -187,7 +193,7 @@ export function createModelService(options: {
           displayName: m.displayName,
           contextLength: m.contextLength ?? null,
           maxOutputTokens: m.maxOutputTokens ?? null,
-          capabilities: defaultCapabilities(m.kind ?? 'chat', provider.capabilities, m.vision),
+          capabilities: defaultCapabilities(m.kind ?? 'chat', provider.capabilities, m.vision, m.tools),
           cost: m.cost ?? null,
           registered: existing.has(m.id),
         }))
@@ -216,7 +222,7 @@ export function createModelService(options: {
             providerId,
             providerModelId: id,
             displayName: m.displayName ?? id,
-            capabilities: defaultCapabilities(m.kind ?? 'chat', provider.capabilities, m.vision),
+            capabilities: defaultCapabilities(m.kind ?? 'chat', provider.capabilities, m.vision, m.tools),
             contextLength: m.contextLength ?? null,
             maxOutputTokens: m.maxOutputTokens ?? null,
             enabled: true,

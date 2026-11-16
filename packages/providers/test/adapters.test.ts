@@ -156,9 +156,9 @@ describe('discovery metadata', () => {
     // models that do not answer in text (transcription, speech) and guard models are not chat models.
     const groq = await registry.get('groq').listModels(ctx('/groq/openai/v1'));
     expect(groq).toEqual([
-      { id: 'llama-3.3-70b-versatile', displayName: 'Llama 3.3 70B', kind: 'chat', contextLength: 131072, maxOutputTokens: 32768, vision: false, cost: { inputPerMTok: 0.59, outputPerMTok: 0.79 } },
-      { id: 'openai/gpt-oss-120b', displayName: 'GPT OSS 120B', kind: 'chat', contextLength: 131072, maxOutputTokens: 65536, vision: false, cost: { inputPerMTok: 0.15, outputPerMTok: 0.6 } },
-      { id: 'qwen/qwen3.8-27b', displayName: 'Qwen 3.8 27B', kind: 'chat', contextLength: 131072, maxOutputTokens: 16384, vision: true, cost: { inputPerMTok: 0.8, outputPerMTok: 4 } },
+      { id: 'llama-3.3-70b-versatile', displayName: 'Llama 3.3 70B', kind: 'chat', contextLength: 131072, maxOutputTokens: 32768, vision: false, tools: true, cost: { inputPerMTok: 0.59, outputPerMTok: 0.79 } },
+      { id: 'openai/gpt-oss-120b', displayName: 'GPT OSS 120B', kind: 'chat', contextLength: 131072, maxOutputTokens: 65536, vision: false, tools: true, cost: { inputPerMTok: 0.15, outputPerMTok: 0.6 } },
+      { id: 'qwen/qwen3.8-27b', displayName: 'Qwen 3.8 27B', kind: 'chat', contextLength: 131072, maxOutputTokens: 16384, vision: true, tools: false, cost: { inputPerMTok: 0.8, outputPerMTok: 4 } },
       { id: 'whisper-large-v3', displayName: 'Whisper', kind: 'other', contextLength: 448, maxOutputTokens: null, vision: false },
       { id: 'canopylabs/orpheus-v1-english', displayName: 'Orpheus V1 English', kind: 'other', contextLength: 4000, maxOutputTokens: 50000, vision: false, cost: { inputPerMTok: 22, outputPerMTok: null } },
       { id: 'meta-llama/llama-guard-4-12b', displayName: null, kind: 'other', contextLength: 131072, maxOutputTokens: null },

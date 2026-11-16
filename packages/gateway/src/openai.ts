@@ -1,5 +1,5 @@
 import { AppError } from '@clawrouter/core';
-import type { ChatMessage, FinishReason, MessagePart, Usage } from '@clawrouter/providers';
+import type { ChatMessage, FinishReason, MessagePart, ToolCall, ToolChoice, ToolDefinition, Usage } from '@clawrouter/providers';
 
 /**
  * The external API speaks the OpenAI wire format (spec §7): requests are parsed
@@ -18,6 +18,11 @@ export interface ParsedChatRequest {
   temperature?: number;
   topP?: number;
   stop?: string[];
+  tools?: ToolDefinition[];
+  toolChoice?: ToolChoice;
+  parallelToolCalls?: boolean;
+  /** Tools are defined, or the conversation holds tool calls or results: the model needs TOOL_USE. */
+  usesTools: boolean;
   stream: boolean;
   includeUsage: boolean;
 }
@@ -125,25 +130,98 @@ function content(value: unknown, param: string, mayHaveMedia: boolean): { conten
   return parts.some((p) => p.type !== 'text') ? { content: text, parts } : { content: text };
 }
 
+export const MAX_TOOLS = 128;
+const TOOL_NAME = /^[A-Za-z0-9_-]{1,64}$/;
+/** Largest tool parameter schema, serialized. */
+const MAX_SCHEMA_BYTES = 100_000;
+
+/** `tools`: OpenAI function tools. */
+function parseTools(value: unknown): ToolDefinition[] | undefined {
+  if (value === undefined || value === null) return undefined;
+  if (!Array.isArray(value) || value.length === 0 || value.length > MAX_TOOLS) throw invalid(`'tools' must be a list of 1 to ${MAX_TOOLS} tools.`, 'tools');
+  const seen = new Set<string>();
+  return value.map((t, i) => {
+    const param = `tools[${i}]`;
+    if (!isObject(t) || t.type !== 'function' || !isObject(t.function)) throw invalid("Each tool must be { type: 'function', function: { name, description, parameters } }.", param);
+    const f = t.function;
+    if (typeof f.name !== 'string' || !TOOL_NAME.test(f.name)) throw invalid('Tool names are 1–64 letters, digits, underscores or dashes.', `${param}.function.name`);
+    if (seen.has(f.name)) throw invalid(`Two tools are named '${f.name}'.`, `${param}.function.name`);
+    seen.add(f.name);
+    if (f.description !== undefined && f.description !== null && (typeof f.description !== 'string' || f.description.length > 8192)) throw invalid('A tool description must be text of up to 8,192 characters.', `${param}.function.description`);
+    if (f.parameters !== undefined && f.parameters !== null) {
+      if (!isObject(f.parameters)) throw invalid("'parameters' must be a JSON Schema object.", `${param}.function.parameters`);
+      if (JSON.stringify(f.parameters).length > MAX_SCHEMA_BYTES) throw invalid('The parameter schema is too large.', `${param}.function.parameters`);
+    }
+    if (f.strict !== undefined && f.strict !== null && typeof f.strict !== 'boolean') throw invalid("'strict' must be a boolean.", `${param}.function.strict`);
+    return {
+      name: f.name,
+      ...(typeof f.description === 'string' ? { description: f.description } : {}),
+      ...(isObject(f.parameters) ? { parameters: f.parameters } : {}),
+      ...(typeof f.strict === 'boolean' ? { strict: f.strict } : {}),
+    };
+  });
+}
+
+/** `tool_choice`: auto, none, required, or one named tool (which must be defined). */
+function parseToolChoice(value: unknown, tools: ToolDefinition[] | undefined): ToolChoice | undefined {
+  if (value === undefined || value === null) return undefined;
+  if (!tools) throw invalid("'tool_choice' needs 'tools'.", 'tool_choice');
+  if (value === 'auto' || value === 'none' || value === 'required') return value;
+  if (isObject(value) && value.type === 'function' && isObject(value.function) && typeof value.function.name === 'string') {
+    const name = value.function.name;
+    if (!tools.some((t) => t.name === name)) throw invalid(`'tool_choice' names '${name}', which is not in 'tools'.`, 'tool_choice');
+    return { name };
+  }
+  throw invalid("'tool_choice' must be auto, none, required or { type: 'function', function: { name } }.", 'tool_choice');
+}
+
+/** An assistant message's `tool_calls`, as a client sends them back in the conversation. */
+function parseToolCalls(value: unknown, param: string): ToolCall[] {
+  if (!Array.isArray(value) || value.length > MAX_TOOLS) throw invalid(`'tool_calls' must be a list of up to ${MAX_TOOLS} calls.`, param);
+  return value.map((c, i) => {
+    const p = `${param}[${i}]`;
+    if (!isObject(c) || (c.type !== undefined && c.type !== 'function') || !isObject(c.function)) throw invalid("Each tool call must be { id, type: 'function', function: { name, arguments } }.", p);
+    // Ids are opaque; ClawRouter's Gemini ids carry the model's thought signature, so they can be long.
+    if (typeof c.id !== 'string' || !c.id || c.id.length > 32_768) throw invalid("A tool call needs an 'id'.", `${p}.id`);
+    if (typeof c.function.name !== 'string' || !c.function.name) throw invalid("A tool call needs 'function.name'.", `${p}.function.name`);
+    if (typeof c.function.arguments !== 'string') throw invalid("'function.arguments' must be the JSON text the model produced.", `${p}.function.arguments`);
+    return { id: c.id, name: c.function.name, arguments: c.function.arguments };
+  });
+}
+
 /** Parses POST /v1/chat/completions. Unsupported features fail clearly instead of being ignored. */
 export function parseChatRequest(body: unknown): ParsedChatRequest {
   if (!isObject(body)) throw invalid('The request body must be a JSON object.');
   const m = model(body);
   if (!Array.isArray(body.messages) || body.messages.length === 0) throw invalid("'messages' must be a non-empty array.", 'messages');
   if (body.messages.length > 10_000) throw invalid("'messages' has too many entries.", 'messages');
-  for (const key of ['tools', 'functions', 'tool_choice', 'function_call'] as const) {
-    if (body[key] !== undefined && body[key] !== null) throw invalid(`'${key}' is not supported yet.`, key);
+  for (const key of ['functions', 'function_call'] as const) {
+    if (body[key] !== undefined && body[key] !== null) throw invalid(`'${key}' is deprecated: send 'tools' and 'tool_choice' instead.`, key);
   }
+  const tools = parseTools(body.tools);
+  const toolChoice = parseToolChoice(body.tool_choice, tools);
+  if (body.parallel_tool_calls !== undefined && body.parallel_tool_calls !== null && typeof body.parallel_tool_calls !== 'boolean') throw invalid("'parallel_tool_calls' must be a boolean.", 'parallel_tool_calls');
   if (body.n !== undefined && body.n !== null && body.n !== 1) throw invalid("Only 'n': 1 is supported.", 'n');
   const format = body.response_format;
   if (isObject(format) && format.type !== 'text') throw invalid(`'response_format' type '${String(format.type)}' is not supported yet.`, 'response_format');
 
+  const callIds = new Set<string>();
   const messages: ChatMessage[] = body.messages.map((raw, i) => {
     const param = `messages[${i}]`;
     if (!isObject(raw)) throw invalid('Each message must be an object.', param);
     const role = raw.role === 'developer' ? 'system' : raw.role;
-    if (role === 'tool' || role === 'function' || raw.tool_calls) throw invalid('Tool messages are not supported yet.', `${param}.role`);
-    if (role !== 'system' && role !== 'user' && role !== 'assistant') throw invalid("Role must be 'system', 'developer', 'user' or 'assistant'.", `${param}.role`);
+    if (role === 'function') throw invalid("Role 'function' is deprecated: answer tool calls with role 'tool' and 'tool_call_id'.", `${param}.role`);
+    if (role === 'tool') {
+      if (typeof raw.tool_call_id !== 'string' || !raw.tool_call_id) throw invalid("A tool message needs 'tool_call_id'.", `${param}.tool_call_id`);
+      if (!callIds.has(raw.tool_call_id)) throw invalid('This tool message answers no earlier tool call.', `${param}.tool_call_id`);
+      return { role: 'tool', toolCallId: raw.tool_call_id, ...content(raw.content, `${param}.content`, false) };
+    }
+    if (role !== 'system' && role !== 'user' && role !== 'assistant') throw invalid("Role must be 'system', 'developer', 'user', 'assistant' or 'tool'.", `${param}.role`);
+    if (role === 'assistant' && raw.tool_calls !== undefined && raw.tool_calls !== null) {
+      const toolCalls = parseToolCalls(raw.tool_calls, `${param}.tool_calls`);
+      for (const c of toolCalls) callIds.add(c.id);
+      return { role, ...content(raw.content, `${param}.content`, false), ...(toolCalls.length ? { toolCalls } : {}) };
+    }
     return { role, ...content(raw.content, `${param}.content`, role === 'user') };
   });
   if (!messages.some((m2) => m2.role === 'user')) throw invalid('At least one user message is required.', 'messages');
@@ -168,6 +246,10 @@ export function parseChatRequest(body: unknown): ParsedChatRequest {
     temperature: num(body, 'temperature', 0, 2),
     topP: num(body, 'top_p', 0, 1),
     stop,
+    ...(tools ? { tools } : {}),
+    ...(toolChoice !== undefined ? { toolChoice } : {}),
+    ...(typeof body.parallel_tool_calls === 'boolean' && tools ? { parallelToolCalls: body.parallel_tool_calls } : {}),
+    usesTools: !!tools || messages.some((x) => x.role === 'tool' || !!x.toolCalls?.length),
     stream,
     includeUsage: stream && streamOptions.include_usage === true,
   };
@@ -199,3 +281,24 @@ export const unixTime = (d: Date) => Math.floor(d.getTime() / 1000);
 
 /** Serializes one SSE event. */
 export const sse = (data: unknown) => `data: ${typeof data === 'string' ? data : JSON.stringify(data)}\n\n`;
+
+/** The assistant message of a chat completion: text, or tool calls (content null when there is no text). */
+export function assistantMessage(r: { content: string; toolCalls?: ToolCall[] }): Record<string, unknown> {
+  if (!r.toolCalls?.length) return { role: 'assistant', content: r.content };
+  return {
+    role: 'assistant',
+    content: r.content || null,
+    tool_calls: r.toolCalls.map((c) => ({ id: c.id, type: 'function', function: { name: c.name, arguments: c.arguments } })),
+  };
+}
+
+/**
+ * One streamed piece of a tool call, as OpenAI sends it: the first piece of a call
+ * has its id, type and name; later pieces only append to `arguments`.
+ */
+export function toolCallDelta(e: { index: number; id?: string; name?: string; arguments?: string }): Record<string, unknown> {
+  const fn: Record<string, string> = {};
+  if (e.name !== undefined) fn.name = e.name;
+  if (e.arguments !== undefined || e.id !== undefined) fn.arguments = e.arguments ?? '';
+  return { index: e.index, ...(e.id !== undefined ? { id: e.id, type: 'function' } : {}), function: fn };
+}

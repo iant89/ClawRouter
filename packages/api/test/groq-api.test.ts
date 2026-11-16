@@ -40,8 +40,10 @@ describe('Groq provider', () => {
     const found = await data<DiscoveredModelInfo[]>(await h.request(`/api/providers/${provider.id}/models/discover`, { cookie: admin }));
     expect(found.map((m) => m.providerModelId)).toEqual(['canopylabs/orpheus-v1-english', 'llama-3.3-70b-versatile', 'meta-llama/llama-guard-4-12b', 'openai/gpt-oss-120b', 'qwen/qwen3.8-27b', 'whisper-large-v3']);
     const by = (id: string) => found.find((m) => m.providerModelId === id)!;
-    expect(by('llama-3.3-70b-versatile')).toMatchObject({ displayName: 'Llama 3.3 70B', contextLength: 131072, maxOutputTokens: 32768, capabilities: ['CHAT'], cost: { inputPerMTok: 0.59, outputPerMTok: 0.79 }, registered: false });
+    expect(by('llama-3.3-70b-versatile')).toMatchObject({ displayName: 'Llama 3.3 70B', contextLength: 131072, maxOutputTokens: 32768, capabilities: ['CHAT', 'TOOL_USE'], cost: { inputPerMTok: 0.59, outputPerMTok: 0.79 }, registered: false });
+    // Groq says per model whether it supports tools: this one only lists json_mode.
     expect(by('qwen/qwen3.8-27b').capabilities).toEqual(['CHAT', 'VISION']);
+
     expect(by('canopylabs/orpheus-v1-english').capabilities).toEqual([]); // speech: not a chat model
     expect(by('whisper-large-v3').capabilities).toEqual([]);
 

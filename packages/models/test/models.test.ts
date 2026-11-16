@@ -27,7 +27,7 @@ describe('discovery and import', () => {
     const { h, google } = await withProviders();
     const found = await h.models.discover(google.id);
     expect(found).toEqual([
-      { providerModelId: 'gemini-2.0-flash', displayName: 'Gemini 2.0 Flash', contextLength: 1048576, maxOutputTokens: 8192, capabilities: ['CHAT'], cost: null, registered: false },
+      { providerModelId: 'gemini-2.0-flash', displayName: 'Gemini 2.0 Flash', contextLength: 1048576, maxOutputTokens: 8192, capabilities: ['CHAT', 'TOOL_USE'], cost: null, registered: false },
       { providerModelId: 'text-embedding-004', displayName: 'Text Embedding 004', contextLength: 2048, maxOutputTokens: 1, capabilities: ['EMBEDDINGS'], cost: null, registered: false },
     ]);
   });
@@ -37,7 +37,7 @@ describe('discovery and import', () => {
     const first = await h.models.import(actor, openai.id, ['gpt-4o-mini', 'text-embedding-3-small'], client);
     expect(first.imported).toBe(2);
     expect(first.models.map((m) => [m.ref, m.availability, m.source, m.capabilities])).toEqual([
-      ['openai/gpt-4o-mini', 'AVAILABLE', 'DISCOVERED', ['CHAT']],
+      ['openai/gpt-4o-mini', 'AVAILABLE', 'DISCOVERED', ['CHAT', 'TOOL_USE']],
       ['openai/text-embedding-3-small', 'AVAILABLE', 'DISCOVERED', ['EMBEDDINGS']],
     ]);
     const again = await h.models.import(actor, openai.id, ['gpt-4o-mini', 'gpt-4o'], client);

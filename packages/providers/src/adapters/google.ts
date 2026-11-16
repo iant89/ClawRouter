@@ -1,7 +1,7 @@
 import type { ProviderKindInfo } from '@clawrouter/shared';
 import { invalidResponse, joinUrl, providerFetch, readJson } from '../http.ts';
 import { parseSse } from '../sse.ts';
-import type { ChatRequest, MessagePart, ChatResponse, EmbeddingResponse, FinishReason, ProviderAdapter, ProviderCallContext, StreamEvent, Usage } from '../types.ts';
+import type { ChatMessage, ChatRequest, MessagePart, ToolCall, ToolChoice, ChatResponse, EmbeddingResponse, FinishReason, ProviderAdapter, ProviderCallContext, StreamEvent, Usage } from '../types.ts';
 import { baseValidation, connectionChecks, guessKind, splitSystem } from './common.ts';
 
 interface GeminiUsage {
@@ -10,8 +10,15 @@ interface GeminiUsage {
   totalTokenCount?: number;
 }
 
+interface GeminiPart {
+  text?: string;
+  functionCall?: { name?: string; args?: unknown; id?: string };
+  /** Gemini 3: must be sent back with the function call on the next turn. */
+  thoughtSignature?: string;
+}
+
 interface GeminiResponse {
-  candidates?: { content?: { parts?: { text?: string }[] }; finishReason?: string }[];
+  candidates?: { content?: { parts?: GeminiPart[] }; finishReason?: string }[];
   usageMetadata?: GeminiUsage;
   modelVersion?: string;
 }
@@ -54,7 +61,9 @@ function body(req: ChatRequest) {
     ...(req.stop?.length ? { stopSequences: req.stop } : {}),
   };
   return {
-    contents: rest.map((m) => ({ role: m.role === 'assistant' ? 'model' : 'user', parts: m.parts ? m.parts.map(geminiPart) : [{ text: m.content }] })),
+    contents: geminiContents(rest),
+    ...(req.tools?.length ? { tools: [{ functionDeclarations: req.tools.map((t) => ({ name: t.name, ...(t.description ? { description: t.description } : {}), ...(t.parameters ? { parametersJsonSchema: t.parameters } : {}) })) }] } : {}),
+    ...(req.tools?.length && req.toolChoice !== undefined ? { toolConfig: { functionCallingConfig: geminiToolChoice(req.toolChoice) } } : {}),
     ...(system ? { systemInstruction: { parts: [{ text: system }] } } : {}),
     ...(Object.keys(generationConfig).length ? { generationConfig } : {}),
   };
@@ -94,7 +103,13 @@ export const googleAdapter: ProviderAdapter = {
     const res = await providerFetch(ctx, joinUrl(ctx.endpoint, `${modelPath(req.model)}:generateContent`), { method: 'POST', headers: headers(ctx), body: JSON.stringify(body(req)) });
     const json = await readJson<GeminiResponse>(res, ctx.apiKey);
     if (!Array.isArray(json.candidates)) throw invalidResponse('no candidates in response');
-    return { model: json.modelVersion ?? req.model, content: textOf(json), finishReason: finish(json.candidates[0]?.finishReason), usage: usageOf(json.usageMetadata) };
+    const toolCalls = toolCallsOf(json);
+    return {
+      model: json.modelVersion ?? req.model, content: textOf(json), usage: usageOf(json.usageMetadata),
+      // Gemini says STOP after a function call; clients expect tool_calls.
+      finishReason: toolCalls.length ? 'tool_use' : finish(json.candidates[0]?.finishReason),
+      ...(toolCalls.length ? { toolCalls } : {}),
+    };
   },
 
   async embed(ctx, req): Promise<EmbeddingResponse> {
@@ -118,6 +133,7 @@ export const googleAdapter: ProviderAdapter = {
     if (!res.body) throw invalidResponse('empty stream');
     let reason: FinishReason = 'other';
     let usage: Usage = usageOf(undefined);
+    let calls = 0;
     let model = req.model;
     for await (const event of parseSse(res.body, ctx.signal)) {
       let chunk: GeminiResponse;
@@ -128,11 +144,13 @@ export const googleAdapter: ProviderAdapter = {
       }
       const text = textOf(chunk);
       if (text) yield { type: 'delta', text };
+      // Gemini sends each function call whole, in one chunk.
+      for (const call of toolCallsOf(chunk)) yield { type: 'tool_call', index: calls++, id: call.id, name: call.name, arguments: call.arguments };
       if (chunk.candidates?.[0]?.finishReason) reason = finish(chunk.candidates[0].finishReason);
       if (chunk.usageMetadata) usage = usageOf(chunk.usageMetadata);
       if (chunk.modelVersion) model = chunk.modelVersion;
     }
-    yield { type: 'done', finishReason: reason, usage, model };
+    yield { type: 'done', finishReason: calls ? 'tool_use' : reason, usage, model };
   },
 };
 
@@ -146,4 +164,76 @@ function geminiPart(p: MessagePart): Record<string, unknown> {
     case 'audio': return { inlineData: { mimeType: p.format === 'mp3' ? 'audio/mp3' : 'audio/wav', data: p.data } };
     case 'pdf': return { inlineData: { mimeType: 'application/pdf', data: p.data } };
   }
+}
+
+/**
+ * Gemini 3 needs each function call's thought signature back on the next turn.
+ * ClawRouter keeps no state between requests, so the signature travels inside the
+ * tool call id the client receives and sends back: `call_<random>~<signature>`.
+ */
+const SIGNATURE_MARK = '~';
+const callId = (signature: string | undefined) => `call_${crypto.randomUUID().replaceAll('-', '').slice(0, 24)}${signature ? SIGNATURE_MARK + signature : ''}`;
+const signatureOf = (id: string): string | null => {
+  const at = id.indexOf(SIGNATURE_MARK);
+  return id.startsWith('call_') && at > 0 ? id.slice(at + 1) : null;
+};
+
+function toolCallsOf(r: GeminiResponse): ToolCall[] {
+  return (r.candidates?.[0]?.content?.parts ?? [])
+    .filter((p) => typeof p.functionCall?.name === 'string')
+    .map((p) => ({ id: callId(p.thoughtSignature), name: p.functionCall!.name!, arguments: JSON.stringify(p.functionCall!.args ?? {}) }));
+}
+
+const parseArgs = (text: string): unknown => {
+  try {
+    return JSON.parse(text || '{}');
+  } catch {
+    return { arguments: text };
+  }
+};
+
+/**
+ * Messages as Gemini contents. Tool calls are `functionCall` parts of the model's
+ * turn (with their thought signature); tool results are `functionResponse` parts of
+ * a user turn, named after the call they answer. Results that follow each other share one turn.
+ */
+function geminiContents(messages: ChatMessage[]): { role: 'user' | 'model'; parts: Record<string, unknown>[] }[] {
+  const names = new Map<string, string>();
+  const out: { role: 'user' | 'model'; parts: Record<string, unknown>[] }[] = [];
+  for (const m of messages) {
+    if (m.role === 'assistant' && m.toolCalls?.length) {
+      for (const c of m.toolCalls) names.set(c.id, c.name);
+      out.push({
+        role: 'model',
+        parts: [
+          ...(m.content ? [{ text: m.content }] : []),
+          ...m.toolCalls.map((c) => {
+            const signature = signatureOf(c.id);
+            return { functionCall: { name: c.name, args: parseArgs(c.arguments) }, ...(signature ? { thoughtSignature: signature } : {}) };
+          }),
+        ],
+      });
+      continue;
+    }
+    if (m.role === 'tool') {
+      const result = parseArgs(m.content);
+      const response = typeof result === 'object' && result !== null && !Array.isArray(result) && !('arguments' in result && Object.keys(result).length === 1)
+        ? result
+        : { content: m.content };
+      const part = { functionResponse: { name: names.get(m.toolCallId ?? '') ?? 'unknown_tool', response } };
+      const last = out.at(-1);
+      if (last?.role === 'user' && last.parts.every((p) => 'functionResponse' in p)) last.parts.push(part);
+      else out.push({ role: 'user', parts: [part] });
+      continue;
+    }
+    out.push({ role: m.role === 'assistant' ? 'model' : 'user', parts: m.parts ? m.parts.map(geminiPart) : [{ text: m.content }] });
+  }
+  return out;
+}
+
+function geminiToolChoice(choice: ToolChoice): Record<string, unknown> {
+  if (choice === 'none') return { mode: 'NONE' };
+  if (choice === 'required') return { mode: 'ANY' };
+  if (typeof choice === 'object') return { mode: 'ANY', allowedFunctionNames: [choice.name] };
+  return { mode: 'AUTO' };
 }

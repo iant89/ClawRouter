@@ -4,7 +4,7 @@ import type { Capability, FieldIssue, MediaKind, ProviderKind, ProviderKindInfo 
  * Normalized request/response types: what the gateway (phase 8) speaks.
  * Provider-specific formats stay inside the adapters (spec §7).
  */
-export type ChatRole = 'system' | 'user' | 'assistant';
+export type ChatRole = 'system' | 'user' | 'assistant' | 'tool';
 
 export interface ChatMessage {
   role: ChatRole;
@@ -15,7 +15,31 @@ export interface ChatMessage {
    * Absent for plain text: adapters then send `content` as before.
    */
   parts?: MessagePart[];
+  /** Assistant messages: the tools the model asked to call. */
+  toolCalls?: ToolCall[];
+  /** Tool messages: the call this message answers (`content` is the result). */
+  toolCallId?: string;
 }
+
+/** A tool the model may call (OpenAI "function" tools). */
+export interface ToolDefinition {
+  name: string;
+  description?: string;
+  /** JSON Schema of the arguments (an object schema). */
+  parameters?: Record<string, unknown>;
+  /** OpenAI structured outputs for tools; other providers ignore it. */
+  strict?: boolean;
+}
+
+/** A call the model made: `arguments` is the JSON text the model produced. */
+export interface ToolCall {
+  id: string;
+  name: string;
+  arguments: string;
+}
+
+/** auto: the model decides; none: no tool; required: some tool; { name }: that tool. */
+export type ToolChoice = 'auto' | 'none' | 'required' | { name: string };
 
 /** One piece of a message with media. Inline data is base64 without a `data:` prefix. */
 export type MessagePart =
@@ -45,6 +69,10 @@ export interface ChatRequest {
   temperature?: number;
   topP?: number;
   stop?: string[];
+  tools?: ToolDefinition[];
+  toolChoice?: ToolChoice;
+  /** false: at most one tool call per answer. Absent: the provider's default. */
+  parallelToolCalls?: boolean;
 }
 
 export type FinishReason = 'stop' | 'length' | 'content_filter' | 'tool_use' | 'other';
@@ -60,6 +88,8 @@ export interface Usage {
 export interface ChatResponse {
   model: string;
   content: string;
+  /** Tool calls in the answer (finishReason is then usually tool_use). */
+  toolCalls?: ToolCall[];
   finishReason: FinishReason;
   usage: Usage;
 }
@@ -67,6 +97,8 @@ export interface ChatResponse {
 /** Normalized stream events (spec §13). */
 export type StreamEvent =
   | { type: 'delta'; text: string }
+  /** A piece of a tool call. The first piece of each call (by `index`) carries `id` and `name`; `arguments` pieces are appended in order. */
+  | { type: 'tool_call'; index: number; id?: string; name?: string; arguments?: string }
   | { type: 'done'; finishReason: FinishReason; usage: Usage; model: string };
 
 export interface DiscoveredModel {
@@ -79,6 +111,8 @@ export interface DiscoveredModel {
   kind?: 'chat' | 'embedding' | 'other';
   /** Accepts images, when the provider says so (Groq: `input_modalities`). */
   vision?: boolean;
+  /** Supports tools, when the provider says so (Groq: `supported_features`). */
+  tools?: boolean;
   /** Prices in US$ per million tokens, when the provider publishes them (Groq: `pricing`). */
   cost?: { inputPerMTok: number | null; outputPerMTok: number | null } | null;
 }
