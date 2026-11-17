@@ -4,7 +4,7 @@ import { mediaOf, ProviderCallError, type ProviderService, type StreamEvent } fr
 import type { Admission, RateLimitService } from '@clawrouter/rate-limits';
 import type { RequestHandle, RequestLogService } from '@clawrouter/requests';
 import type { RoutingService } from '@clawrouter/routing';
-import { formatLifetime, type CaptureSink, type Capability, type GatewayEndpoint, type MediaKind, type ModelInfo, type RequestAttempt, type RouteCandidate, type RoutePlan, type UsageSource } from '@clawrouter/shared';
+import { formatLifetime, type CaptureSink, type NoticeSource, NOTICE_HEADER, type Capability, type GatewayEndpoint, type MediaKind, type ModelInfo, type RequestAttempt, type RouteCandidate, type RoutePlan, type UsageSource } from '@clawrouter/shared';
 
 /** Routing exclusions caused by the key's age start with this (a readable sentence: plans and request history show it). */
 const KEY_TOO_OLD = 'This API key is older than';
@@ -17,6 +17,7 @@ import { invalid, parseChatRequest, parseEmbeddingRequest, unixTime, type Parsed
 import { chatCompletionsFormat, type ChatFormatter } from './formats.ts';
 import { parseResponsesRequest, renamed, responsesFormat } from './responses.ts';
 import { RequestCapture } from './capture.ts';
+import { headerValue, replyPrefix, stripNotices } from '@clawrouter/notices';
 import type { ExchangeTap } from '@clawrouter/providers';
 
 export interface GatewayRequestContext {
@@ -69,6 +70,8 @@ export function createGatewayService(options: {
   metrics?: GatewayMetricsRecorder;
   /** Provider captures: the full exchange of requests that went wrong. Without it nothing is recorded. */
   captures?: CaptureSink;
+  /** Client notices (header, reply text) and the cleanup of notices sent back. Without it, none. */
+  notices?: NoticeSource;
   now?: () => Date;
   backoffMs?: number;
 }) {
@@ -133,6 +136,30 @@ export function createGatewayService(options: {
       }
       throw error;
     }
+  }
+
+  /**
+   * Notices for one answer: the header value, and the text that starts the reply.
+   * `replyAllowed` is false where text would break the client (tools, embeddings).
+   */
+  function noticesFor(key: ApiKeyPrincipal, o: Pick<AttemptOutcome<unknown>, 'candidate' | 'failovers'>, replyAllowed: boolean) {
+    const n = options.notices?.noticesFor({
+      keyId: key.id, ownerId: key.ownerId, failedOver: o.failovers > 0, providerStatus: o.candidate.providerStatus, replyAllowed: replyAllowed && key.replyNotices,
+    });
+    return {
+      headers: (n?.header.length ? { [NOTICE_HEADER]: headerValue(n.header) } : {}) as Record<string, string>,
+      prefix: n?.reply.length ? replyPrefix(n.reply) : '',
+    };
+  }
+
+  /** Removes ClawRouter's own notice lines from assistant messages a client sent back (cleanup setting). */
+  function withoutNotices<T extends { role: string; content: string }>(messages: T[]): T[] {
+    if (!options.notices?.cleanupEnabled()) return messages;
+    return messages.map((m) => {
+      if (m.role !== 'assistant') return m;
+      const content = stripNotices(m.content);
+      return content === m.content ? m : { ...m, content };
+    });
   }
 
   const routeHeaders = (o: Pick<AttemptOutcome<unknown>, 'candidate' | 'attempts'>) => ({
@@ -276,7 +303,10 @@ export function createGatewayService(options: {
   ): Promise<GatewayResult> {
     const run = startRun(key, endpoint, body, ctx);
     return recorded(run, async () => {
-      const { req, format } = prepare(body);
+      const prepared = prepare(body);
+      const format = prepared.format;
+      // Notice lines ClawRouter wrote into earlier replies never reach the provider (cleanup setting).
+      const req = { ...prepared.req, messages: withoutNotices(prepared.req.messages) };
       const route = plan(key, req.model, 'CHAT', mediaOf(req.messages), req.usesTools);
       await run.admit();
       const promptChars = req.messages.reduce((n, m) => n + m.content.length, 0);
@@ -290,10 +320,12 @@ export function createGatewayService(options: {
           signal: ctx.signal, failures: routing.failures, log, backoffMs: options.backoffMs, checkModel, trace: run.trace,
           call: (c, signal) => run.call(c, (tap) => providers.chat(c.providerId, chatRequest(c), signal, tap)),
         });
-        const answer = format.complete(o.value, o.candidate.modelRef);
+        // Never written into replies that call tools: the client reads those as data.
+        const notices = noticesFor(key, o, !req.usesTools && !o.value.toolCalls?.length);
+        const answer = format.complete(notices.prefix ? { ...o.value, content: notices.prefix + o.value.content } : o.value, o.candidate.modelRef);
         run.capture?.clientResponse(200, JSON.stringify(answer, null, 2));
         run.succeed(o, withEstimate(o.value.usage, promptChars, o.value.content.length));
-        return { kind: 'json', status: 200, headers: routeHeaders(o), body: answer };
+        return { kind: 'json', status: 200, headers: { ...routeHeaders(o), ...notices.headers }, body: answer };
       }
 
       const abort = new AbortController();
@@ -317,6 +349,8 @@ export function createGatewayService(options: {
       }
       run.streaming();
       const model = o.candidate.modelRef;
+      // The notice text goes first, before anything the model writes; never on requests that offer tools.
+      const notices = noticesFor(key, o, !req.usesTools);
       let outputChars = 0;
       let done = false;
       const finishStream = (outcome: { ok: true; usage: Usage } | { ok: false }) => {
@@ -341,6 +375,7 @@ export function createGatewayService(options: {
             if (!started) {
               started = true;
               send(controller, format.start(model));
+              if (notices.prefix) send(controller, format.text(notices.prefix));
               return;
             }
             const next = pending ?? (await o.value.it.next());
@@ -389,7 +424,7 @@ export function createGatewayService(options: {
       return {
         kind: 'stream',
         stream,
-        headers: { ...routeHeaders(o), 'content-type': 'text/event-stream; charset=utf-8', 'cache-control': 'no-cache', 'x-accel-buffering': 'no' },
+        headers: { ...routeHeaders(o), ...notices.headers, 'content-type': 'text/event-stream; charset=utf-8', 'cache-control': 'no-cache', 'x-accel-buffering': 'no' },
       };
     });
   }
@@ -446,7 +481,7 @@ export function createGatewayService(options: {
         };
         run.capture?.clientResponse(200, JSON.stringify(answer));
         run.succeed(o, withEstimate({ inputTokens: o.value.usage.inputTokens, outputTokens: 0, source: o.value.usage.source }, inputChars, 0));
-        return { kind: 'json', status: 200, headers: routeHeaders(o), body: answer };
+        return { kind: 'json', status: 200, headers: { ...routeHeaders(o), ...noticesFor(key, o, false).headers }, body: answer };
       });
     },
 

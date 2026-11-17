@@ -36,6 +36,8 @@ import { keyRequestsController } from './controllers/key-requests.ts';
 import { twoFactorController } from './controllers/two-factor.ts';
 import { settingsController } from './controllers/settings.ts';
 import { capturesController } from './controllers/captures.ts';
+import { noticesController } from './controllers/notices.ts';
+import type { NoticeService } from '@clawrouter/notices';
 import type { CaptureService } from '@clawrouter/captures';
 import { configurationController } from './controllers/configuration.ts';
 import type { ConfigurationService } from '@clawrouter/configuration';
@@ -76,6 +78,8 @@ export interface ApiDependencies {
   operations: OperationService;
   /** Provider captures (owner request, 2026-11-17). */
   captures: CaptureService;
+  /** Client notices and announcements (owner request, 2026-11-17). */
+  notices: NoticeService;
   setup: SetupService;
   cookie: SessionCookieConfig;
   /** Reported to MCP clients (serverInfo.version). */
@@ -121,6 +125,7 @@ export function createApiApp(deps: ApiDependencies): ApiApp {
   const rl = rateLimitsController(deps.limits);
   const rq = requestsController(deps.requests);
   const cap = capturesController(deps.captures);
+  const ntc = noticesController(deps.notices);
 
   // Public: health for load balancers, setup and sign-in.
   router.get('/api/health', 'public', healthHandler(deps.health));
@@ -233,6 +238,14 @@ export function createApiApp(deps: ApiDependencies): ApiApp {
   router.put('/api/settings/mail', 'settings.write', tf.updateMailSettings);
   router.post('/api/settings/mail/test', 'settings.write', tf.testMail);
   router.put('/api/settings', 'settings.write', settingsApi.update);
+  // Client notices (owner request, 2026-11-17): the default messages and announcements are for administrators.
+  router.get('/api/settings/notices', 'announcements.manage', ntc.messages);
+  router.put('/api/settings/notices', 'announcements.manage', ntc.updateMessages);
+  router.delete('/api/settings/notices', 'announcements.manage', ntc.resetMessages);
+  router.get('/api/announcements', 'announcements.manage', ntc.list);
+  router.post('/api/announcements', 'announcements.manage', ntc.create);
+  router.patch('/api/announcements/:id', 'announcements.manage', ntc.update);
+  router.delete('/api/announcements/:id', 'announcements.manage', ntc.remove);
 
   // Gateway administration: API keys (spec §14, §31) and live metrics.
   router.get('/api/api-keys', 'api_keys.read', keys.list);

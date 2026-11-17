@@ -41,6 +41,22 @@ export const SETTING_DEFINITIONS = {
     group: 'MCP server', label: 'Let agents use the MCP server (/v1/mcp)', unit: 'on/off', min: 0, max: 1, env: null, kind: 'switch',
     description: "ClawRouter's own MCP server at /v1/mcp: read-only tools an agent such as Claude Code can use to ask about health, usage, requests, providers and models, with the permissions of its API key's owner. When off, /v1/mcp does not exist (404) and the console hides MCP access on keys; keys keep their MCP access for when it is turned on again.",
   },
+  noticeHeaderEnabled: {
+    group: 'Client notices', label: 'Send notices in a response header', unit: 'on/off', min: 0, max: 1, env: null, kind: 'switch',
+    description: 'Adds the X-ClawRouter-Notices header (a JSON list) to gateway responses that have a notice: degraded health, a failover, an announcement. Clients that do not read it are unaffected.',
+  },
+  noticeReplyEnabled: {
+    group: 'Client notices', label: 'Write notices at the start of replies', unit: 'on/off', min: 0, max: 1, env: null, kind: 'switch',
+    description: 'Puts notices as a line at the start of chat replies, where people in chat apps see them, like "⚠️ ClawRouter: …". Never on requests that use tools. Each API key can turn it off for itself (for scripts that read replies).',
+  },
+  noticeCleanupEnabled: {
+    group: 'Client notices', label: 'Remove notices from conversations sent back', unit: 'on/off', min: 0, max: 1, env: null, kind: 'switch',
+    description: 'Chat apps send earlier replies back with each new message. When on, ClawRouter removes its own notice lines from them before the provider sees them, so the model never reads or pays for them.',
+  },
+  noticeIntervalMinutes: {
+    group: 'Client notices', label: 'Repeat system notices at most every', unit: 'minutes', min: 1, max: 1440, env: null,
+    description: 'Degraded-health and failover notices go to each API key at most this often, so a long problem does not repeat in every reply. Announcements follow their own schedule.',
+  },
   capturesEnabled: {
     group: 'Provider captures', label: 'Capture provider errors', unit: 'on/off', min: 0, max: 1, env: null, kind: 'switch',
     description: "Records the full exchange of a gateway request with its providers (what the client sent, every call to a provider and its raw reply, what the client got) when a provider call fails or its reply cannot be read, so it can be exported to a file for a developer. Also needed to start a manual capture (System → Captures). Captures contain users' prompts and replies; credentials are never recorded. When off, nothing is recorded; existing captures stay.",

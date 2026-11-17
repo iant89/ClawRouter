@@ -6,6 +6,7 @@ import { createOperationService, createSqliteOperationRepository, type Operation
 import { operationHandlers } from '../../apps/server/src/operation-handlers.ts';
 import { createApiApp, type ApiApp } from '@clawrouter/api';
 import { createCaptureService, createSqliteCaptureRepository, type CaptureService } from '@clawrouter/captures';
+import { createNoticeService, createSqliteAnnouncementRepository, type NoticeService } from '@clawrouter/notices';
 import { createAuditService, createSqliteAuditRepository, type AuditService } from '@clawrouter/audit';
 import {
   createArgon2Hasher, createAuthService, createOnboardingService, createPreferencesService, createSetupService, createSqliteSessionRepository, createSqliteUserRepository, createTwoFactorService, createUserAdminService,
@@ -70,6 +71,7 @@ export interface Harness {
   quotas: QuotaService;
   requests: RequestLogService;
   captures: CaptureService;
+  notices: NoticeService;
   secrets: SecretBox;
   /** Replaces the fetch used for provider calls. */
   setProviderFetch(fn: typeof fetch): void;
@@ -108,7 +110,7 @@ export function createHarness(options: { idleMinutes?: number; maxHours?: number
   const audit = createAuditService(createSqliteAuditRepository(db), log, clock.now);
   const settings = createSettingsService({
     repo: createSqliteSettingsRepository(db, clock.now), audit, events, log,
-    defaults: { sessionIdleMinutes: options.idleMinutes ?? 60, sessionMaxHours: options.maxHours ?? 12, signInMaxFailures: 10, requestRetentionDays: 30, usageRetentionDays: 400, healthHistoryDays: 7, keyMaxLifetimeDays: 30, quotasEnabled: 1, mcpEnabled: 0, capturesEnabled: 0, capturesMaxCount: 500 },
+    defaults: { sessionIdleMinutes: options.idleMinutes ?? 60, sessionMaxHours: options.maxHours ?? 12, signInMaxFailures: 10, requestRetentionDays: 30, usageRetentionDays: 400, healthHistoryDays: 7, keyMaxLifetimeDays: 30, quotasEnabled: 1, mcpEnabled: 0, noticeHeaderEnabled: 1, noticeReplyEnabled: 1, noticeCleanupEnabled: 1, noticeIntervalMinutes: 30, capturesEnabled: 0, capturesMaxCount: 500 },
   });
   const auth = createAuthService({
     users,
@@ -177,7 +179,14 @@ export function createHarness(options: { idleMinutes?: number; maxHours?: number
     repo: createSqliteCaptureRepository(db), audit, log, version: 'test', now: clock.now,
     settings: { enabled: () => settings.get('capturesEnabled') === 1, maxCount: () => settings.get('capturesMaxCount') },
   });
-  const gateway = createGatewayService({ routing, providers, models, events, log, now: clock.now, backoffMs: 0, limits, requests, quotas, captures: captures.sink });
+  const notices = createNoticeService({
+    repo: createSqliteAnnouncementRepository(db), settingsRepo: createSqliteSettingsRepository(db, clock.now), audit, events, log, now: clock.now,
+    settings: {
+      headerEnabled: () => settings.get('noticeHeaderEnabled') === 1, replyEnabled: () => settings.get('noticeReplyEnabled') === 1,
+      cleanupEnabled: () => settings.get('noticeCleanupEnabled') === 1, intervalMinutes: () => settings.get('noticeIntervalMinutes'),
+    },
+  });
+  const gateway = createGatewayService({ routing, providers, models, events, log, now: clock.now, backoffMs: 0, limits, requests, quotas, captures: captures.sink, notices: notices.source });
   const health = createHealthService({
     checks: [
       createDatabaseCheck(db),
@@ -188,10 +197,10 @@ export function createHarness(options: { idleMinutes?: number; maxHours?: number
   const healthHistory = createHealthHistoryService({ repo: createSqliteHealthHistoryRepository(db), now: clock.now });
   const operations = createOperationService({ repo: createSqliteOperationRepository(db), handlers: operationHandlers({ providers, health }), audit, events, log, now: clock.now });
   const configuration = createConfigurationService({ providers, models, routing, limits, authz, settings, twoFactor, mail, audit, version: 'test', now: clock.now });
-  const api = createApiApp({ log, logBuffer, audit, health, configuration, onboarding, preferences, healthHistory, auth, authz, userAdmin, settings, twoFactor, mail, notifications, providers, models, routing, apiKeys, keyRequests, gateway, limits, quotas, requests, operations, captures, setup, now: clock.now, mcpEnabled: () => settings.get('mcpEnabled') === 1, cookie: { secure: options.secureCookie ?? false } });
+  const api = createApiApp({ log, logBuffer, audit, health, configuration, onboarding, preferences, healthHistory, auth, authz, userAdmin, settings, twoFactor, mail, notifications, providers, models, routing, apiKeys, keyRequests, gateway, limits, quotas, requests, operations, captures, notices, setup, now: clock.now, mcpEnabled: () => settings.get('mcpEnabled') === 1, cookie: { secure: options.secureCookie ?? false } });
 
   const h: Harness = {
-    db, clock, events, users, audit, auth, authz, userAdmin, settings, twoFactor, onboarding, mail, outbox, notifications, providers, models, routing, apiKeys, keyRequests, gateway, limits, quotas, requests, captures, secrets, setup, health, healthHistory, operations, api, logs, logBuffer,
+    db, clock, events, users, audit, auth, authz, userAdmin, settings, twoFactor, onboarding, mail, outbox, notifications, providers, models, routing, apiKeys, keyRequests, gateway, limits, quotas, requests, captures, notices, secrets, setup, health, healthHistory, operations, api, logs, logBuffer,
     setProviderFetch(fn) {
       providerFetch = fn;
     },

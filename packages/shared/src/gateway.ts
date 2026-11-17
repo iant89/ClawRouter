@@ -28,6 +28,8 @@ export interface ApiKeyInfo {
   rateLimit: RateLimit | null;
   /** May use ClawRouter's MCP server (/v1/mcp), with its owner's permissions. */
   mcpAccess: boolean;
+  /** ClawRouter's notices may be written at the start of replies (when the replyNotices setting is on). */
+  replyNotices: boolean;
 }
 
 /**
@@ -57,6 +59,8 @@ export interface CreateApiKeyRequest {
   rateLimit?: RateLimit | null;
   /** Allow the MCP server (/v1/mcp). Off when omitted. */
   mcpAccess?: boolean;
+  /** Let ClawRouter write notices at the start of replies. On when omitted; turn off for scripts that parse replies. */
+  replyNotices?: boolean;
 }
 
 /**
@@ -114,6 +118,7 @@ export interface UpdateApiKeyRequest {
   allowedModels?: string[];
   rateLimit?: RateLimit | null;
   mcpAccess?: boolean;
+  replyNotices?: boolean;
 }
 
 /** The only response that ever contains the full key. */

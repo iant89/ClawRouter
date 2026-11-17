@@ -18,6 +18,7 @@ import { createRoutingService, createSqliteRoutingStore, type RoutingService } f
 import { createApiKeyService, createGatewayService, createKeyRequestService, type ApiKeyService, type GatewayService } from '@clawrouter/gateway';
 import { createQuotaService, createRateLimitService, createSqliteQuotaStore, createSqliteRateLimitConfigStore, MemoryCounterStore, type QuotaService, type RateLimitService } from '@clawrouter/rate-limits';
 import { createCaptureService, createSqliteCaptureRepository } from '@clawrouter/captures';
+import { createNoticeService, createSqliteAnnouncementRepository } from '@clawrouter/notices';
 import { createRequestLogService, createSqliteRequestRepository, type RequestLogService } from '@clawrouter/requests';
 import { createSqliteSettingsRepository, migrationStatus, migrations, openSqlite, runMigrations, type Database } from '@clawrouter/database';
 import { createSettingsService, settingDefaults } from '@clawrouter/settings';
@@ -150,7 +151,15 @@ export async function startClawRouter({ config, log, logBuffer, version, console
     repo: createSqliteCaptureRepository(db), audit, log, version,
     settings: { enabled: () => settings.get('capturesEnabled') === 1, maxCount: () => settings.get('capturesMaxCount') },
   });
-  const gateway = createGatewayService({ routing, providers, models, events, log, limits, requests, quotas, captures: captures.sink });
+  // Client notices (owner request, 2026-11-17): header, reply text and cleanup on by default; announcements by administrators.
+  const notices = createNoticeService({
+    repo: createSqliteAnnouncementRepository(db), settingsRepo: createSqliteSettingsRepository(db), audit, events, log,
+    settings: {
+      headerEnabled: () => settings.get('noticeHeaderEnabled') === 1, replyEnabled: () => settings.get('noticeReplyEnabled') === 1,
+      cleanupEnabled: () => settings.get('noticeCleanupEnabled') === 1, intervalMinutes: () => settings.get('noticeIntervalMinutes'),
+    },
+  });
+  const gateway = createGatewayService({ routing, providers, models, events, log, limits, requests, quotas, captures: captures.sink, notices: notices.source });
   let liveHub: RealtimeHub | null = null;
   const healthHistory = createHealthHistoryService({ repo: createSqliteHealthHistoryRepository(db), log, get retentionDays() { return settings.get('healthHistoryDays'); } });
   const health = createHealthService({
@@ -239,6 +248,7 @@ export async function startClawRouter({ config, log, logBuffer, version, console
       const history = requests.prune();
       healthHistory.prune();
       operations.prune();
+      notices.purgeExpired();
       if (removed || notes || checks || history.requests || history.usageRecords) {
         log.debug('housekeeping', { component: 'server', sessionsPurged: removed, notificationsPurged: notes, providerChecksPruned: checks, requestsPruned: history.requests, usageRecordsPruned: history.usageRecords });
       }
@@ -275,7 +285,7 @@ export async function startClawRouter({ config, log, logBuffer, version, console
       return path;
     },
   });
-  const api = createApiApp({ log, logBuffer, audit, health, configuration, onboarding, preferences, lifecycle: { state: () => lifecycle }, healthHistory, auth, authz, userAdmin, settings, twoFactor, mail, notifications, providers, models, routing, apiKeys, keyRequests, gateway, limits, quotas, requests, operations, captures, setup, version, mcpEnabled: () => settings.get('mcpEnabled') === 1, cookie: { secure: config.auth.cookieSecure } });
+  const api = createApiApp({ log, logBuffer, audit, health, configuration, onboarding, preferences, lifecycle: { state: () => lifecycle }, healthHistory, auth, authz, userAdmin, settings, twoFactor, mail, notifications, providers, models, routing, apiKeys, keyRequests, gateway, limits, quotas, requests, operations, captures, notices, setup, version, mcpEnabled: () => settings.get('mcpEnabled') === 1, cookie: { secure: config.auth.cookieSecure } });
 
   // The console's live channel (spec §25): session-authenticated, same-origin only.
   const realtime = createRealtimeHub({

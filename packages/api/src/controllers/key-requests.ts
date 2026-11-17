@@ -12,6 +12,7 @@ const ownKeyBody = v.object({
   allowedModels: modelList,
   expiry: expiryField,
   mcpAccess: v.optional(v.boolean()),
+  replyNotices: v.optional(v.boolean()),
 });
 
 const requestBody = v.object({

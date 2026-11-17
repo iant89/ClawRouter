@@ -17,6 +17,7 @@
         "@clawrouter/health": "workspace:*",
         "@clawrouter/mail": "workspace:*",
         "@clawrouter/models": "workspace:*",
+        "@clawrouter/notices": "workspace:*",
         "@clawrouter/notifications": "workspace:*",
         "@clawrouter/operations": "workspace:*",
         "@clawrouter/providers": "workspace:*",
@@ -60,6 +61,7 @@
         "@clawrouter/health": "workspace:*",
         "@clawrouter/mail": "workspace:*",
         "@clawrouter/models": "workspace:*",
+        "@clawrouter/notices": "workspace:*",
         "@clawrouter/notifications": "workspace:*",
         "@clawrouter/operations": "workspace:*",
         "@clawrouter/providers": "workspace:*",
@@ -84,6 +86,7 @@
         "@clawrouter/health": "workspace:*",
         "@clawrouter/mail": "workspace:*",
         "@clawrouter/models": "workspace:*",
+        "@clawrouter/notices": "workspace:*",
         "@clawrouter/notifications": "workspace:*",
         "@clawrouter/operations": "workspace:*",
         "@clawrouter/providers": "workspace:*",
@@ -172,6 +175,7 @@
         "@clawrouter/core": "workspace:*",
         "@clawrouter/database": "workspace:*",
         "@clawrouter/models": "workspace:*",
+        "@clawrouter/notices": "workspace:*",
         "@clawrouter/providers": "workspace:*",
         "@clawrouter/rate-limits": "workspace:*",
         "@clawrouter/requests": "workspace:*",
@@ -206,6 +210,16 @@
         "@clawrouter/core": "workspace:*",
         "@clawrouter/database": "workspace:*",
         "@clawrouter/providers": "workspace:*",
+        "@clawrouter/shared": "workspace:*",
+      },
+    },
+    "packages/notices": {
+      "name": "@clawrouter/notices",
+      "version": "0.1.0",
+      "dependencies": {
+        "@clawrouter/audit": "workspace:*",
+        "@clawrouter/core": "workspace:*",
+        "@clawrouter/database": "workspace:*",
         "@clawrouter/shared": "workspace:*",
       },
     },
@@ -311,6 +325,8 @@
     "@clawrouter/mail": ["@clawrouter/mail@workspace:packages/mail"],
 
     "@clawrouter/models": ["@clawrouter/models@workspace:packages/models"],
+
+    "@clawrouter/notices": ["@clawrouter/notices@workspace:packages/notices"],
 
     "@clawrouter/notifications": ["@clawrouter/notifications@workspace:packages/notifications"],
 

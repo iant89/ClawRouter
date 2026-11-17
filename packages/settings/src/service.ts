@@ -108,6 +108,11 @@ export function settingDefaults(config: Pick<Config, 'auth' | 'requests' | 'heal
     // Owner, 2026-11-16: the MCP server is off until an administrator turns it on.
     mcpEnabled: 0,
     // Owner, 2026-11-17: provider captures record users' text, so they are off until turned on.
+    // Owner, 2026-11-17: notices in the header and in replies, and the cleanup, are on by default.
+    noticeHeaderEnabled: 1,
+    noticeReplyEnabled: 1,
+    noticeCleanupEnabled: 1,
+    noticeIntervalMinutes: 30,
     capturesEnabled: 0,
     capturesMaxCount: 500,
   };

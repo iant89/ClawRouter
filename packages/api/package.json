@@ -11,6 +11,7 @@
     "@clawrouter/authentication": "workspace:*",
     "@clawrouter/authorization": "workspace:*",
     "@clawrouter/captures": "workspace:*",
+    "@clawrouter/notices": "workspace:*",
     "@clawrouter/configuration": "workspace:*",
     "@clawrouter/core": "workspace:*",
     "@clawrouter/gateway": "workspace:*",

@@ -9,6 +9,7 @@
     "@clawrouter/core": "workspace:*",
     "@clawrouter/database": "workspace:*",
     "@clawrouter/models": "workspace:*",
+    "@clawrouter/notices": "workspace:*",
     "@clawrouter/providers": "workspace:*",
     "@clawrouter/rate-limits": "workspace:*",
     "@clawrouter/requests": "workspace:*",
