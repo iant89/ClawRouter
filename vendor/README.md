@@ -9,7 +9,7 @@ committed on purpose: a fresh clone needs only `bun install`.
 | | |
 |---|---|
 | Package | `@enterprise-ui/react` 0.1.0 |
-| Source | ENTERPRISE-UI branch `claude/clawapi-design-spec-p0hucn` at `66dfdb37f0e113e0863a29dfa0e19a17c1c1b5c9`: `main` (`83e4097`) plus FieldHelp, EmojiPicker, StatusHistory, ErrorBoundary and CopyButton `iconOnly` (moved from ClawRouter); not yet merged into ENTERPRISE-UI `main`. Re-vendor from `main` once it is |
+| Source | ENTERPRISE-UI `main` at `ff372b43c9a3c2d71c56488f0639e092833f6e68` (pull request 57: FieldHelp, EmojiPicker, StatusHistory, ErrorBoundary and CopyButton `iconOnly`, moved from ClawRouter) |
 | Contents | the published files only (`dist/`, `README.md`), as `npm pack` produces them |
 
 ### Updating
