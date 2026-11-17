@@ -107,5 +107,8 @@ export function settingDefaults(config: Pick<Config, 'auth' | 'requests' | 'heal
     quotasEnabled: 1,
     // Owner, 2026-11-16: the MCP server is off until an administrator turns it on.
     mcpEnabled: 0,
+    // Owner, 2026-11-17: provider captures record users' text, so they are off until turned on.
+    capturesEnabled: 0,
+    capturesMaxCount: 500,
   };
 }

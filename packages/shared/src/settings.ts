@@ -41,6 +41,14 @@ export const SETTING_DEFINITIONS = {
     group: 'MCP server', label: 'Let agents use the MCP server (/v1/mcp)', unit: 'on/off', min: 0, max: 1, env: null, kind: 'switch',
     description: "ClawRouter's own MCP server at /v1/mcp: read-only tools an agent such as Claude Code can use to ask about health, usage, requests, providers and models, with the permissions of its API key's owner. When off, /v1/mcp does not exist (404) and the console hides MCP access on keys; keys keep their MCP access for when it is turned on again.",
   },
+  capturesEnabled: {
+    group: 'Provider captures', label: 'Capture provider errors', unit: 'on/off', min: 0, max: 1, env: null, kind: 'switch',
+    description: "Records the full exchange of a gateway request with its providers (what the client sent, every call to a provider and its raw reply, what the client got) when a provider call fails or its reply cannot be read, so it can be exported to a file for a developer. Also needed to start a manual capture (System → Captures). Captures contain users' prompts and replies; credentials are never recorded. When off, nothing is recorded; existing captures stay.",
+  },
+  capturesMaxCount: {
+    group: 'Provider captures', label: 'Captures kept', unit: 'captures', min: 10, max: 10_000, env: null,
+    description: 'Captures are kept until deleted; beyond this many, the oldest are deleted. Each capture holds up to 256 KB per body recorded.',
+  },
 } as const;
 
 export type SettingKey = keyof typeof SETTING_DEFINITIONS;

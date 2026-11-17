@@ -9,6 +9,7 @@
         "@clawrouter/audit": "workspace:*",
         "@clawrouter/authentication": "workspace:*",
         "@clawrouter/authorization": "workspace:*",
+        "@clawrouter/captures": "workspace:*",
         "@clawrouter/configuration": "workspace:*",
         "@clawrouter/core": "workspace:*",
         "@clawrouter/database": "workspace:*",
@@ -50,6 +51,7 @@
         "@clawrouter/audit": "workspace:*",
         "@clawrouter/authentication": "workspace:*",
         "@clawrouter/authorization": "workspace:*",
+        "@clawrouter/captures": "workspace:*",
         "@clawrouter/configuration": "workspace:*",
         "@clawrouter/console": "workspace:*",
         "@clawrouter/core": "workspace:*",
@@ -75,6 +77,7 @@
         "@clawrouter/audit": "workspace:*",
         "@clawrouter/authentication": "workspace:*",
         "@clawrouter/authorization": "workspace:*",
+        "@clawrouter/captures": "workspace:*",
         "@clawrouter/configuration": "workspace:*",
         "@clawrouter/core": "workspace:*",
         "@clawrouter/gateway": "workspace:*",
@@ -112,6 +115,16 @@
     },
     "packages/authorization": {
       "name": "@clawrouter/authorization",
+      "version": "0.1.0",
+      "dependencies": {
+        "@clawrouter/audit": "workspace:*",
+        "@clawrouter/core": "workspace:*",
+        "@clawrouter/database": "workspace:*",
+        "@clawrouter/shared": "workspace:*",
+      },
+    },
+    "packages/captures": {
+      "name": "@clawrouter/captures",
       "version": "0.1.0",
       "dependencies": {
         "@clawrouter/audit": "workspace:*",
@@ -280,6 +293,8 @@
     "@clawrouter/authentication": ["@clawrouter/authentication@workspace:packages/authentication"],
 
     "@clawrouter/authorization": ["@clawrouter/authorization@workspace:packages/authorization"],
+
+    "@clawrouter/captures": ["@clawrouter/captures@workspace:packages/captures"],
 
     "@clawrouter/configuration": ["@clawrouter/configuration@workspace:packages/configuration"],
 

@@ -9,3 +9,4 @@ export { groqAdapter, openAiAdapter, openAiCompatibleAdapter, createOpenAiStyleA
 export { anthropicAdapter, ANTHROPIC_DEFAULT_MAX_TOKENS } from './adapters/anthropic.ts';
 export { googleAdapter } from './adapters/google.ts';
 export * from './key-rotation.ts';
+export * from './tap.ts';

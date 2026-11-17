@@ -4,7 +4,7 @@ import { mediaOf, ProviderCallError, type ProviderService, type StreamEvent } fr
 import type { Admission, RateLimitService } from '@clawrouter/rate-limits';
 import type { RequestHandle, RequestLogService } from '@clawrouter/requests';
 import type { RoutingService } from '@clawrouter/routing';
-import { formatLifetime, type Capability, type GatewayEndpoint, type MediaKind, type ModelInfo, type RequestAttempt, type RouteCandidate, type RoutePlan, type UsageSource } from '@clawrouter/shared';
+import { formatLifetime, type CaptureSink, type Capability, type GatewayEndpoint, type MediaKind, type ModelInfo, type RequestAttempt, type RouteCandidate, type RoutePlan, type UsageSource } from '@clawrouter/shared';
 
 /** Routing exclusions caused by the key's age start with this (a readable sentence: plans and request history show it). */
 const KEY_TOO_OLD = 'This API key is older than';
@@ -16,6 +16,8 @@ import { GatewayMetricsRecorder } from './metrics.ts';
 import { invalid, parseChatRequest, parseEmbeddingRequest, unixTime, type ParsedChatRequest } from './openai.ts';
 import { chatCompletionsFormat, type ChatFormatter } from './formats.ts';
 import { parseResponsesRequest, renamed, responsesFormat } from './responses.ts';
+import { RequestCapture } from './capture.ts';
+import type { ExchangeTap } from '@clawrouter/providers';
 
 export interface GatewayRequestContext {
   requestId: string;
@@ -65,6 +67,8 @@ export function createGatewayService(options: {
   /** Request history and usage (phase 10). Without it nothing is recorded. */
   requests?: RequestLogService;
   metrics?: GatewayMetricsRecorder;
+  /** Provider captures: the full exchange of requests that went wrong. Without it nothing is recorded. */
+  captures?: CaptureSink;
   now?: () => Date;
   backoffMs?: number;
 }) {
@@ -152,6 +156,16 @@ export function createGatewayService(options: {
     let started = false;
     let ended = false;
     const elapsed = () => Math.round(performance.now() - t0);
+    // Provider captures: recorded only while captures are on; kept only when something went wrong (or a manual capture claims it).
+    const capture = options.captures?.recording()
+      ? new RequestCapture(options.captures, { requestId: ctx.requestId, endpoint, stream, requestedModel, clientBody: body }, (id) => {
+        try {
+          return providers.get(id).kind;
+        } catch {
+          return null;
+        }
+      })
+      : null;
 
     /** Attempts and model switches as the trace saw them (models skipped for their rate limit are not attempts). */
     const counts = () => {
@@ -163,6 +177,12 @@ export function createGatewayService(options: {
 
     return {
       trace,
+      capture,
+
+      /** One provider attempt, through a capture tap when recording. */
+      call<T>(c: RouteCandidate, fn: (tap: ExchangeTap | undefined) => Promise<T>): Promise<T> {
+        return capture ? capture.attempt(c, fn) : fn(undefined);
+      },
       get admission() {
         return admission;
       },
@@ -197,6 +217,7 @@ export function createGatewayService(options: {
           status: 'COMPLETED', httpStatus: 200, durationMs, modelRef: o.candidate.modelRef, providerId: o.candidate.providerId,
           attempts: c.attempts, retries: c.retries, failovers: c.failovers, attemptLog: trace, errorCode: null, errorMessage: null, usage,
         });
+        capture?.end({ status: 'COMPLETED', httpStatus: 200, errorCode: null, errorMessage: null }, trace);
       },
 
       /** Records a failure and returns the error to throw (rate-limit exhaustion becomes a 429). */
@@ -226,6 +247,7 @@ export function createGatewayService(options: {
           attempts: c.attempts, retries: c.retries, failovers: c.failovers, attemptLog: trace, errorCode: outcome.code, errorMessage: outcome.message,
           usage: { inputTokens: null, outputTokens: null, source: 'none' },
         });
+        capture?.end({ status: outcome.status, httpStatus: outcome.httpStatus, errorCode: outcome.code, errorMessage: outcome.message }, trace);
         return error;
       },
     };
@@ -266,10 +288,12 @@ export function createGatewayService(options: {
       if (!req.stream) {
         const o = await runAttempts(route, {
           signal: ctx.signal, failures: routing.failures, log, backoffMs: options.backoffMs, checkModel, trace: run.trace,
-          call: (c, signal) => providers.chat(c.providerId, chatRequest(c), signal),
+          call: (c, signal) => run.call(c, (tap) => providers.chat(c.providerId, chatRequest(c), signal, tap)),
         });
+        const answer = format.complete(o.value, o.candidate.modelRef);
+        run.capture?.clientResponse(200, JSON.stringify(answer, null, 2));
         run.succeed(o, withEstimate(o.value.usage, promptChars, o.value.content.length));
-        return { kind: 'json', status: 200, headers: routeHeaders(o), body: format.complete(o.value, o.candidate.modelRef) };
+        return { kind: 'json', status: 200, headers: routeHeaders(o), body: answer };
       }
 
       const abort = new AbortController();
@@ -280,9 +304,11 @@ export function createGatewayService(options: {
         o = await runAttempts(route, {
           signal: abort.signal, failures: routing.failures, log, backoffMs: options.backoffMs, checkModel, trace: run.trace,
           call: async (c, signal) => {
-            const it = providers.chatStream(c.providerId, chatRequest(c), signal)[Symbol.asyncIterator]();
-            const first = await it.next();
-            return { it, first };
+            return run.call(c, async (tap) => {
+              const it = providers.chatStream(c.providerId, chatRequest(c), signal, tap)[Symbol.asyncIterator]();
+              const first = await it.next();
+              return { it, first };
+            });
           },
         });
       } catch (error) {
@@ -303,6 +329,7 @@ export function createGatewayService(options: {
       };
       const send = (controller: ReadableStreamDefaultController<Uint8Array>, events: string[]) => {
         for (const e of events) controller.enqueue(encoder.encode(e));
+        if (run.capture) for (const e of events) run.capture.clientResponse(200, e);
       };
 
       let pending: IteratorResult<StreamEvent> | null = o.value.first;
@@ -341,6 +368,7 @@ export function createGatewayService(options: {
             finishStream({ ok: true, usage: event.usage });
           } catch (error) {
             if (!abort.signal.aborted) routing.failures.recordFailure(o.candidate.providerId);
+            run.capture?.streamFailed(error);
             log?.info('stream ended with an error', { component: 'gateway', model, error: error instanceof Error ? error.message : String(error) });
             try {
               send(controller, format.error());
@@ -407,19 +435,18 @@ export function createGatewayService(options: {
         await run.admit();
         const o = await runAttempts(route, {
           signal: ctx.signal, failures: routing.failures, log, backoffMs: options.backoffMs, checkModel, trace: run.trace,
-          call: (c, signal) => providers.embed(c.providerId, { model: c.providerModelId, input: req.input }, signal),
+          call: (c, signal) => run.call(c, (tap) => providers.embed(c.providerId, { model: c.providerModelId, input: req.input }, signal, tap)),
         });
         const inputChars = req.input.reduce((n, s) => n + s.length, 0);
-        run.succeed(o, withEstimate({ inputTokens: o.value.usage.inputTokens, outputTokens: 0, source: o.value.usage.source }, inputChars, 0));
         const prompt = o.value.usage.inputTokens;
-        return {
-          kind: 'json', status: 200, headers: routeHeaders(o),
-          body: {
-            object: 'list', model: o.candidate.modelRef,
-            data: o.value.embeddings.map((embedding, index) => ({ object: 'embedding', index, embedding })),
-            ...(prompt !== null ? { usage: { prompt_tokens: prompt, total_tokens: prompt } } : {}),
-          },
+        const answer = {
+          object: 'list', model: o.candidate.modelRef,
+          data: o.value.embeddings.map((embedding, index) => ({ object: 'embedding', index, embedding })),
+          ...(prompt !== null ? { usage: { prompt_tokens: prompt, total_tokens: prompt } } : {}),
         };
+        run.capture?.clientResponse(200, JSON.stringify(answer));
+        run.succeed(o, withEstimate({ inputTokens: o.value.usage.inputTokens, outputTokens: 0, source: o.value.usage.source }, inputChars, 0));
+        return { kind: 'json', status: 200, headers: routeHeaders(o), body: answer };
       });
     },
 

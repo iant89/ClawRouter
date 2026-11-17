@@ -6,6 +6,7 @@
   "dependencies": {
     "@clawrouter/api": "workspace:*",
     "@clawrouter/audit": "workspace:*",
+    "@clawrouter/captures": "workspace:*",
     "@clawrouter/authentication": "workspace:*",
     "@clawrouter/authorization": "workspace:*",
     "@clawrouter/console": "workspace:*",

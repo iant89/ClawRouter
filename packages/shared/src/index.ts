@@ -18,3 +18,4 @@ export * from './two-factor.ts';
 export * from './configuration.ts';
 export * from './quotas.ts';
 export * from './onboarding.ts';
+export * from './captures.ts';

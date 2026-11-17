@@ -17,6 +17,7 @@ import { createModelService, createSqliteModelRepository, type ModelService } fr
 import { createRoutingService, createSqliteRoutingStore, type RoutingService } from '@clawrouter/routing';
 import { createApiKeyService, createGatewayService, createKeyRequestService, type ApiKeyService, type GatewayService } from '@clawrouter/gateway';
 import { createQuotaService, createRateLimitService, createSqliteQuotaStore, createSqliteRateLimitConfigStore, MemoryCounterStore, type QuotaService, type RateLimitService } from '@clawrouter/rate-limits';
+import { createCaptureService, createSqliteCaptureRepository } from '@clawrouter/captures';
 import { createRequestLogService, createSqliteRequestRepository, type RequestLogService } from '@clawrouter/requests';
 import { createSqliteSettingsRepository, migrationStatus, migrations, openSqlite, runMigrations, type Database } from '@clawrouter/database';
 import { createSettingsService, settingDefaults } from '@clawrouter/settings';
@@ -144,7 +145,12 @@ export async function startClawRouter({ config, log, logBuffer, version, console
       assertCanManage: (actor, userId) => userAccessPolicy(authz).assertCanManageUser(actor, userId, "change this user's quota"),
     },
   });
-  const gateway = createGatewayService({ routing, providers, models, events, log, limits, requests, quotas });
+  // Provider captures (owner request, 2026-11-17): off until turned on in Settings, kept until deleted.
+  const captures = createCaptureService({
+    repo: createSqliteCaptureRepository(db), audit, log, version,
+    settings: { enabled: () => settings.get('capturesEnabled') === 1, maxCount: () => settings.get('capturesMaxCount') },
+  });
+  const gateway = createGatewayService({ routing, providers, models, events, log, limits, requests, quotas, captures: captures.sink });
   let liveHub: RealtimeHub | null = null;
   const healthHistory = createHealthHistoryService({ repo: createSqliteHealthHistoryRepository(db), log, get retentionDays() { return settings.get('healthHistoryDays'); } });
   const health = createHealthService({
@@ -269,7 +275,7 @@ export async function startClawRouter({ config, log, logBuffer, version, console
       return path;
     },
   });
-  const api = createApiApp({ log, logBuffer, audit, health, configuration, onboarding, preferences, lifecycle: { state: () => lifecycle }, healthHistory, auth, authz, userAdmin, settings, twoFactor, mail, notifications, providers, models, routing, apiKeys, keyRequests, gateway, limits, quotas, requests, operations, setup, version, mcpEnabled: () => settings.get('mcpEnabled') === 1, cookie: { secure: config.auth.cookieSecure } });
+  const api = createApiApp({ log, logBuffer, audit, health, configuration, onboarding, preferences, lifecycle: { state: () => lifecycle }, healthHistory, auth, authz, userAdmin, settings, twoFactor, mail, notifications, providers, models, routing, apiKeys, keyRequests, gateway, limits, quotas, requests, operations, captures, setup, version, mcpEnabled: () => settings.get('mcpEnabled') === 1, cookie: { secure: config.auth.cookieSecure } });
 
   // The console's live channel (spec §25): session-authenticated, same-origin only.
   const realtime = createRealtimeHub({

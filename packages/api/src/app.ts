@@ -35,6 +35,8 @@ import { auditController } from './controllers/audit.ts';
 import { keyRequestsController } from './controllers/key-requests.ts';
 import { twoFactorController } from './controllers/two-factor.ts';
 import { settingsController } from './controllers/settings.ts';
+import { capturesController } from './controllers/captures.ts';
+import type { CaptureService } from '@clawrouter/captures';
 import { configurationController } from './controllers/configuration.ts';
 import type { ConfigurationService } from '@clawrouter/configuration';
 import { createMcpHandler } from './mcp/server.ts';
@@ -72,6 +74,8 @@ export interface ApiDependencies {
   quotas: QuotaService;
   requests: RequestLogService;
   operations: OperationService;
+  /** Provider captures (owner request, 2026-11-17). */
+  captures: CaptureService;
   setup: SetupService;
   cookie: SessionCookieConfig;
   /** Reported to MCP clients (serverInfo.version). */
@@ -116,6 +120,7 @@ export function createApiApp(deps: ApiDependencies): ApiApp {
   const gw = gatewayController(deps.gateway);
   const rl = rateLimitsController(deps.limits);
   const rq = requestsController(deps.requests);
+  const cap = capturesController(deps.captures);
 
   // Public: health for load balancers, setup and sign-in.
   router.get('/api/health', 'public', healthHandler(deps.health));
@@ -191,6 +196,14 @@ export function createApiApp(deps: ApiDependencies): ApiApp {
   router.delete('/api/sessions/:id', 'sessions.revoke', authRoutes.revokeAnySession);
   router.get('/api/logs', 'logs.read', logs.list);
   router.get('/api/audit', 'audit.read', auditLog.list);
+  // Provider captures (owner request, 2026-11-17): they can hold users' prompts, so one permission covers them all.
+  router.get('/api/captures/state', 'captures.manage', cap.state);
+  router.get('/api/captures', 'captures.manage', cap.list);
+  router.get('/api/captures/:id', 'captures.manage', cap.get);
+  router.post('/api/captures/manual', 'captures.manage', cap.startManual);
+  router.delete('/api/captures/manual', 'captures.manage', cap.stopManual);
+  router.post('/api/captures/delete', 'captures.manage', cap.remove);
+  router.post('/api/captures/export', 'captures.manage', cap.export);
   router.get('/api/roles', 'roles.read', access.listRoles);
   router.post('/api/roles', 'roles.write', access.createRole);
   router.patch('/api/roles/:id', 'roles.write', access.updateRole);

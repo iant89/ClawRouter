@@ -34,7 +34,7 @@ const TABS = [
   { value: 'security', label: 'Sign-in and sessions', groups: ['Security'] },
   { value: 'api-keys', label: 'API keys and quotas', groups: ['API keys', 'Usage quotas', 'MCP server'] },
   { value: 'mail', label: 'Mail server', groups: [] },
-  { value: 'retention', label: 'Data retention', groups: ['Data retention'] },
+  { value: 'retention', label: 'Data retention', groups: ['Data retention', 'Provider captures'] },
   { value: 'configuration', label: 'Import and export', groups: [] },
 ] as const;
 /** Card titles where the group name would only repeat the tab. */

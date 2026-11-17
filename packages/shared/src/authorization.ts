@@ -17,6 +17,7 @@ export const PERMISSIONS = [
   'roles.read', 'roles.write', 'roles.assign',
   'sessions.read', 'sessions.revoke',
   'settings.read', 'settings.write',
+  'captures.manage',
 ] as const;
 export type Permission = (typeof PERMISSIONS)[number];
 
@@ -46,6 +47,7 @@ export const PERMISSION_DESCRIPTIONS: Record<Permission, string> = {
   'sessions.revoke': "Sign out any user's sessions",
   'settings.read': 'View system settings',
   'settings.write': 'Change system settings',
+  'captures.manage': 'View, export, start and delete provider captures (they can contain users\' prompts and replies)',
 };
 
 export const BUILT_IN_ROLE_IDS = ['ADMIN', 'OPERATOR', 'VIEWER'] as const;
@@ -92,7 +94,7 @@ export const ADMIN_ROLE_ID = 'ADMIN';
 export const PERMISSION_GROUPS: { area: string; permissions: Permission[] }[] = [
   { area: 'Gateway', permissions: ['requests.read', 'usage.read', 'api_keys.read', 'api_keys.write', 'api_keys.own', 'rate_limits.read', 'rate_limits.write'] },
   { area: 'AI infrastructure', permissions: ['providers.read', 'providers.write', 'models.read', 'models.write', 'routing.read', 'routing.write'] },
-  { area: 'System', permissions: ['health.read', 'logs.read', 'audit.read'] },
+  { area: 'System', permissions: ['health.read', 'logs.read', 'audit.read', 'captures.manage'] },
   { area: 'Administration', permissions: ['users.read', 'users.write', 'roles.read', 'roles.write', 'roles.assign', 'sessions.read', 'sessions.revoke', 'settings.read', 'settings.write'] },
 ];
 

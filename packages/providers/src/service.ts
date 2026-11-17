@@ -7,6 +7,7 @@ import {
 import { checkEndpoint } from './endpoint.ts';
 import { ProviderCallError } from './http.ts';
 import type { ProviderRecord, ProviderRepository } from './repository.ts';
+import type { ExchangeTap } from './tap.ts';
 import type { ProviderRegistry } from './registry.ts';
 import type { ChatRequest, ChatResponse, DiscoveredModel, EmbeddingRequest, EmbeddingResponse, ProviderAdapter, ProviderCallContext, StreamEvent } from './types.ts';
 
@@ -115,11 +116,13 @@ export function createProviderService(options: ProviderServiceOptions) {
     }
   }
 
-  async function callContext(p: ProviderRecord, timeoutMs: number, signal?: AbortSignal): Promise<{ adapter: ProviderAdapter; ctx: ProviderCallContext }> {
+  async function callContext(p: ProviderRecord, timeoutMs: number, signal?: AbortSignal, tap?: ExchangeTap): Promise<{ adapter: ProviderAdapter; ctx: ProviderCallContext }> {
     const adapter = registry.get(p.kind);
     const apiKey = await apiKeyFor(p);
     if (adapter.info.apiKeyRequired && !apiKey) throw new ConfigurationProblem('No API key is configured.');
-    return { adapter, ctx: { endpoint: p.endpoint, apiKey, timeoutMs, signal, fetch: options.fetch } };
+    // A tap (provider captures) copies the exchange as it passes; the call itself is unchanged.
+    const fetchImpl = tap ? tap.wrap(options.fetch ?? fetch, apiKey) : options.fetch;
+    return { adapter, ctx: { endpoint: p.endpoint, apiKey, timeoutMs, signal, fetch: fetchImpl } };
   }
 
   /** Maps a check outcome to a provider state. */
@@ -353,28 +356,28 @@ export function createProviderService(options: ProviderServiceOptions) {
      * One standardized call into any provider (used by the gateway, phase 8).
      * `providerId` is the ClawRouter provider id; `request.model` the provider's model id.
      */
-    async chat(providerId: string, request: ChatRequest, signal?: AbortSignal): Promise<ChatResponse> {
+    async chat(providerId: string, request: ChatRequest, signal?: AbortSignal, tap?: ExchangeTap): Promise<ChatResponse> {
       const p = mustGet(providerId);
       if (!p.enabled) throw new AppError('ROUTING_ERROR', 'Provider is disabled.');
-      const { adapter, ctx } = await callContext(p, p.timeoutMs, signal).catch((e) => {
+      const { adapter, ctx } = await callContext(p, p.timeoutMs, signal, tap).catch((e) => {
         throw e instanceof ConfigurationProblem ? new AppError('PROVIDER_ERROR', e.message, { expose: true }) : e;
       });
       return adapter.sendRequest(ctx, request);
     },
 
-    async *chatStream(providerId: string, request: ChatRequest, signal?: AbortSignal): AsyncGenerator<StreamEvent> {
+    async *chatStream(providerId: string, request: ChatRequest, signal?: AbortSignal, tap?: ExchangeTap): AsyncGenerator<StreamEvent> {
       const p = mustGet(providerId);
       if (!p.enabled) throw new AppError('ROUTING_ERROR', 'Provider is disabled.');
-      const { adapter, ctx } = await callContext(p, p.timeoutMs, signal).catch((e) => {
+      const { adapter, ctx } = await callContext(p, p.timeoutMs, signal, tap).catch((e) => {
         throw e instanceof ConfigurationProblem ? new AppError('PROVIDER_ERROR', e.message, { expose: true }) : e;
       });
       yield* adapter.sendStreamingRequest(ctx, request);
     },
 
-    async embed(providerId: string, request: EmbeddingRequest, signal?: AbortSignal): Promise<EmbeddingResponse> {
+    async embed(providerId: string, request: EmbeddingRequest, signal?: AbortSignal, tap?: ExchangeTap): Promise<EmbeddingResponse> {
       const p = mustGet(providerId);
       if (!p.enabled) throw new AppError('ROUTING_ERROR', 'Provider is disabled.');
-      const { adapter, ctx } = await callContext(p, p.timeoutMs, signal).catch((e) => {
+      const { adapter, ctx } = await callContext(p, p.timeoutMs, signal, tap).catch((e) => {
         throw e instanceof ConfigurationProblem ? new AppError('PROVIDER_ERROR', e.message, { expose: true }) : e;
       });
       if (!adapter.embed) throw new AppError('PROVIDER_ERROR', `${adapter.info.displayName} providers do not offer embeddings.`, { expose: true });
