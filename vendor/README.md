@@ -9,7 +9,7 @@ committed on purpose: a fresh clone needs only `bun install`.
 | | |
 |---|---|
 | Package | `@enterprise-ui/react` 0.1.0 |
-| Source | ENTERPRISE-UI branch `claude/clawapi-design-spec-p0hucn` at `3440ec85caa8e7b9d9987e2c8cab59b045e8a3a4`: `main` (`ac70db0`) plus ComboBox `editable` and `openOnClick`, not yet merged into ENTERPRISE-UI `main`; re-vendor from `main` once it is |
+| Source | ENTERPRISE-UI branch `claude/clawapi-design-spec-p0hucn` at `c0c0aa8ad4a00923ec78d7a744e8c3971e61689d`: `main` (`ac70db0`) plus ComboBox `editable` and `openOnClick`, and the input box focus ring and arrow centring fix; not yet merged into ENTERPRISE-UI `main`. Re-vendor from `main` once it is |
 | Contents | the published files only (`dist/`, `README.md`), as `npm pack` produces them |
 
 ### Updating

@@ -169,8 +169,8 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
   The owner asked for the tarball to be committed rather than cloned or built at
   install time. `vendor/enterprise-ui-react.tgz` is from ENTERPRISE-UI `main` at `ac70db0` (with
   QrCode, pull request 54, and Tour and the small-screen Wizard, pull request 55). Since 2026-11-17 it
-  is from branch `claude/clawapi-design-spec-p0hucn` at `3440ec8` (`main` plus ComboBox `editable` /
-  `openOnClick`, not yet merged into ENTERPRISE-UI `main`). To update it, follow
+  is from branch `claude/clawapi-design-spec-p0hucn` at `c0c0aa8` (`main` plus ComboBox `editable` /
+  `openOnClick` and the input focus-ring / arrow fix, not yet merged into ENTERPRISE-UI `main`). To update it, follow
   `vendor/README.md` (needs a local ENTERPRISE-UI checkout); run `bun install --force`, because the
   package version stays 0.1.0 and a plain install keeps the cached copy.
 
@@ -479,7 +479,7 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
   `claude/captures-live-groq`): fast-forwarding `main` to `claude/announcement-emoji` merges all three
   when the owner says "merge". Migration 0025. The Type box uses ENTERPRISE-UI ComboBox `editable={false}`
   and `openOnClick` (owner, 2026-11-17), pushed to ENTERPRISE-UI `claude/clawapi-design-spec-p0hucn`
-  (`3440ec8`, not merged there; no pull request yet: ask the owner) and vendored from that branch.
+  (`c0c0aa8`, not merged there; no pull request yet: ask the owner) and vendored from that branch.
   Once ENTERPRISE-UI `main` has it, re-vendor from `main` and update `vendor/README.md`.
 
 - **MESSAGE** · 2026-11-17 · Client notices wait for review (with the live Groq capture check)
