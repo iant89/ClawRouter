@@ -10,7 +10,7 @@ export type PageId =
   | 'dashboard'
   | 'requests' | 'api-access' | 'my-keys' | 'rate-limits' | 'usage'
   | 'providers' | 'models' | 'routing'
-  | 'health' | 'operations' | 'logs' | 'audit'
+  | 'health' | 'operations' | 'logs' | 'audit' | 'captures'
   | 'users' | 'roles' | 'sessions' | 'settings';
 
 export interface NavItem {
@@ -66,6 +66,7 @@ export const NAVIGATION: readonly NavGroup[] = [
       { id: 'operations', permission: 'health.read', label: 'Operations', path: '/operations', icon: 'in-progress', summary: 'Long-running work such as connection tests and checks, with progress and cancellation.' },
       { id: 'logs', permission: 'logs.read', label: 'Logs', path: '/logs', icon: 'document-text', summary: 'Structured, redacted server logs with filtering by level, component, provider and request id.' },
       { id: 'audit', permission: 'audit.read', label: 'Audit', path: '/audit', icon: 'history', summary: 'Security-relevant actions: who changed what, when and from where.' },
+      { id: 'captures', permission: 'captures.manage', label: 'Captures', path: '/captures', icon: 'record', summary: 'Requests that went wrong with a provider, recorded in full and exported to a file for a developer.' },
     ],
   },
   {

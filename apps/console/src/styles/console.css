@@ -237,3 +237,12 @@ body {
   display: grid;
   justify-items: center;
 }
+
+/* Provider captures: raw bodies and headers, scrolled inside a fixed height. */
+.claw-capture-body {
+  max-block-size: 22rem;
+  overflow: auto;
+  user-select: text;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

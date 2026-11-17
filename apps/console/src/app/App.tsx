@@ -42,6 +42,7 @@ const UsagePage = page(() => import('../features/usage/UsagePage.tsx'), 'UsagePa
 const OperationsPage = page(() => import('../features/operations/OperationsPage.tsx'), 'OperationsPage');
 const LogsPage = page(() => import('../features/logs/LogsPage.tsx'), 'LogsPage');
 const AuditPage = page(() => import('../features/audit/AuditPage.tsx'), 'AuditPage');
+const CapturesPage = page(() => import('../features/captures/CapturesPage.tsx'), 'CapturesPage');
 const SettingsPage = page(() => import('../features/settings/SettingsPage.tsx'), 'SettingsPage');
 const SetupWizard = page(() => import('../features/onboarding/SetupWizard.tsx'), 'SetupWizard');
 
@@ -66,6 +67,7 @@ function PageFor({ item }: { item: NavItem | undefined }) {
     case 'operations': return <OperationsPage />;
     case 'logs': return <LogsPage />;
     case 'audit': return <AuditPage />;
+    case 'captures': return <CapturesPage />;
     case 'roles': return <RolesPage />;
     case 'settings': return <SettingsPage />;
     default: return <NotFoundPage />;

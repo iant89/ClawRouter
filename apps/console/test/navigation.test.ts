@@ -6,9 +6,9 @@ describe('console navigation', () => {
   test('matches the spec §17 structure', () => {
     expect(NAVIGATION.map((g) => g.label)).toEqual([null, 'Gateway', 'AI Infrastructure', 'System', 'Administration']);
     expect(NAV_ITEMS.map((i) => i.label)).toEqual([
-      // Rate Limits (phase 9) and My API keys (self-service keys and requests) go beyond the spec §17 list.
+      // Rate Limits (phase 9) and My API keys (self-service keys and requests) go beyond the spec §17 list, as do Captures (owner request, 2026-11-17).
       'Dashboard', 'Requests', 'API Access', 'My API keys', 'Rate Limits', 'Usage', 'Providers', 'Models', 'Routing',
-      'Health', 'Operations', 'Logs', 'Audit', 'Users', 'Roles', 'Sessions', 'Settings',
+      'Health', 'Operations', 'Logs', 'Audit', 'Captures', 'Users', 'Roles', 'Sessions', 'Settings',
     ]);
   });
 
@@ -28,7 +28,7 @@ describe('console navigation', () => {
   });
 
   test('only implemented pages lack a planned phase', () => {
-    expect(NAV_ITEMS.filter((i) => i.plannedPhase === undefined).map((i) => i.id)).toEqual(['dashboard', 'requests', 'api-access', 'my-keys', 'rate-limits', 'usage', 'providers', 'models', 'routing', 'health', 'operations', 'logs', 'audit', 'users', 'roles', 'sessions', 'settings']);
+    expect(NAV_ITEMS.filter((i) => i.plannedPhase === undefined).map((i) => i.id)).toEqual(['dashboard', 'requests', 'api-access', 'my-keys', 'rate-limits', 'usage', 'providers', 'models', 'routing', 'health', 'operations', 'logs', 'audit', 'captures', 'users', 'roles', 'sessions', 'settings']);
   });
 });
 

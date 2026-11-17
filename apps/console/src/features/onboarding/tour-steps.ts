@@ -32,6 +32,7 @@ const AREA_TEXT: Record<string, (pages: PageId[]) => string> = {
     pages.includes('logs') && pages.includes('audit') ? 'Logs and Audit record what happened and who did it.'
       : pages.includes('logs') ? 'Logs records what the server did.'
         : pages.includes('audit') ? 'Audit records who did what, and when.' : '',
+    pages.includes('captures') ? 'Captures keeps the full exchange of requests a provider got wrong, to export for a developer (turned on in Settings).' : '',
   ].filter(Boolean).join(' '),
   admin: (pages) => [
     pages.includes('users') || pages.includes('roles') ? 'Users and Roles decide who can do what.' : '',
