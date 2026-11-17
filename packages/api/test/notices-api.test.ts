@@ -205,7 +205,7 @@ describe('client notices', () => {
   });
 
   test('weekly announcements start again on Monday', async () => {
-    const { h, admin, key } = await world();
+    const { h, key } = await world();
     h.clock.time = Date.parse('2026-11-18T12:00:00Z'); // Wednesday
     await announce(h, await h.login(), { message: 'Weekly digest', frequency: 'weekly' });
     const texts = async () => (notices(await v1(h, key, chat())) ?? []).map((n) => n.text);
