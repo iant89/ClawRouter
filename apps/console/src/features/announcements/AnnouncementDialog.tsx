@@ -93,9 +93,9 @@ export function AnnouncementDialog({ open, editing, onClose, onSaved }: {
     >
       <div style={{ display: 'grid', gap: 'var(--eui-space-4, 1rem)' }}>
       {error && <MessageStrip tone="error">{error}</MessageStrip>}
-      <WithFieldHelp label="Type" help="The icon the announcement line starts with in replies, and the icon field in the header. Pick the one that says what kind of news it is.">
+      <WithFieldHelp label="Type" help="The icon the announcement line starts with in replies, and the icon field in the header. Pick the one that says what kind of news it is. Click to choose, or press a letter to jump (M for Maintenance).">
         <ComboBox
-          label="Type" value={icon} error={issues.icon} clearable={false}
+          label="Type" value={icon} error={issues.icon} clearable={false} editable={false} openOnClick
           onChange={(v) => { if (isAnnouncementIcon(v)) setIcon(v); }}
           options={ANNOUNCEMENT_ICONS.map((i) => ({ value: i.icon, label: `${i.icon}  ${i.label}` }))}
         />

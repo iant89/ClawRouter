@@ -493,3 +493,4 @@ Added 2026-11-17 (announcement type and emoji picker; the 🚀 line was then sen
 | ![List](31-notices/15-list-with-icon.png) | The list shows each announcement's icon |
 | ![Light](31-notices/16-picker-light.png) | The picker in light, editing |
 | ![Phone](31-notices/17-picker-phone.png) | Phone width: larger touch targets |
+| ![Type open](31-notices/18-type-open-on-click.png) | The Type box opens on a click and cannot be typed in (ENTERPRISE-UI ComboBox `editable={false}` and `openOnClick`) |

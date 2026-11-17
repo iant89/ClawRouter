@@ -475,7 +475,10 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 - **MESSAGE** · 2026-11-17 · Announcement icons and emoji picker wait for review
   `claude/announcement-emoji` is built on `claude/client-notices` (which is built on
   `claude/captures-live-groq`): fast-forwarding `main` to `claude/announcement-emoji` merges all three
-  when the owner says "merge". Migration 0025. Open idea: let ENTERPRISE-UI's ComboBox open on click.
+  when the owner says "merge". Migration 0025. The Type box uses ENTERPRISE-UI ComboBox `editable={false}`
+  and `openOnClick` (owner, 2026-11-17), pushed to ENTERPRISE-UI `claude/clawapi-design-spec-p0hucn`
+  (`3440ec8`, not merged there; no pull request yet: ask the owner) and vendored from that branch.
+  Once ENTERPRISE-UI `main` has it, re-vendor from `main` and update `vendor/README.md`.
 
 - **MESSAGE** · 2026-11-17 · Client notices wait for review (with the live Groq capture check)
   `claude/client-notices` is built on `claude/captures-live-groq` (docs only), so fast-forwarding

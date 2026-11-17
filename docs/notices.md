@@ -106,5 +106,6 @@ the message text itself are free (they are not part of the match).
 
 The picker is `apps/console/src/components/custom/EmojiPicker.tsx` (ENTERPRISE-UI has none; a
 candidate for the design system). Escape closes the picker only, not the dialog it is in.
-The Type combo box opens from its arrow, the keyboard (↓) or typing ("rocket", "maint"); a click
-on the text does not open it (ENTERPRISE-UI's ComboBox has no such option yet).
+The Type box is select-like (ENTERPRISE-UI ComboBox `editable={false}` and `openOnClick`, owner
+request 2026-11-17): a click opens it, it cannot be typed in, Space or Enter open it, and a letter
+jumps to the next type starting with it (M for Maintenance).

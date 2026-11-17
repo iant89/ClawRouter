@@ -9,7 +9,7 @@ committed on purpose: a fresh clone needs only `bun install`.
 | | |
 |---|---|
 | Package | `@enterprise-ui/react` 0.1.0 |
-| Source | ENTERPRISE-UI `main` at `ac70db04463b80837986eb8692beac46378d5c3e` (pull request 55: the Tour component, and the Wizard on small screens) |
+| Source | ENTERPRISE-UI branch `claude/clawapi-design-spec-p0hucn` at `3440ec85caa8e7b9d9987e2c8cab59b045e8a3a4`: `main` (`ac70db0`) plus ComboBox `editable` and `openOnClick`, not yet merged into ENTERPRISE-UI `main`; re-vendor from `main` once it is |
 | Contents | the published files only (`dist/`, `README.md`), as `npm pack` produces them |
 
 ### Updating
