@@ -249,6 +249,8 @@ describe('provider captures', () => {
     expect((await captures(h, admin, '?trigger=parse_error')).map((c) => c.providerId)).toEqual([openai.id]);
     expect(await captures(h, admin, `?providerId=${openai.id}`)).toHaveLength(1);
     expect(await captures(h, admin, '?trigger=error')).toHaveLength(1);
+    const [one] = await captures(h, admin, '?trigger=error');
+    expect((await captures(h, admin, `?requestId=${one!.requestId}`)).map((c) => c.id)).toEqual([one!.id]);
     expect((await h.request('/api/captures?trigger=nope', { cookie: admin })).status).toBe(400);
     for (const role of ['OPERATOR', 'VIEWER']) {
       await h.addUser(role.toLowerCase(), [role]);

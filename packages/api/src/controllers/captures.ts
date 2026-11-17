@@ -63,7 +63,8 @@ export function capturesController(captures: CaptureService) {
     const trigger = url.searchParams.get('trigger') || undefined;
     if (trigger && !(CAPTURE_TRIGGERS as readonly string[]).includes(trigger)) throw errors.validation([{ path: 'trigger', message: `must be one of ${CAPTURE_TRIGGERS.join(', ')}` }]);
     const providerId = url.searchParams.get('providerId')?.slice(0, 64) || undefined;
-    const result = captures.list({ trigger: trigger as CaptureTrigger | undefined, providerId, limit: pageSize, offset: (page - 1) * pageSize });
+    const requestId = url.searchParams.get('requestId')?.slice(0, 64) || undefined;
+    const result = captures.list({ trigger: trigger as CaptureTrigger | undefined, providerId, requestId, limit: pageSize, offset: (page - 1) * pageSize });
     return ok<CaptureSummary[]>(result.items, { meta: { page, pageSize, total: result.total } });
   };
 

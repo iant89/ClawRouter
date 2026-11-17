@@ -4,6 +4,7 @@ import type { CaptureDetail, CaptureSummary, CaptureTrigger, GatewayEndpoint } f
 export interface CaptureQuery {
   trigger?: CaptureTrigger;
   providerId?: string;
+  requestId?: string;
   limit: number;
   offset: number;
 }
@@ -64,7 +65,7 @@ export function createSqliteCaptureRepository(db: Database): CaptureRepository {
           c.outcome.status, c.outcome.httpStatus, c.outcome.errorCode, c.outcome.errorMessage, c.exchangeCount, c.sizeBytes, data],
       );
     },
-    list({ trigger, providerId, limit, offset }) {
+    list({ trigger, providerId, requestId, limit, offset }) {
       const where: string[] = [];
       const params: (string | number)[] = [];
       if (trigger) {
@@ -74,6 +75,10 @@ export function createSqliteCaptureRepository(db: Database): CaptureRepository {
       if (providerId) {
         where.push('provider_id = ?');
         params.push(providerId);
+      }
+      if (requestId) {
+        where.push('request_id = ?');
+        params.push(requestId);
       }
       const clause = where.length ? `WHERE ${where.join(' AND ')}` : '';
       const total = db.get<{ n: number }>(`SELECT COUNT(*) AS n FROM provider_captures ${clause}`, params)?.n ?? 0;
