@@ -474,23 +474,16 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 
 ### Messages
 
-- **MESSAGE** · 2026-11-17 · Announcement icons and emoji picker wait for review
-  `claude/announcement-emoji` is built on `claude/client-notices` (which is built on
-  `claude/captures-live-groq`): fast-forwarding `main` to `claude/announcement-emoji` merges all three
-  when the owner says "merge". Migration 0025. The Type box uses ENTERPRISE-UI ComboBox `editable={false}`
-  and `openOnClick` (owner, 2026-11-17), pushed to ENTERPRISE-UI `claude/clawapi-design-spec-p0hucn`
-  (`c0c0aa8`, not merged there; no pull request yet: ask the owner) and vendored from that branch.
-  Once ENTERPRISE-UI `main` has it, re-vendor from `main` and update `vendor/README.md`.
+- **MESSAGE** · 2026-11-17 · ENTERPRISE-UI changes not yet in its `main`
+  ClawRouter `main` vendors ENTERPRISE-UI from branch `claude/clawapi-design-spec-p0hucn` at `c0c0aa8`:
+  ComboBox `editable` / `openOnClick` and the input focus-ring / dropdown-arrow fix, on top of
+  ENTERPRISE-UI `main` (`ac70db0`). No pull request there yet: ask the owner. Once ENTERPRISE-UI
+  `main` has them, re-vendor from `main` and update `vendor/README.md` and the IMPORTANT entry above.
 
-- **MESSAGE** · 2026-11-17 · Client notices wait for review (with the live Groq capture check)
-  `claude/client-notices` is built on `claude/captures-live-groq` (docs only), so fast-forwarding
-  `main` to `claude/client-notices` merges both when the owner says "merge". It adds client notices
-  and announcements (see the owner rule under Important), migration 0024, a new `@clawrouter/notices`
-  package, Settings → Client notices and Administration → Announcements.
-
-- **MESSAGE** · 2026-11-17 · Everything merged after provider captures
-  Old branches to delete on GitHub (the session cannot): every merged
-  `claude/*` branch (now including `claude/provider-captures`), the superseded `claude/mcp-server`
+- **MESSAGE** · 2026-11-17 · Everything merged after client notices and announcements
+  Nothing in ClawRouter waits for review. Old branches to delete on GitHub (the session cannot): every merged
+  `claude/*` branch (now including `claude/captures-live-groq`, `claude/client-notices` and
+  `claude/announcement-emoji`), the superseded `claude/mcp-server`
   and the stale `claude/groq-provider`; never merge those two (duplicate migration 0020 / older
   Groq code). Still open: an Anthropic-compatible `/v1/messages` (so Claude Code can use
   ClawRouter), the native Gemini adapter (key in `x-goog-api-key`, added by the owner in the
@@ -499,6 +492,12 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 ---
 
 ## Resolved
+
+- **MESSAGE** · 2026-11-17 · Announcement icons, emoji picker, client notices and the live Groq capture
+  check wait for review. Resolved 2026-11-17: the owner said "Merge"; `main` was fast-forwarded to
+  `claude/announcement-emoji` (this commit), which contains `claude/client-notices` and
+  `claude/captures-live-groq`: migrations 0024 and 0025, the notices package, Settings → Client
+  notices, Administration → Announcements, the Type box and emoji picker.
 
 - **MESSAGE** · 2026-11-17 · Provider captures wait for review. Resolved 2026-11-17: the owner
   said "Merge"; `main` was fast-forwarded to `claude/provider-captures` (this commit): captures on
