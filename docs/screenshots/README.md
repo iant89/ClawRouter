@@ -439,3 +439,24 @@ A scratch production build on 2026-11-17, with two real Groq requests for data. 
 | ![Toggle, dark](29-theme/12-header-toggle-dark.png) | The header toggle next to the bell (sun: switch to light) |
 | ![Toggle, light](29-theme/13-header-toggle-light.png) | After toggling (moon: switch back to dark) |
 | ![Phone menu](29-theme/14-phone-toggle-in-menu.png) | Phone width: the toggle sits in the "⋯" menu; Uptime ticking |
+
+## 30 · Provider captures
+
+Captured 2026-11-17 against the mock providers (a failover from a provider answering 500, an
+HTML reply where JSON was expected, and a manual capture of a stream). See
+[`docs/captures.md`](../captures.md).
+
+| Screenshot | Shows |
+| --- | --- |
+| ![Off](30-captures/01-captures-off.png) | Off by default: nothing is recorded, with a link to Settings |
+| ![Settings](30-captures/02-settings-retention.png) | Settings → Data retention: the switch and how many are kept |
+| ![List](30-captures/03-captures-list.png) | A provider error (the client still got an answer after failover) and an unreadable reply |
+| ![Detail](30-captures/04-capture-detail.png) | One capture: outcome, then each provider call with headers (credentials removed) |
+| ![Bodies](30-captures/05-capture-detail-bodies.png) | The body sent to the provider and its raw reply |
+| ![Export](30-captures/07-export-dialog-masked.png) | Export with "Mask message text" |
+| ![Selected](30-captures/08-list-selected.png) | Several captures selected for one file |
+| ![Manual](30-captures/09-manual-dialog.png) | Capture the next requests: provider, model, count, time limit |
+| ![Running](30-captures/10-manual-running.png) | A manual capture running, with Stop |
+| ![Light](30-captures/11-captures-light.png) | Light theme |
+| ![Unreadable](30-captures/12-detail-light-unreadable.png) | An unreadable reply: the raw HTML ClawRouter could not parse |
+| ![Phone](30-captures/13-phone.png) | Phone width |

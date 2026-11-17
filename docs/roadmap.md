@@ -470,6 +470,17 @@ See [console shell → Theme](console-shell.md#theme). Requested 2026-11-17; the
 - [x] The last choice in the browser for the screens before sign-in
 - [x] Light checked across the console (one dark-only style adjusted); System follows the device
 
+## Owner request: provider captures ✅
+
+See [captures](captures.md). Requested 2026-11-17: capture the exchange with a provider when something goes wrong and export it to a file for a developer.
+
+- [x] Recording of every provider HTTP call (request, raw reply or stream) and of the client side, credentials removed
+- [x] Kept on provider errors and unreadable replies; a manual capture of the next N matching requests
+- [x] Off by default (Settings switch); kept until deleted, capped by count (migration 0023)
+- [x] Export to a JSON file, with optional masking of message text; audited
+- [x] `captures.manage` permission (Administrators); System → Captures page
+
+
 
 ---
 

@@ -14,6 +14,18 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 
 ### Important
 
+- **IMPORTANT** · 2026-11-17 · Owner rule: provider captures, for bug reports
+  The owner asked for "a tool that captures the communication between a provider and a client if
+  an error occurred or is being parsed incorrectly", exported to a file for a developer. Owner's
+  choices: automatic on errors and unreadable replies **plus** a manual "next N requests"; the
+  full exchange stored, **masking chosen at export**; kept **until deleted** (capped by the
+  `capturesMaxCount` setting). Access was left open ("I don't know"): a new `captures.manage`
+  permission, Administrators only by default. Off by default (`capturesEnabled`), like the MCP
+  server, because this is the one place message text is stored (spec §22 otherwise holds).
+  Keep: no credential ever in a capture (tap redacts headers, `?key=`, the provider key,
+  secret-shaped strings); a new provider kind needs nothing extra (the tap wraps its fetch).
+  See `docs/captures.md`; tests in `packages/api/test/captures-api.test.ts`.
+
 - **IMPORTANT** · 2026-11-17 · Owner rule: theme selection, Light / Dark / System, on the account
   The owner asked for light/dark theme selection and chose **Light, Dark and System** (no
   high-contrast), **remembered on the user's account** (follows them to every device). Dark stays
@@ -243,9 +255,9 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
     request can overshoot a token limit (documented in `docs/rate-limits.md`).
   - Gateway metrics on the dashboard are in memory and reset on restart; request
     history and usage are stored (phase 10) and survive restarts.
-  - Request history stores metadata only; there is no payload storage at all, so
-    there is nothing to configure for payload retention (spec §22). Keep it that
-    way unless the owner asks for opt-in payload logging.
+  - Request history stores metadata only (spec §22). The one exception, asked for by the
+    owner on 2026-11-17, is provider captures: opt-in (off by default), only requests that
+    went wrong or a manual capture, `captures.manage` only (see the owner rule).
   - `n > 1` is rejected with 400 (see `docs/gateway.md`). `/v1/responses` works but is
     stateless (no `previous_response_id`, no hosted tools). Tools
     work (2026-11-16); the deprecated `functions` / `function_call` are refused.
@@ -435,8 +447,14 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 
 ### Messages
 
+- **MESSAGE** · 2026-11-17 · Provider captures wait for review
+  `claude/provider-captures` (from `main` at `5b9b402`, migration 0023) adds provider captures
+  (see the owner rule under Important). Fast-forward `main` to it when the owner says "merge".
+  Not tried against a real provider yet (mock providers only): the tap wraps `fetch`, so it
+  should not matter, but check one live Groq or Gemini capture when convenient.
+
 - **MESSAGE** · 2026-11-17 · Everything merged after theme selection
-  Nothing waits for review. Old branches to delete on GitHub (the session cannot): every merged
+  Nothing else waits for review. Old branches to delete on GitHub (the session cannot): every merged
   `claude/*` branch (now including `claude/theme-selection`), the superseded `claude/mcp-server`
   and the stale `claude/groq-provider`; never merge those two (duplicate migration 0020 / older
   Groq code). Still open: an Anthropic-compatible `/v1/messages` (so Claude Code can use
