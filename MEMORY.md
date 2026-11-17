@@ -169,8 +169,8 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
   The owner asked for the tarball to be committed rather than cloned or built at
   install time. `vendor/enterprise-ui-react.tgz` is from ENTERPRISE-UI `main` at `ac70db0` (with
   QrCode, pull request 54, and Tour and the small-screen Wizard, pull request 55). Since 2026-11-17 it
-  is from branch `claude/clawapi-design-spec-p0hucn` at `c0c0aa8` (`main` plus ComboBox `editable` /
-  `openOnClick` and the input focus-ring / arrow fix, not yet merged into ENTERPRISE-UI `main`). To update it, follow
+  is from ENTERPRISE-UI `main` at `83e4097` (pull request 56: ComboBox `editable` / `openOnClick` and
+  the input focus-ring / dropdown-arrow fix). To update it, follow
   `vendor/README.md` (needs a local ENTERPRISE-UI checkout); run `bun install --force`, because the
   package version stays 0.1.0 and a plain install keeps the cached copy.
 
@@ -474,12 +474,6 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 
 ### Messages
 
-- **MESSAGE** · 2026-11-17 · ENTERPRISE-UI changes not yet in its `main`
-  ClawRouter `main` vendors ENTERPRISE-UI from branch `claude/clawapi-design-spec-p0hucn` at `c0c0aa8`:
-  ComboBox `editable` / `openOnClick` and the input focus-ring / dropdown-arrow fix, on top of
-  ENTERPRISE-UI `main` (`ac70db0`). No pull request there yet: ask the owner. Once ENTERPRISE-UI
-  `main` has them, re-vendor from `main` and update `vendor/README.md` and the IMPORTANT entry above.
-
 - **MESSAGE** · 2026-11-17 · Everything merged after client notices and announcements
   Nothing in ClawRouter waits for review. Old branches to delete on GitHub (the session cannot): every merged
   `claude/*` branch (now including `claude/captures-live-groq`, `claude/client-notices` and
@@ -492,6 +486,11 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 ---
 
 ## Resolved
+
+- **MESSAGE** · 2026-11-17 · ENTERPRISE-UI changes not yet in its `main`. Resolved 2026-11-17: the
+  owner said "Open the ENTERPRISE-UI pull request then merge". Pull request 56 (all four CI checks
+  green: check, consumer-package, e2e, phase3-browser) was squash-merged as `83e4097`; ClawRouter
+  re-vendored from that `main` (the tarball was byte-identical) and `vendor/README.md` now names it.
 
 - **MESSAGE** · 2026-11-17 · Announcement icons, emoji picker, client notices and the live Groq capture
   check wait for review. Resolved 2026-11-17: the owner said "Merge"; `main` was fast-forwarded to
