@@ -168,7 +168,9 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 - **IMPORTANT** · 2026-11-12 · ENTERPRISE-UI comes from a committed tarball; do not clone it
   The owner asked for the tarball to be committed rather than cloned or built at
   install time. `vendor/enterprise-ui-react.tgz` is from ENTERPRISE-UI `main` at `ac70db0` (with
-  QrCode, pull request 54, and Tour and the small-screen Wizard, pull request 55). To update it, follow
+  QrCode, pull request 54, and Tour and the small-screen Wizard, pull request 55). Since 2026-11-17 it
+  is from branch `claude/clawapi-design-spec-p0hucn` at `3440ec8` (`main` plus ComboBox `editable` /
+  `openOnClick`, not yet merged into ENTERPRISE-UI `main`). To update it, follow
   `vendor/README.md` (needs a local ENTERPRISE-UI checkout); run `bun install --force`, because the
   package version stays 0.1.0 and a plain install keeps the cached copy.
 
