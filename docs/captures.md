@@ -88,6 +88,23 @@ field-shape problems can still be found. Streams are masked event by event; non-
 bodies (an HTML error page) are masked whole. Leave it off when the problem may be in the
 text itself. Every export is audited with its capture ids and whether it was masked.
 
+## Checked live (Groq, 2026-11-17)
+
+Through the session's network secret for api.groq.com (ClawRouter held only a placeholder key):
+
+| Scenario | Client got | Kept as |
+| --- | --- | --- |
+| A model Groq does not have | 502 | Provider error: Groq's own 404 body (`model_not_found`) |
+| An alias whose first target is that model | 200 (failover) | Provider error: the 404, then Groq's 200 answer |
+| `max_tokens: 900000` on gpt-oss-20b | 400 | Provider error: what was sent (`max_completion_tokens`, as the adapter translates it) and Groq's 400 |
+| A streamed tool call on qwen3.8-27b, manual capture | 200 | Manual capture: Groq's raw stream, complete |
+| A plain successful request | 200 | Not kept |
+
+A request ClawRouter refuses itself (`max_tokens` over 1,000,000) never reaches a provider, so
+there is nothing to capture; it is in request history only. Both exports (full and masked) were
+scanned: no placeholder key, no ClawRouter key, no `gsk_` key, no bearer token;
+`authorization` shows `[REDACTED]` on every call.
+
 ## Limits
 
 - Each body is kept up to **256 KB**; the rest is counted (`bytes`, `truncated`). A large

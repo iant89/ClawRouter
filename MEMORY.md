@@ -447,10 +447,14 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 
 ### Messages
 
+- **MESSAGE** · 2026-11-17 · Live Groq capture check waits for review
+  `claude/captures-live-groq` (docs and screenshots only) records the live Groq check of provider
+  captures (see "Checked live" in `docs/captures.md`): a real 404, a failover, a real 400 and a
+  manual capture of a stream were all captured correctly, with no credential in either export.
+  Nothing in the code changed. Fast-forward `main` to it when the owner says "merge".
+
 - **MESSAGE** · 2026-11-17 · Everything merged after provider captures
-  Nothing waits for review. Provider captures were only tried against the mock providers: the
-  tap wraps `fetch`, so it should not matter, but check one live Groq or Gemini capture when
-  convenient. Old branches to delete on GitHub (the session cannot): every merged
+  Old branches to delete on GitHub (the session cannot): every merged
   `claude/*` branch (now including `claude/provider-captures`), the superseded `claude/mcp-server`
   and the stale `claude/groq-provider`; never merge those two (duplicate migration 0020 / older
   Groq code). Still open: an Anthropic-compatible `/v1/messages` (so Claude Code can use

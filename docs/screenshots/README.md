@@ -460,3 +460,7 @@ HTML reply where JSON was expected, and a manual capture of a stream). See
 | ![Light](30-captures/11-captures-light.png) | Light theme |
 | ![Unreadable](30-captures/12-detail-light-unreadable.png) | An unreadable reply: the raw HTML ClawRouter could not parse |
 | ![Phone](30-captures/13-phone.png) | Phone width |
+| ![Live list](30-captures/14-live-list.png) | Live against Groq (2026-11-17): an unknown model, a failover and a manual capture of a stream |
+| ![Live failover](30-captures/15-live-failover.png) | Groq's real 404 for a model it does not have, before the failover answered |
+| ![Live reply](30-captures/16-live-failover-reply.png) | The raw replies Groq sent |
+| ![Live stream](30-captures/17-live-stream.png) | A manual capture of a streamed tool call on Groq's Qwen |
