@@ -447,15 +447,11 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 
 ### Messages
 
-- **MESSAGE** · 2026-11-17 · Provider captures wait for review
-  `claude/provider-captures` (from `main` at `5b9b402`, migration 0023) adds provider captures
-  (see the owner rule under Important). Fast-forward `main` to it when the owner says "merge".
-  Not tried against a real provider yet (mock providers only): the tap wraps `fetch`, so it
-  should not matter, but check one live Groq or Gemini capture when convenient.
-
-- **MESSAGE** · 2026-11-17 · Everything merged after theme selection
-  Nothing else waits for review. Old branches to delete on GitHub (the session cannot): every merged
-  `claude/*` branch (now including `claude/theme-selection`), the superseded `claude/mcp-server`
+- **MESSAGE** · 2026-11-17 · Everything merged after provider captures
+  Nothing waits for review. Provider captures were only tried against the mock providers: the
+  tap wraps `fetch`, so it should not matter, but check one live Groq or Gemini capture when
+  convenient. Old branches to delete on GitHub (the session cannot): every merged
+  `claude/*` branch (now including `claude/provider-captures`), the superseded `claude/mcp-server`
   and the stale `claude/groq-provider`; never merge those two (duplicate migration 0020 / older
   Groq code). Still open: an Anthropic-compatible `/v1/messages` (so Claude Code can use
   ClawRouter), the native Gemini adapter (key in `x-goog-api-key`, added by the owner in the
@@ -464,6 +460,10 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 ---
 
 ## Resolved
+
+- **MESSAGE** · 2026-11-17 · Provider captures wait for review. Resolved 2026-11-17: the owner
+  said "Merge"; `main` was fast-forwarded to `claude/provider-captures` (this commit): captures on
+  errors, unreadable replies and manual runs, export with optional masking (migration 0023).
 
 - **MESSAGE** · 2026-11-17 · Theme selection waits for review. Resolved 2026-11-17: the owner
   said "Merge"; `main` was fast-forwarded to `claude/theme-selection` (this commit): Light / Dark /
