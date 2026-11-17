@@ -6,6 +6,8 @@ import { useAuth } from '../auth/AuthContext.tsx';
 
 interface ThemeChoiceValue {
   theme: ThemeChoice;
+  /** What is showing: the choice, with System resolved to the device's setting. */
+  shown: 'light' | 'dark';
   /** Applies at once; saved on the account when signed in, and in this browser. */
   setTheme(theme: ThemeChoice): Promise<void>;
 }
@@ -20,6 +22,7 @@ const ThemeChoiceContext = createContext<ThemeChoiceValue | null>(null);
 export function ThemeChoiceProvider({ children }: { children: ReactNode }) {
   const { state, refresh } = useAuth();
   const touch = useMediaQuery('(pointer: coarse)');
+  const deviceDark = useMediaQuery('(prefers-color-scheme: dark)');
   const accountTheme = state.status === 'signed-in' ? state.session.theme : null;
   // A choice just made, shown before the server confirms it.
   const [pending, setPending] = useState<ThemeChoice | null>(null);
@@ -44,7 +47,8 @@ export function ThemeChoiceProvider({ children }: { children: ReactNode }) {
     }
   }, [state.status, refresh]);
 
-  const value = useMemo(() => ({ theme, setTheme }), [theme, setTheme]);
+  const shown = theme === 'system' ? (deviceDark ? 'dark' : 'light') : theme;
+  const value = useMemo(() => ({ theme, shown, setTheme }), [theme, shown, setTheme]);
   return (
     <ThemeChoiceContext.Provider value={value}>
       <ThemeProvider theme={theme} density={touch ? 'cozy' : 'compact'} style={{ height: '100%' }}>

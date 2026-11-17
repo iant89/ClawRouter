@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react';
-import { AppShell, ApplicationHeader, Icon, NavigationGroup, NavigationItem, SideNavigation } from '@enterprise-ui/react';
+import { AppShell, ApplicationHeader, Icon, NavigationGroup, NavigationItem, SideNavigation, useToast } from '@enterprise-ui/react';
 import { itemById, visibleNavigation, type NavItem } from '../app/navigation.ts';
 import { useRouter } from '../app/router.tsx';
 import { HealthStateIndicator } from '../components/custom/HealthStateIndicator.tsx';
@@ -12,6 +12,7 @@ import { AccountSecurityDialog } from '../features/auth/AccountSecurityDialog.ts
 import { NotificationsPanel } from '../features/notifications/NotificationsPanel.tsx';
 import { ConsoleTour } from '../features/onboarding/ConsoleTour.tsx';
 import { AppearanceDialog } from '../features/appearance/AppearanceDialog.tsx';
+import { useThemeChoice } from '../features/appearance/ThemeChoice.tsx';
 import { updateSetupWizard } from '../services/onboarding.ts';
 import { useNotifications } from '../features/notifications/NotificationsContext.tsx';
 
@@ -34,6 +35,10 @@ export function ConsoleLayout({ activeId, children }: { activeId: string | undef
   const [passwordOpen, setPasswordOpen] = useState(false);
   const [securityOpen, setSecurityOpen] = useState(false);
   const [appearanceOpen, setAppearanceOpen] = useState(false);
+  // Header toggle (owner request): flips what is showing; System stays available under Appearance.
+  const { shown, setTheme } = useThemeChoice();
+  const toast = useToast();
+  const toggleTheme = () => void setTheme(shown === 'dark' ? 'light' : 'dark').catch((err: unknown) => toast.show({ tone: 'error', title: 'Could not save the theme', description: err instanceof Error ? err.message : undefined, duration: 10_000 }));
   const { unread } = useNotifications();
   const gatewayState = error ? 'OFFLINE' : (data?.status ?? 'UNKNOWN');
 
@@ -60,6 +65,7 @@ export function ConsoleLayout({ activeId, children }: { activeId: string | undef
           }}
           notificationCount={unread}
           notifications={<NotificationsPanel />}
+          additionalActions={[{ id: 'theme', label: shown === 'dark' ? 'Switch to light theme' : 'Switch to dark theme', icon: shown === 'dark' ? 'light-mode' : 'dark-mode', onClick: toggleTheme }]}
           user={{ name: user.displayName, email: user.username, role: roles.length ? roles.map(roleLabel).join(', ') : 'No role' }}
           userMenuItems={[
             { id: 'sessions', label: 'My sessions', icon: 'user-settings' },

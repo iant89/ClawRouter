@@ -85,6 +85,8 @@ and sends one `activity` message per second, only while there is traffic.
   - dashboard metrics come with each activity message; recent failures and cost
     follow traffic;
   - health and the header follow `health.changed` and `provider.status`;
+  - the dashboard's Uptime counts up every second in the browser (the server's figure
+    plus the time since it was read), between health refreshes;
   - notifications arrive when created;
   - Rate Limits usage follows traffic;
   - the Requests page shows new requests on its first page ("Show new requests as

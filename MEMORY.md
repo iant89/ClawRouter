@@ -437,7 +437,8 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 
 - **MESSAGE** · 2026-11-17 · Theme selection waits for review
   `claude/theme-selection` (from `main` at `bd8f58d`) adds Light / Dark / System per user (see
-  the owner rule under Important). Fast-forward `main` to it when the owner says "merge". Old
+  the owner rule under Important). It also has a sun/moon toggle next to the notifications bell
+  (in the "⋯" menu on phones) and a dashboard Uptime that ticks every second. Fast-forward `main` to it when the owner says "merge". Old
   branches to delete on GitHub (the session cannot): every merged `claude/*` branch, the
   superseded `claude/mcp-server` and the stale `claude/groq-provider`; never merge those two
   (duplicate migration 0020 / older Groq code). Still open: an Anthropic-compatible

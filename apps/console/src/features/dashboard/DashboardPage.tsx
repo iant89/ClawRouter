@@ -5,6 +5,17 @@ import { useRouter } from '../../app/router.tsx';
 import { useHealth } from '../health/HealthContext.tsx';
 import { GatewayActivity } from './GatewayActivity.tsx';
 import { usePermissions, useSession } from '../auth/AuthContext.tsx';
+import { useEffect, useState } from 'react';
+
+/** The current time, updated every second while the page is shown. */
+function useNow(): number {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(id);
+  }, []);
+  return now;
+}
 
 
 export function DashboardPage() {
@@ -16,6 +27,9 @@ export function DashboardPage() {
   const canRequests = perms.can('requests.read');
   const database = data?.checks.find((c) => c.component === 'database');
   const issues = data?.checks.filter((c) => c.status !== 'HEALTHY' && c.status !== 'DISABLED') ?? [];
+  // Uptime ticks every second between health refreshes: the server's figure plus the time since it was read.
+  const now = useNow();
+  const uptime = data && lastUpdated ? data.uptimeSeconds + Math.max(0, Math.floor((now - lastUpdated.getTime()) / 1000)) : data?.uptimeSeconds;
 
   return (
     <Page
@@ -52,7 +66,7 @@ export function DashboardPage() {
           loading={!data && loading}
           footer={database ? `${database.latencyMs} ms` : undefined}
         />
-        <MetricCard title="Uptime" value={data ? formatUptime(data.uptimeSeconds) : '—'} icon="past" loading={!data && loading} footer={data ? `since ${new Date(data.startedAt).toLocaleString()}` : undefined} />
+        <MetricCard title="Uptime" value={uptime !== undefined ? formatUptime(uptime) : '—'} icon="past" loading={!data && loading} footer={data ? `since ${new Date(data.startedAt).toLocaleString()}` : undefined} />
         <MetricCard title="Version" value={data?.version ?? '—'} icon="it-system" loading={!data && loading} footer={data?.environment} />
 
         <DashboardWidget span={2}>

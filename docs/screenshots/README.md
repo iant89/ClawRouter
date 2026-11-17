@@ -436,3 +436,6 @@ A scratch production build on 2026-11-17, with two real Groq requests for data. 
 | ![Tour](29-theme/09-tour-light.png) | The guided tour in light |
 | ![Sign in](29-theme/10-sign-in-light.png) | After signing out: the sign-in page keeps this browser's last choice |
 | ![Phone](29-theme/11-dashboard-phone-light.png) | Phone width, light |
+| ![Toggle, dark](29-theme/12-header-toggle-dark.png) | The header toggle next to the bell (sun: switch to light) |
+| ![Toggle, light](29-theme/13-header-toggle-light.png) | After toggling (moon: switch back to dark) |
+| ![Phone menu](29-theme/14-phone-toggle-in-menu.png) | Phone width: the toggle sits in the "⋯" menu; Uptime ticking |

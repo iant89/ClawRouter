@@ -76,6 +76,11 @@ Owner request (2026-11-17): each user picks **Light**, **Dark** or **System** (f
 device's light/dark setting, live). **Dark** stays the default (spec §18).
 
 - **Where:** user menu → **Appearance**. The theme applies as soon as it is picked.
+- **Quick toggle** (owner request, 2026-11-17): a sun/moon button right after the
+  notifications bell (`additionalActions` of `ApplicationHeader`) switches between light and
+  dark and saves it like the picker. It flips what is *showing* (`shown` in the theme context:
+  System resolved to the device), so from System it saves an explicit Light or Dark. On a
+  phone the header folds it into the "⋯" menu.
 - **Remembered on the account** (`users.theme`, migration 0022; null = dark), so it follows
   the user to every browser and device. The session carries `theme`; `PUT /api/auth/theme`
   (`authenticated`, own choice only) changes it. A preference, so it is logged, not audited.
