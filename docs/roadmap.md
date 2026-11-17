@@ -480,6 +480,17 @@ See [captures](captures.md). Requested 2026-11-17: capture the exchange with a p
 - [x] Export to a JSON file, with optional masking of message text; audited
 - [x] `captures.manage` permission (Administrators); System → Captures page
 
+## Owner request: client notices and announcements ✅
+
+See [notices](notices.md). Requested 2026-11-17: tell API users about degraded health and news in the responses they receive.
+
+- [x] `X-ClawRouter-Notices` header and a line at the start of replies (streams, JSON, Responses API), each a setting, on by default
+- [x] Never in tool requests or embeddings' bodies; per-key switch for scripts (migration 0024)
+- [x] Cleanup of ClawRouter's notice lines from conversations sent back (setting, on by default)
+- [x] Editable degraded-health and failover messages, repeated at most once per interval per key
+- [x] Announcements: every request, once per user, daily or weekly in a time zone; header, reply or both; start and self-deleting expiry; audited
+- [x] `announcements.manage` permission (Administrators); Administration → Announcements; Settings → Client notices
+
 
 
 ---

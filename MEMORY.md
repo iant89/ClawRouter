@@ -14,6 +14,21 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 
 ### Important
 
+- **IMPORTANT** · 2026-11-17 · Owner rule: client notices and announcements
+  The owner asked to "inject messages into the stream to the client" (e.g. "ClawRouter health has
+  degraded, you may experience temporary performance issues"), then chose: the
+  `X-ClawRouter-Notices` header **on by default** (setting), the visible line at the start of
+  replies **also on by default** (setting), **configurable default messages**, and the cleanup of
+  notice lines from conversations sent back **on by default** (setting). Plus administrator
+  **announcements** with a schedule (every request / once per user / daily / weekly), channel,
+  start and a self-deleting expiry. Keep: never write reply text into tool requests or tool-call
+  replies; the per-key `replyNotices` switch (migration 0024) for scripts; the exact line format
+  (`⚠️|📢 ClawRouter: …` + blank line) because `stripNotices` depends on it; the health notice
+  follows `healthProblemIn` (not the overall label, which counts unchecked providers: that sent a
+  false alarm to every user in the first live check). A new chat endpoint (e.g. `/v1/messages`)
+  must call `withoutNotices` and `noticesFor` like `runChat`. See `docs/notices.md`; tests in
+  `packages/api/test/notices-api.test.ts`.
+
 - **IMPORTANT** · 2026-11-17 · Owner rule: provider captures, for bug reports
   The owner asked for "a tool that captures the communication between a provider and a client if
   an error occurred or is being parsed incorrectly", exported to a file for a developer. Owner's
@@ -213,6 +228,13 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
     the connecting proxy; then the right-most untrusted hop is the client.
 
 ### Warnings
+
+- **WARNING** · 2026-11-17 · Client notice limits
+  The system-notice interval (once per key per 30 minutes) and the active-announcement cache
+  (5 s) are in memory per process: with several nodes each repeats on its own schedule. A
+  delivery is recorded when the response starts, even if the client disconnects. Users have no
+  stored time zone, so daily/weekly use the announcement's own time zone. The "degraded" notice
+  can only reach requests that are still answered: an OFFLINE provider is skipped by routing.
 
 - **WARNING** · 2026-11-15 · Quota limits
   Quotas are charged when a request finishes, so parallel requests can together pass
@@ -447,11 +469,11 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 
 ### Messages
 
-- **MESSAGE** · 2026-11-17 · Live Groq capture check waits for review
-  `claude/captures-live-groq` (docs and screenshots only) records the live Groq check of provider
-  captures (see "Checked live" in `docs/captures.md`): a real 404, a failover, a real 400 and a
-  manual capture of a stream were all captured correctly, with no credential in either export.
-  Nothing in the code changed. Fast-forward `main` to it when the owner says "merge".
+- **MESSAGE** · 2026-11-17 · Client notices wait for review (with the live Groq capture check)
+  `claude/client-notices` is built on `claude/captures-live-groq` (docs only), so fast-forwarding
+  `main` to `claude/client-notices` merges both when the owner says "merge". It adds client notices
+  and announcements (see the owner rule under Important), migration 0024, a new `@clawrouter/notices`
+  package, Settings → Client notices and Administration → Announcements.
 
 - **MESSAGE** · 2026-11-17 · Everything merged after provider captures
   Old branches to delete on GitHub (the session cannot): every merged

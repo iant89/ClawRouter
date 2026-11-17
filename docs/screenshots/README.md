@@ -464,3 +464,21 @@ HTML reply where JSON was expected, and a manual capture of a stream). See
 | ![Live failover](30-captures/15-live-failover.png) | Groq's real 404 for a model it does not have, before the failover answered |
 | ![Live reply](30-captures/16-live-failover-reply.png) | The raw replies Groq sent |
 | ![Live stream](30-captures/17-live-stream.png) | A manual capture of a streamed tool call on Groq's Qwen |
+
+## 31 · Client notices and announcements
+
+Captured 2026-11-17 with a live Groq provider. See [`docs/notices.md`](../notices.md).
+
+| Screenshot | Shows |
+| --- | --- |
+| ![Settings](31-notices/01-settings-notices.png) | Settings → Client notices: header, reply text, cleanup, repeat interval |
+| ![Messages](31-notices/02-settings-messages.png) | The editable default messages |
+| ![Empty](31-notices/03-announcements-empty.png) | Administration → Announcements, empty |
+| ![Dialog](31-notices/04-announcement-dialog.png) | A new announcement: message, how often, where, start, expiry, time zone |
+| ![List](31-notices/05-announcements-list.png) | The announcement, active |
+| ![Key menu](31-notices/06-key-actions.png) | API Access: turn notices in replies off for one key |
+| ![Create key](31-notices/07-create-key-switch.png) | The per-key switch when creating a key |
+| ![Reached](31-notices/08-announcements-reached.png) | After live Groq requests: reached 1 user |
+| ![Light](31-notices/09-announcements-light.png) | Light theme |
+| ![Settings light](31-notices/10-settings-notices-light.png) | Settings tab, light |
+| ![Phone](31-notices/11-announcements-phone.png) | Phone width |

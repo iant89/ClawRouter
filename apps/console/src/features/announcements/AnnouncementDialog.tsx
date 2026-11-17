@@ -87,6 +87,7 @@ export function AnnouncementDialog({ open, editing, onClose, onSaved }: {
         <Button variant="primary" onClick={() => void save()} loading={saving}>{editing ? 'Save' : 'Create'}</Button>
       </>}
     >
+      <div style={{ display: 'grid', gap: 'var(--eui-space-4, 1rem)' }}>
       {error && <MessageStrip tone="error">{error}</MessageStrip>}
       <TextArea label="Message" rows={3} required value={message} maxLength={NOTICE_TEXT_MAX} showCount error={issues.message}
         description="One line; line breaks become spaces. Shown as “📢 ClawRouter: …”." onChange={(e) => setMessage(e.target.value)} />
@@ -109,6 +110,7 @@ export function AnnouncementDialog({ open, editing, onClose, onSaved }: {
         </WithFieldHelp>
       )}
       <Switch label="Active" checked={enabled} onChange={setEnabled} description="Turn off to pause it without deleting it." />
+      </div>
     </Dialog>
   );
 }
