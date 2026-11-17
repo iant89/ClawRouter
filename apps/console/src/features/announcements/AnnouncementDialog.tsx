@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react';
-import { Button, ComboBox, DateTimePicker, Dialog, MessageStrip, RadioGroup, Select, Switch, TextArea, useToast } from '@enterprise-ui/react';
+import { useEffect, useRef, useState } from 'react';
+import { Button, ComboBox, DateTimePicker, Dialog, MessageStrip, RadioGroup, Select, Switch, Text, TextArea, useToast } from '@enterprise-ui/react';
 import {
-  ANNOUNCEMENT_CHANNEL_LABELS, ANNOUNCEMENT_CHANNELS, ANNOUNCEMENT_FREQUENCIES, ANNOUNCEMENT_FREQUENCY_LABELS, NOTICE_TEXT_MAX,
-  type AnnouncementChannel, type AnnouncementFrequency, type AnnouncementInfo,
+  ANNOUNCEMENT_CHANNEL_LABELS, ANNOUNCEMENT_CHANNELS, ANNOUNCEMENT_FREQUENCIES, ANNOUNCEMENT_FREQUENCY_LABELS, ANNOUNCEMENT_ICONS, DEFAULT_ANNOUNCEMENT_ICON,
+  NOTICE_TEXT_MAX, isAnnouncementIcon, type AnnouncementChannel, type AnnouncementFrequency, type AnnouncementIcon, type AnnouncementInfo,
 } from '@clawrouter/shared';
 import { WithFieldHelp } from '../../components/custom/FieldHelp.tsx';
+import { EmojiPicker, insertAtCursor } from '../../components/custom/EmojiPicker.tsx';
 import { ApiClientError } from '../../services/api-client.ts';
 import { createAnnouncement, updateAnnouncement } from '../../services/notices.ts';
 
@@ -37,6 +38,8 @@ export function AnnouncementDialog({ open, editing, onClose, onSaved }: {
 }) {
   const toast = useToast();
   const [message, setMessage] = useState('');
+  const [icon, setIcon] = useState<AnnouncementIcon>(DEFAULT_ANNOUNCEMENT_ICON);
+  const messageField = useRef<HTMLTextAreaElement>(null);
   const [frequency, setFrequency] = useState<AnnouncementFrequency>('once');
   const [channel, setChannel] = useState<AnnouncementChannel>('both');
   const [startsAt, setStartsAt] = useState('');
@@ -52,6 +55,7 @@ export function AnnouncementDialog({ open, editing, onClose, onSaved }: {
     setIssues({});
     setError(null);
     setMessage(editing?.message ?? '');
+    setIcon(editing?.icon ?? DEFAULT_ANNOUNCEMENT_ICON);
     setFrequency(editing?.frequency ?? 'once');
     setChannel(editing?.channel ?? 'both');
     setStartsAt(toLocal(editing?.startsAt ?? null));
@@ -64,7 +68,7 @@ export function AnnouncementDialog({ open, editing, onClose, onSaved }: {
     setSaving(true);
     setIssues({});
     setError(null);
-    const body = { message, frequency, channel, startsAt: toIso(startsAt), expiresAt: toIso(expiresAt), timeZone, enabled };
+    const body = { message, icon, frequency, channel, startsAt: toIso(startsAt), expiresAt: toIso(expiresAt), timeZone, enabled };
     try {
       if (editing) await updateAnnouncement(editing.id, body);
       else await createAnnouncement(body);
@@ -89,8 +93,30 @@ export function AnnouncementDialog({ open, editing, onClose, onSaved }: {
     >
       <div style={{ display: 'grid', gap: 'var(--eui-space-4, 1rem)' }}>
       {error && <MessageStrip tone="error">{error}</MessageStrip>}
-      <TextArea label="Message" rows={3} required value={message} maxLength={NOTICE_TEXT_MAX} showCount error={issues.message}
-        description="One line; line breaks become spaces. Shown as “📢 ClawRouter: …”." onChange={(e) => setMessage(e.target.value)} />
+      <WithFieldHelp label="Type" help="The icon the announcement line starts with in replies, and the icon field in the header. Pick the one that says what kind of news it is.">
+        <ComboBox
+          label="Type" value={icon} error={issues.icon}
+          onChange={(v) => { if (isAnnouncementIcon(v)) setIcon(v); }}
+          options={ANNOUNCEMENT_ICONS.map((i) => ({ value: i.icon, label: `${i.icon}  ${i.label}` }))}
+        />
+      </WithFieldHelp>
+      <div className="claw-field-with-action">
+        <TextArea ref={messageField} label="Message" rows={3} required value={message} maxLength={NOTICE_TEXT_MAX} showCount error={issues.message}
+          description="One line; line breaks become spaces." onChange={(e) => setMessage(e.target.value)} />
+        <EmojiPicker onPick={(emoji) => {
+          const next = insertAtCursor(messageField.current, message, emoji);
+          setMessage(next.value.slice(0, NOTICE_TEXT_MAX));
+          // Back to the message, with the caret after the emoji.
+          requestAnimationFrame(() => {
+            messageField.current?.focus();
+            messageField.current?.setSelectionRange(next.caret, next.caret);
+          });
+        }} />
+      </div>
+      <div className="claw-announcement-preview" aria-label="Preview">
+        <Text size="sm" tone="secondary">Preview in a reply</Text>
+        <span className="claw-mono">{icon} ClawRouter: {message.replace(/\s+/g, ' ').trim() || '…'}</span>
+      </div>
       <WithFieldHelp label="How often" help={FREQUENCY_HELP[frequency]}>
         <Select label="How often" value={frequency} onChange={(v) => v && setFrequency(v as AnnouncementFrequency)}
           options={ANNOUNCEMENT_FREQUENCIES.map((f) => ({ value: f, label: ANNOUNCEMENT_FREQUENCY_LABELS[f] }))} error={issues.frequency} />

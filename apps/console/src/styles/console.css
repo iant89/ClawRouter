@@ -246,3 +246,58 @@ body {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
+
+/* Emoji picker (components/custom/EmojiPicker.tsx): a searchable grid in a popover. */
+.claw-emoji-picker {
+  display: grid;
+  gap: var(--eui-space-2, 0.5rem);
+  max-block-size: 20rem;
+  overflow: auto;
+}
+.claw-emoji-grid {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 2px;
+}
+.claw-emoji {
+  display: grid;
+  place-items: center;
+  block-size: 2rem;
+  padding: 0;
+  border: 0;
+  border-radius: var(--eui-radius-md, 4px);
+  background: transparent;
+  font-size: 1.25rem;
+  line-height: 1;
+  cursor: pointer;
+}
+.claw-emoji:hover {
+  background: var(--eui-color-surface-hover, rgba(255, 255, 255, 0.08));
+}
+.claw-emoji:focus-visible {
+  outline: 2px solid var(--eui-color-focus, #4c9aff);
+  outline-offset: 1px;
+}
+@media (pointer: coarse) {
+  .claw-emoji-grid { grid-template-columns: repeat(6, 1fr); }
+  .claw-emoji { block-size: 2.75rem; } /* 44px */
+}
+/* A field with a button beside it (the message and its emoji picker). */
+.claw-field-with-action {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: var(--eui-space-1, 0.25rem);
+  align-items: start;
+}
+.claw-field-with-action > :last-child {
+  margin-block-start: 1.6rem; /* line up with the control, below its label */
+}
+/* The announcement line as it will appear at the start of a reply. */
+.claw-announcement-preview {
+  display: grid;
+  gap: var(--eui-space-1, 0.25rem);
+  padding: var(--eui-space-2, 0.5rem) var(--eui-space-3, 0.75rem);
+  border: 1px dashed var(--eui-color-border, #3a4350);
+  border-radius: var(--eui-radius-md, 4px);
+  overflow-wrap: anywhere;
+}

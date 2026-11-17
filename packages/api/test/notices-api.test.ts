@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from 'bun:test';
-import type { AnnouncementInfo, ApiSuccess, CreatedApiKey, NoticeMessages, ProviderInfo } from '@clawrouter/shared';
+import { ANNOUNCEMENT_ICONS, type AnnouncementInfo, type ApiSuccess, type CreatedApiKey, type NoticeMessages, type ProviderInfo } from '@clawrouter/shared';
 import { headerValue, healthProblemIn, replyPrefix, stripNotices } from '@clawrouter/notices';
 import { createHarness, type Harness } from '../../../tests/support/harness.ts';
 import { startMockProviders, type MockProviders } from '../../../tests/support/mock-providers.ts';
@@ -46,7 +46,7 @@ const v1 = (h: Harness, key: string, body: unknown, path = '/chat/completions') 
 const chat = (extra: Record<string, unknown> = {}, model = 'gpt-4o-mini') => ({ model, messages: [{ role: 'user', content: 'Hi' }], ...extra });
 const notices = (res: Response) => {
   const raw = res.headers.get('x-clawrouter-notices');
-  return raw ? (JSON.parse(raw) as { kind: string; text: string }[]) : null;
+  return raw ? (JSON.parse(raw) as { kind: string; icon: string; text: string }[]) : null;
 };
 const content = async (res: Response) => (await json<Completion>(res)).choices[0]!.message.content;
 
@@ -70,7 +70,7 @@ describe('client notices', () => {
     mock.failFamilies.add('openai');
     const res = await v1(h, key, chat());
     expect(res.headers.get('x-clawrouter-model')).toBe('local/gpt-4o-mini');
-    expect(notices(res)).toEqual([{ kind: 'failover', text: 'Your request was answered by a backup model because the first choice was unavailable.' }]);
+    expect(notices(res)).toEqual([{ kind: 'failover', icon: '⚠️', text: 'Your request was answered by a backup model because the first choice was unavailable.' }]);
     const text = await content(res);
     expect(text.startsWith('⚠️ ClawRouter: Your request was answered by a backup model because the first choice was unavailable.\n\n')).toBe(true);
     expect(text.length).toBeGreaterThan(100);
@@ -102,7 +102,7 @@ describe('client notices', () => {
     expect(m.health).toEqual({ enabled: true, text: 'Maintenance in progress. Thanks!' }); // one line
     expect(m.failover.enabled).toBe(false);
     const key2 = await createKey(h, admin, { name: 'second' });
-    expect(notices(await v1(h, key2, chat({}, 'openai/gpt-4o-mini')))).toEqual([{ kind: 'health', text: 'Maintenance in progress. Thanks!' }]);
+    expect(notices(await v1(h, key2, chat({}, 'openai/gpt-4o-mini')))).toEqual([{ kind: 'health', icon: '⚠️', text: 'Maintenance in progress. Thanks!' }]);
     expect((await h.request('/api/settings/notices', { method: 'PUT', cookie: admin, json: { health: { text: ' ' } } })).status).toBe(400);
     const reset = await data<NoticeMessages>(await h.request('/api/settings/notices', { method: 'DELETE', cookie: admin }));
     expect(reset.health.text).toBe('ClawRouter health has degraded; you may experience temporary performance issues.');
@@ -116,7 +116,7 @@ describe('client notices', () => {
 
     await set({ noticeReplyEnabled: 0 });
     let res = await v1(h, key, chat());
-    expect(notices(res)).toEqual([{ kind: 'announcement', text: 'Hello from the admins' }]);
+    expect(notices(res)).toEqual([{ kind: 'announcement', icon: '📢', text: 'Hello from the admins' }]);
     expect(await content(res)).not.toContain('ClawRouter:');
 
     await set({ noticeReplyEnabled: 1, noticeHeaderEnabled: 0 });
@@ -142,7 +142,7 @@ describe('client notices', () => {
     expect(JSON.stringify(body)).not.toContain('ClawRouter:');
     const emb = await v1(h, key, { model: 'openai/text-embedding-3-small', input: 'x' }, '/embeddings');
     expect(emb.status).toBe(200);
-    expect(notices(emb)).toEqual([{ kind: 'announcement', text: 'Read me' }]);
+    expect(notices(emb)).toEqual([{ kind: 'announcement', icon: '📢', text: 'Read me' }]);
   });
 
   test('streams: the notice is the first text the client receives; Responses API too', async () => {
@@ -232,7 +232,7 @@ describe('client notices', () => {
     h.clock.advance(61 * 60_000);
     let cookie = await h.login();
     res = await v1(h, key, chat());
-    expect(notices(res)).toEqual([{ kind: 'announcement', text: 'Window only' }]);
+    expect(notices(res)).toEqual([{ kind: 'announcement', icon: '📢', text: 'Window only' }]);
     expect(await content(res)).not.toContain('ClawRouter:'); // header channel only
 
     const off = await h.request(`/api/announcements/${timed.id}`, { method: 'PATCH', cookie, json: { enabled: false } });
@@ -280,11 +280,39 @@ describe('client notices', () => {
     expect(healthProblemIn([])).toBe(false);
   });
 
+  test('announcement icons: chosen per announcement, in the reply and the header; emoji in the message; cleanup knows every icon', async () => {
+    const { h, admin, key } = await world();
+    const a = await announce(h, admin, { message: 'New models are live 🎉 try them', frequency: 'every_request', icon: '🚀' });
+    expect(a.icon).toBe('🚀');
+    let res = await v1(h, key, chat());
+    expect(notices(res)).toEqual([{ kind: 'announcement', icon: '🚀', text: 'New models are live 🎉 try them' }]);
+    expect(/^[\x20-\x7e]*$/.test(res.headers.get('x-clawrouter-notices')!)).toBe(true);
+    expect(await content(res)).toStartWith('🚀 ClawRouter: New models are live 🎉 try them\n\n');
+
+    const changed = await h.request(`/api/announcements/${a.id}`, { method: 'PATCH', cookie: admin, json: { icon: 'ℹ️' } });
+    expect((await data<AnnouncementInfo>(changed)).icon).toBe('ℹ️');
+    res = await v1(h, key, chat());
+    expect(await content(res)).toStartWith('ℹ️ ClawRouter: New models are live');
+    const old = await announce(h, admin, { message: 'Default icon', frequency: 'once' });
+    expect(old.icon).toBe('📢');
+
+    // Not in the list: refused (the cleanup only knows listed icons).
+    expect((await h.request('/api/announcements', { method: 'POST', cookie: admin, json: { message: 'm', frequency: 'once', channel: 'both', timeZone: 'UTC', icon: '🦄' } })).status).toBe(400);
+    expect((await h.request(`/api/announcements/${a.id}`, { method: 'PATCH', cookie: admin, json: { icon: 'x' } })).status).toBe(400);
+
+    // Every listed icon is removed by the cleanup, with or without the emoji variation selector.
+    for (const { icon } of ANNOUNCEMENT_ICONS) {
+      expect(stripNotices(`${icon} ClawRouter: hello\n\nAnswer`)).toBe('Answer');
+      expect(stripNotices(`${icon.replace(/️/g, '')} ClawRouter: hello\n\nAnswer`)).toBe('Answer');
+    }
+    expect(stripNotices('🦄 ClawRouter: not ours\n\nAnswer')).toBe('🦄 ClawRouter: not ours\n\nAnswer');
+  });
+
   test('format helpers: one line, ASCII header, strict cleanup', () => {
-    const n = [{ kind: 'health' as const, text: 'Ünïcode — fine\nnext', channel: 'both' as const }];
+    const n = [{ kind: 'health' as const, icon: '⚠️', text: 'Ünïcode — fine\nnext', channel: 'both' as const }];
     const value = headerValue(n);
     expect(/^[\x20-\x7e]*$/.test(value)).toBe(true);
-    expect(JSON.parse(value)).toEqual([{ kind: 'health', text: 'Ünïcode — fine next' }]);
+    expect(JSON.parse(value)).toEqual([{ kind: 'health', icon: '⚠️', text: 'Ünïcode — fine next' }]);
     expect(replyPrefix(n)).toBe('⚠️ ClawRouter: Ünïcode — fine next\n\n');
     expect(stripNotices(`${replyPrefix(n)}Answer`)).toBe('Answer');
     expect(stripNotices('⚠️ ClawRouter: only a notice')).toBe('');

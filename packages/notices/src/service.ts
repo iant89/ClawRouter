@@ -2,7 +2,7 @@ import type { AuditService } from '@clawrouter/audit';
 import { errors, newId, type EventBus, type Logger } from '@clawrouter/core';
 import type { JsonValue, SettingsRepository } from '@clawrouter/database';
 import {
-  ANNOUNCEMENT_CHANNELS, ANNOUNCEMENT_FREQUENCIES, ANNOUNCEMENTS_ACTIVE_MAX, DEFAULT_NOTICE_MESSAGES, NOTICE_TEXT_MAX, SYSTEM_NOTICE_KINDS,
+  ANNOUNCEMENT_CHANNELS, ANNOUNCEMENT_FREQUENCIES, ANNOUNCEMENTS_ACTIVE_MAX, DEFAULT_ANNOUNCEMENT_ICON, DEFAULT_NOTICE_MESSAGES, NOTICE_TEXT_MAX, SYSTEM_NOTICE_ICON, SYSTEM_NOTICE_KINDS, isAnnouncementIcon,
   type AnnouncementInfo, type AnnouncementInput, type FieldIssue, type Notice, type NoticeMessage, type NoticeMessages, type NoticeSource, type SystemNoticeKind,
 } from '@clawrouter/shared';
 import { oneLine } from './format.ts';
@@ -86,6 +86,8 @@ export function createNoticeService(options: {
   function checkInput(input: Partial<AnnouncementInput>, base: AnnouncementRecord | null): Omit<AnnouncementRecord, 'id' | 'createdAt' | 'createdBy' | 'updatedAt'> {
     const issues: FieldIssue[] = [];
     const message = input.message === undefined && base ? base.message : checkText(input.message ?? '', 'message', issues);
+    const icon = input.icon ?? base?.icon ?? DEFAULT_ANNOUNCEMENT_ICON;
+    if (!isAnnouncementIcon(icon)) issues.push({ path: 'icon', message: 'must be one of the announcement icons' });
     const frequency = input.frequency ?? base?.frequency;
     if (!frequency || !ANNOUNCEMENT_FREQUENCIES.includes(frequency)) issues.push({ path: 'frequency', message: `must be one of ${ANNOUNCEMENT_FREQUENCIES.join(', ')}` });
     const channel = input.channel ?? base?.channel;
@@ -108,7 +110,7 @@ export function createNoticeService(options: {
     if (expiresAt && startsAt && expiresAt <= startsAt) issues.push({ path: 'expiresAt', message: 'must be after the start' });
     const enabled = input.enabled ?? base?.enabled ?? true;
     if (issues.length) throw errors.validation(issues);
-    return { message, frequency: frequency!, channel: channel!, startsAt, expiresAt, timeZone: timeZone!, enabled };
+    return { message, icon, frequency: frequency!, channel: channel!, startsAt, expiresAt, timeZone: timeZone!, enabled };
   }
 
   /** Whether `a` is due for `recipient` now, by its frequency. */
@@ -143,7 +145,7 @@ export function createNoticeService(options: {
         const last = lastSystem.get(k);
         if (last !== undefined && at.getTime() - last < interval) continue;
         lastSystem.set(k, at.getTime());
-        const n: Notice = { kind, text: msgs[kind].text, channel: 'both' };
+        const n: Notice = { kind, text: msgs[kind].text, icon: SYSTEM_NOTICE_ICON, channel: 'both' };
         if (headerOn) header.push(n);
         if (replyOn) reply.push(n);
       }
@@ -157,7 +159,7 @@ export function createNoticeService(options: {
           const toReply = replyOn && a.channel !== 'header';
           if (!toHeader && !toReply) continue; // not delivered: try again on a request that can carry it
           if (!due(a, recipient, at)) continue;
-          const n: Notice = { kind: 'announcement', text: a.message, channel: a.channel };
+          const n: Notice = { kind: 'announcement', text: a.message, icon: a.icon, channel: a.channel };
           if (toHeader) header.push(n);
           if (toReply) reply.push(n);
           repo.recordDelivery(a.id, recipient, at.toISOString());
@@ -223,7 +225,7 @@ export function createNoticeService(options: {
       const a: AnnouncementRecord = { id: newId(), ...fields, createdAt: at, createdBy: actor.id, updatedAt: at };
       repo.insert(a);
       changed();
-      record('ANNOUNCEMENT_CREATED', actor, client, a.id, { message: a.message, frequency: a.frequency, channel: a.channel, startsAt: a.startsAt, expiresAt: a.expiresAt, enabled: a.enabled });
+      record('ANNOUNCEMENT_CREATED', actor, client, a.id, { message: a.message, icon: a.icon, frequency: a.frequency, channel: a.channel, startsAt: a.startsAt, expiresAt: a.expiresAt, enabled: a.enabled });
       return repo.list().find((x) => x.id === a.id)!;
     },
 
@@ -233,7 +235,7 @@ export function createNoticeService(options: {
       const fields = checkInput(input, before);
       const after: AnnouncementRecord = { ...before, ...fields, updatedAt: now().toISOString() };
       const changes: Record<string, unknown> = {};
-      for (const k of ['message', 'frequency', 'channel', 'startsAt', 'expiresAt', 'timeZone', 'enabled'] as const) {
+      for (const k of ['message', 'icon', 'frequency', 'channel', 'startsAt', 'expiresAt', 'timeZone', 'enabled'] as const) {
         if (before[k] !== after[k]) changes[k] = { from: before[k], to: after[k] };
       }
       if (Object.keys(changes).length) {

@@ -1,7 +1,7 @@
 import { errors, v, type Validator } from '@clawrouter/core';
 import type { NoticeService } from '@clawrouter/notices';
 import {
-  ANNOUNCEMENT_CHANNELS, ANNOUNCEMENT_FREQUENCIES, NOTICE_TEXT_MAX,
+  ANNOUNCEMENT_CHANNELS, ANNOUNCEMENT_FREQUENCIES, ANNOUNCEMENT_ICONS, NOTICE_TEXT_MAX,
   type AnnouncementInfo, type NoticeMessages,
 } from '@clawrouter/shared';
 import { readJson } from '../http/body.ts';
@@ -20,8 +20,10 @@ const optionalDate: Validator<string | null | undefined> = (value, path, issues)
 
 const message = v.string({ min: 1, max: NOTICE_TEXT_MAX + 50 });
 const timeZone = v.string({ min: 1, max: 64 });
+const icon = v.optional(v.oneOf(ANNOUNCEMENT_ICONS.map((i) => i.icon)));
 const createBody = v.object({
   message,
+  icon,
   frequency: v.oneOf(ANNOUNCEMENT_FREQUENCIES),
   channel: v.oneOf(ANNOUNCEMENT_CHANNELS),
   startsAt: optionalDate,
@@ -31,6 +33,7 @@ const createBody = v.object({
 });
 const updateBody = v.object({
   message: v.optional(message),
+  icon,
   frequency: v.optional(v.oneOf(ANNOUNCEMENT_FREQUENCIES)),
   channel: v.optional(v.oneOf(ANNOUNCEMENT_CHANNELS)),
   startsAt: optionalDate,

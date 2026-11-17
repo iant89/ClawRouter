@@ -52,7 +52,7 @@ export function AnnouncementsPage() {
   };
 
   const columns: TableColumn<AnnouncementInfo>[] = [
-    { id: 'message', header: 'Message', rowHeader: true, wrap: true, accessor: 'message', cell: (a) => <span>📢 {a.message}</span> },
+    { id: 'message', header: 'Message', rowHeader: true, wrap: true, accessor: 'message', cell: (a) => <span><span aria-hidden="true">{a.icon}</span> {a.message}</span> },
     { id: 'state', header: 'State', accessor: (a) => stateOf(a).label, cell: (a) => { const s = stateOf(a); return <StatusIndicator tone={s.tone} size="sm">{s.label}</StatusIndicator>; } },
     { id: 'frequency', header: 'How often', wrap: true, accessor: 'frequency', cell: (a) => ANNOUNCEMENT_FREQUENCY_LABELS[a.frequency] },
     { id: 'channel', header: 'Where', wrap: true, accessor: 'channel', cell: (a) => ANNOUNCEMENT_CHANNEL_LABELS[a.channel] },

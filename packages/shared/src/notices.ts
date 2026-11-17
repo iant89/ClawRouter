@@ -37,6 +37,32 @@ export const DEFAULT_NOTICE_MESSAGES: Record<SystemNoticeKind, NoticeMessage> = 
 
 export const NOTICE_TEXT_MAX = 300;
 
+/**
+ * The icons an announcement can start with (owner request, 2026-11-17). A fixed
+ * list, because the cleanup recognises ClawRouter's notice lines by their icon:
+ * never remove an icon from it (old replies sent back would keep their line).
+ */
+export const ANNOUNCEMENT_ICONS = [
+  { icon: '📢', label: 'Announcement' },
+  { icon: '📣', label: 'Megaphone' },
+  { icon: 'ℹ️', label: 'Information' },
+  { icon: '💡', label: 'Tip' },
+  { icon: '⚠️', label: 'Warning' },
+  { icon: '❗', label: 'Important' },
+  { icon: '🛠️', label: 'Maintenance' },
+  { icon: '⏰', label: 'Scheduled' },
+  { icon: '🚀', label: 'New feature' },
+  { icon: '🎉', label: 'Celebration' },
+  { icon: '✅', label: 'Resolved' },
+  { icon: '🔒', label: 'Security' },
+  { icon: '📅', label: 'Event' },
+  { icon: '🆕', label: 'New' },
+] as const;
+export type AnnouncementIcon = (typeof ANNOUNCEMENT_ICONS)[number]['icon'];
+export const DEFAULT_ANNOUNCEMENT_ICON: AnnouncementIcon = '📢';
+export const SYSTEM_NOTICE_ICON = '⚠️';
+export const isAnnouncementIcon = (v: unknown): v is AnnouncementIcon => ANNOUNCEMENT_ICONS.some((i) => i.icon === v);
+
 /** How often an announcement reaches each user (the key's owner). */
 export const ANNOUNCEMENT_FREQUENCIES = ['every_request', 'once', 'daily', 'weekly'] as const;
 export type AnnouncementFrequency = (typeof ANNOUNCEMENT_FREQUENCIES)[number];
@@ -60,6 +86,8 @@ export const ANNOUNCEMENT_CHANNEL_LABELS: Record<AnnouncementChannel, string> = 
 export interface AnnouncementInfo {
   id: string;
   message: string;
+  /** The icon the notice line starts with. */
+  icon: AnnouncementIcon;
   frequency: AnnouncementFrequency;
   channel: AnnouncementChannel;
   /** Not sent before this time; null: at once. */
@@ -81,6 +109,8 @@ export interface AnnouncementInfo {
 /** POST /api/announcements, PATCH /api/announcements/:id (all optional on PATCH). */
 export interface AnnouncementInput {
   message: string;
+  /** Default 📢. */
+  icon?: AnnouncementIcon;
   frequency: AnnouncementFrequency;
   channel: AnnouncementChannel;
   startsAt?: string | null;
@@ -95,6 +125,8 @@ export const ANNOUNCEMENTS_ACTIVE_MAX = 20;
 export interface Notice {
   kind: NoticeKind;
   text: string;
+  /** The line's icon (announcements choose theirs; system notices use ⚠️). */
+  icon: string;
   /** Where it may go. System notices: both (each subject to its setting). */
   channel: AnnouncementChannel;
 }

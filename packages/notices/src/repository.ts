@@ -1,9 +1,10 @@
 import type { Database } from '@clawrouter/database';
-import type { AnnouncementChannel, AnnouncementFrequency, AnnouncementInfo } from '@clawrouter/shared';
+import type { AnnouncementChannel, AnnouncementFrequency, AnnouncementIcon, AnnouncementInfo } from '@clawrouter/shared';
 
 export interface AnnouncementRecord {
   id: string;
   message: string;
+  icon: AnnouncementIcon;
   frequency: AnnouncementFrequency;
   channel: AnnouncementChannel;
   startsAt: string | null;
@@ -38,6 +39,7 @@ export interface AnnouncementRepository {
 interface Row {
   id: string;
   message: string;
+  icon: AnnouncementIcon;
   frequency: AnnouncementFrequency;
   channel: AnnouncementChannel;
   starts_at: string | null;
@@ -50,7 +52,7 @@ interface Row {
 }
 
 const toRecord = (r: Row): AnnouncementRecord => ({
-  id: r.id, message: r.message, frequency: r.frequency, channel: r.channel, startsAt: r.starts_at, expiresAt: r.expires_at,
+  id: r.id, message: r.message, icon: r.icon, frequency: r.frequency, channel: r.channel, startsAt: r.starts_at, expiresAt: r.expires_at,
   timeZone: r.time_zone, enabled: r.enabled === 1, createdAt: r.created_at, createdBy: r.created_by, updatedAt: r.updated_at,
 });
 
@@ -78,15 +80,15 @@ export function createSqliteAnnouncementRepository(db: Database): AnnouncementRe
     },
     insert(a) {
       db.run(
-        `INSERT INTO announcements (id, message, frequency, channel, starts_at, expires_at, time_zone, enabled, created_at, created_by, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [a.id, a.message, a.frequency, a.channel, a.startsAt, a.expiresAt, a.timeZone, a.enabled ? 1 : 0, a.createdAt, a.createdBy, a.updatedAt],
+        `INSERT INTO announcements (id, message, icon, frequency, channel, starts_at, expires_at, time_zone, enabled, created_at, created_by, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [a.id, a.message, a.icon, a.frequency, a.channel, a.startsAt, a.expiresAt, a.timeZone, a.enabled ? 1 : 0, a.createdAt, a.createdBy, a.updatedAt],
       );
     },
     update(a) {
       db.run(
-        `UPDATE announcements SET message = ?, frequency = ?, channel = ?, starts_at = ?, expires_at = ?, time_zone = ?, enabled = ?, updated_at = ? WHERE id = ?`,
-        [a.message, a.frequency, a.channel, a.startsAt, a.expiresAt, a.timeZone, a.enabled ? 1 : 0, a.updatedAt, a.id],
+        `UPDATE announcements SET message = ?, icon = ?, frequency = ?, channel = ?, starts_at = ?, expires_at = ?, time_zone = ?, enabled = ?, updated_at = ? WHERE id = ?`,
+        [a.message, a.icon, a.frequency, a.channel, a.startsAt, a.expiresAt, a.timeZone, a.enabled ? 1 : 0, a.updatedAt, a.id],
       );
     },
     delete(id) {
