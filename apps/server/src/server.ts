@@ -18,7 +18,7 @@ import { createRoutingService, createSqliteRoutingStore, type RoutingService } f
 import { createApiKeyService, createGatewayService, createKeyRequestService, type ApiKeyService, type GatewayService } from '@clawrouter/gateway';
 import { createQuotaService, createRateLimitService, createSqliteQuotaStore, createSqliteRateLimitConfigStore, MemoryCounterStore, type QuotaService, type RateLimitService } from '@clawrouter/rate-limits';
 import { createCaptureService, createSqliteCaptureRepository } from '@clawrouter/captures';
-import { createNoticeService, createSqliteAnnouncementRepository } from '@clawrouter/notices';
+import { createNoticeService, createSqliteAnnouncementRepository, healthProblemIn } from '@clawrouter/notices';
 import { createRequestLogService, createSqliteRequestRepository, type RequestLogService } from '@clawrouter/requests';
 import { createSqliteSettingsRepository, migrationStatus, migrations, openSqlite, runMigrations, type Database } from '@clawrouter/database';
 import { createSettingsService, settingDefaults } from '@clawrouter/settings';
@@ -154,6 +154,8 @@ export async function startClawRouter({ config, log, logBuffer, version, console
   // Client notices (owner request, 2026-11-17): header, reply text and cleanup on by default; announcements by administrators.
   const notices = createNoticeService({
     repo: createSqliteAnnouncementRepository(db), settingsRepo: createSqliteSettingsRepository(db), audit, events, log,
+    // Read when a request is answered, after the health service below exists.
+    healthProblem: () => healthProblemIn(health.lastChecks),
     settings: {
       headerEnabled: () => settings.get('noticeHeaderEnabled') === 1, replyEnabled: () => settings.get('noticeReplyEnabled') === 1,
       cleanupEnabled: () => settings.get('noticeCleanupEnabled') === 1, intervalMinutes: () => settings.get('noticeIntervalMinutes'),

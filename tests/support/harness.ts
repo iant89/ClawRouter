@@ -6,7 +6,7 @@ import { createOperationService, createSqliteOperationRepository, type Operation
 import { operationHandlers } from '../../apps/server/src/operation-handlers.ts';
 import { createApiApp, type ApiApp } from '@clawrouter/api';
 import { createCaptureService, createSqliteCaptureRepository, type CaptureService } from '@clawrouter/captures';
-import { createNoticeService, createSqliteAnnouncementRepository, type NoticeService } from '@clawrouter/notices';
+import { createNoticeService, createSqliteAnnouncementRepository, healthProblemIn, type NoticeService } from '@clawrouter/notices';
 import { createAuditService, createSqliteAuditRepository, type AuditService } from '@clawrouter/audit';
 import {
   createArgon2Hasher, createAuthService, createOnboardingService, createPreferencesService, createSetupService, createSqliteSessionRepository, createSqliteUserRepository, createTwoFactorService, createUserAdminService,
@@ -180,7 +180,9 @@ export function createHarness(options: { idleMinutes?: number; maxHours?: number
     settings: { enabled: () => settings.get('capturesEnabled') === 1, maxCount: () => settings.get('capturesMaxCount') },
   });
   const notices = createNoticeService({
-    repo: createSqliteAnnouncementRepository(db), settingsRepo: createSqliteSettingsRepository(db, clock.now), audit, events, log, now: clock.now,
+    repo: createSqliteAnnouncementRepository(db), settingsRepo: createSqliteSettingsRepository(db, clock.now), audit, events, log,
+    // Read when a request is answered, after the health service below exists.
+    healthProblem: () => healthProblemIn(health.lastChecks), now: clock.now,
     settings: {
       headerEnabled: () => settings.get('noticeHeaderEnabled') === 1, replyEnabled: () => settings.get('noticeReplyEnabled') === 1,
       cleanupEnabled: () => settings.get('noticeCleanupEnabled') === 1, intervalMinutes: () => settings.get('noticeIntervalMinutes'),

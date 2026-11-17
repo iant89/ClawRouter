@@ -42,17 +42,14 @@ export function createNoticeService(options: {
   events?: EventBus;
   log?: Logger;
   now?: () => Date;
+  /** Whether ClawRouter itself has a health problem worth telling users about (see `healthProblemIn`). */
+  healthProblem?: () => boolean;
 }) {
   const { repo, settingsRepo, settings, audit, events, log } = options;
   const now = options.now ?? (() => new Date());
   /** Last system notice per key and kind (ms). */
   const lastSystem = new Map<string, number>();
-  let platformDegraded = false;
   let activeCache: { at: number; list: AnnouncementRecord[] } | null = null;
-
-  events?.on('health.changed', (e) => {
-    platformDegraded = e.current === 'DEGRADED' || e.current === 'OFFLINE';
-  });
 
   const record = (action: 'ANNOUNCEMENT_CREATED' | 'ANNOUNCEMENT_UPDATED' | 'ANNOUNCEMENT_DELETED' | 'SETTINGS_CHANGED', actor: NoticeActor, client: NoticeClient, resourceId: string | undefined, metadata: Record<string, unknown>) =>
     audit.record({ action, result: 'SUCCESS', resource: resourceId ? 'announcement' : 'settings', resourceId, actor: { id: actor.id, name: actor.username }, ip: client.ip, requestId: client.requestId ?? null, metadata });
@@ -137,7 +134,7 @@ export function createNoticeService(options: {
       const msgs = messages();
       const interval = settings.intervalMinutes() * 60_000;
       const system: [SystemNoticeKind, boolean][] = [
-        ['health', platformDegraded || providerStatus === 'DEGRADED' || providerStatus === 'OFFLINE'],
+        ['health', (options.healthProblem?.() ?? false) || providerStatus === 'DEGRADED' || providerStatus === 'OFFLINE'],
         ['failover', failedOver],
       ];
       for (const [kind, applies] of system) {
@@ -264,4 +261,16 @@ export function createNoticeService(options: {
       return ids.length;
     },
   };
+}
+
+/**
+ * The "degraded health" notice is for problems users may feel, so it follows the
+ * individual checks, not the platform's overall label (which also counts a
+ * provider that was not checked yet): any check other than providers that is
+ * degraded or offline, or every provider offline. One provider down among
+ * several is not a problem for users (requests fail over, with their own notice);
+ * the provider that answered a request is judged by its own status.
+ */
+export function healthProblemIn(checks: readonly { component: string; status: string }[]): boolean {
+  return checks.some((c) => (c.component === 'providers' ? c.status === 'OFFLINE' : c.status === 'DEGRADED' || c.status === 'OFFLINE'));
 }

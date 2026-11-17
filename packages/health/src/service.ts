@@ -18,6 +18,8 @@ export interface HealthService {
   report(): Promise<HealthReport>;
   /** Status from the most recent report, `UNKNOWN` before the first. */
   readonly lastStatus: HealthState;
+  /** Check results from the most recent report (empty before the first). */
+  readonly lastChecks: readonly HealthCheckResult[];
 }
 
 /**
@@ -42,6 +44,7 @@ export function createHealthService(options: HealthServiceOptions): HealthServic
   const startedAt = options.startedAt ?? now();
   const timeoutMs = options.timeoutMs ?? 2000;
   let lastStatus: HealthState = 'UNKNOWN';
+  let lastChecks: HealthCheckResult[] = [];
 
   const run = async (check: HealthCheck): Promise<HealthCheckResult> => {
     const started = performance.now();
@@ -72,8 +75,12 @@ export function createHealthService(options: HealthServiceOptions): HealthServic
     get lastStatus() {
       return lastStatus;
     },
+    get lastChecks() {
+      return lastChecks;
+    },
     async report() {
       const checks = await Promise.all(options.checks.map(run));
+      lastChecks = checks;
       const status = aggregateHealth(checks);
       const checkedAt = now().toISOString();
       if (status !== lastStatus) {

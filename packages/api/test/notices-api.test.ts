@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from 'bun:test';
 import type { AnnouncementInfo, ApiSuccess, CreatedApiKey, NoticeMessages, ProviderInfo } from '@clawrouter/shared';
-import { headerValue, replyPrefix, stripNotices } from '@clawrouter/notices';
+import { headerValue, healthProblemIn, replyPrefix, stripNotices } from '@clawrouter/notices';
 import { createHarness, type Harness } from '../../../tests/support/harness.ts';
 import { startMockProviders, type MockProviders } from '../../../tests/support/mock-providers.ts';
 
@@ -85,7 +85,13 @@ describe('client notices', () => {
 
   test('degraded health adds the health notice; the default messages can be changed and turned off', async () => {
     const { h, admin, key } = await world();
-    h.events.emit('health.changed', { previous: 'HEALTHY', current: 'DEGRADED', checkedAt: new Date().toISOString() });
+    // A fresh platform with unchecked providers is "degraded" overall, but that is not a problem for users.
+    await h.health.report();
+    expect(notices(await v1(h, key, chat({}, 'openai/gpt-4o-mini')))).toBeNull();
+    // The provider's own check finds it degraded (rate limited): requests it still answers carry the health notice.
+    mock.mode = 'rate_limited';
+    await h.providers.checkAll();
+    mock.mode = 'ok';
     const res = await v1(h, key, chat({}, 'openai/gpt-4o-mini'));
     expect(notices(res)?.map((n) => n.kind)).toEqual(['health']);
     expect(await content(res)).toStartWith('⚠️ ClawRouter: ClawRouter health has degraded; you may experience temporary performance issues.\n\n');
@@ -262,6 +268,16 @@ describe('client notices', () => {
     const op = await h.login('op');
     expect((await h.request('/api/announcements', { cookie: op })).status).toBe(403);
     expect((await h.request('/api/settings/notices', { cookie: op })).status).toBe(403);
+  });
+
+  test('which health results count as a problem for users', () => {
+    const c = (component: string, status: string) => ({ component, status });
+    expect(healthProblemIn([c('platform', 'HEALTHY'), c('providers', 'UNKNOWN')])).toBe(false); // not checked yet
+    expect(healthProblemIn([c('providers', 'DEGRADED')])).toBe(false); // one of several down: failover covers it
+    expect(healthProblemIn([c('providers', 'OFFLINE')])).toBe(true); // all of them
+    expect(healthProblemIn([c('database', 'DEGRADED')])).toBe(true);
+    expect(healthProblemIn([c('gateway', 'OFFLINE')])).toBe(true);
+    expect(healthProblemIn([])).toBe(false);
   });
 
   test('format helpers: one line, ASCII header, strict cleanup', () => {
