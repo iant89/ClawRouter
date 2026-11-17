@@ -156,6 +156,20 @@ describe('provider captures', () => {
     expect(h.audit.list({ limit: 50 }).some((a) => a.action === 'CAPTURE_STARTED')).toBe(true);
   });
 
+  test('a whole body with emoji and accents is not marked as truncated (audit 2026-11-17)', async () => {
+    const { h, admin, key } = await world();
+    await h.request('/api/captures/manual', { method: 'POST', cookie: admin, json: { count: 1, minutes: 10 } });
+    const body = { model: 'openai/gpt-4o-mini', messages: [{ role: 'user', content: '📢 Grüße aus Zürich, ünïcödé 🎉' }] };
+    expect((await v1(h, key, '/chat/completions', body)).status).toBe(200);
+    const [c] = await captures(h, admin);
+    const d = await detail(h, admin, c!.id);
+    expect(d.client.request!.body.truncated).toBe(false);
+    expect(d.client.request!.body.text).toContain('Grüße aus Zürich');
+    expect(d.client.response!.body.truncated).toBe(false);
+    expect(d.exchanges[0]!.request.body!.truncated).toBe(false);
+    expect(d.exchanges[0]!.response!.body.truncated).toBe(false);
+  });
+
   test('a manual capture expires, and can be stopped', async () => {
     const { h, admin, key } = await world();
     await h.request('/api/captures/manual', { method: 'POST', cookie: admin, json: { model: 'openai/gpt-4o-mini', count: 5, minutes: 1 } });

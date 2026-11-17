@@ -86,9 +86,11 @@ class BodyCollector {
 function requestBody(body: BodyInit | null | undefined, apiKey: string | null): TappedBody | null {
   if (body === null || body === undefined) return null;
   if (typeof body !== 'string') return { text: '[a non-text body was sent]', bytes: 0, truncated: false };
-  const bytes = new TextEncoder().encode(body).byteLength;
-  const truncated = body.length > TAP_BODY_LIMIT;
-  return { text: scrubSecrets(scrub(truncated ? body.slice(0, TAP_BODY_LIMIT) : body, apiKey)), bytes, truncated };
+  // The limit is in bytes, like the response side (BodyCollector).
+  const encoded = new TextEncoder().encode(body);
+  const truncated = encoded.byteLength > TAP_BODY_LIMIT;
+  const text = truncated ? new TextDecoder().decode(encoded.subarray(0, TAP_BODY_LIMIT), { stream: true }) : body;
+  return { text: scrubSecrets(scrub(text, apiKey)), bytes: encoded.byteLength, truncated };
 }
 
 interface Pending {

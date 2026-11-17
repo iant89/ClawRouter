@@ -2,6 +2,7 @@ import type { ErrorCode, FieldIssue } from '@clawrouter/shared';
 
 const HTTP_STATUS: Record<ErrorCode, number> = {
   VALIDATION_ERROR: 400,
+  PAYLOAD_TOO_LARGE: 413,
   AUTHENTICATION_ERROR: 401,
   AUTHORIZATION_ERROR: 403,
   NOT_FOUND: 404,
@@ -19,6 +20,7 @@ const HTTP_STATUS: Record<ErrorCode, number> = {
 /** Messages used when the real message must not leave the server. */
 const SAFE_MESSAGE: Record<ErrorCode, string> = {
   VALIDATION_ERROR: 'The request is invalid.',
+  PAYLOAD_TOO_LARGE: 'The request body is too large.',
   AUTHENTICATION_ERROR: 'Authentication is required.',
   AUTHORIZATION_ERROR: 'You do not have permission to perform this action.',
   NOT_FOUND: 'The requested resource was not found.',

@@ -3,7 +3,8 @@ import type { RequestContext } from './context.ts';
 
 export const DEFAULT_BODY_LIMIT = 64 * 1024;
 
-const tooLarge = (limit: number) => new AppError('VALIDATION_ERROR', `Request body is too large (limit ${formatBytes(limit)}).`);
+// 413, so clients can tell "too big" from "malformed" (audit, 2026-11-17).
+const tooLarge = (limit: number) => new AppError('PAYLOAD_TOO_LARGE', `Request body is too large (limit ${formatBytes(limit)}).`);
 const formatBytes = (n: number) => (n >= 1024 * 1024 ? `${n / (1024 * 1024)} MB` : `${n / 1024} KB`);
 
 /**

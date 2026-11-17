@@ -5,7 +5,9 @@ is the **review report**: what was checked, what was found and fixed, what is
 guarded by tests, and the risks that remain. Area details live in
 [authentication](authentication.md), [authorization](authorization.md),
 [administration](administration.md), [gateway](gateway.md),
-[rate limits](rate-limits.md) and [logging and audit](logging-audit.md).
+[rate limits](rate-limits.md) and [logging and audit](logging-audit.md). The outside-in
+audit of 2026-11-17 (every claim tested against a running production build) is in
+[audit-2026-11-17](audit-2026-11-17.md).
 
 ## Findings fixed in phase 15
 
@@ -28,7 +30,7 @@ guarded by tests, and the risks that remain. Area details live in
 | **Authorization** | Every route declares its access (a required argument). A sweep test calls every protected route anonymously (401), without the permission (403) and with it. No escalation through roles or user management (phase 14). Administrator is unique and fixed. |
 | **API keys** | 256-bit secrets shown once; only SHA-256 stored; constant-time comparison; prefix lookup; expiry, revocation, suspension; per-key, per-user, per-model and global limits; per-address invalid-key blocking. |
 | **Credential encryption** | AES-256-GCM with a random IV per value and the owner bound as authenticated data (a ciphertext moved to another row fails); the key lives outside the database; required in production; key fingerprints only in logs; rotation command. |
-| **CSRF** | `SameSite=Strict` cookies; unsafe requests need a same-origin `Origin`/`Sec-Fetch-Site` and the `x-clawrouter-csrf` header; JSON-only bodies (a form cannot send them); no CORS on `/api`. The WebSocket checks `Origin`. |
+| **CSRF** | `SameSite=Strict` cookies; every unsafe `/api` request is refused when its `Origin` (or `Sec-Fetch-Site`) is another site, and one that carries a session cookie also needs the `x-clawrouter-csrf` header; JSON-only bodies (a form cannot send them); no CORS on `/api`. Requests without a session (setup, sign-in) need no header: a browser cannot send them cross-site anyway. The WebSocket checks `Origin`. |
 | **Rate limits** | Reviewed with trusted proxies (finding 3). Counters are per process (residual risk). |
 | **Input validation** | Every body is validated on the server; unknown fields are refused; bodies are size-capped while streamed; malformed or deeply nested JSON is a 400. A garbage sweep sends 12 hostile values to every route, raw and wrapped in every field name: never a 500. Search values are parameters, never SQL (LIKE wildcards escaped). |
 | **Output validation** | Errors are normalized: 5xx answers carry a generic message and a request id; the cause is only in the server log. A user's shape (`UserSummary`) never includes the hash. The `/v1` API speaks the OpenAI error format. |

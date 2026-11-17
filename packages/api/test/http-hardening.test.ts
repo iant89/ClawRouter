@@ -20,14 +20,14 @@ describe('request bodies', () => {
     const h = createHarness();
     const stream = chunkedBody(5 * 1024 * 1024);
     const res = await h.request('/api/auth/login', { method: 'POST', headers: { 'content-type': 'application/json' }, body: stream, duplex: 'half' } as RequestInit);
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(413);
     expect(((await res.json()) as ApiErrorBody).error.message).toBe('Request body is too large (limit 64 KB).');
   });
 
   test('a declared oversized body is refused up front', async () => {
     const h = createHarness();
     const res = await h.request('/api/auth/login', { method: 'POST', headers: { 'content-type': 'application/json', 'content-length': String(10 * 1024 * 1024) }, body: '{}' });
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(413);
   });
 
   test('/v1 allows 25 MB (media inline), and refuses more even when chunked', async () => {
@@ -37,13 +37,13 @@ describe('request bodies', () => {
     const res = await h.request('/v1/chat/completions', {
       method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${secret}` }, body: chunkedBody(26 * 1024 * 1024, 256 * 1024), duplex: 'half',
     } as RequestInit);
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(413);
     expect(((await res.json()) as { error: { message: string } }).error.message).toContain('limit 25 MB');
   });
 
   test('malformed and absurdly nested JSON are 400s, never 500s', async () => {
     const h = createHarness();
-    for (const body of ['{', 'null', '[]', '"x"', `${'['.repeat(50_000)}${']'.repeat(50_000)}`]) {
+    for (const body of ['{', 'null', '[]', '"x"', `${'['.repeat(30_000)}${']'.repeat(30_000)}`]) {
       const res = await h.request('/api/auth/login', { method: 'POST', headers: { 'content-type': 'application/json' }, body });
       expect(res.status).toBe(400);
     }

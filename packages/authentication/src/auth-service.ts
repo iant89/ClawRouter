@@ -46,7 +46,10 @@ export interface AuthServiceOptions {
   secondStep?: (user: User) => boolean;
 }
 
-/** Writes to `last_seen_at` at most this often per session. */
+/**
+ * Writes to `last_seen_at` at most this often per session, and at least four times per
+ * idle timeout (a 1-minute timeout would otherwise end active sessions).
+ */
 const TOUCH_INTERVAL_MS = 60_000;
 const INVALID_CREDENTIALS = 'Invalid username or password.';
 
@@ -182,7 +185,7 @@ export function createAuthService(options: AuthServiceOptions) {
       if (!session || !isLive(session, at.getTime())) return null;
       const user = users.findById(session.userId);
       if (!user || user.status !== 'ACTIVE') return null;
-      if (options.touch !== false && at.getTime() - Date.parse(session.lastSeenAt) >= TOUCH_INTERVAL_MS) {
+      if (options.touch !== false && at.getTime() - Date.parse(session.lastSeenAt) >= Math.min(TOUCH_INTERVAL_MS, idle() / 4)) {
         session.lastSeenAt = at.toISOString();
         sessions.touch(session.id, session.lastSeenAt);
       }

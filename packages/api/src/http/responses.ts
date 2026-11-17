@@ -27,6 +27,7 @@ export function noContent(): Response {
 /** Error envelope. Only client-safe information leaves the server. */
 const OPENAI_TYPE: Partial<Record<AppError['code'], string>> = {
   VALIDATION_ERROR: 'invalid_request_error',
+  PAYLOAD_TOO_LARGE: 'invalid_request_error',
   NOT_FOUND: 'invalid_request_error',
   METHOD_NOT_ALLOWED: 'invalid_request_error',
   CONFLICT: 'invalid_request_error',

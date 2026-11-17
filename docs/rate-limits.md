@@ -1,8 +1,11 @@
 # Rate limiting and user quotas (phase 9, extended)
 
 Protects the gateway, and the provider quotas behind it, from clients that send
-too much (spec §12). Limits apply to `/v1/*` only; the console's sign-in has its
-own throttle (see [authentication](authentication.md)).
+too much (spec §12). Limits apply to the gateway requests that reach a provider: chat
+completions, `/v1/responses` and embeddings. `GET /v1/models` only lists models: it is
+not counted against request or token limits, but a client over the invalid-key limit is
+refused there too. The console's sign-in has its own throttle (see
+[authentication](authentication.md)).
 
 ## What can be limited
 

@@ -319,6 +319,17 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 
 ### Notes
 
+- **NOTE** · 2026-11-17 · Audit lessons (see `docs/audit-2026-11-17.md`)
+  - A new error code must be added in four places: `ERROR_CODES` (shared/api.ts), `HTTP_STATUS` and
+    `SAFE_MESSAGE` (core/errors.ts), and `OPENAI_TYPE` (api/http/responses.ts) for `/v1`.
+  - Size limits and "truncated" flags must count UTF-8 bytes, never JavaScript string lengths.
+  - Anything that slides on activity must be written more often than the shortest allowed timeout
+    (`sessionIdleMinutes` can be 1).
+  - Host checks (endpoints, allowlists) must normalise first: lower case, trailing dots, IPv4-mapped
+    IPv6. The endpoint check still does not resolve DNS (remaining risk in the audit report).
+  - When a black-box check fails, look at what the client sent before calling it a bug: three
+    audit "failures" were the test's own mistakes (a capture stores the client body too).
+
 - **NOTE** · 2026-11-17 · ENTERPRISE-UI: new example folders missing in the docs tests
   The docs registry test ("provides examples for registered pages") failed for freshly added
   `examples/<slug>/` folders because vitest's module cache (`node_modules/.vitest-cache`) kept an
@@ -480,8 +491,17 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 
 ### Messages
 
+- **MESSAGE** · 2026-11-17 · The audit waits for review
+  The owner asked for "a full audit … test the security and if it says it does something it actually
+  does it". Done on `claude/audit`: about 120 outside-in checks against a production build, report in
+  `docs/audit-2026-11-17.md`. Fixed: short idle timeouts ending active sessions (activity now
+  written at least 4x per idle period), metadata-host spellings passing the endpoint check
+  (`canonicalHost` in `packages/providers/src/endpoint.ts`), captures marking whole non-ASCII bodies
+  as truncated (byte counting), oversized bodies now 413 (`PAYLOAD_TOO_LARGE`). Docs corrected:
+  `/v1/models` is not rate-limited; the CSRF header is only required with a session cookie.
+
 - **MESSAGE** · 2026-11-17 · Everything merged after client notices and announcements
-  Nothing in ClawRouter waits for review. Old branches to delete on GitHub (the session cannot): every merged
+  Nothing else in ClawRouter waits for review. Old branches to delete on GitHub (the session cannot): every merged
   `claude/*` branch (now including `claude/captures-live-groq`, `claude/client-notices`,
   `claude/announcement-emoji` and `claude/eui-shared-components`), the superseded `claude/mcp-server`
   and the stale `claude/groq-provider`; never merge those two (duplicate migration 0020 / older

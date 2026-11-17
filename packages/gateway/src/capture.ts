@@ -3,23 +3,35 @@ import { ExchangeTap, ProviderCallError, TAP_BODY_LIMIT } from '@clawrouter/prov
 import type { CaptureBody, CaptureExchange, CaptureOutcome, CaptureSink, CaptureTrigger, GatewayEndpoint, RequestAttempt, RouteCandidate } from '@clawrouter/shared';
 import { classify } from './executor.ts';
 
-/** Client-side text, cut at the same limit as provider bodies. */
+/**
+ * Client-side text, cut at the same limit as provider bodies. The limit and what is kept
+ * are both counted in UTF-8 bytes: counting kept text in characters marked any body with
+ * an emoji or accented letter as truncated (audit, 2026-11-17).
+ */
 class TextCollector {
   private parts: string[] = [];
   private kept = 0;
+  private cut = false;
   bytes = 0;
 
   add(text: string) {
-    const size = new TextEncoder().encode(text).byteLength;
-    this.bytes += size;
-    if (this.kept >= TAP_BODY_LIMIT) return;
-    const part = text.length > TAP_BODY_LIMIT - this.kept ? text.slice(0, TAP_BODY_LIMIT - this.kept) : text;
-    this.parts.push(part);
-    this.kept += part.length;
+    const encoded = new TextEncoder().encode(text);
+    this.bytes += encoded.byteLength;
+    const room = TAP_BODY_LIMIT - this.kept;
+    if (encoded.byteLength <= room) {
+      this.parts.push(text);
+      this.kept += encoded.byteLength;
+      return;
+    }
+    this.cut = true;
+    if (room <= 0) return;
+    // `stream: true` leaves a character cut by the limit out instead of garbling it.
+    this.parts.push(new TextDecoder().decode(encoded.subarray(0, room), { stream: true }));
+    this.kept = TAP_BODY_LIMIT;
   }
 
   body(): CaptureBody {
-    return { text: scrubSecrets(this.parts.join('')), bytes: this.bytes, truncated: this.bytes > this.kept };
+    return { text: scrubSecrets(this.parts.join('')), bytes: this.bytes, truncated: this.cut };
   }
 }
 

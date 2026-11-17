@@ -8,6 +8,7 @@ describe('endpoint policy', () => {
     ['http://127.0.0.1:8000', 'http://127.0.0.1:8000'],
     ['http://192.168.1.20:1234/v1', 'http://192.168.1.20:1234/v1'],
     ['http://ollama:11434/v1', 'http://ollama:11434/v1'],
+    ['http://[::ffff:7f00:1]:8000', 'http://[::ffff:7f00:1]:8000'],
   ])('accepts %s', (input, normalized) => {
     expect(checkEndpoint(input)).toEqual({ url: normalized, issues: [] });
   });
@@ -19,6 +20,12 @@ describe('endpoint policy', () => {
     ['https://example.com/v1?key=abc', 'query string'],
     ['http://169.254.169.254/latest', 'metadata'],
     ['https://metadata.google.internal', 'metadata'],
+    // Audit 2026-11-17: other spellings of the same hosts.
+    ['https://[::ffff:a9fe:a9fe]/latest', 'metadata'],
+    ['https://[::ffff:169.254.169.254]/latest', 'metadata'],
+    ['https://metadata.google.internal./x', 'metadata'],
+    ['https://169.254.169.254../x', 'metadata'],
+    ['http://2852039166/latest', 'metadata'],
     ['not a url', 'valid URL'],
   ])('rejects %s', (input, message) => {
     const { url, issues } = checkEndpoint(input);

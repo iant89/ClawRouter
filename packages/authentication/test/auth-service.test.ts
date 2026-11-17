@@ -92,6 +92,19 @@ describe('sessions', () => {
     expect(h.auth.resolve(token)).toBeNull();
   });
 
+  test('a short idle timeout keeps an active session alive (audit 2026-11-17)', async () => {
+    // Activity was recorded at most once a minute, so with a 1-minute timeout every
+    // session ended a minute after sign-in, however active it was.
+    const h = await withAdmin({ idleMinutes: 1 });
+    const { token } = (await h.auth.login(ADMIN.username, ADMIN.password, client)) as LoginResult;
+    for (let i = 0; i < 6; i++) {
+      h.clock.advance(40_000);
+      expect(h.auth.resolve(token)).not.toBeNull();
+    }
+    h.clock.advance(61_000);
+    expect(h.auth.resolve(token)).toBeNull();
+  });
+
   test('expire at the absolute lifetime even when active', async () => {
     const h = await withAdmin({ idleMinutes: 60, maxHours: 2 });
     const { token } = (await h.auth.login(ADMIN.username, ADMIN.password, client)) as LoginResult;
