@@ -461,6 +461,15 @@ See [MCP server](mcp.md). Built on 2026-11-16 from a misread request, set aside,
 - [x] Console: switch when creating a key, connection instructions, MCP column and on/off action
 - [x] Checked with the official MCP SDK client and Claude Code
 
+## Owner request: theme selection ✅
+
+See [console shell → Theme](console-shell.md#theme). Requested 2026-11-17; the owner chose Light, Dark and System, remembered on the account.
+
+- [x] Each user's theme on their account (migration 0022), in the session, changed with `PUT /api/auth/theme`
+- [x] User menu → Appearance: Dark (default), Light, System, applied at once
+- [x] The last choice in the browser for the screens before sign-in
+- [x] Light checked across the console (one dark-only style adjusted); System follows the device
+
 
 ---
 

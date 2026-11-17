@@ -417,3 +417,22 @@ See [onboarding](../onboarding.md).
 | ![Help menu](28-onboarding/19-help-menu.png) | Help menu: take the tour, run the setup wizard |
 | ![Viewer](28-onboarding/20-tour-viewer-gateway.png) | A Viewer's tour: only the pages a Viewer can open |
 | ![Phone tour](28-onboarding/21-tour-phone.png) | At phone width the sidebar is collapsed, so steps are centred |
+
+## 29 · Theme selection
+
+A scratch production build on 2026-11-17, with two real Groq requests for data. See
+[console shell → Theme](../console-shell.md#theme).
+
+| | |
+|---|---|
+| ![Dialog](29-theme/01-appearance-dialog-dark.png) | User menu → Appearance: Dark (the default), Light, System |
+| ![Light](29-theme/02-appearance-dialog-light.png) | Light applies at once, before the dialog closes |
+| ![Dashboard](29-theme/03-dashboard-light.png) | The dashboard in light |
+| ![Providers](29-theme/04-providers-light.png) | Providers |
+| ![Requests](29-theme/05-requests-light.png) | Requests |
+| ![Usage](29-theme/06-usage-light.png) | Usage, charts included |
+| ![API Access](29-theme/07-api-access-light.png) | API Access |
+| ![Field help](29-theme/08-settings-field-help-light.png) | The field help tip: the theme's own shadow on light |
+| ![Tour](29-theme/09-tour-light.png) | The guided tour in light |
+| ![Sign in](29-theme/10-sign-in-light.png) | After signing out: the sign-in page keeps this browser's last choice |
+| ![Phone](29-theme/11-dashboard-phone-light.png) | Phone width, light |

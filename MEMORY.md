@@ -14,6 +14,14 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 
 ### Important
 
+- **IMPORTANT** · 2026-11-17 · Owner rule: theme selection, Light / Dark / System, on the account
+  The owner asked for light/dark theme selection and chose **Light, Dark and System** (no
+  high-contrast), **remembered on the user's account** (follows them to every device). Dark stays
+  the default (spec §18). `users.theme` (migration 0022), session `theme` (compared in
+  `sameSession`), `PUT /api/auth/theme`; user menu → Appearance. New console styling must use
+  `--eui-*` tokens so both themes work; check new screens in light too. See "Theme" in
+  `docs/console-shell.md`; tests in `packages/api/test/theme-api.test.ts`.
+
 - **IMPORTANT** · 2026-11-16 · Owner rule: the MCP server stays, switchable, off by default
   After first rejecting it, the owner asked to keep ClawRouter's own MCP server (`/v1/mcp`, read-only
   tools for agents) "with the ability to enable/disable it", **off by default**. The switch is the
@@ -427,13 +435,15 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 
 ### Messages
 
-- **MESSAGE** · 2026-11-16 · Everything merged; what comes next is the owner's call
-  `main` has the setup wizard, the guided tour and the switchable MCP server (off by default).
-  No branch waits for review. Old branches to delete on GitHub (the session cannot): every
-  merged `claude/*` branch, the superseded `claude/mcp-server` and the stale
-  `claude/groq-provider`. Still open: the native Gemini adapter (needs the key in
-  `x-goog-api-key`, which the owner adds in the environment settings; the credential form
-  cannot), OpenAI and Anthropic live; multi-node shared state.
+- **MESSAGE** · 2026-11-17 · Theme selection waits for review
+  `claude/theme-selection` (from `main` at `bd8f58d`) adds Light / Dark / System per user (see
+  the owner rule under Important). Fast-forward `main` to it when the owner says "merge". Old
+  branches to delete on GitHub (the session cannot): every merged `claude/*` branch, the
+  superseded `claude/mcp-server` and the stale `claude/groq-provider`; never merge those two
+  (duplicate migration 0020 / older Groq code). Still open: an Anthropic-compatible
+  `/v1/messages` (so Claude Code can use ClawRouter), the native Gemini adapter (key in
+  `x-goog-api-key`, added by the owner in the environment settings), OpenAI and Anthropic live;
+  multi-node shared state.
 
 ---
 

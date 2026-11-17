@@ -11,6 +11,7 @@ import { ChangePasswordDialog } from '../features/auth/ChangePasswordDialog.tsx'
 import { AccountSecurityDialog } from '../features/auth/AccountSecurityDialog.tsx';
 import { NotificationsPanel } from '../features/notifications/NotificationsPanel.tsx';
 import { ConsoleTour } from '../features/onboarding/ConsoleTour.tsx';
+import { AppearanceDialog } from '../features/appearance/AppearanceDialog.tsx';
 import { updateSetupWizard } from '../services/onboarding.ts';
 import { useNotifications } from '../features/notifications/NotificationsContext.tsx';
 
@@ -32,6 +33,7 @@ export function ConsoleLayout({ activeId, children }: { activeId: string | undef
   const [sessionsOpen, setSessionsOpen] = useState(false);
   const [passwordOpen, setPasswordOpen] = useState(false);
   const [securityOpen, setSecurityOpen] = useState(false);
+  const [appearanceOpen, setAppearanceOpen] = useState(false);
   const { unread } = useNotifications();
   const gatewayState = error ? 'OFFLINE' : (data?.status ?? 'UNKNOWN');
 
@@ -63,6 +65,7 @@ export function ConsoleLayout({ activeId, children }: { activeId: string | undef
             { id: 'sessions', label: 'My sessions', icon: 'user-settings' },
             { id: 'password', label: 'Change password', icon: 'key' },
             { id: 'security', label: 'Sign-in security', icon: 'locked' },
+            { id: 'appearance', label: 'Appearance', icon: 'palette' },
             { type: 'separator' },
             { id: 'logout', label: 'Sign out', icon: 'log' },
           ]}
@@ -70,6 +73,7 @@ export function ConsoleLayout({ activeId, children }: { activeId: string | undef
             if (id === 'sessions') setSessionsOpen(true);
             if (id === 'password') setPasswordOpen(true);
             if (id === 'security') setSecurityOpen(true);
+            if (id === 'appearance') setAppearanceOpen(true);
             if (id === 'logout') void signOut();
           }}
         />
@@ -101,6 +105,7 @@ export function ConsoleLayout({ activeId, children }: { activeId: string | undef
       <MySessionsDialog open={sessionsOpen} onClose={() => setSessionsOpen(false)} />
       <ChangePasswordDialog open={passwordOpen} onClose={() => setPasswordOpen(false)} />
       <AccountSecurityDialog open={securityOpen} onClose={() => setSecurityOpen(false)} />
+      <AppearanceDialog open={appearanceOpen} onClose={() => setAppearanceOpen(false)} />
       <ConsoleTour open={tourOpen} onClose={() => setTourOpen(false)} />
     </AppShell>
   );

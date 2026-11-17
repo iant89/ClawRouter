@@ -69,3 +69,25 @@ format, what leaving it empty means, warnings, and "Press Enter to apply".
   close the surrounding dialog). Screen readers get the text as the button's
   description.
 - Checkbox and radio option text is not field help: it stays visible.
+
+## Theme
+
+Owner request (2026-11-17): each user picks **Light**, **Dark** or **System** (follows the
+device's light/dark setting, live). **Dark** stays the default (spec §18).
+
+- **Where:** user menu → **Appearance**. The theme applies as soon as it is picked.
+- **Remembered on the account** (`users.theme`, migration 0022; null = dark), so it follows
+  the user to every browser and device. The session carries `theme`; `PUT /api/auth/theme`
+  (`authenticated`, own choice only) changes it. A preference, so it is logged, not audited.
+- **Before sign-in** (setup, sign-in, the setup wizard's first load) the last choice made in
+  that browser applies (`localStorage`, `clawrouter.theme`; ignored if storage is blocked).
+- **Code:** `features/appearance/ThemeChoice.tsx` wraps ENTERPRISE-UI's `ThemeProvider`
+  inside the auth state (so the session's theme is known) and keeps a just-picked theme
+  until the server confirms it; `AppearanceDialog.tsx` is the picker. The session's theme is
+  compared in `sameSession` (`auth-state.ts`), or a change would not reach the console.
+- **Styling:** use `--eui-*` tokens, never fixed colours, so every theme works. The only
+  dark-specific style is the field help tip's deep shadow, replaced by the theme's own shadow
+  on light (`[data-eui-theme='light']` in `styles/console.css`).
+- Checked in Chromium (2026-11-17): every main page in light, the field help tip and the tour,
+  a second device getting the same theme, the sign-in page after signing out, System following
+  the device both ways, and phone width. Screenshots: `docs/screenshots/29-theme/`.

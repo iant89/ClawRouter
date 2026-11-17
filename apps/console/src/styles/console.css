@@ -124,6 +124,10 @@ body {
   outline: 2px solid var(--eui-color-focus, #4c9aff);
   outline-offset: 1px;
 }
+/* On a light theme the deep black shadow (chosen for the dark page) is harsh: use the theme's own. */
+[data-eui-theme='light'] .claw-field-help-bubble {
+  box-shadow: var(--eui-shadow-level-3, 0 0.5rem 1.5rem rgba(0, 0, 0, 0.18));
+}
 /* Bootstrap-shaped tooltip (centred text, small type, an arrow) in the colour of the page
    behind the cards, with an accent border and a shadow so it stands out. */
 .claw-field-help-bubble {

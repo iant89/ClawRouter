@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect, type ComponentType } from 'react';
-import { BusyIndicator, Button, EmptyState, ThemeProvider, ToastProvider, useMediaQuery } from '@enterprise-ui/react';
+import { BusyIndicator, Button, EmptyState, ToastProvider } from '@enterprise-ui/react';
+import { ThemeChoiceProvider } from '../features/appearance/ThemeChoice.tsx';
 import { HealthProvider } from '../features/health/HealthContext.tsx';
 import { RealtimeProvider } from '../features/realtime/RealtimeContext.tsx';
 import { NoAccessPage } from '../pages/NoAccessPage.tsx';
@@ -135,20 +136,20 @@ function Gate() {
 }
 
 /**
- * Spec §18: dark graphite, dense. Spec §20: touch targets of about 44px, so
- * touch screens get the cozy density while mouse users keep compact.
+ * Spec §18: dark graphite by default, dense; each user may choose Light, Dark or
+ * System (owner request), so the theme sits inside the auth state that carries it.
+ * Spec §20: touch screens get the cozy density (ThemeChoiceProvider).
  */
 export function App() {
-  const touch = useMediaQuery('(pointer: coarse)');
   return (
-    <ThemeProvider theme="dark" density={touch ? 'cozy' : 'compact'} style={{ height: '100%' }}>
-      <ToastProvider>
-        <RouterProvider>
-          <AuthProvider>
+    <RouterProvider>
+      <AuthProvider>
+        <ThemeChoiceProvider>
+          <ToastProvider>
             <Gate />
-          </AuthProvider>
-        </RouterProvider>
-      </ToastProvider>
-    </ThemeProvider>
+          </ToastProvider>
+        </ThemeChoiceProvider>
+      </AuthProvider>
+    </RouterProvider>
   );
 }

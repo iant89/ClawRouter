@@ -49,7 +49,8 @@ usage tracking and an administration console built on
   pages their role can open; see [onboarding](docs/onboarding.md).
   ClawRouter is also an **MCP server** at `/v1/mcp` (off by default; Settings): agents such as Claude Code can ask
   it about health, usage, requests and models with read-only tools (keys need MCP
-  access; see [MCP server](docs/mcp.md)).
+  access; see [MCP server](docs/mcp.md)). Each user picks a **Light, Dark or System** theme
+  (user menu → Appearance), saved on their account.
 - **Architecture:** [`docs/architecture.md`](docs/architecture.md) ·
   **Security model:** [`docs/authentication.md`](docs/authentication.md),
   [`docs/authorization.md`](docs/authorization.md) · **Console:**
