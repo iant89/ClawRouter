@@ -435,20 +435,21 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 
 ### Messages
 
-- **MESSAGE** · 2026-11-17 · Theme selection waits for review
-  `claude/theme-selection` (from `main` at `bd8f58d`) adds Light / Dark / System per user (see
-  the owner rule under Important). It also has a sun/moon toggle next to the notifications bell
-  (in the "⋯" menu on phones) and a dashboard Uptime that ticks every second. Fast-forward `main` to it when the owner says "merge". Old
-  branches to delete on GitHub (the session cannot): every merged `claude/*` branch, the
-  superseded `claude/mcp-server` and the stale `claude/groq-provider`; never merge those two
-  (duplicate migration 0020 / older Groq code). Still open: an Anthropic-compatible
-  `/v1/messages` (so Claude Code can use ClawRouter), the native Gemini adapter (key in
-  `x-goog-api-key`, added by the owner in the environment settings), OpenAI and Anthropic live;
-  multi-node shared state.
+- **MESSAGE** · 2026-11-17 · Everything merged after theme selection
+  Nothing waits for review. Old branches to delete on GitHub (the session cannot): every merged
+  `claude/*` branch (now including `claude/theme-selection`), the superseded `claude/mcp-server`
+  and the stale `claude/groq-provider`; never merge those two (duplicate migration 0020 / older
+  Groq code). Still open: an Anthropic-compatible `/v1/messages` (so Claude Code can use
+  ClawRouter), the native Gemini adapter (key in `x-goog-api-key`, added by the owner in the
+  environment settings), OpenAI and Anthropic live; multi-node shared state.
 
 ---
 
 ## Resolved
+
+- **MESSAGE** · 2026-11-17 · Theme selection waits for review. Resolved 2026-11-17: the owner
+  said "Merge"; `main` was fast-forwarded to `claude/theme-selection` (this commit): Light / Dark /
+  System on the account (migration 0022), the header sun/moon toggle, and the ticking Uptime.
 
 - **MESSAGE** · 2026-11-16 · The MCP server (with its switch) waits for review, after onboarding.
   Resolved 2026-11-16: on the owner's "Start merging", `main` was fast-forwarded to
