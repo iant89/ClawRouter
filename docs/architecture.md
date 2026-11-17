@@ -64,13 +64,18 @@ Bun.serve routes
 
 ## Custom console components
 
-Both live in `apps/console/src/components/custom/` and are compositions of
+They live in `apps/console/src/components/custom/` and are compositions of
 ENTERPRISE-UI components:
 
 - `HealthStateIndicator`: maps ClawRouter health states to `StatusIndicator` tones,
   always with a text label.
 - `PlannedFeature`: page placeholder (`Page` + `EmptyState`) for areas whose server
   API does not exist yet. The console shows no invented data.
+
+Components that proved general moved to ENTERPRISE-UI (2026-11-17): the field help
+"i" (`FieldHelp`, `WithFieldHelp`), `EmojiPicker`, the health history strip
+(`StatusHistory`), the page error boundary (`ErrorBoundary`) and the icon-only copy
+button (`CopyButton iconOnly`). Check ENTERPRISE-UI before writing a new one here.
 
 ## Known limitations
 

@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Button, Dialog, Form, Input, MessageStrip, MultiSelect, Text, TextArea } from '@enterprise-ui/react';
-import { FieldHelp, WithFieldHelp } from '../../components/custom/FieldHelp.tsx';
+import { Button, Dialog, FieldHelp, Form, Input, MessageStrip, MultiSelect, Text, TextArea, WithFieldHelp } from '@enterprise-ui/react';
 import type { ApiKeyRequestInfo } from '@clawrouter/shared';
 import { requestKey } from '../../services/key-requests.ts';
 import { defaultDraft, ExpiryField, toKeyExpiry, type ExpiryDraft } from '../api-access/ExpiryField.tsx';

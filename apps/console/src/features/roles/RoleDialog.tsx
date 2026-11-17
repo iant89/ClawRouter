@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Button, Checkbox, Dialog, Input, MessageStrip, Text } from '@enterprise-ui/react';
-import { FieldHelp } from '../../components/custom/FieldHelp.tsx';
+import { Button, Checkbox, Dialog, FieldHelp, Input, MessageStrip, Text } from '@enterprise-ui/react';
 import { PERMISSION_DESCRIPTIONS, PERMISSION_GROUPS, PERMISSIONS, type Permission, type RoleInfo } from '@clawrouter/shared';
 import { createRole, updateRole } from '../../services/access.ts';
 import { ApiClientError } from '../../services/api-client.ts';

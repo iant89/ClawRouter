@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Button, Dialog, Input, MessageStrip, NumberInput, Select, useToast } from '@enterprise-ui/react';
+import { Button, Dialog, FieldHelp, Input, MessageStrip, NumberInput, Select, useToast, WithFieldHelp } from '@enterprise-ui/react';
 import { MANUAL_CAPTURE_MAX_COUNT, MANUAL_CAPTURE_MAX_MINUTES, type ProviderInfo } from '@clawrouter/shared';
-import { FieldHelp, WithFieldHelp } from '../../components/custom/FieldHelp.tsx';
 import { ApiClientError } from '../../services/api-client.ts';
 import { startManualCapture } from '../../services/captures.ts';
 import { fetchProviders } from '../../services/providers.ts';

@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Button, Checkbox, Dialog, Form, Input, MessageStrip, NumberInput, Select, Switch, Text } from '@enterprise-ui/react';
+import { Button, Checkbox, Dialog, FieldHelp, Form, Input, MessageStrip, NumberInput, Select, Switch, Text, WithFieldHelp } from '@enterprise-ui/react';
 import { CAPABILITIES, formatLifetime, type Capability, type ModelInfo, type ProviderInfo } from '@clawrouter/shared';
 import { KeyLifetimeField } from '../../components/custom/KeyLifetimeField.tsx';
-import { FieldHelp, WithFieldHelp } from '../../components/custom/FieldHelp.tsx';
 import { ApiClientError } from '../../services/api-client.ts';
 import { createModel, updateModel } from '../../services/models.ts';
 

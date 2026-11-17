@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Button, Card, MessageStrip, Switch, Text, TextArea, useToast } from '@enterprise-ui/react';
+import { Button, Card, MessageStrip, Switch, Text, TextArea, useToast, WithFieldHelp } from '@enterprise-ui/react';
 import { NOTICE_TEXT_MAX, SYSTEM_NOTICE_KINDS, SYSTEM_NOTICE_LABELS, type NoticeMessage, type NoticeMessages, type SystemNoticeKind } from '@clawrouter/shared';
-import { WithFieldHelp } from '../../components/custom/FieldHelp.tsx';
 import { useResource } from '../../hooks/useResource.ts';
 import { ApiClientError } from '../../services/api-client.ts';
 import { fetchNoticeMessages, resetNoticeMessages, saveNoticeMessages } from '../../services/notices.ts';

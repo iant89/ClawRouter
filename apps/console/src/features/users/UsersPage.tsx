@@ -1,10 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
-  AlertDialog, Button, Dialog, Input, MessageStrip, OverflowMenu, Page, RefreshControl, StatusIndicator, Table, Text, useToast, type TableColumn,
+  AlertDialog, Button, Dialog, FieldHelp, Input, MessageStrip, OverflowMenu, Page, RefreshControl, StatusIndicator, Table, type TableColumn, Text, useToast,
 } from '@enterprise-ui/react';
 import type { RoleInfo, UserWithRoles } from '@clawrouter/shared';
 import { RoleTags } from '../../components/custom/RoleTags.tsx';
-import { FieldHelp } from '../../components/custom/FieldHelp.tsx';
 import { useResource } from '../../hooks/useResource.ts';
 import { fetchRoles, fetchUsers, updateUser } from '../../services/access.ts';
 import { ApiClientError } from '../../services/api-client.ts';

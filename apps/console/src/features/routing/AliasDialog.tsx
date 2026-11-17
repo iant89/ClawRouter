@@ -1,9 +1,8 @@
 import { useEffect, useState } from 'react';
-import { Button, Checkbox, Dialog, Form, IconButton, Input, MessageStrip, NumberInput, Select, Switch, Text } from '@enterprise-ui/react';
+import { Button, Checkbox, Dialog, FieldHelp, Form, IconButton, Input, MessageStrip, NumberInput, Select, Switch, Text } from '@enterprise-ui/react';
 import { ALIAS_NAME_PATTERN, CAPABILITIES, DEFAULT_ROUTING_POLICY, type AliasTarget, type Capability, type ModelAlias, type ModelInfo } from '@clawrouter/shared';
 import { CAPABILITY_LABEL } from '../models/ModelDialog.tsx';
 import { PolicyFields } from './PolicyFields.tsx';
-import { FieldHelp } from '../../components/custom/FieldHelp.tsx';
 
 const blank = (): ModelAlias => ({ name: '', description: '', enabled: true, capabilities: [], targets: [], policy: null });
 

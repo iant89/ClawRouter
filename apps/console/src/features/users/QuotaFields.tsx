@@ -1,6 +1,5 @@
-import { NumberInput, ProgressBar, Select, Switch, Text, TimeZonePicker } from '@enterprise-ui/react';
+import { NumberInput, ProgressBar, Select, Switch, Text, TimeZonePicker, WithFieldHelp } from '@enterprise-ui/react';
 import { DEFAULT_QUOTA, QUOTA_AMOUNT_MAX, type QuotaPeriod, type QuotaUnit, type QuotaUsage, type UserQuota } from '@clawrouter/shared';
-import { WithFieldHelp } from '../../components/custom/FieldHelp.tsx';
 
 const UNIT_OPTIONS: { value: QuotaUnit; label: string; description: string }[] = [
   { value: 'tokens', label: 'Tokens', description: 'Input and output tokens' },

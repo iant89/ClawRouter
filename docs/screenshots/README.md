@@ -494,3 +494,19 @@ Added 2026-11-17 (announcement type and emoji picker; the 🚀 line was then sen
 | ![Light](31-notices/16-picker-light.png) | The picker in light, editing |
 | ![Phone](31-notices/17-picker-phone.png) | Phone width: larger touch targets |
 | ![Type open](31-notices/18-type-open-on-click.png) | The Type box opens on a click and cannot be typed in (ENTERPRISE-UI ComboBox `editable={false}` and `openOnClick`) |
+
+## 32 · Components moved to ENTERPRISE-UI
+
+Captured 2026-11-17 on a production build, after FieldHelp, EmojiPicker, the health history
+strip (now `StatusHistory`), the page error boundary (`ErrorBoundary`) and the icon-only copy
+button (`CopyButton iconOnly`) moved from `components/custom/` into ENTERPRISE-UI. They should
+look and behave as before.
+
+| Screenshot | Shows |
+| --- | --- |
+| ![Dialog](32-design-system-components/01-field-help-dialog.png) | Field help in the Add provider dialog (Escape closes the tip, not the dialog) |
+| ![Settings](32-design-system-components/02-field-help-settings.png) | Field help beside a number field in Settings, opened by hover |
+| ![Emoji](32-design-system-components/03-emoji-picker.png) | The emoji picker in the announcement dialog, searching "tools" |
+| ![Health](32-design-system-components/04-health-status-history.png) | Health history strips (`StatusHistory`), a few minutes after start |
+| ![Copy](32-design-system-components/05-copy-setup-key.png) | The setup key copied: check mark in the field and a toast |
+| ![Light](32-design-system-components/06-field-help-light.png) | Field help in the light theme |

@@ -1,5 +1,4 @@
-import { Button, PasswordInput } from '@enterprise-ui/react';
-import { WithFieldHelp } from '../../components/custom/FieldHelp.tsx';
+import { Button, PasswordInput, WithFieldHelp } from '@enterprise-ui/react';
 import { PASSWORD_POLICY } from '@clawrouter/shared';
 
 /** A readable random password (about 100 bits): five groups of five, no look-alike characters. */

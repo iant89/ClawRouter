@@ -131,7 +131,7 @@ Goal: create the real console. See [console shell](console-shell.md).
 - [x] User menu
 - [x] Permission-aware navigation
 - [x] Loading states
-- [x] Error states: including `PageErrorBoundary`
+- [x] Error states: including a page error boundary (ENTERPRISE-UI `ErrorBoundary` since 2026-11-17)
 
 Exit: authenticated users have a functional enterprise application shell ✅
 

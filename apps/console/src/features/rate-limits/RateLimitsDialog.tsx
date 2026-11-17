@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Button, Dialog, Form, IconButton, MessageStrip, NumberInput, Select, Text } from '@enterprise-ui/react';
-import { WithFieldHelp } from '../../components/custom/FieldHelp.tsx';
+import { Button, Dialog, Form, IconButton, MessageStrip, NumberInput, Select, Text, WithFieldHelp } from '@enterprise-ui/react';
 import type { FieldIssue, ModelInfo, ModelRateLimit, RateLimitSettings } from '@clawrouter/shared';
 import { LimitFields, limitErrors } from './LimitFields.tsx';
 

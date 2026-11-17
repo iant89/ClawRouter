@@ -1,7 +1,6 @@
-import { FieldHelp, WithFieldHelp } from '../../components/custom/FieldHelp.tsx';
 import { KeyLifetimeField } from '../../components/custom/KeyLifetimeField.tsx';
 import { useEffect, useMemo, useState } from 'react';
-import { Button, Dialog, Form, Input, MessageStrip, NumberInput, PasswordInput, Select, Switch, Text } from '@enterprise-ui/react';
+import { Button, Dialog, FieldHelp, Form, Input, MessageStrip, NumberInput, PasswordInput, Select, Switch, Text, WithFieldHelp } from '@enterprise-ui/react';
 import type { ProviderInfo, ProviderKindInfo } from '@clawrouter/shared';
 import { ApiClientError } from '../../services/api-client.ts';
 import { createProvider, removeProviderKey, updateProvider } from '../../services/providers.ts';

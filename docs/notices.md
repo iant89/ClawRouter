@@ -104,8 +104,8 @@ or without the emoji variation selector (U+FE0F), which some clients drop. **Add
 remove one**: a removed icon would stop the cleanup for replies that already carry it. Emoji in
 the message text itself are free (they are not part of the match).
 
-The picker is `apps/console/src/components/custom/EmojiPicker.tsx` (ENTERPRISE-UI has none; a
-candidate for the design system). Escape closes the picker only, not the dialog it is in.
+The picker is ENTERPRISE-UI's `EmojiPicker` (it started here and moved to the design system on
+2026-11-17), with `insertTextAtCursor`. Escape closes the picker only, not the dialog it is in.
 The Type box is select-like (ENTERPRISE-UI ComboBox `editable={false}` and `openOnClick`, owner
 request 2026-11-17): a click opens it, it cannot be typed in, Space or Enter open it, and a letter
 jumps to the next type starting with it (M for Maintenance).

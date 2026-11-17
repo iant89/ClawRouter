@@ -1,6 +1,5 @@
-import { NumberInput, Select } from '@enterprise-ui/react';
+import { NumberInput, Select, WithFieldHelp } from '@enterprise-ui/react';
 import { FAILOVER_POLICIES, MAX_ATTEMPTS_CEILING, type FailoverPolicy, type RoutingPolicy } from '@clawrouter/shared';
-import { WithFieldHelp } from '../../components/custom/FieldHelp.tsx';
 import { FAILOVER_LABEL } from './routing-utils.ts';
 
 /** Failover policy inputs (spec §11), shared by the default policy and per-alias overrides. */

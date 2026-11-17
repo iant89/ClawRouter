@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Button, CopyButton, Dialog, Form, Input, MessageStrip, MultiSelect, Switch, Text } from '@enterprise-ui/react';
-import { FieldHelp, WithFieldHelp } from '../../components/custom/FieldHelp.tsx';
+import { Button, CopyButton, Dialog, FieldHelp, Form, Input, MessageStrip, MultiSelect, Switch, Text, WithFieldHelp } from '@enterprise-ui/react';
 import type { CreateApiKeyRequest, CreatedApiKey, RateLimit } from '@clawrouter/shared';
 import { KeyLimitFields } from './KeyLimitDialog.tsx';
 import { defaultDraft, ExpiryField, toKeyExpiry, type ExpiryDraft } from './ExpiryField.tsx';

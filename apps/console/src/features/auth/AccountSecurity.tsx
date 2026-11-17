@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Button, Card, CopyButton, Input, Link, MessageStrip, PasswordInput, QrCode, StatusIndicator, Text } from '@enterprise-ui/react';
-import { CopyIconButton } from '../../components/custom/CopyIconButton.tsx';
+import { Button, Card, CopyButton, Input, Link, MessageStrip, PasswordInput, QrCode, StatusIndicator, Text, useToast } from '@enterprise-ui/react';
 import type { TotpSetup, TwoFactorMethod, TwoFactorStatus } from '@clawrouter/shared';
 import { ApiClientError } from '../../services/api-client.ts';
 import {
@@ -130,6 +129,7 @@ function EmailCard({ status, onChanged }: { status: TwoFactorStatus; onChanged: 
 }
 
 function TotpCard({ enabled, onChanged }: { enabled: boolean; onChanged: (codes?: string[]) => void }) {
+  const toast = useToast();
   const [setup, setSetup] = useState<TotpSetup | null>(null);
   const [code, setCode] = useState('');
   const [removing, setRemoving] = useState(false);
@@ -165,7 +165,17 @@ function TotpCard({ enabled, onChanged }: { enabled: boolean; onChanged: (codes?
               className="claw-mono"
               value={grouped(setup.secret)}
               onFocus={(e) => e.currentTarget.select()}
-              endAdornment={<CopyIconButton value={setup.secret} label="Copy setup key" copiedTitle="Setup key copied" />}
+              endAdornment={
+                <CopyButton
+                  iconOnly
+                  size="sm"
+                  neutral
+                  value={setup.secret}
+                  label="Copy setup key"
+                  onCopied={() => toast.show({ tone: 'success', title: 'Setup key copied' })}
+                  onError={() => toast.show({ tone: 'error', title: 'Could not copy', description: 'Select the key and copy it instead.', duration: 10_000 })}
+                />
+              }
               description="Time-based, 6 digits, every 30 seconds. The key is shown only now."
               style={{ letterSpacing: '0.04em' }}
               boxClassName="claw-setup-key"

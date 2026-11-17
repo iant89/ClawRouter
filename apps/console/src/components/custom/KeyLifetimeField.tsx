@@ -1,7 +1,6 @@
 import { useEffect, useId, useState, type ReactNode } from 'react';
-import { NumberInput, Select, Text } from '@enterprise-ui/react';
+import { NumberInput, Select, Text, WithFieldHelp } from '@enterprise-ui/react';
 import { KEY_EXPIRY_MAX_HOURS } from '@clawrouter/shared';
-import { WithFieldHelp } from './FieldHelp.tsx';
 
 type Unit = 'hours' | 'days';
 

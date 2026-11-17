@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, type ComponentType } from 'react';
-import { BusyIndicator, Button, EmptyState, ToastProvider } from '@enterprise-ui/react';
+import { BusyIndicator, Button, EmptyState, ErrorBoundary, ToastProvider, type ErrorBoundaryLabels } from '@enterprise-ui/react';
 import { ThemeChoiceProvider } from '../features/appearance/ThemeChoice.tsx';
 import { HealthProvider } from '../features/health/HealthContext.tsx';
 import { RealtimeProvider } from '../features/realtime/RealtimeContext.tsx';
@@ -11,12 +11,24 @@ import { SetupPage } from '../features/auth/SetupPage.tsx';
 import { ForcedPasswordChange } from '../features/auth/ForcedPasswordChange.tsx';
 import { ForcedTwoFactorSetup } from '../features/auth/ForcedTwoFactorSetup.tsx';
 import { PlannedFeature } from '../components/custom/PlannedFeature.tsx';
-import { PageErrorBoundary } from '../components/custom/PageErrorBoundary.tsx';
 import { NotificationsProvider } from '../features/notifications/NotificationsContext.tsx';
 import { ConsoleLayout } from '../layouts/ConsoleLayout.tsx';
 import { NotFoundPage } from '../pages/NotFoundPage.tsx';
 import { canSee, resolvePath, type NavItem } from './navigation.ts';
 import { RouterProvider, useRouter } from './router.tsx';
+
+/**
+ * A page that crashes leaves the shell, navigation and header usable. Pages load on first
+ * visit (phase 16): after ClawRouter is upgraded, an open console asks for page files that
+ * no longer exist, and ErrorBoundary then offers only a reload.
+ */
+const PAGE_ERROR_LABELS: Partial<ErrorBoundaryLabels> = {
+  title: 'This page could not be displayed',
+  description: 'The rest of the console still works. Try again, or open another page. If it keeps happening, reload the console.',
+  updatedTitle: 'ClawRouter was updated',
+  updatedDescription: 'A newer version of the console is available. Reload to open this page.',
+  reload: 'Reload console',
+};
 
 /**
  * Console pages load on first visit (phase 16): each is its own file, so signing in
@@ -87,11 +99,11 @@ function Console() {
     <HealthProvider>
       <NotificationsProvider>
         <ConsoleLayout activeId={item?.id}>
-          <PageErrorBoundary resetKey={pathname}>
+          <ErrorBoundary resetKey={pathname} labels={PAGE_ERROR_LABELS} onError={(error, info) => console.error('Console page crashed', error, info.componentStack)}>
             <Suspense fallback={<BusyIndicator active text="Loading…" style={{ minHeight: '12rem' }} />}>
               <PageFor item={item} />
             </Suspense>
-          </PageErrorBoundary>
+          </ErrorBoundary>
         </ConsoleLayout>
       </NotificationsProvider>
     </HealthProvider>

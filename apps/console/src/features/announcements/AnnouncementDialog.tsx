@@ -1,11 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import { Button, ComboBox, DateTimePicker, Dialog, MessageStrip, RadioGroup, Select, Switch, Text, TextArea, useToast } from '@enterprise-ui/react';
+import { Button, ComboBox, DateTimePicker, Dialog, EmojiPicker, insertTextAtCursor, MessageStrip, RadioGroup, Select, Switch, Text, TextArea, useToast, WithFieldHelp } from '@enterprise-ui/react';
 import {
   ANNOUNCEMENT_CHANNEL_LABELS, ANNOUNCEMENT_CHANNELS, ANNOUNCEMENT_FREQUENCIES, ANNOUNCEMENT_FREQUENCY_LABELS, ANNOUNCEMENT_ICONS, DEFAULT_ANNOUNCEMENT_ICON,
   NOTICE_TEXT_MAX, isAnnouncementIcon, type AnnouncementChannel, type AnnouncementFrequency, type AnnouncementIcon, type AnnouncementInfo,
 } from '@clawrouter/shared';
-import { WithFieldHelp } from '../../components/custom/FieldHelp.tsx';
-import { EmojiPicker, insertAtCursor } from '../../components/custom/EmojiPicker.tsx';
 import { ApiClientError } from '../../services/api-client.ts';
 import { createAnnouncement, updateAnnouncement } from '../../services/notices.ts';
 
@@ -103,8 +101,8 @@ export function AnnouncementDialog({ open, editing, onClose, onSaved }: {
       <div className="claw-field-with-action">
         <TextArea ref={messageField} label="Message" rows={3} required value={message} maxLength={NOTICE_TEXT_MAX} showCount error={issues.message}
           description="One line; line breaks become spaces." onChange={(e) => setMessage(e.target.value)} />
-        <EmojiPicker onPick={(emoji) => {
-          const next = insertAtCursor(messageField.current, message, emoji);
+        <EmojiPicker onSelect={(emoji) => {
+          const next = insertTextAtCursor(messageField.current, message, emoji);
           setMessage(next.value.slice(0, NOTICE_TEXT_MAX));
           // Back to the message, with the caret after the emoji.
           requestAnimationFrame(() => {

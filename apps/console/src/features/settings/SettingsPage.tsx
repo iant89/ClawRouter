@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Button, Card, Input, MessageStrip, Page, RefreshControl, StatusIndicator, Switch, Tab, TabList, TabPanel, Tabs, Text, useToast } from '@enterprise-ui/react';
+import { Button, Card, FieldHelp, Input, MessageStrip, Page, RefreshControl, StatusIndicator, Switch, Tab, TabList, TabPanel, Tabs, Text, useToast, WithFieldHelp } from '@enterprise-ui/react';
 import { useRouter } from '../../app/router.tsx';
-import { FieldHelp, WithFieldHelp } from '../../components/custom/FieldHelp.tsx';
 import type { MailServerSettings, SettingInfo, SettingKey } from '@clawrouter/shared';
 import { useResource } from '../../hooks/useResource.ts';
 import { ApiClientError } from '../../services/api-client.ts';

@@ -8,7 +8,7 @@
 | Navigation | Spec §17 groups, filtered to the user's permissions (empty groups dropped). Collapses to icons on tablets and becomes a drawer on phones (ENTERPRISE-UI AppShell) |
 | Routing | History-API router; deep links work (the server serves the console for every non-API path). Signed-out users return to the requested page after sign-in |
 | Access | Pages without permission show a "no access" page. The server refuses the data regardless |
-| Loading / errors | Pages show table skeletons and busy states while loading, and a message strip when a request fails. A page that throws while rendering shows "This page could not be displayed" with *Try again*; the header and navigation keep working (`PageErrorBoundary`). Losing the server shows a retry screen |
+| Loading / errors | Pages show table skeletons and busy states while loading, and a message strip when a request fails. A page that throws while rendering shows "This page could not be displayed" with *Try again*; the header and navigation keep working (ENTERPRISE-UI `ErrorBoundary`, reset when the path changes; after an upgrade a page whose file is gone offers only "Reload console"). Losing the server shows a retry screen |
 | Density | Compact for mouse users (spec §18 "dense"). On touch screens (`pointer: coarse`) the cozy density, plus raised size tokens so controls are about 44px (spec §20). See `apps/console/src/styles/console.css` |
 
 ## Notifications
@@ -52,7 +52,8 @@ when the tab becomes visible. A new warning or error also appears as a toast.
 ## Field help
 
 A form field's longer explanation sits behind an "i" button rather than under the
-field (owner's request): `components/custom/FieldHelp.tsx`. What stays under the
+field (owner's request): ENTERPRISE-UI's `FieldHelp` and `WithFieldHelp` (they started in
+ClawRouter and moved to the design system on 2026-11-17). What stays under the
 field is only what is needed to fill it in correctly: allowed range and default,
 format, what leaving it empty means, warnings, and "Press Enter to apply".
 

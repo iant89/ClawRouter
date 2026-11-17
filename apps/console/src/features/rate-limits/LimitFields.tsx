@@ -1,6 +1,5 @@
-import { NumberInput, Select, Switch } from '@enterprise-ui/react';
+import { NumberInput, Select, Switch, WithFieldHelp } from '@enterprise-ui/react';
 import { BUCKET_CAPACITY_MAX, BUCKET_REFILL_SECONDS_MAX, RATE_LIMIT_MAX, type RateLimit, type RateWindow, type TokenBucket } from '@clawrouter/shared';
-import { WithFieldHelp } from '../../components/custom/FieldHelp.tsx';
 
 const WINDOW_OPTIONS: { value: RateWindow; label: string }[] = [
   { value: 'second', label: 'Per second' },

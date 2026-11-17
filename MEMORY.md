@@ -169,8 +169,9 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
   The owner asked for the tarball to be committed rather than cloned or built at
   install time. `vendor/enterprise-ui-react.tgz` is from ENTERPRISE-UI `main` at `ac70db0` (with
   QrCode, pull request 54, and Tour and the small-screen Wizard, pull request 55). Since 2026-11-17 it
-  is from ENTERPRISE-UI `main` at `83e4097` (pull request 56: ComboBox `editable` / `openOnClick` and
-  the input focus-ring / dropdown-arrow fix). To update it, follow
+  is from ENTERPRISE-UI branch `claude/clawapi-design-spec-p0hucn` at `66dfdb3` (`main` `83e4097` plus
+  FieldHelp, EmojiPicker, StatusHistory, ErrorBoundary and CopyButton `iconOnly`, moved from ClawRouter;
+  not yet in ENTERPRISE-UI `main`, see Messages). To update it, follow
   `vendor/README.md` (needs a local ENTERPRISE-UI checkout); run `bun install --force`, because the
   package version stays 0.1.0 and a plain install keeps the cached copy.
 
@@ -317,6 +318,11 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
     reaches the others within 5 seconds.
 
 ### Notes
+
+- **NOTE** · 2026-11-17 · ENTERPRISE-UI: new example folders missing in the docs tests
+  The docs registry test ("provides examples for registered pages") failed for freshly added
+  `examples/<slug>/` folders because vitest's module cache (`node_modules/.vitest-cache`) kept an
+  old `import.meta.glob` result. Moving that folder aside fixed it; CI starts clean and is not affected.
 
 - **NOTE** · 2026-11-16 · Live Gemini testing (OpenAI-compatible endpoint)
   The owner saved a Gemini API key as a **network secret for generativelanguage.googleapis.com,
@@ -474,8 +480,18 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 
 ### Messages
 
+- **MESSAGE** · 2026-11-17 · Components moved to ENTERPRISE-UI wait for review
+  The owner asked to move FieldHelp / WithFieldHelp, EmojiPicker, CopyIconButton, HealthTimeline and
+  PageErrorBoundary into ENTERPRISE-UI. Done on ENTERPRISE-UI branch `claude/clawapi-design-spec-p0hucn`
+  (`66dfdb3`, restarted from `main` `83e4097`; no pull request yet, the owner did not ask for one) as
+  `FieldHelp`, `WithFieldHelp`, `EmojiPicker` (+ `insertTextAtCursor`), `StatusHistory`, `ErrorBoundary`
+  (+ `isChunkLoadError`) and `CopyButton iconOnly`; and on ClawRouter branch
+  `claude/eui-shared-components`, which vendors that build, uses them and deletes the custom copies.
+  Order: ENTERPRISE-UI pull request and merge first, then re-vendor ClawRouter from `main`, then merge
+  ClawRouter. Check ENTERPRISE-UI before writing a new component in `components/custom/`.
+
 - **MESSAGE** · 2026-11-17 · Everything merged after client notices and announcements
-  Nothing in ClawRouter waits for review. Old branches to delete on GitHub (the session cannot): every merged
+  Nothing else in ClawRouter waits for review. Old branches to delete on GitHub (the session cannot): every merged
   `claude/*` branch (now including `claude/captures-live-groq`, `claude/client-notices` and
   `claude/announcement-emoji`), the superseded `claude/mcp-server`
   and the stale `claude/groq-provider`; never merge those two (duplicate migration 0020 / older

@@ -58,24 +58,6 @@ body {
   word-break: break-word;
 }
 
-/* Health history strip (HealthTimeline): one bar per time bucket. */
-.claw-timeline {
-  display: flex;
-  gap: 2px;
-  align-items: stretch;
-  height: 1.5rem;
-  min-width: 12rem;
-}
-.claw-timeline-bucket {
-  flex: 1 1 0;
-  min-width: 2px;
-  border-radius: 1px;
-  border: 1px solid var(--eui-color-border-subtle, rgba(255, 255, 255, 0.08));
-}
-.claw-timeline-bucket[data-status='none'] {
-  border-style: dashed;
-}
-
 /* Role editor: permission areas side by side when there is room. */
 .claw-permission-groups {
   display: grid;
@@ -99,133 +81,13 @@ body {
   gap: var(--eui-space-2, 0.5rem);
 }
 
-/* Field help toggletip (components/custom/FieldHelp.tsx): looks like ENTERPRISE-UI's Tooltip.
-   The tip is in a portal, placed with inline top/bottom and right. */
-.claw-field-help-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  inline-size: 1.75rem;
-  block-size: 1.75rem;
-  padding: 0;
-  border: 0;
-  border-radius: 50%;
-  background: transparent;
-  color: var(--eui-color-text-secondary, currentColor);
-  cursor: help;
-  position: relative;
-}
-.claw-field-help-button:hover,
-.claw-field-help-button[aria-expanded='true'] {
-  color: var(--eui-color-text, currentColor);
-  background: var(--eui-color-surface-hover, rgba(255, 255, 255, 0.08));
-}
-.claw-field-help-button:focus-visible {
-  outline: 2px solid var(--eui-color-focus, #4c9aff);
-  outline-offset: 1px;
-}
-/* On a light theme the deep black shadow (chosen for the dark page) is harsh: use the theme's own. */
-[data-eui-theme='light'] .claw-field-help-bubble {
-  box-shadow: var(--eui-shadow-level-3, 0 0.5rem 1.5rem rgba(0, 0, 0, 0.18));
-}
-/* Bootstrap-shaped tooltip (centred text, small type, an arrow) in the colour of the page
-   behind the cards, with an accent border and a shadow so it stands out. */
-.claw-field-help-bubble {
-  --claw-tip-bg: var(--eui-color-background, #12171c);
-  --claw-tip-border: var(--eui-color-primary, #4db1ff); /* the accent of the selected tab and focus ring */
-  font-family: var(--eui-font-family, system-ui, sans-serif);
-  position: fixed;
-  z-index: var(--eui-z-tooltip, 1000);
-  display: grid;
-  gap: 0.25rem;
-  inline-size: max-content;
-  max-inline-size: min(17rem, calc(100vw - 2rem)); /* fits the longest variable name on one line */
-  padding: 0.375rem 0.625rem;
-  border: 1px solid var(--claw-tip-border);
-  border-radius: 0.375rem;
-  background: var(--claw-tip-bg);
-  /* Deep enough to read against the dark page behind the cards. */
-  box-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.7), 0 0.125rem 0.375rem rgba(0, 0, 0, 0.5);
-  color: var(--eui-color-text, #fff);
-  font-size: 0.8125rem;
-  font-weight: 400;
-  line-height: 1.5;
-  text-align: center;
-  white-space: normal;
-  overflow-wrap: break-word;
-  animation: claw-tip-in 0.15s ease-out;
-}
-.claw-field-help-bubble[hidden] {
-  display: none;
-}
-.claw-field-help-bubble > span {
-  display: block;
-}
-/* Long environment variable names break anywhere rather than overflow. */
-.claw-field-help-bubble .claw-mono {
-  overflow-wrap: anywhere;
-}
-.claw-field-help-note {
+/* Field help tips (ENTERPRISE-UI FieldHelp): a secondary note under the main text, and long
+   environment variable names that break anywhere rather than overflow. */
+[role="tooltip"] .claw-field-help-note {
   color: var(--eui-color-text-secondary, rgba(255, 255, 255, 0.75));
 }
-/* The arrow points at the field's centre (--claw-tip-arrow-x from FieldHelp): the
-   outer triangle (::before) draws the border, the inner one (::after) the fill. */
-.claw-field-help-bubble::before,
-.claw-field-help-bubble::after {
-  content: '';
-  position: absolute;
-  border: 0.45rem solid transparent;
-  inset-inline-start: calc(var(--claw-tip-arrow-x, 50%) - 0.45rem);
-}
-.claw-field-help-bubble[data-placement='top']::before {
-  inset-block-start: 100%;
-  border-block-start-color: var(--claw-tip-border);
-  border-block-end-width: 0;
-}
-.claw-field-help-bubble[data-placement='top']::after {
-  inset-block-start: calc(100% - 1.5px);
-  border-block-start-color: var(--claw-tip-bg);
-  border-block-end-width: 0;
-}
-.claw-field-help-bubble[data-placement='bottom']::before {
-  inset-block-end: 100%;
-  border-block-end-color: var(--claw-tip-border);
-  border-block-start-width: 0;
-}
-.claw-field-help-bubble[data-placement='bottom']::after {
-  inset-block-end: calc(100% - 1.5px);
-  border-block-end-color: var(--claw-tip-bg);
-  border-block-start-width: 0;
-}
-@keyframes claw-tip-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-@media (prefers-reduced-motion: reduce) {
-  .claw-field-help-bubble { animation: none; }
-}
-@media (pointer: coarse) {
-  /* ~44px touch target without making the field taller. */
-  .claw-field-help-button::after {
-    content: '';
-    position: absolute;
-    inset: -0.5rem;
-  }
-}
-
-/* WithFieldHelp: the control, then the "i" just outside its right edge. */
-.claw-field-help-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  column-gap: var(--eui-space-1, 0.25rem);
-  align-items: start;
-}
-.claw-field-help-field {
-  min-inline-size: 0;
-}
-.claw-field-help-row-inline {
-  grid-template-columns: auto auto;
-  justify-content: start;
+[role="tooltip"] .claw-mono {
+  overflow-wrap: anywhere;
 }
 
 /* Authenticator setup: the read-only setup key. */
@@ -247,41 +109,6 @@ body {
   overflow-wrap: anywhere;
 }
 
-/* Emoji picker (components/custom/EmojiPicker.tsx): a searchable grid in a popover. */
-.claw-emoji-picker {
-  display: grid;
-  gap: var(--eui-space-2, 0.5rem);
-  max-block-size: 20rem;
-  overflow: auto;
-}
-.claw-emoji-grid {
-  display: grid;
-  grid-template-columns: repeat(8, 1fr);
-  gap: 2px;
-}
-.claw-emoji {
-  display: grid;
-  place-items: center;
-  block-size: 2rem;
-  padding: 0;
-  border: 0;
-  border-radius: var(--eui-radius-md, 4px);
-  background: transparent;
-  font-size: 1.25rem;
-  line-height: 1;
-  cursor: pointer;
-}
-.claw-emoji:hover {
-  background: var(--eui-color-surface-hover, rgba(255, 255, 255, 0.08));
-}
-.claw-emoji:focus-visible {
-  outline: 2px solid var(--eui-color-focus, #4c9aff);
-  outline-offset: 1px;
-}
-@media (pointer: coarse) {
-  .claw-emoji-grid { grid-template-columns: repeat(6, 1fr); }
-  .claw-emoji { block-size: 2.75rem; } /* 44px */
-}
 /* A field with a button beside it (the message and its emoji picker). */
 .claw-field-with-action {
   display: grid;

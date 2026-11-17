@@ -1,10 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
-  Button, MessageStrip, Page, RefreshControl, SegmentedButton, Table, Text, Title, useToast, type TableColumn,
+  Button, MessageStrip, Page, RefreshControl, SegmentedButton, StatusHistory, Table, Text, Title, useToast, type StatusHistorySegment, type StatusHistoryStatus, type TableColumn,
 } from '@enterprise-ui/react';
 import type { ComponentHistory, HealthCheckResult, HealthHistoryReport, HealthState } from '@clawrouter/shared';
-import { HealthStateIndicator } from '../../components/custom/HealthStateIndicator.tsx';
-import { HealthTimeline } from '../../components/custom/HealthTimeline.tsx';
+import { HEALTH_LABEL, HealthStateIndicator } from '../../components/custom/HealthStateIndicator.tsx';
 import { componentLabel, formatRelative, formatTime } from '../../services/format.ts';
 import { fetchHealthHistory } from '../../services/health.ts';
 import { startOperation } from '../../services/operations.ts';
@@ -76,7 +75,7 @@ export function HealthPage() {
     { id: 'availability', header: 'Healthy', align: 'end', accessor: (c) => c.availability ?? -1, cell: (c) => <span className="claw-mono">{pct(c.availability)}</span> },
     { id: 'changes', header: 'Changes', align: 'end', accessor: (c) => Math.max(0, c.changes.length - 1) },
     { id: 'latency', header: 'Avg check', align: 'end', accessor: (c) => c.averageLatencyMs ?? -1, cell: (c) => <span className="claw-mono">{c.averageLatencyMs === null ? '—' : `${c.averageLatencyMs} ms`}</span> },
-    { id: 'timeline', header: 'Over time (oldest left)', minWidth: '16rem', accessor: () => 0, cell: (c) => <HealthTimeline history={c} bucketMinutes={history?.bucketMinutes ?? 30} /> },
+    { id: 'timeline', header: 'Over time (oldest left)', minWidth: '16rem', accessor: () => 0, cell: (c) => <StatusHistory segments={healthSegments(c, history?.bucketMinutes ?? 30)} aria-label={`${componentLabel(c.component)}, status over time, oldest first`} /> },
   ];
 
   const changes: Change[] = (history?.components ?? [])
@@ -140,4 +139,25 @@ export function HealthPage() {
       </Text>
     </Page>
   );
+}
+
+/** Health states as StatusHistory tones (Unknown and Disabled are told apart, as before). */
+const HEALTH_STATUS: Record<HealthState, StatusHistoryStatus> = {
+  HEALTHY: 'success',
+  DEGRADED: 'warning',
+  OFFLINE: 'error',
+  UNKNOWN: 'neutral',
+  DISABLED: 'disabled',
+};
+
+/** One segment per time bucket, named with its period and the worst status in it. */
+function healthSegments(history: ComponentHistory, bucketMinutes: number): StatusHistorySegment[] {
+  const time = (d: Date) => d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+  return history.buckets.map((b) => {
+    const from = new Date(b.start);
+    const to = new Date(from.getTime() + bucketMinutes * 60_000);
+    const span = `${from.toLocaleDateString([], { month: 'short', day: 'numeric' })} ${time(from)}–${time(to)}`;
+    const status = b.status ? `${HEALTH_LABEL[b.status]} (worst of ${b.checks} check${b.checks === 1 ? '' : 's'})` : 'no checks';
+    return { id: b.start, status: b.status ? HEALTH_STATUS[b.status] : null, label: `${span}: ${status}` };
+  });
 }
