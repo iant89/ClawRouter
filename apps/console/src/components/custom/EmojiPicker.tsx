@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { IconButton, Popover, SearchField, Text } from '@enterprise-ui/react';
 
 /**
@@ -33,6 +33,19 @@ const GROUPS: { name: string; emoji: [string, string][] }[] = [
 
 export function EmojiPicker({ onPick, label = 'Insert emoji' }: { onPick: (emoji: string) => void; label?: string }) {
   const [query, setQuery] = useState('');
+  const [open, setOpen] = useState(false);
+  // Escape closes the picker only, not the dialog it is in (this capture listener runs first).
+  useEffect(() => {
+    if (!open) return;
+    const key = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      e.preventDefault();
+      e.stopPropagation();
+      setOpen(false);
+    };
+    document.addEventListener('keydown', key, true);
+    return () => document.removeEventListener('keydown', key, true);
+  }, [open]);
   const groups = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return GROUPS;
@@ -45,7 +58,8 @@ export function EmojiPicker({ onPick, label = 'Insert emoji' }: { onPick: (emoji
       aria-label="Emoji"
       placement="bottom-end"
       width="19rem"
-      onOpenChange={(open) => { if (!open) setQuery(''); }}
+      open={open}
+      onOpenChange={(next) => { setOpen(next); if (!next) setQuery(''); }}
     >
       <div className="claw-emoji-picker">
         <SearchField aria-label="Search emoji" placeholder="Search: clock, fix, party…" value={query} onChange={setQuery} size="sm" />

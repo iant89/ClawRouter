@@ -11,8 +11,8 @@ problems and news, in the responses they already receive. Two kinds of notice:
 
 | Channel | What the client sees | Setting (default) |
 | --- | --- | --- |
-| Header | `X-ClawRouter-Notices: [{"kind":"announcement","text":"…"}]`, a JSON array in ASCII (non-ASCII as `\u` escapes) | **Send notices in a response header** (on) |
-| Reply text | The reply starts with one line per notice, then a blank line: `⚠️ ClawRouter: …` (system) or `📢 ClawRouter: …` (announcement) | **Write notices at the start of replies** (on) |
+| Header | `X-ClawRouter-Notices: [{"kind":"announcement","icon":"📢","text":"…"}]`, a JSON array in ASCII (non-ASCII as `\u` escapes) | **Send notices in a response header** (on) |
+| Reply text | The reply starts with one line per notice, then a blank line: `⚠️ ClawRouter: …` (system) or `📢 ClawRouter: …` (announcement, or the icon it was given) | **Write notices at the start of replies** (on) |
 
 A client can't be made to draw an icon or a banner; the emoji is part of the text.
 
@@ -59,7 +59,8 @@ Administration → Announcements (`announcements.manage`, Administrators only by
 
 | Field | |
 | --- | --- |
-| Message | One line, up to 300 characters |
+| Type | The icon the line starts with, from a fixed list: 📢 Announcement (default), 📣 Megaphone, ℹ️ Information, 💡 Tip, ⚠️ Warning, ❗ Important, 🛠️ Maintenance, ⏰ Scheduled, 🚀 New feature, 🎉 Celebration, ✅ Resolved, 🔒 Security, 📅 Event, 🆕 New. Also sent as `icon` in the header |
+| Message | One line, up to 300 characters. The **+** beside it opens an emoji picker (searchable, about 70 emoji) that inserts at the cursor; a preview shows the line as it will appear |
 | How often | Every request · Once per user · Once a day (first request of the day) · Once a week (first request of the week, from Monday) |
 | Where | Header and reply text · Header only · Reply text only |
 | Starts / Expires | Optional. Not sent before the start; **deleted automatically** at the expiry (with who received it) |
@@ -94,3 +95,16 @@ users each one reached and how many times it was sent.
 | migration `0024_client_notices` | `announcements`, `announcement_deliveries`, `api_keys.reply_notices` |
 
 Tests: `packages/api/test/notices-api.test.ts`. Screenshots: [`screenshots/31-notices/`](screenshots/README.md#31--client-notices-and-announcements).
+
+## Icons and the cleanup
+
+The cleanup recognises a notice line by its icon, so announcement icons come from a fixed list
+(`ANNOUNCEMENT_ICONS` in `packages/shared/src/notices.ts`, migration 0025). Each icon matches with
+or without the emoji variation selector (U+FE0F), which some clients drop. **Add icons, never
+remove one**: a removed icon would stop the cleanup for replies that already carry it. Emoji in
+the message text itself are free (they are not part of the match).
+
+The picker is `apps/console/src/components/custom/EmojiPicker.tsx` (ENTERPRISE-UI has none; a
+candidate for the design system). Escape closes the picker only, not the dialog it is in.
+The Type combo box opens from its arrow, the keyboard (↓) or typing ("rocket", "maint"); a click
+on the text does not open it (ENTERPRISE-UI's ComboBox has no such option yet).

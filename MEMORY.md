@@ -28,6 +28,9 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
   false alarm to every user in the first live check). A new chat endpoint (e.g. `/v1/messages`)
   must call `withoutNotices` and `noticesFor` like `runChat`. See `docs/notices.md`; tests in
   `packages/api/test/notices-api.test.ts`.
+  Owner, 2026-11-17: an emoji picker ("+") beside the announcement message and a combo box for
+  the announcement's icon. Icons come from `ANNOUNCEMENT_ICONS` (migration 0025): **only ever add
+  to that list**, because the cleanup matches lines by those icons.
 
 - **IMPORTANT** · 2026-11-17 · Owner rule: provider captures, for bug reports
   The owner asked for "a tool that captures the communication between a provider and a client if
@@ -468,6 +471,11 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
     unavailable"); retry with a short backoff and confirm with `git ls-remote`.
 
 ### Messages
+
+- **MESSAGE** · 2026-11-17 · Announcement icons and emoji picker wait for review
+  `claude/announcement-emoji` is built on `claude/client-notices` (which is built on
+  `claude/captures-live-groq`): fast-forwarding `main` to `claude/announcement-emoji` merges all three
+  when the owner says "merge". Migration 0025. Open idea: let ENTERPRISE-UI's ComboBox open on click.
 
 - **MESSAGE** · 2026-11-17 · Client notices wait for review (with the live Groq capture check)
   `claude/client-notices` is built on `claude/captures-live-groq` (docs only), so fast-forwarding

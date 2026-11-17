@@ -482,3 +482,14 @@ Captured 2026-11-17 with a live Groq provider. See [`docs/notices.md`](../notice
 | ![Light](31-notices/09-announcements-light.png) | Light theme |
 | ![Settings light](31-notices/10-settings-notices-light.png) | Settings tab, light |
 | ![Phone](31-notices/11-announcements-phone.png) | Phone width |
+
+Added 2026-11-17 (announcement type and emoji picker; the 🚀 line was then sent live to Groq):
+
+| Screenshot | Shows |
+| --- | --- |
+| ![Picker](31-notices/12-emoji-picker.png) | The "+" beside the message opens the emoji picker |
+| ![Search](31-notices/13-emoji-search.png) | Searching the picker ("party") |
+| ![Type](31-notices/14-type-and-preview.png) | The Type combo box (🚀 New feature) and the live preview of the line |
+| ![List](31-notices/15-list-with-icon.png) | The list shows each announcement's icon |
+| ![Light](31-notices/16-picker-light.png) | The picker in light, editing |
+| ![Phone](31-notices/17-picker-phone.png) | Phone width: larger touch targets |
