@@ -4,7 +4,7 @@ import type { HTMLBundle, Server } from 'bun';
 import { createApiApp, createRealtimeHub, type ApiApp, type RealtimeHub, type SocketData } from '@clawrouter/api';
 import { createAuditService, createSqliteAuditRepository, type AuditService } from '@clawrouter/audit';
 import {
-  createArgon2Hasher, createAuthService, createOnboardingService, createSetupService, createSqliteSessionRepository, createSqliteUserRepository, createTwoFactorService, createUserAdminService,
+  createArgon2Hasher, createAuthService, createOnboardingService, createPreferencesService, createSetupService, createSqliteSessionRepository, createSqliteUserRepository, createTwoFactorService, createUserAdminService,
   type AuthService, type PasswordHasher, type SetupService,
 } from '@clawrouter/authentication';
 import { createAuthorizationService, createSqliteRoleRepository, peopleDirectory, userAccessPolicy, type AuthorizationService } from '@clawrouter/authorization';
@@ -197,6 +197,7 @@ export async function startClawRouter({ config, log, logBuffer, version, console
     isAdministrator: (userId) => authz.principalFor(userId).roles.includes('ADMIN'),
   });
   const onboarding = createOnboardingService({ db, settings: createSqliteSettingsRepository(db), audit, log });
+  const preferences = createPreferencesService({ db, log });
   const keyRequests = createKeyRequestService({ db, apiKeys, directory: peopleDirectory(authz), audit, events, log });
   const notifications = createNotificationService({ repo: createSqliteNotificationRepository(db), events, log });
   const unsubscribeNotifications = notifications.subscribe(events);
@@ -268,7 +269,7 @@ export async function startClawRouter({ config, log, logBuffer, version, console
       return path;
     },
   });
-  const api = createApiApp({ log, logBuffer, audit, health, configuration, onboarding, lifecycle: { state: () => lifecycle }, healthHistory, auth, authz, userAdmin, settings, twoFactor, mail, notifications, providers, models, routing, apiKeys, keyRequests, gateway, limits, quotas, requests, operations, setup, version, mcpEnabled: () => settings.get('mcpEnabled') === 1, cookie: { secure: config.auth.cookieSecure } });
+  const api = createApiApp({ log, logBuffer, audit, health, configuration, onboarding, preferences, lifecycle: { state: () => lifecycle }, healthHistory, auth, authz, userAdmin, settings, twoFactor, mail, notifications, providers, models, routing, apiKeys, keyRequests, gateway, limits, quotas, requests, operations, setup, version, mcpEnabled: () => settings.get('mcpEnabled') === 1, cookie: { secure: config.auth.cookieSecure } });
 
   // The console's live channel (spec §25): session-authenticated, same-origin only.
   const realtime = createRealtimeHub({

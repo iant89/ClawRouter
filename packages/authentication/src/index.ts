@@ -12,3 +12,4 @@ export * from './totp.ts';
 export * from './two-factor.ts';
 export { createSqliteTwoFactorRepository } from './sqlite/two-factor.ts';
 export * from './onboarding.ts';
+export * from './preferences.ts';

@@ -48,6 +48,8 @@ export interface AuthSession {
   onboarding: OnboardingInfo;
   /** Whether ClawRouter's MCP server (/v1/mcp) is on (the mcpEnabled setting): the console shows MCP access on keys only then. */
   mcpServer: boolean;
+  /** The user's console theme (their choice, or the default). */
+  theme: ThemeChoice;
 }
 
 /** GET /api/setup/status */
@@ -118,3 +120,9 @@ export interface AdminSessionInfo extends SessionInfo {
 export interface RevokeResult {
   revoked: number;
 }
+
+/** Console colour themes a user can choose (owner request, 2026-11-17). `system` follows the device. */
+export const THEME_CHOICES = ['light', 'dark', 'system'] as const;
+export type ThemeChoice = (typeof THEME_CHOICES)[number];
+/** Spec §18: dense, dark, technical. */
+export const DEFAULT_THEME: ThemeChoice = 'dark';

@@ -1,8 +1,8 @@
 import { AppError, errors, v, type Validator } from '@clawrouter/core';
-import type { AuthService, ClientInfo, OnboardingService, SetupService, TwoFactorService } from '@clawrouter/authentication';
+import type { AuthService, ClientInfo, OnboardingService, PreferencesService, SetupService, TwoFactorService } from '@clawrouter/authentication';
 import type { AuthorizationService } from '@clawrouter/authorization';
 import type { ApiKeyService } from '@clawrouter/gateway';
-import { SETUP_WIZARD_STATUSES, SETUP_WIZARD_STEPS, type AdminSessionInfo, type AuthSession, type RevokeResult, type SetupStatus, type SetupWizardState, type SetupWizardStep, type SignInChallenge, type TourState } from '@clawrouter/shared';
+import { SETUP_WIZARD_STATUSES, SETUP_WIZARD_STEPS, type AdminSessionInfo, type AuthSession, type RevokeResult, type SetupStatus, type SetupWizardState, type SetupWizardStep, type SignInChallenge, type TourState, THEME_CHOICES, type ThemeChoice } from '@clawrouter/shared';
 import { readJson } from '../http/body.ts';
 import type { Handler, RequestContext } from '../http/context.ts';
 import { noContent, ok } from '../http/responses.ts';
@@ -58,6 +58,7 @@ export interface AuthControllerDeps {
   // The longest a key this user creates may last (the console offers only what fits).
   apiKeys: Pick<ApiKeyService, 'creatorLimitHours'>;
   onboarding: OnboardingService;
+  preferences: PreferencesService;
   /** The mcpEnabled setting; absent: off. */
   mcpEnabled?: () => boolean;
 }
@@ -74,11 +75,11 @@ const challengeBody = v.object({ challenge: v.string({ min: 1, max: 128 }) });
 const wizardStep: Validator<SetupWizardStep | null | undefined> = (value, path, issues) =>
   value === undefined || value === null ? value : v.oneOf(SETUP_WIZARD_STEPS)(value, path, issues);
 
-export function authController({ auth, authz, setup, cookie, twoFactor, apiKeys, onboarding, mcpEnabled }: AuthControllerDeps) {
+export function authController({ auth, authz, setup, cookie, twoFactor, apiKeys, onboarding, preferences, mcpEnabled }: AuthControllerDeps) {
   /** The session body, with the roles and permissions the console uses to adapt its UI. */
   const sessionBody = (user: AuthSession['user'], info: AuthSession['session']): AuthSession => {
     const principal = authz.principalFor(user.id);
-    return { user, session: info, roles: principal.roles, permissions: [...principal.permissions].sort(), twoFactorSetupRequired: twoFactor.setupRequired(user.id), keyLifetimeLimitHours: apiKeys.creatorLimitHours(user.id), onboarding: onboarding.infoFor(user.id, principal.permissions), mcpServer: mcpEnabled?.() ?? false };
+    return { user, session: info, roles: principal.roles, permissions: [...principal.permissions].sort(), twoFactorSetupRequired: twoFactor.setupRequired(user.id), keyLifetimeLimitHours: apiKeys.creatorLimitHours(user.id), onboarding: onboarding.infoFor(user.id, principal.permissions), mcpServer: mcpEnabled?.() ?? false, theme: preferences.theme(user.id) };
   };
 
   /** Password step. With two-factor sign-in, answers a challenge for the second step instead of a session. */
@@ -174,6 +175,12 @@ export function authController({ auth, authz, setup, cookie, twoFactor, apiKeys,
     return ok<AuthSession>(sessionBody(result.user, result.session), { status: 201 });
   };
 
+  /** PUT /api/auth/theme: the signed-in user's own console theme. */
+  const setTheme: Handler = async (ctx) => {
+    const body = await readJson(ctx, v.object({ theme: v.oneOf(THEME_CHOICES) }));
+    return ok<{ theme: ThemeChoice }>({ theme: preferences.setTheme(ctx.auth!.user.id, body.theme) });
+  };
+
   /** POST /api/auth/tour: the signed-in user finished or skipped their guided tour. */
   const finishTour: Handler = async (ctx) => {
     const body = await readJson(ctx, v.object({ outcome: v.oneOf(['COMPLETED', 'SKIPPED'] as const) }));
@@ -186,5 +193,5 @@ export function authController({ auth, authz, setup, cookie, twoFactor, apiKeys,
     return ok<SetupWizardState>(onboarding.updateSetupWizard({ id: ctx.auth!.user.id, username: ctx.auth!.user.username }, body, client(ctx)));
   };
 
-  return { login, verifySignIn, sendSignInCode, logout, session, listSessions, revokeSession, revokeOtherSessions, listAllSessions, revokeAnySession, revokeUserSessions, setupStatus, completeSetup, finishTour, updateSetupWizard };
+  return { login, verifySignIn, sendSignInCode, logout, session, listSessions, revokeSession, revokeOtherSessions, listAllSessions, revokeAnySession, revokeUserSessions, setupStatus, completeSetup, finishTour, updateSetupWizard, setTheme };
 }

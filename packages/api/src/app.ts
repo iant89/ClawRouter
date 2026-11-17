@@ -1,6 +1,6 @@
 import { AppError, errors, newRequestId, type LogBuffer, type Logger } from '@clawrouter/core';
 import type { AuditService } from '@clawrouter/audit';
-import type { AuthService, OnboardingService, SetupService, TwoFactorService, UserAdminService } from '@clawrouter/authentication';
+import type { AuthService, OnboardingService, PreferencesService, SetupService, TwoFactorService, UserAdminService } from '@clawrouter/authentication';
 import type { MailService } from '@clawrouter/mail';
 import type { AuthorizationService } from '@clawrouter/authorization';
 import { PASSWORD_CHANGE_REQUIRED, TWO_FACTOR_SETUP_REQUIRED } from '@clawrouter/shared';
@@ -65,6 +65,7 @@ export interface ApiDependencies {
   keyRequests: KeyRequestService;
   twoFactor: TwoFactorService;
   onboarding: OnboardingService;
+  preferences: PreferencesService;
   mail: MailService;
   gateway: GatewayService;
   limits: RateLimitService;
@@ -144,6 +145,7 @@ export function createApiApp(deps: ApiDependencies): ApiApp {
   router.post('/api/auth/password', 'authenticated', usersApi.changeOwnPassword);
   router.get('/api/auth/quota', 'authenticated', usersApi.ownQuota);
   router.post('/api/auth/tour', 'authenticated', authRoutes.finishTour);
+  router.put('/api/auth/theme', 'authenticated', authRoutes.setTheme);
   router.put('/api/auth/email', 'authenticated', tf.changeEmail);
   router.get('/api/auth/2fa', 'authenticated', tf.status);
   router.post('/api/auth/2fa/totp', 'authenticated', tf.startTotp);
