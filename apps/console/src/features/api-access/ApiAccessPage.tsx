@@ -122,6 +122,20 @@ export function ApiAccessPage() {
     }
   };
 
+  const toggleNotices = async (k: ApiKeyInfo) => {
+    try {
+      await updateApiKey(k.id, { replyNotices: !k.replyNotices });
+      toast.show({
+        tone: 'success',
+        title: k.replyNotices ? 'Notices in replies turned off' : 'Notices in replies turned on',
+        description: k.replyNotices ? `${k.name} gets notices in the header only.` : `${k.name} gets notices at the start of chat replies too.`,
+      });
+      reload();
+    } catch (err) {
+      toast.show({ tone: 'error', title: 'Could not change notices', description: err instanceof Error ? err.message : undefined, duration: 10_000 });
+    }
+  };
+
   const confirmRevoke = async () => {
     if (!revoking) return;
     try {
@@ -153,8 +167,8 @@ export function ApiAccessPage() {
     {
       id: 'actions', header: 'Actions', align: 'end',
       cell: (k) => (canWrite && (k.status === 'ACTIVE' || k.status === 'SUSPENDED')
-        ? <OverflowMenu label={`Actions for ${k.name}`} items={[{ id: 'limit', label: 'Change rate limit' }, ...(mcpServer ? [{ id: 'mcp', label: k.mcpAccess ? 'Turn off MCP access' : 'Turn on MCP access' }] : []), { type: 'separator' }, { id: 'revoke', label: 'Revoke key', destructive: true }]}
-            onAction={(id) => (id === 'limit' ? (setLimitError(null), setLimitKey(k)) : id === 'mcp' ? void toggleMcp(k) : setRevoking(k))} />
+        ? <OverflowMenu label={`Actions for ${k.name}`} items={[{ id: 'limit', label: 'Change rate limit' }, ...(mcpServer ? [{ id: 'mcp', label: k.mcpAccess ? 'Turn off MCP access' : 'Turn on MCP access' }] : []), { id: 'notices', label: k.replyNotices ? 'Turn off notices in replies' : 'Turn on notices in replies' },{ type: 'separator' }, { id: 'revoke', label: 'Revoke key', destructive: true }]}
+            onAction={(id) => (id === 'limit' ? (setLimitError(null), setLimitKey(k)) : id === 'mcp' ? void toggleMcp(k) : id === 'notices' ? void toggleNotices(k) : setRevoking(k))} />
         : null),
     },
   ];

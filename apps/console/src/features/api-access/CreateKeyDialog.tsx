@@ -31,6 +31,7 @@ export function CreateKeyDialog({ open, modelOptions, onClose, onCreate, created
   const [expiry, setExpiry] = useState<ExpiryDraft>(defaultDraft(maxHours));
   const [rateLimit, setRateLimit] = useState<RateLimit | null>(null);
   const [mcpAccess, setMcpAccess] = useState(false);
+  const [replyNotices, setReplyNotices] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -40,6 +41,7 @@ export function CreateKeyDialog({ open, modelOptions, onClose, onCreate, created
     setExpiry(defaultDraft(maxHours));
     setRateLimit(null);
     setMcpAccess(false);
+    setReplyNotices(true);
     setError(null);
   }, [open]);
 
@@ -48,7 +50,7 @@ export function CreateKeyDialog({ open, modelOptions, onClose, onCreate, created
     const { expiry: chosen, error: invalid } = toKeyExpiry(expiry, maxHours);
     if (!chosen) return setError(invalid ?? 'Check the expiry.');
     setError(null);
-    onCreate({ name: name.trim(), allowedModels: models, expiry: chosen, mcpAccess: mcpServer && mcpAccess, ...(withLimits ? { rateLimit } : {}) });
+    onCreate({ name: name.trim(), allowedModels: models, expiry: chosen, mcpAccess: mcpServer && mcpAccess, replyNotices, ...(withLimits ? { rateLimit } : {}) });
   };
 
   if (created) {
@@ -87,6 +89,9 @@ export function CreateKeyDialog({ open, modelOptions, onClose, onCreate, created
         <MultiSelect label="Allowed models" description="Leave empty to allow every model and alias." options={modelOptions} value={models} onChange={setModels} placeholder="Any model" />
         <ExpiryField value={expiry} onChange={setExpiry} maxHours={maxHours} />
         {withLimits && <KeyLimitFields value={rateLimit} onChange={setRateLimit} />}
+        <WithFieldHelp label="Notices in replies" help={<>ClawRouter can start a reply with a one-line notice, such as degraded health or an announcement, for people reading in a chat app. Turn it off for scripts and apps that read replies as data. Notices are also sent in the X-ClawRouter-Notices header either way.</>}>
+          <Switch label="Notices at the start of replies" checked={replyNotices} onChange={setReplyNotices} />
+        </WithFieldHelp>
         {/* Only while the MCP server is on (Settings; off by default). */}
         {mcpServer && (
           <WithFieldHelp label="MCP access" help={<>Lets an agent such as Claude Code connect to ClawRouter's MCP server (/v1/mcp) with this key and ask about health, usage, requests, providers and models. The tools only read, and answer with your permissions: what you cannot see in the console, the agent cannot see either. Leave it off for keys that only call models.</>}>

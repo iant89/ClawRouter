@@ -11,7 +11,7 @@ export type PageId =
   | 'requests' | 'api-access' | 'my-keys' | 'rate-limits' | 'usage'
   | 'providers' | 'models' | 'routing'
   | 'health' | 'operations' | 'logs' | 'audit' | 'captures'
-  | 'users' | 'roles' | 'sessions' | 'settings';
+  | 'announcements' | 'users' | 'roles' | 'sessions' | 'settings';
 
 export interface NavItem {
   id: PageId;
@@ -73,6 +73,7 @@ export const NAVIGATION: readonly NavGroup[] = [
     id: 'admin',
     label: 'Administration',
     items: [
+      { id: 'announcements', permission: 'announcements.manage', label: 'Announcements', path: '/announcements', icon: 'message-information', summary: 'Messages for API users, sent with their responses on a schedule: every request, once, daily or weekly.' },
       { id: 'users', permission: 'users.read', label: 'Users', path: '/users', icon: 'group', summary: 'Console users and their roles.' },
       { id: 'roles', permission: 'roles.read', label: 'Roles', path: '/roles', icon: 'permission', summary: 'Roles and the permissions they grant.' },
       { id: 'sessions', permission: 'sessions.read', label: 'Sessions', path: '/sessions', icon: 'user-settings', summary: 'Active console sessions, with revocation.' },

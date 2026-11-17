@@ -37,6 +37,7 @@ const AREA_TEXT: Record<string, (pages: PageId[]) => string> = {
   admin: (pages) => [
     pages.includes('users') || pages.includes('roles') ? 'Users and Roles decide who can do what.' : '',
     pages.includes('sessions') ? 'Sessions shows who is signed in.' : '',
+    pages.includes('announcements') ? 'Announcements sends messages to the people using the API, with their responses.' : '',
     pages.includes('settings') ? 'Settings holds sign-in security, the mail server, retention and configuration export.' : '',
   ].filter(Boolean).join(' '),
 };

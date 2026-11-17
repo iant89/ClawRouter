@@ -11,6 +11,7 @@ import { useRealtimeEvent } from '../realtime/RealtimeContext.tsx';
 import { KeysBeyondLifetime } from './KeysBeyondLifetime.tsx';
 import { ConfigurationTransfer } from './ConfigurationTransfer.tsx';
 import { MailServerCard, TwoFactorPolicyCard } from './SignInSecuritySettings.tsx';
+import { NoticeMessagesCard } from './NoticeMessagesCard.tsx';
 
 /** Draft values as typed (strings), keyed by setting. */
 type Draft = Partial<Record<SettingKey, string>>;
@@ -33,6 +34,7 @@ const settingHelp = (s: SettingInfo) => (
 const TABS = [
   { value: 'security', label: 'Sign-in and sessions', groups: ['Security'] },
   { value: 'api-keys', label: 'API keys and quotas', groups: ['API keys', 'Usage quotas', 'MCP server'] },
+  { value: 'notices', label: 'Client notices', groups: ['Client notices'] },
   { value: 'mail', label: 'Mail server', groups: [] },
   { value: 'retention', label: 'Data retention', groups: ['Data retention', 'Provider captures'] },
   { value: 'configuration', label: 'Import and export', groups: [] },
@@ -59,6 +61,7 @@ export function SettingsPage() {
   const tab: TabValue = isTab(requested) ? requested : TABS[0].value;
   const { can } = usePermissions();
   const canWrite = can('settings.write');
+  const canAnnounce = can('announcements.manage');
   const { data, error, loading, lastUpdated, reload } = useResource(fetchSettings);
   const [draft, setDraft] = useState<Draft>({});
   const [fieldErrors, setFieldErrors] = useState<Partial<Record<SettingKey, string>>>({});
@@ -212,6 +215,7 @@ export function SettingsPage() {
           </div>
         </TabPanel>
         <TabPanel value="api-keys" keepMounted><div style={panel}>{numericSettings('api-keys')}</div></TabPanel>
+        <TabPanel value="notices" keepMounted><div style={panel}>{numericSettings('notices')}{canAnnounce && <NoticeMessagesCard />}</div></TabPanel>
         <TabPanel value="mail" keepMounted><div style={panel}><MailServerCard canWrite={canWrite} onLoaded={mailLoaded} /></div></TabPanel>
         <TabPanel value="retention" keepMounted><div style={panel}>{numericSettings('retention')}</div></TabPanel>
         <TabPanel value="configuration" keepMounted><div style={panel}><ConfigurationTransfer canImport={canWrite} /></div></TabPanel>

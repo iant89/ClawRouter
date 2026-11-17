@@ -66,7 +66,7 @@ export function MyKeysPage() {
   const create = async (body: CreateApiKeyRequest) => {
     setSaving(true);
     try {
-      setCreated(await createMyKey({ name: body.name, allowedModels: body.allowedModels, expiry: body.expiry, mcpAccess: body.mcpAccess }));
+      setCreated(await createMyKey({ name: body.name, allowedModels: body.allowedModels, expiry: body.expiry, mcpAccess: body.mcpAccess, replyNotices: body.replyNotices }));
       setServerError(null);
       reload();
     } catch (err) {
