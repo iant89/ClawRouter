@@ -115,6 +115,23 @@ export function createApiKeyService(options: {
     replyNotices: r.reply_notices === 1,
   });
 
+  /** An active key as a principal (recording when it was last used), or null with the reason logged. */
+  function principalOf(row: Row): ApiKeyPrincipal | null {
+    const at = now();
+    const status = statusOf(row, at.getTime());
+    if (status !== 'ACTIVE') {
+      log?.info('rejected API key', { component: 'gateway', prefix: row.prefix, status });
+      return null;
+    }
+    if (!row.last_used_at || at.getTime() - Date.parse(row.last_used_at) >= LAST_USED_INTERVAL_MS) {
+      db.run('UPDATE api_keys SET last_used_at = ? WHERE id = ?', [at.toISOString(), row.id]);
+    }
+    return {
+      id: row.id, name: row.name, prefix: row.prefix, allowedModels: JSON.parse(row.allowed_models) as string[],
+      ownerId: row.created_by, createdAt: row.created_at, rateLimit: row.rate_limit ? normalizeLimit(JSON.parse(row.rate_limit)) : null, mcpAccess: row.mcp_access === 1, replyNotices: row.reply_notices === 1,
+    };
+  }
+
   return {
     list(): ApiKeyInfo[] {
       return db.all<Row>(`${SELECT} ORDER BY k.revoked_at IS NOT NULL, k.created_at DESC`).map(toInfo);
@@ -315,19 +332,17 @@ export function createApiKeyService(options: {
       if (!match) return null;
       const row = db.get<Row>(`${SELECT} WHERE k.prefix = ?`, [`${API_KEY_PREFIX}${match[1]}`]);
       if (!row || !sameHash(row.secret_hash, sha256(presented))) return null;
-      const at = now();
-      const status = statusOf(row, at.getTime());
-      if (status !== 'ACTIVE') {
-        log?.info('rejected API key', { component: 'gateway', prefix: row.prefix, status });
-        return null;
-      }
-      if (!row.last_used_at || at.getTime() - Date.parse(row.last_used_at) >= LAST_USED_INTERVAL_MS) {
-        db.run('UPDATE api_keys SET last_used_at = ? WHERE id = ?', [at.toISOString(), row.id]);
-      }
-      return {
-        id: row.id, name: row.name, prefix: row.prefix, allowedModels: JSON.parse(row.allowed_models) as string[],
-        ownerId: row.created_by, createdAt: row.created_at, rateLimit: row.rate_limit ? normalizeLimit(JSON.parse(row.rate_limit)) : null, mcpAccess: row.mcp_access === 1, replyNotices: row.reply_notices === 1,
-      };
+      return principalOf(row);
+    },
+
+    /**
+     * One of the user's own keys, used without its secret by the console's
+     * playground (the session already proved who the user is). Null unless the
+     * key exists, belongs to the user and is active.
+     */
+    ownPrincipal(userId: string, keyId: string): ApiKeyPrincipal | null {
+      const row = db.get<Row>(`${SELECT} WHERE k.id = ? AND k.created_by = ?`, [keyId, userId]);
+      return row ? principalOf(row) : null;
     },
   };
 }

@@ -128,3 +128,55 @@ body {
   border-radius: var(--eui-radius-md, 4px);
   overflow-wrap: anywhere;
 }
+
+/* Playground: settings beside the conversation on wide screens, stacked on narrow ones. */
+.claw-stack {
+  display: grid;
+  gap: var(--eui-space-3, 0.75rem);
+}
+.claw-inline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--eui-space-2, 0.5rem);
+}
+.claw-playground {
+  display: grid;
+  grid-template-columns: minmax(16rem, 22rem) minmax(0, 1fr);
+  gap: var(--eui-space-4, 1rem);
+  align-items: start;
+}
+@media (max-width: 900px) {
+  .claw-playground { grid-template-columns: minmax(0, 1fr); }
+}
+.claw-chat {
+  display: grid;
+  gap: var(--eui-space-3, 0.75rem);
+  min-height: 12rem;
+  max-height: 60vh;
+  overflow-y: auto;
+  margin-block-end: var(--eui-space-3, 0.75rem);
+}
+.claw-chat-turn {
+  display: grid;
+  gap: var(--eui-space-1, 0.25rem);
+  padding: var(--eui-space-2, 0.5rem) var(--eui-space-3, 0.75rem);
+  border-radius: var(--eui-radius-md, 4px);
+  border: 1px solid var(--eui-color-border, #3a4350);
+}
+.claw-chat-user {
+  background: var(--eui-color-surface-sunken, rgba(0, 0, 0, 0.25));
+}
+.claw-chat-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.claw-chat-meta {
+  display: grid;
+  gap: var(--eui-space-1, 0.25rem);
+}
+.claw-client-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
+  gap: var(--eui-space-3, 0.75rem);
+}

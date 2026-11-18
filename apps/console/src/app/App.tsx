@@ -48,6 +48,7 @@ const ModelsPage = page(() => import('../features/models/ModelsPage.tsx'), 'Mode
 const RoutingPage = page(() => import('../features/routing/RoutingPage.tsx'), 'RoutingPage');
 const ApiAccessPage = page(() => import('../features/api-access/ApiAccessPage.tsx'), 'ApiAccessPage');
 const MyKeysPage = page(() => import('../features/my-keys/MyKeysPage.tsx'), 'MyKeysPage');
+const PlaygroundPage = page(() => import('../features/playground/PlaygroundPage.tsx'), 'PlaygroundPage');
 const RateLimitsPage = page(() => import('../features/rate-limits/RateLimitsPage.tsx'), 'RateLimitsPage');
 const RequestsPage = page(() => import('../features/requests/RequestsPage.tsx'), 'RequestsPage');
 const UsagePage = page(() => import('../features/usage/UsagePage.tsx'), 'UsagePage');
@@ -74,6 +75,7 @@ function PageFor({ item }: { item: NavItem | undefined }) {
     case 'routing': return <RoutingPage />;
     case 'api-access': return <ApiAccessPage />;
     case 'my-keys': return <MyKeysPage />;
+    case 'playground': return <PlaygroundPage />;
     case 'rate-limits': return <RateLimitsPage />;
     case 'requests': return <RequestsPage />;
     case 'usage': return <UsagePage />;

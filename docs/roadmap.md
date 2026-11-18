@@ -491,7 +491,15 @@ See [notices](notices.md). Requested 2026-11-17: tell API users about degraded h
 - [x] Announcements: every request, once per user, daily or weekly in a time zone; header, reply or both; start and self-deleting expiry; audited
 - [x] `announcements.manage` permission (Administrators); Administration → Announcements; Settings → Client notices
 
+## Owner request: playground and chat apps ✅
 
+See [playground](playground.md). Requested 2026-11-18: a playground page, with Open WebUI and LibreChat and tested setup guides near the bottom.
+
+- [x] Gateway → Playground: chat through the real gateway as one of your own active keys (chosen by id, the secret never needed); streaming, system prompt, temperature, maximum tokens
+- [x] Each answer shows the model that answered, attempts, tokens, timing and notices; request details for `requests.read`
+- [x] Nothing stored (the conversation lives in the page); recorded in request history and usage under the key
+- [x] Chat apps card: base URL, configuration snippets with this server's address, links to the guides
+- [x] Setup guides tested end to end: [Open WebUI](clients/open-webui.md) 0.13.4 and [LibreChat](clients/librechat.md) v0.8.9
 
 ---
 

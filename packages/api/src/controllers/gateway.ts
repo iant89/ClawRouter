@@ -131,3 +131,36 @@ export function apiKeysController(apiKeys: ApiKeyService) {
   };
   return { list, beyondLifetime, create, update, revoke };
 }
+
+/** A playground conversation: text only, so a smaller body than /v1 is enough. */
+const PLAYGROUND_BODY_LIMIT = 4 * 1024 * 1024;
+
+const playgroundKey = (ctx: RequestContext, apiKeys: ApiKeyService, keyId: unknown) => {
+  if (typeof keyId !== 'string' || keyId === '') throw errors.validation([{ path: 'keyId', message: 'choose one of your API keys' }]);
+  const principal = apiKeys.ownPrincipal(ctx.auth!.user.id, keyId);
+  // Someone else's key and an unknown one look the same.
+  if (!principal) throw errors.validation([{ path: 'keyId', message: 'must be one of your active API keys' }], 'That key is not one of your active API keys.');
+  return principal;
+};
+
+/**
+ * The console's playground: a chat request through the real gateway, acting as one
+ * of the signed-in user's own active keys (chosen by id; the session proves who
+ * they are, so the secret is never needed in the browser). Routing, limits, quotas,
+ * history and usage all apply exactly as for /v1. Nothing about the conversation is
+ * stored: it lives in the browser tab.
+ */
+export function playgroundController(gateway: GatewayService, apiKeys: ApiKeyService) {
+  /** GET ?keyId=: the models that key may use, as /v1/models lists them. */
+  const models: Handler = (ctx) => ok(gateway.listModels(playgroundKey(ctx, apiKeys, ctx.url.searchParams.get('keyId'))).data.map((m) => ({ id: m.id, ownedBy: m.owned_by })));
+  /** POST { keyId, request }: `request` is a Chat Completions body; the answer is the gateway's (JSON or an event stream). */
+  const chat: Handler = async (ctx) => {
+    const body = await readJsonValue(ctx, PLAYGROUND_BODY_LIMIT);
+    const raw = typeof body === 'object' && body !== null && !Array.isArray(body) ? (body as Record<string, unknown>) : {};
+    const principal = playgroundKey(ctx, apiKeys, raw.keyId);
+    const res = toResponse(await gateway.chat(principal, raw.request, gwContext(ctx)));
+    res.headers.set('cache-control', 'no-store');
+    return res;
+  };
+  return { models, chat };
+}

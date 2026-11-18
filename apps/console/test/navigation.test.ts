@@ -7,7 +7,7 @@ describe('console navigation', () => {
     expect(NAVIGATION.map((g) => g.label)).toEqual([null, 'Gateway', 'AI Infrastructure', 'System', 'Administration']);
     expect(NAV_ITEMS.map((i) => i.label)).toEqual([
       // Rate Limits (phase 9) and My API keys (self-service keys and requests) go beyond the spec §17 list, as do Captures and Announcements (owner requests, 2026-11-17).
-      'Dashboard', 'Requests', 'API Access', 'My API keys', 'Rate Limits', 'Usage', 'Providers', 'Models', 'Routing',
+      'Dashboard', 'Requests', 'API Access', 'My API keys', 'Playground', 'Rate Limits', 'Usage', 'Providers', 'Models', 'Routing',
       'Health', 'Operations', 'Logs', 'Audit', 'Captures', 'Announcements', 'Users', 'Roles', 'Sessions', 'Settings',
     ]);
   });
@@ -28,7 +28,7 @@ describe('console navigation', () => {
   });
 
   test('only implemented pages lack a planned phase', () => {
-    expect(NAV_ITEMS.filter((i) => i.plannedPhase === undefined).map((i) => i.id)).toEqual(['dashboard', 'requests', 'api-access', 'my-keys', 'rate-limits', 'usage', 'providers', 'models', 'routing', 'health', 'operations', 'logs', 'audit', 'captures', 'announcements', 'users', 'roles', 'sessions', 'settings']);
+    expect(NAV_ITEMS.filter((i) => i.plannedPhase === undefined).map((i) => i.id)).toEqual(['dashboard', 'requests', 'api-access', 'my-keys', 'playground', 'rate-limits', 'usage', 'providers', 'models', 'routing', 'health', 'operations', 'logs', 'audit', 'captures', 'announcements', 'users', 'roles', 'sessions', 'settings']);
   });
 });
 
@@ -64,8 +64,8 @@ describe('formatRelative', () => {
 });
 
 describe('visibleNavigation', () => {
-  test('a user without roles sees the dashboard and their own API keys (where they can request one)', () => {
-    expect(visibleNavigation(new Set()).flatMap((g) => g.items.map((i) => i.id))).toEqual(['dashboard', 'my-keys']);
+  test('a user without roles sees the dashboard, their own API keys (where they can request one) and the playground', () => {
+    expect(visibleNavigation(new Set()).flatMap((g) => g.items.map((i) => i.id))).toEqual(['dashboard', 'my-keys', 'playground']);
   });
 
   test('a viewer sees read-only gateway areas and no administration', () => {
@@ -75,8 +75,8 @@ describe('visibleNavigation', () => {
     expect(groups.flatMap((g) => g.items.map((i) => i.id))).not.toContain('logs');
   });
 
-  test('every page except the dashboard and My API keys requires a permission', () => {
-    expect(NAV_ITEMS.filter((i) => !i.permission).map((i) => i.id)).toEqual(['dashboard', 'my-keys']);
+  test('every page except the dashboard, My API keys and Playground requires a permission', () => {
+    expect(NAV_ITEMS.filter((i) => !i.permission).map((i) => i.id)).toEqual(['dashboard', 'my-keys', 'playground']);
   });
 });
 

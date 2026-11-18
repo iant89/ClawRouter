@@ -14,6 +14,18 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 
 ### Important
 
+- **IMPORTANT** · 2026-11-18 · Owner rule: playground, and tested chat-app guides
+  The owner agreed to a playground page instead of building a full chat client into ClawRouter
+  (chat apps such as Open WebUI and LibreChat already exist; ClawRouter stays the gateway behind
+  them), and asked for a section near the bottom listing Open WebUI and LibreChat with links to
+  **tested** setup guides. Keep: the playground acts as one of the user's own active keys chosen
+  by id (`ApiKeyService.ownPrincipal`; the secret never reaches the browser), goes through
+  `gateway.chat()` so every limit and record applies, stores nothing, and both routes are
+  `'authenticated'` (own keys only, no permission). A guide in `docs/clients/` says which version
+  was tested and how; re-test before changing a guide's tested version, and add a client to
+  `features/playground/chat-clients.ts` only after testing it the same way. See
+  `docs/playground.md`; tests in `packages/api/test/playground-api.test.ts`.
+
 - **IMPORTANT** · 2026-11-17 · Owner rule: client notices and announcements
   The owner asked to "inject messages into the stream to the client" (e.g. "ClawRouter health has
   degraded, you may experience temporary performance issues"), then chose: the
@@ -235,6 +247,15 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 
 ### Warnings
 
+- **WARNING** · 2026-11-18 · Chat apps and notices
+  Open WebUI offers its built-in tools with every chat by default, and ClawRouter never writes
+  notice text into tool requests: its users see no announcement until Builtin Tools is turned
+  off (documented in `docs/clients/open-webui.md`). Chat apps' background requests (titles, tags)
+  also get every-request announcements, so LibreChat named a conversation after one. Both guides
+  advise once/daily/weekly announcements. Not fixed in ClawRouter: it cannot tell a title request
+  from a chat. Both apps were tested against the mock OpenAI server, not a real provider; the Open
+  WebUI Docker image and LibreChat's full Compose install were not run (see each guide).
+
 - **WARNING** · 2026-11-17 · Client notice limits
   The system-notice interval (once per key per 30 minutes) and the active-announcement cache
   (5 s) are in memory per process: with several nodes each repeats on its own schedule. A
@@ -318,6 +339,19 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
     reaches the others within 5 seconds.
 
 ### Notes
+
+- **NOTE** · 2026-11-18 · Testing chat apps in a cloud session
+  Docker is installed but its daemon is not running: start it with `dockerd` in the background.
+  GitHub's container registry downloads (`pkg-containers.githubusercontent.com`) are blocked;
+  Docker Hub works (`librechat/librechat`, `mongo:8`). Open WebUI installs from PyPI into a
+  Python 3.11 virtual environment (`uv venv -p 3.11`, then `uv pip install open-webui`) and runs
+  with `OFFLINE_MODE=true HF_HUB_OFFLINE=1` (its document-search model cannot download; chat
+  does not need it). `api.groq.com` was blocked on 2026-11-18 and the Gemini network secret was
+  no longer injected, so a live provider was not available: run `startMockProviders()` from a
+  scratch script as the provider instead. ClawRouter must listen on `0.0.0.0` for containers
+  (`host.docker.internal` with `--add-host=host.docker.internal:host-gateway`).
+  React: an effect written as `useEffect(() => expr)` crashed the playground page with "destroy
+  is not a function"; use block bodies for effects.
 
 - **NOTE** · 2026-11-17 · ENTERPRISE-UI: new example folders missing in the docs tests
   The docs registry test ("provides examples for registered pages") failed for freshly added
@@ -479,6 +513,12 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
     unavailable"); retry with a short backoff and confirm with `git ls-remote`.
 
 ### Messages
+
+- **MESSAGE** · 2026-11-18 · The playground and chat-app guides wait for review
+  Built on `claude/hopeful-maxwell-3xrz6m` (the session's assigned branch, not a
+  `claude/<feature>` name): Gateway → Playground, `docs/clients/open-webui.md`,
+  `docs/clients/librechat.md`, screenshots 33. No migration. Merge into `main` when the owner
+  says so.
 
 - **MESSAGE** · 2026-11-17 · Everything merged after client notices and announcements
   Nothing in ClawRouter waits for review. Old branches to delete on GitHub (the session cannot): every merged

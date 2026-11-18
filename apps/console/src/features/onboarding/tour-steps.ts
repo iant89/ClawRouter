@@ -18,6 +18,7 @@ const AREA_TEXT: Record<string, (pages: PageId[]) => string> = {
   gateway: (pages) => [
     pages.includes('requests') ? 'Requests lists every call through the gateway, with each attempt, retry and failover.' : '',
     pages.includes('api-access') ? 'API Access holds the keys applications use.' : pages.includes('my-keys') ? 'My API keys holds your own keys, or a request for one.' : '',
+    pages.includes('playground') ? 'Playground lets you chat with a model through the gateway as one of your keys, and shows how to connect chat apps.' : '',
     pages.includes('usage') ? 'Usage shows tokens and estimated cost by model, provider, key and user.' : '',
     pages.includes('rate-limits') ? 'Rate Limits keeps any one client from using it all.' : '',
   ].filter(Boolean).join(' '),

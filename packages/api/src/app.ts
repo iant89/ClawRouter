@@ -26,7 +26,7 @@ import { notificationsController } from './controllers/notifications.ts';
 import { providersController } from './controllers/providers.ts';
 import { modelsController } from './controllers/models.ts';
 import { routingController } from './controllers/routing.ts';
-import { apiKeysController, gatewayController } from './controllers/gateway.ts';
+import { apiKeysController, gatewayController, playgroundController } from './controllers/gateway.ts';
 import { rateLimitsController } from './controllers/rate-limits.ts';
 import { requestsController } from './controllers/requests.ts';
 import { operationsController } from './controllers/operations.ts';
@@ -122,6 +122,7 @@ export function createApiApp(deps: ApiDependencies): ApiApp {
   const keys = apiKeysController(deps.apiKeys);
   const mine = keyRequestsController(deps.apiKeys, deps.keyRequests);
   const gw = gatewayController(deps.gateway);
+  const play = playgroundController(deps.gateway, deps.apiKeys);
   const rl = rateLimitsController(deps.limits);
   const rq = requestsController(deps.requests);
   const cap = capturesController(deps.captures);
@@ -267,6 +268,9 @@ export function createApiApp(deps: ApiDependencies): ApiApp {
   router.post('/api/api-key-requests/:id/approve', 'api_keys.write', mine.approve);
   router.post('/api/api-key-requests/:id/deny', 'api_keys.write', mine.deny);
   router.get('/api/gateway/metrics', 'requests.read', gw.metrics);
+  // The playground: own keys only (the handler checks the key belongs to the signed-in user).
+  router.get('/api/playground/models', 'authenticated', play.models);
+  router.post('/api/playground/chat', 'authenticated', play.chat);
   router.get('/api/rate-limits', 'rate_limits.read', rl.get);
   router.put('/api/rate-limits', 'rate_limits.write', rl.put);
   router.get('/api/rate-limits/usage', 'rate_limits.read', rl.usage);

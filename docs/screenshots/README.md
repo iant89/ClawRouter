@@ -510,3 +510,23 @@ look and behave as before.
 | ![Health](32-design-system-components/04-health-status-history.png) | Health history strips (`StatusHistory`), a few minutes after start |
 | ![Copy](32-design-system-components/05-copy-setup-key.png) | The setup key copied: check mark in the field and a toast |
 | ![Light](32-design-system-components/06-field-help-light.png) | Field help in the light theme |
+
+## 33 · Playground and chat apps
+
+Captured 2026-11-18 on a development server. The provider is the project's mock OpenAI server
+(`tests/support/mock-providers.ts`), so answers are short fixed texts; the health badge says
+"Degraded" because the mock provider was never checked. Open WebUI 0.13.4 and LibreChat v0.8.9
+were pointed at that ClawRouter, with an every-request announcement for the notice pictures.
+
+| Screenshot | Shows |
+| --- | --- |
+| ![Answer](33-playground/01-streamed-answer.png) | A streamed answer with the model, tokens and timing; the chat apps card below |
+| ![Details](33-playground/02-request-details.png) | Request details from an answer through the `chat` alias, as the "Chat apps" key |
+| ![Config](33-playground/03-client-configuration.png) | LibreChat's configuration, filled in with this server's address |
+| ![Light](33-playground/04-light.png) | Light theme |
+| ![Phone](33-playground/05-phone.png) | Phone width: settings above the conversation |
+| ![No keys](33-playground/06-no-keys.png) | An Operator without keys: how to get one |
+| ![Open WebUI](33-playground/07-open-webui-chat.png) | Open WebUI on ClawRouter: its built-in time tool called through ClawRouter, then the answer |
+| ![Builtin Tools](33-playground/08-open-webui-builtin-tools.png) | Open WebUI's Builtin Tools switch, turned off so notices appear |
+| ![Open WebUI notice](33-playground/09-open-webui-notice.png) | The announcement at the start of an Open WebUI reply |
+| ![LibreChat](33-playground/10-librechat-chat.png) | LibreChat on ClawRouter, with the announcement in the reply and the title |
