@@ -42,6 +42,7 @@ bun run doctor         # check a deployment (config, key, database, backups, HTT
 bun run clear-credentials      # lost secret key: forget the values it cannot open (--yes)
 bun run reset-password <user>  # lost password: prints a temporary one (--enable re-enables, --reset-2fa removes two-factor)
 bun run rotate-secret-key      # new encryption key for every stored secret (CLAWROUTER_NEW_SECRET_KEY)
+bun run audit                  # outside-in audit of a production build (~3 min; --no-build reuses dist/)
 bun run scan-secrets           # no credential-shaped strings committed (CI runs it, plus bun audit)
 bun run bench:db               # database benchmark on a large seeded database (docs/performance.md)
 bun run bench:gateway          # time ClawRouter adds per /v1 request, throughput, heap

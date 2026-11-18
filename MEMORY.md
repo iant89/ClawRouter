@@ -319,6 +319,16 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 
 ### Notes
 
+- **NOTE** · 2026-11-18 · `bun run audit`: the outside-in audit suite
+  `scripts/audit/run.ts` builds `dist/`, starts a production server (fresh database, mock providers,
+  mock SMTP) and checks claims over HTTP, WebSocket, Playwright and the CLI; ~3 minutes, exits 1 on a
+  failure, results in `audit-results.json` in its temp folder (set `TMPDIR` to the scratchpad in
+  cloud sessions). Sections run in order and share users and keys (`World` in `probes-web.ts`); the
+  lockout and idle checks run last because they block the address and wait on clocks. When a feature
+  adds a claim (docs), add a check there. Before calling a failure a bug, rule out the test: in the
+  first runs 15 failures were the suite's own mistakes (a password containing the username, a page
+  size over the API's 200 cap, a two-factor policy that also held the administrator).
+
 - **NOTE** · 2026-11-17 · Audit lessons (see `docs/audit-2026-11-17.md`)
   - A new error code must be added in four places: `ERROR_CODES` (shared/api.ts), `HTTP_STATUS` and
     `SAFE_MESSAGE` (core/errors.ts), and `OPENAI_TYPE` (api/http/responses.ts) for `/v1`.
@@ -499,6 +509,9 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
   (`canonicalHost` in `packages/providers/src/endpoint.ts`), captures marking whole non-ASCII bodies
   as truncated (byte counting), oversized bodies now 413 (`PAYLOAD_TOO_LARGE`). Docs corrected:
   `/v1/models` is not rate-limited; the CSRF header is only required with a session cookie.
+  Re-run 2026-11-18 on the owner's "Redo the full audit": the probes are now `bun run audit`
+  (`scripts/audit/`), 166 checks incl. real HTTPS and a trusted proxy: all pass, no new defect. Against
+  `main` it fails on exactly the four fixed bugs. Both runs are on `claude/audit`, unmerged.
 
 - **MESSAGE** · 2026-11-17 · Everything merged after client notices and announcements
   Nothing else in ClawRouter waits for review. Old branches to delete on GitHub (the session cannot): every merged

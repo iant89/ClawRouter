@@ -114,6 +114,7 @@ curl -s http://127.0.0.1:8080/api/health | jq
 | `bun run clear-credentials` | Lost secret key: list the values it cannot open; `--yes` forgets them |
 | `bun run reset-password <username>` | Lost password: sets and prints a temporary password, ends the user's sessions (`--enable` also re-enables the account, `--reset-2fa` removes two-factor sign-in) |
 | `bun run rotate-secret-key` | Re-encrypt every stored secret with a new key (`CLAWROUTER_NEW_SECRET_KEY` or `--new-key-file`); stop the server first |
+| `bun run audit` | The outside-in audit: builds, starts a production server with mock providers, checks ~170 claims over HTTP, WebSocket, a browser and the CLI (`--no-build` to reuse `dist/`); see [audit](docs/audit-2026-11-17.md) |
 | `bun run scan-secrets` | Fail on credential-shaped strings in tracked files (`--history`: every commit) |
 | `bun run build` | Production bundle in `dist/` (server, console, and the commands above in `dist/cli`) |
 | `bun run start` | Run the production bundle (`CLAWROUTER_ENV=production`) |

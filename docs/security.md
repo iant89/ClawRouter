@@ -6,7 +6,8 @@ guarded by tests, and the risks that remain. Area details live in
 [authentication](authentication.md), [authorization](authorization.md),
 [administration](administration.md), [gateway](gateway.md),
 [rate limits](rate-limits.md) and [logging and audit](logging-audit.md). The outside-in
-audit of 2026-11-17 (every claim tested against a running production build) is in
+audit of 2026-11-17 (every claim tested against a running production build; repeat it with
+`bun run audit`) is in
 [audit-2026-11-17](audit-2026-11-17.md).
 
 ## Findings fixed in phase 15

@@ -18,6 +18,7 @@
     "migrate": "bun scripts/migrate.ts",
     "reset-password": "bun scripts/reset-password.ts",
     "rotate-secret-key": "bun scripts/rotate-secret-key.ts",
+    "audit": "bun scripts/audit/run.ts",
     "scan-secrets": "bun scripts/scan-secrets.ts",
     "doctor": "bun scripts/doctor.ts",
     "clear-credentials": "bun scripts/clear-credentials.ts",
