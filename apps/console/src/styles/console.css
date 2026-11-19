@@ -187,6 +187,13 @@ body {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
+/* The model's reasoning: quieter than the answer, collapsed by default. */
+.claw-chat-reasoning .claw-chat-text {
+  color: var(--eui-color-text-secondary, #a0a8b4);
+  font-size: var(--eui-font-size-sm, 0.875rem);
+  max-height: 16rem;
+  overflow-y: auto;
+}
 .claw-chat-meta {
   display: grid;
   gap: var(--eui-space-1, 0.25rem);

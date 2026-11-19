@@ -16,7 +16,7 @@
 
 import { useState, type ReactNode } from 'react';
 import { AppShell, ApplicationHeader, Icon, NavigationGroup, NavigationItem, SideNavigation, useToast } from '@enterprise-ui/react';
-import { itemById, visibleNavigation, type NavItem } from '../app/navigation.ts';
+import { itemById, switchedOff, visibleNavigation, type NavItem } from '../app/navigation.ts';
 import { useRouter } from '../app/router.tsx';
 import { HealthStateIndicator } from '../components/custom/HealthStateIndicator.tsx';
 import { LiveIndicator } from '../components/custom/LiveIndicator.tsx';
@@ -42,7 +42,8 @@ const roleLabel = (id: string) => ROLE_LABELS[id] ?? id;
 export function ConsoleLayout({ activeId, children }: { activeId: string | undefined; children: ReactNode }) {
   const { navigate } = useRouter();
   const { signOut, refresh } = useAuth();
-  const { user, roles, onboarding } = useSession();
+  const session = useSession();
+  const { user, roles, onboarding } = session;
   // A new user's tour opens by itself once; afterwards only from the help menu.
   const [tourOpen, setTourOpen] = useState(onboarding.tour === 'PENDING');
   const { set: permissions } = usePermissions();
@@ -111,7 +112,7 @@ export function ConsoleLayout({ activeId, children }: { activeId: string | undef
             navigate(item.path);
           }}
         >
-          {visibleNavigation(permissions).map((group) =>
+          {visibleNavigation(permissions, switchedOff(session)).map((group) =>
             group.label === null ? (
               group.items.map((item) => <NavLink key={item.id} item={item} />)
             ) : (

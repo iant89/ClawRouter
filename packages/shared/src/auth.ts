@@ -64,6 +64,8 @@ export interface AuthSession {
   onboarding: OnboardingInfo;
   /** Whether ClawRouter's MCP server (/v1/mcp) is on (the mcpEnabled setting): the console shows MCP access on keys only then. */
   mcpServer: boolean;
+  /** Whether the playground is on (the playgroundEnabled setting). Opening it also needs playground.use. */
+  playground: boolean;
   /** The user's console theme (their choice, or the default). */
   theme: ThemeChoice;
 }
@@ -118,6 +120,13 @@ export interface ChangePasswordRequest {
 
 /** Error details when a route is refused because the user must change their password first. */
 export const PASSWORD_CHANGE_REQUIRED = 'password_change_required';
+
+/**
+ * Error details when a feature an administrator turned off in Settings is used:
+ * `{ reason: 'feature_disabled', feature: 'playground' }` with 403, so programs can tell
+ * "turned off" apart from "not allowed".
+ */
+export const FEATURE_DISABLED = 'feature_disabled';
 
 /** Password policy, enforced by the server and mirrored in the console for feedback. */
 export const PASSWORD_POLICY = { minLength: 12, maxLength: 256 } as const;

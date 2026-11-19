@@ -61,7 +61,7 @@ export const NAVIGATION: readonly NavGroup[] = [
       { id: 'requests', permission: 'requests.read', label: 'Requests', path: '/requests', icon: 'activity-items', summary: 'Every gateway request with its routing decision, retries, failovers, duration and tokens.' },
       { id: 'api-access', permission: 'api_keys.read', label: 'API Access', path: '/api-access', icon: 'key', summary: 'API keys for external AI clients: scopes, allowed models, limits, expiry and revocation.' },
       { id: 'my-keys', label: 'My API keys', path: '/my-keys', icon: 'key-user-settings', summary: 'Your own API keys, and requests for keys when you may not create them.' },
-      { id: 'playground', label: 'Playground', path: '/playground', icon: 'discussion', summary: 'Chat with a model through the gateway as one of your API keys, and set up chat apps such as Open WebUI and LibreChat.' },
+      { id: 'playground', permission: 'playground.use', label: 'Playground', path: '/playground', icon: 'discussion', summary: 'Chat with a model through the gateway as one of your API keys, and set up chat apps such as Open WebUI and LibreChat.' },
       { id: 'rate-limits', permission: 'rate_limits.read', label: 'Rate Limits', path: '/rate-limits', icon: 'performance', summary: 'Requests and tokens per minute per key, user, model and gateway, and live usage.' },
       { id: 'usage', permission: 'usage.read', label: 'Usage', path: '/usage', icon: 'line-chart', summary: 'Token usage and estimated cost by provider, model, client and user.' },
     ],
@@ -111,12 +111,19 @@ export function itemById(id: string): NavItem | undefined {
   return NAV_ITEMS.find((item) => item.id === id);
 }
 
-/** True when the item needs no permission or the user holds it. */
-export function canSee(item: NavItem, permissions: ReadonlySet<string>): boolean {
-  return item.permission === undefined || permissions.has(item.permission);
+const NONE: ReadonlySet<PageId> = new Set();
+
+/** Pages an administrator turned off for everyone in Settings (the session says which). */
+export function switchedOff(session: { playground: boolean }): ReadonlySet<PageId> {
+  return session.playground ? NONE : new Set<PageId>(['playground']);
+}
+
+/** True when the page is not switched off and needs no permission or the user holds it. */
+export function canSee(item: NavItem, permissions: ReadonlySet<string>, off: ReadonlySet<PageId> = NONE): boolean {
+  return !off.has(item.id) && (item.permission === undefined || permissions.has(item.permission));
 }
 
 /** Navigation filtered to what the user may open; empty groups are dropped. */
-export function visibleNavigation(permissions: ReadonlySet<string>): NavGroup[] {
-  return NAVIGATION.map((g) => ({ ...g, items: g.items.filter((i) => canSee(i, permissions)) })).filter((g) => g.items.length > 0);
+export function visibleNavigation(permissions: ReadonlySet<string>, off: ReadonlySet<PageId> = NONE): NavGroup[] {
+  return NAVIGATION.map((g) => ({ ...g, items: g.items.filter((i) => canSee(i, permissions, off)) })).filter((g) => g.items.length > 0);
 }

@@ -15,7 +15,7 @@
  */
 
 import { describe, expect, test } from 'bun:test';
-import { NAV_ITEMS, NAVIGATION, resolvePath, visibleNavigation } from '../src/app/navigation.ts';
+import { NAV_ITEMS, NAVIGATION, canSee, itemById, resolvePath, switchedOff, visibleNavigation } from '../src/app/navigation.ts';
 import { describeUserAgent, formatPrice, formatRelative, formatTokens, formatUptime } from '../src/services/format.ts';
 
 describe('console navigation', () => {
@@ -80,8 +80,15 @@ describe('formatRelative', () => {
 });
 
 describe('visibleNavigation', () => {
-  test('a user without roles sees the dashboard, their own API keys (where they can request one) and the playground', () => {
-    expect(visibleNavigation(new Set()).flatMap((g) => g.items.map((i) => i.id))).toEqual(['dashboard', 'my-keys', 'playground']);
+  test('a user without roles sees the dashboard and their own API keys (where they can request one)', () => {
+    expect(visibleNavigation(new Set()).flatMap((g) => g.items.map((i) => i.id))).toEqual(['dashboard', 'my-keys']);
+  });
+
+  test('the playground needs playground.use, and disappears for everyone when switched off in Settings', () => {
+    const ids = (perms: string[], playground: boolean) => visibleNavigation(new Set(perms), switchedOff({ playground })).flatMap((g) => g.items.map((i) => i.id));
+    expect(ids(['playground.use'], true)).toEqual(['dashboard', 'my-keys', 'playground']);
+    expect(ids(['playground.use'], false)).toEqual(['dashboard', 'my-keys']);
+    expect(canSee(itemById('playground')!, new Set(['playground.use']), switchedOff({ playground: false }))).toBe(false);
   });
 
   test('a viewer sees read-only gateway areas and no administration', () => {
@@ -91,8 +98,8 @@ describe('visibleNavigation', () => {
     expect(groups.flatMap((g) => g.items.map((i) => i.id))).not.toContain('logs');
   });
 
-  test('every page except the dashboard, My API keys and Playground requires a permission', () => {
-    expect(NAV_ITEMS.filter((i) => !i.permission).map((i) => i.id)).toEqual(['dashboard', 'my-keys', 'playground']);
+  test('every page except the dashboard and My API keys requires a permission', () => {
+    expect(NAV_ITEMS.filter((i) => !i.permission).map((i) => i.id)).toEqual(['dashboard', 'my-keys']);
   });
 });
 

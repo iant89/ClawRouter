@@ -37,13 +37,15 @@ export const BUILT_IN_ROLE_PERMISSIONS: Record<BuiltInRoleId, readonly Permissio
     'usage.read',
     // Owner's decision (2026-11-13): Operators create their own API keys.
     'api_keys.own',
+    // Owner request (2026-11-19): the playground became a permission; every role that had it keeps it.
+    'playground.use',
   ],
   /**
    * Read-only view of gateway configuration and activity. Deliberately excludes
    * logs and audit (they can reveal security-relevant detail) and everything
    * under Administration.
    */
-  VIEWER: ['providers.read', 'models.read', 'routing.read', 'rate_limits.read', 'requests.read', 'usage.read', 'health.read'],
+  VIEWER: ['providers.read', 'models.read', 'routing.read', 'rate_limits.read', 'requests.read', 'usage.read', 'health.read', 'playground.use'],
 };
 
 export function permissionsOfRole(roleId: string): readonly Permission[] {

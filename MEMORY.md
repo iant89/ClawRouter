@@ -14,6 +14,36 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 
 ### Important
 
+- **IMPORTANT** · 2026-11-19 · Owner request: the playground can be turned off, and is a permission
+  "Let's do both, that way it can be disabled entirely as well as limit who can use it." The
+  `playgroundEnabled` setting (on by default; Settings → API keys and quotas → Playground): when
+  off, `/api/playground/*` answer 403 `AUTHORIZATION_ERROR` with `details.reason: 'feature_disabled'`,
+  `feature: 'playground'` (`FEATURE_DISABLED` in shared; owner: programs must be able to parse why),
+  checked in `dispatch` before the permission so everyone signed in gets the reason; the console
+  hides the menu item and shows `DisabledPage` at `/playground`, through the session's `playground` field (`switchedOff()` in `app/navigation.ts`, used by the menu, the page
+  router and the tour; compared in `sameSession`). Do **not** drop `playground.use` from the
+  console's permission set instead: the role and user pages compare permission sets. Permission
+  `playground.use`: Administrator, Operator **and Viewer** (everyone had the playground before);
+  migration 0026 gave it to every existing custom role. A user with no role at all lost the
+  playground, even with a key from an approved request (accepted; give them a role). Tests in
+  `packages/api/test/playground-api.test.ts`, the 0026 test in
+  `packages/database/test/migrations.test.ts`; docs `docs/playground.md`.
+
+- **IMPORTANT** · 2026-11-19 · Owner request: reasoning is passed on to clients
+  "I think reasoning content should be passed along." `ChatResponse.reasoning` and the stream
+  event `{ type: 'reasoning' }` (providers) carry it apart from `content`; every `ChatFormatter`
+  has `reasoning()`. Decisions made here (keep unless the owner says otherwise): **on always**,
+  no setting; Chat Completions uses DeepSeek's `reasoning_content` (not OpenRouter's
+  `reasoning`), Responses a `reasoning` item with `reasoning_text` content, Messages a `thinking`
+  block with an empty `signature`; reasoning sent back by clients is dropped, never forwarded
+  (DeepSeek refuses it); Google is asked for thoughts (`includeThoughts`) except Gemini 1.x/2.0 and
+  Gemma 1–3 (`NO_THINKING` in `google.ts`); Anthropic thinking is not turned on. A new provider
+  kind or chat endpoint must handle reasoning too. Not done: passing on a client's
+  `reasoning_effort` / `thinking` request, and `reasoning_tokens` in usage (Responses reports 0).
+  Tests: `packages/api/test/reasoning-api.test.ts`, "reasoning sent apart from the answer" in
+  `packages/providers/test/adapters.test.ts`; docs: `docs/gateway.md#reasoning`. Gemini thoughts
+  were not seen through ClawRouter live (3.5 Flash 503s, Flash-Lite did not think): re-check.
+
 - **IMPORTANT** · 2026-11-19 · Owner request: OpenRouter provider; provider-reported cost
   The `openrouter` kind (`openRouterAdapter` in `packages/providers/src/adapters/openai.ts`) uses
   the shared OpenAI-style adapter. The model list parser now also reads OpenRouter's fields for
@@ -80,8 +110,9 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
   them), and asked for a section near the bottom listing Open WebUI and LibreChat with links to
   **tested** setup guides. Keep: the playground acts as one of the user's own active keys chosen
   by id (`ApiKeyService.ownPrincipal`; the secret never reaches the browser), goes through
-  `gateway.chat()` so every limit and record applies, stores nothing, and both routes are
-  `'authenticated'` (own keys only, no permission). A guide in `docs/clients/` says which version
+  `gateway.chat()` so every limit and record applies, and stores nothing. Since 2026-11-19 both
+  routes need `playground.use` and the `playgroundEnabled` setting (see the entry above); still own
+  keys only. A guide in `docs/clients/` says which version
   was tested and how; re-test before changing a guide's tested version, and add a client to
   `features/playground/chat-clients.ts` only after testing it the same way. See
   `docs/playground.md`; tests in `packages/api/test/playground-api.test.ts`.

@@ -25,6 +25,7 @@ export const PERMISSIONS = [
   'requests.read',
   'usage.read',
   'api_keys.read', 'api_keys.write', 'api_keys.own',
+  'playground.use',
   'rate_limits.read', 'rate_limits.write',
   'health.read',
   'logs.read',
@@ -50,6 +51,7 @@ export const PERMISSION_DESCRIPTIONS: Record<Permission, string> = {
   'api_keys.read': 'View API keys (never their secret values)',
   'api_keys.write': 'Create and revoke API keys for anyone, change their limits, and approve key requests',
   'api_keys.own': 'Create, view and revoke your own API keys (others can request keys instead)',
+  'playground.use': 'Use the playground: chat with models in the console as one of your own API keys (Settings can also turn it off for everyone)',
   'rate_limits.read': 'View rate limits and current usage against them',
   'rate_limits.write': 'Change rate limits',
   'health.read': 'View detailed platform health',
@@ -110,7 +112,7 @@ export const ADMIN_ROLE_ID = 'ADMIN';
 
 /** Permissions grouped by area, for the role editor (every permission appears once). */
 export const PERMISSION_GROUPS: { area: string; permissions: Permission[] }[] = [
-  { area: 'Gateway', permissions: ['requests.read', 'usage.read', 'api_keys.read', 'api_keys.write', 'api_keys.own', 'rate_limits.read', 'rate_limits.write'] },
+  { area: 'Gateway', permissions: ['requests.read', 'usage.read', 'api_keys.read', 'api_keys.write', 'api_keys.own', 'playground.use', 'rate_limits.read', 'rate_limits.write'] },
   { area: 'AI infrastructure', permissions: ['providers.read', 'providers.write', 'models.read', 'models.write', 'routing.read', 'routing.write'] },
   { area: 'System', permissions: ['health.read', 'logs.read', 'audit.read', 'captures.manage'] },
   { area: 'Administration', permissions: ['announcements.manage', 'users.read', 'users.write', 'roles.read', 'roles.write', 'roles.assign', 'sessions.read', 'sessions.revoke', 'settings.read', 'settings.write'] },

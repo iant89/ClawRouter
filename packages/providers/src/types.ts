@@ -106,6 +106,12 @@ export interface Usage {
 export interface ChatResponse {
   model: string;
   content: string;
+  /**
+   * The model's reasoning, when the provider sends it apart from the answer (DeepSeek and
+   * vLLM `reasoning_content`, OpenRouter and Groq `reasoning`, Anthropic thinking blocks,
+   * Gemini thought parts). Never part of `content`.
+   */
+  reasoning?: string;
   /** Tool calls in the answer (finishReason is then usually tool_use). */
   toolCalls?: ToolCall[];
   finishReason: FinishReason;
@@ -115,6 +121,8 @@ export interface ChatResponse {
 /** Normalized stream events (spec §13). */
 export type StreamEvent =
   | { type: 'delta'; text: string }
+  /** A piece of the model's reasoning (see `ChatResponse.reasoning`); never part of the answer. */
+  | { type: 'reasoning'; text: string }
   /** A piece of a tool call. The first piece of each call (by `index`) carries `id` and `name`; `arguments` pieces are appended in order. */
   | { type: 'tool_call'; index: number; id?: string; name?: string; arguments?: string }
   | { type: 'done'; finishReason: FinishReason; usage: Usage; model: string };

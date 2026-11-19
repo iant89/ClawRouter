@@ -90,3 +90,17 @@ describe('sqlite adapter', () => {
     rmSync(dir, { recursive: true, force: true });
   });
 });
+
+describe('0026: the playground permission', () => {
+  test('existing custom roles get playground.use, so nobody loses the playground on upgrade; built-in roles are left alone', () => {
+    const db = fresh();
+    const at = migrations.findIndex((m) => m.id === '0026_playground_permission');
+    runMigrations(db, migrations.slice(0, at));
+    db.run("INSERT INTO roles (id, name, description, built_in, created_at) VALUES ('support', 'Support', '', 0, 'now')");
+    db.run("INSERT INTO role_permissions (role_id, permission) VALUES ('support', 'api_keys.own')");
+    runMigrations(db, migrations);
+    const rows = (role: string) => db.all<{ permission: string }>('SELECT permission FROM role_permissions WHERE role_id = ? ORDER BY permission', [role]).map((r) => r.permission);
+    expect(rows('support')).toEqual(['api_keys.own', 'playground.use']);
+    expect(rows('VIEWER')).toEqual([]);
+  });
+});

@@ -126,7 +126,7 @@ export function createHarness(options: { idleMinutes?: number; maxHours?: number
   const audit = createAuditService(createSqliteAuditRepository(db), log, clock.now);
   const settings = createSettingsService({
     repo: createSqliteSettingsRepository(db, clock.now), audit, events, log,
-    defaults: { sessionIdleMinutes: options.idleMinutes ?? 60, sessionMaxHours: options.maxHours ?? 12, signInMaxFailures: 10, requestRetentionDays: 30, usageRetentionDays: 400, healthHistoryDays: 7, keyMaxLifetimeDays: 30, quotasEnabled: 1, mcpEnabled: 0, noticeHeaderEnabled: 1, noticeReplyEnabled: 1, noticeCleanupEnabled: 1, noticeIntervalMinutes: 30, capturesEnabled: 0, capturesMaxCount: 500 },
+    defaults: { sessionIdleMinutes: options.idleMinutes ?? 60, sessionMaxHours: options.maxHours ?? 12, signInMaxFailures: 10, requestRetentionDays: 30, usageRetentionDays: 400, healthHistoryDays: 7, keyMaxLifetimeDays: 30, quotasEnabled: 1, mcpEnabled: 0, playgroundEnabled: 1, noticeHeaderEnabled: 1, noticeReplyEnabled: 1, noticeCleanupEnabled: 1, noticeIntervalMinutes: 30, capturesEnabled: 0, capturesMaxCount: 500 },
   });
   const auth = createAuthService({
     users,
@@ -215,7 +215,7 @@ export function createHarness(options: { idleMinutes?: number; maxHours?: number
   const healthHistory = createHealthHistoryService({ repo: createSqliteHealthHistoryRepository(db), now: clock.now });
   const operations = createOperationService({ repo: createSqliteOperationRepository(db), handlers: operationHandlers({ providers, health }), audit, events, log, now: clock.now });
   const configuration = createConfigurationService({ providers, models, routing, limits, authz, settings, twoFactor, mail, audit, version: 'test', now: clock.now });
-  const api = createApiApp({ log, logBuffer, audit, health, configuration, onboarding, preferences, healthHistory, auth, authz, userAdmin, settings, twoFactor, mail, notifications, providers, models, routing, apiKeys, keyRequests, gateway, limits, quotas, requests, operations, captures, notices, setup, now: clock.now, mcpEnabled: () => settings.get('mcpEnabled') === 1, cookie: { secure: options.secureCookie ?? false } });
+  const api = createApiApp({ log, logBuffer, audit, health, configuration, onboarding, preferences, healthHistory, auth, authz, userAdmin, settings, twoFactor, mail, notifications, providers, models, routing, apiKeys, keyRequests, gateway, limits, quotas, requests, operations, captures, notices, setup, now: clock.now, mcpEnabled: () => settings.get('mcpEnabled') === 1, playgroundEnabled: () => settings.get('playgroundEnabled') === 1, cookie: { secure: options.secureCookie ?? false } });
 
   const h: Harness = {
     db, clock, events, users, audit, auth, authz, userAdmin, settings, twoFactor, onboarding, mail, outbox, notifications, providers, models, routing, apiKeys, keyRequests, gateway, limits, quotas, requests, captures, notices, secrets, setup, health, healthHistory, operations, api, logs, logBuffer,

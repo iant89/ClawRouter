@@ -19,7 +19,7 @@ import type { AuditService } from '@clawrouter/audit';
 import type { AuthService, OnboardingService, PreferencesService, SetupService, TwoFactorService, UserAdminService } from '@clawrouter/authentication';
 import type { MailService } from '@clawrouter/mail';
 import type { AuthorizationService } from '@clawrouter/authorization';
-import { PASSWORD_CHANGE_REQUIRED, TWO_FACTOR_SETUP_REQUIRED } from '@clawrouter/shared';
+import { FEATURE_DISABLED, PASSWORD_CHANGE_REQUIRED, TWO_FACTOR_SETUP_REQUIRED } from '@clawrouter/shared';
 import type { NotificationService } from '@clawrouter/notifications';
 import type { ProviderService } from '@clawrouter/providers';
 import type { ModelService } from '@clawrouter/models';
@@ -102,6 +102,8 @@ export interface ApiDependencies {
   version?: string;
   /** Whether the MCP server (/v1/mcp) is on: the mcpEnabled setting, read on every request. Absent: off. */
   mcpEnabled?: () => boolean;
+  /** Whether the playground is on: the playgroundEnabled setting, read on every request. Absent: on. */
+  playgroundEnabled?: () => boolean;
   /** The services' clock (tests use a fake one). */
   now?: () => Date;
 }
@@ -284,9 +286,10 @@ export function createApiApp(deps: ApiDependencies): ApiApp {
   router.post('/api/api-key-requests/:id/approve', 'api_keys.write', mine.approve);
   router.post('/api/api-key-requests/:id/deny', 'api_keys.write', mine.deny);
   router.get('/api/gateway/metrics', 'requests.read', gw.metrics);
-  // The playground: own keys only (the handler checks the key belongs to the signed-in user).
-  router.get('/api/playground/models', 'authenticated', play.models);
-  router.post('/api/playground/chat', 'authenticated', play.chat);
+  // The playground: the playground.use permission, own keys only (the handler checks the key belongs to the signed-in user).
+  // When the playgroundEnabled setting is off, both answer 403 with reason feature_disabled (in dispatch).
+  router.get('/api/playground/models', 'playground.use', play.models);
+  router.post('/api/playground/chat', 'playground.use', play.chat);
   router.get('/api/rate-limits', 'rate_limits.read', rl.get);
   router.put('/api/rate-limits', 'rate_limits.write', rl.put);
   router.get('/api/rate-limits/usage', 'rate_limits.read', rl.usage);
@@ -336,6 +339,10 @@ export function createApiApp(deps: ApiDependencies): ApiApp {
       const route = `${ctx.method} ${ctx.url.pathname}`;
       if (!ALLOWED_BEFORE_PASSWORD_CHANGE.has(route) && !ctx.url.pathname.startsWith('/api/auth/2fa') && route !== 'PUT /api/auth/email' && deps.twoFactor.setupRequired(ctx.auth.user.id)) {
         throw new AppError('AUTHORIZATION_ERROR', 'Set up two-factor sign-in before continuing.', { details: { reason: TWO_FACTOR_SETUP_REQUIRED } });
+      }
+      // Turned off in Settings: say so to everyone signed in, before the permission check, so a program can tell why.
+      if (ctx.url.pathname.startsWith('/api/playground/') && !(deps.playgroundEnabled?.() ?? true)) {
+        throw new AppError('AUTHORIZATION_ERROR', 'The playground has been disabled by an administrator.', { details: { reason: FEATURE_DISABLED, feature: 'playground' } });
       }
       if (match.access !== 'authenticated' && !ctx.auth.permissions.has(match.access)) {
         ctx.log.info('access denied', { component: 'authorization', userId: ctx.auth.user.id, permission: match.access, path: ctx.url.pathname });

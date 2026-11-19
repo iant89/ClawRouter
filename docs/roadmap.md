@@ -528,6 +528,25 @@ See [gateway](gateway.md#anthropic-messages-api). Requested 2026-11-19: `/v1/mes
 - [x] Errors in Anthropic's shape; `x-api-key` or Bearer keys; `count_tokens` (estimate); `/v1/models` in Anthropic's shape on `anthropic-version`
 - [x] Tested live with the official Anthropic SDK and Claude Code 2.1.328 on Groq, and Claude Code's full request on the mock; [Claude Code guide](clients/claude-code.md) and a card in the playground
 
+
+## Owner request: pass reasoning on ✅
+
+See [gateway](gateway.md#reasoning). Requested 2026-11-19: "reasoning content should be passed along".
+
+- [x] Adapters read reasoning apart from the answer: `reasoning_content` / `reasoning` (OpenAI-style), thinking blocks (Anthropic), thought parts (Google, now asked for on thinking models)
+- [x] Clients get it as `reasoning_content` (Chat Completions), a `reasoning` item (Responses) or a `thinking` block (Messages), in replies and streams
+- [x] The playground shows it in a collapsed Reasoning panel
+- [x] Tested live with Groq gpt-oss-20b on all three APIs and in the playground; Gemini thought parts checked directly against Google's API
+
+
+## Owner request: the playground can be turned off and limited ✅
+
+See [playground](playground.md#how-it-works). Requested 2026-11-19: "Let's do both, that way it can be disabled entirely as well as limit who can use it if it's enabled."
+
+- [x] Setting `playgroundEnabled` (on by default): when off, the routes answer 403 with reason `feature_disabled` and the page leaves the menu and the tour; opened directly, it says it has been disabled
+- [x] Permission `playground.use` for Administrator, Operator and Viewer; migration 0026 gives it to existing custom roles
+- [x] Checked in a browser, including an upgrade of a database with a custom role
+
 ---
 
 ## Future roadmap (§41)

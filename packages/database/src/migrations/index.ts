@@ -40,6 +40,7 @@ import { m0022UserTheme } from './0022_user_theme.ts';
 import { m0023ProviderCaptures } from './0023_provider_captures.ts';
 import { m0024ClientNotices } from './0024_client_notices.ts';
 import { m0025AnnouncementIcon } from './0025_announcement_icon.ts';
+import { m0026PlaygroundPermission } from './0026_playground_permission.ts';
 
 /** All migrations, in order. Append only. */
-export const migrations: readonly Migration[] = [m0001Settings, m0002UsersSessions, m0003AuditLog, m0004Roles, m0005Notifications, m0006Providers, m0007Models, m0008Routing, m0009ApiKeys, m0010RateLimits, m0011Requests, m0012HealthOperations, m0013CustomRolesUsers, m0014ApiKeyRequests, m0015KeyLifetimeLimits, m0016TwoFactor, m0017PerformanceIndexes, m0018UserQuotas, m0019ModelCostSource, m0020Onboarding, m0021ApiKeyMcpAccess, m0022UserTheme, m0023ProviderCaptures, m0024ClientNotices, m0025AnnouncementIcon];
+export const migrations: readonly Migration[] = [m0001Settings, m0002UsersSessions, m0003AuditLog, m0004Roles, m0005Notifications, m0006Providers, m0007Models, m0008Routing, m0009ApiKeys, m0010RateLimits, m0011Requests, m0012HealthOperations, m0013CustomRolesUsers, m0014ApiKeyRequests, m0015KeyLifetimeLimits, m0016TwoFactor, m0017PerformanceIndexes, m0018UserQuotas, m0019ModelCostSource, m0020Onboarding, m0021ApiKeyMcpAccess, m0022UserTheme, m0023ProviderCaptures, m0024ClientNotices, m0025AnnouncementIcon, m0026PlaygroundPermission];
