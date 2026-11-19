@@ -96,6 +96,36 @@ for each provider:
 - Media is never stored: request history, logs and events hold metadata only.
   Provider token counts include the images, so usage and cost do too.
 
+### Reasoning
+
+When a provider sends the model's reasoning apart from its answer, ClawRouter passes it
+on in the shape of the API the client called. It is never mixed into the answer.
+
+| Provider sends | |
+|---|---|
+| `reasoning_content` (DeepSeek, vLLM, Qwen, Moonshot) or `reasoning` (OpenRouter, Groq, Ollama) | OpenAI-style adapters, replies and stream deltas |
+| `thinking` blocks / `thinking_delta` | Anthropic (only when thinking is on; ClawRouter does not turn it on) |
+| `thought: true` parts | Google; ClawRouter asks thinking models for them (`thinkingConfig.includeThoughts`), but not Gemini 1.x/2.0 or Gemma 1–3 |
+
+| Client API | Reasoning arrives as |
+|---|---|
+| `/v1/chat/completions` | `message.reasoning_content`, and `delta.reasoning_content` in streams (DeepSeek's field, which Open WebUI and LibreChat read) |
+| `/v1/responses` | a `reasoning` output item before the message, with `content: [{ type: "reasoning_text" }]` and `summary: []`; streams send `response.reasoning_text.delta` / `.done` |
+| `/v1/messages` | a `thinking` block before the text (`thinking_delta` in streams), with an empty `signature` |
+
+- Reasoning sent back in a conversation (`reasoning_content` on an assistant message, a
+  `reasoning` item, a `thinking` block) is dropped: no provider can resume another's
+  reasoning, and DeepSeek refuses its own field in requests.
+- Groq's Qwen models and Ollama write `<think>…</think>` into the answer text unless asked
+  otherwise; that text stays in the answer.
+- Reasoning counts as output when ClawRouter has to estimate usage (providers bill it as output).
+- A client's request to think harder (`reasoning_effort`, Responses `reasoning.effort`,
+  Messages `thinking`) is not passed on yet.
+- Tested live 2026-11-19 with Groq gpt-oss-20b on all three APIs, plain and streamed, and in the
+  playground. Gemini thought parts were checked against Google's API directly; through
+  ClawRouter, Gemini 3.5 Flash was overloaded (503) that day and Flash-Lite did not think on
+  the questions asked (it accepted the setting, and tool calls still worked).
+
 ## Responses API
 
 `POST /v1/responses` speaks OpenAI's Responses API and runs through the same
@@ -110,9 +140,9 @@ the OpenAI Agents SDK and Codex can point at ClawRouter.
 | `max_output_tokens`, `temperature`, `top_p` | the same limits |
 | `tools` (type `function`), `tool_choice`, `parallel_tool_calls` | tools (see above) |
 | `metadata` | echoed in the response |
-| `reasoning` items in `input` | skipped (ClawRouter cannot resume a provider's reasoning) |
+| `reasoning` items in `input` | skipped (ClawRouter cannot resume a provider's reasoning; see [Reasoning](#reasoning)) |
 
-The answer is a `response` object: `message` items with `output_text`, and
+The answer is a `response` object: `reasoning` items (see [Reasoning](#reasoning)), `message` items with `output_text`, and
 `function_call` items (`call_id`, `name`, `arguments`), with `usage`. An answer cut
 by the length limit has `status: "incomplete"` and `incomplete_details.reason:
 "max_output_tokens"`. Streaming sends the Responses events with `sequence_number`:

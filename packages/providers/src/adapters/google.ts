@@ -75,9 +75,17 @@ const headers = (ctx: ProviderCallContext): Record<string, string> => ({
 
 const modelPath = (model: string) => `/models/${encodeURIComponent(model.replace(/^models\//, ''))}`;
 
+/**
+ * Models from before thinking (Gemini 1.x and 2.0, Gemma 1–3): they may refuse a
+ * thinking setting. Every other Gemini chat model thinks (Google's list, 2026-11-19).
+ */
+const NO_THINKING = /^(models\/)?(gemini-(1\.|2\.0)|gemma-[123]-)/i;
+
 function body(req: ChatRequest) {
   const { system, rest } = splitSystem(req.messages);
   const generationConfig = {
+    // Thinking models send their thought summary only when asked; it is passed on as reasoning, apart from the answer.
+    ...(NO_THINKING.test(req.model) ? {} : { thinkingConfig: { includeThoughts: true } }),
     ...(req.maxTokens !== undefined ? { maxOutputTokens: req.maxTokens } : {}),
     ...(req.temperature !== undefined ? { temperature: req.temperature } : {}),
     ...(req.topP !== undefined ? { topP: req.topP } : {}),
@@ -94,6 +102,8 @@ function body(req: ChatRequest) {
 
 /** The answer's text; thought summaries (reasoning) are left out. */
 const textOf = (r: GeminiResponse) => (r.candidates?.[0]?.content?.parts ?? []).filter((p) => p.thought !== true).map((p) => p.text ?? '').join('');
+/** Thought summaries from a thinking model: its reasoning, passed on apart from the answer. */
+const thoughtsOf = (r: GeminiResponse) => (r.candidates?.[0]?.content?.parts ?? []).filter((p) => p.thought === true).map((p) => p.text ?? '').join('');
 
 /**
  * Google models that list generateContent but do not answer a chat in text: music
@@ -152,8 +162,10 @@ export const googleAdapter: ProviderAdapter = {
     const json = await readJson<GeminiResponse>(res, ctx.apiKey);
     if (!Array.isArray(json.candidates)) throw invalidResponse('no candidates in response');
     const toolCalls = toolCallsOf(json);
+    const reasoning = thoughtsOf(json);
     return {
       model: json.modelVersion ?? req.model, content: textOf(json), usage: usageOf(json.usageMetadata),
+      ...(reasoning ? { reasoning } : {}),
       // Gemini says STOP after a function call; clients expect tool_calls.
       finishReason: toolCalls.length ? 'tool_use' : finish(json.candidates[0]?.finishReason),
       ...(toolCalls.length ? { toolCalls } : {}),
@@ -190,6 +202,8 @@ export const googleAdapter: ProviderAdapter = {
       } catch {
         throw invalidResponse('malformed stream chunk');
       }
+      const thoughts = thoughtsOf(chunk);
+      if (thoughts) yield { type: 'reasoning', text: thoughts };
       const text = textOf(chunk);
       if (text) yield { type: 'delta', text };
       // Gemini sends each function call whole, in one chunk.

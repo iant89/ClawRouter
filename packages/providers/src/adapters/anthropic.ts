@@ -147,13 +147,16 @@ export const anthropicAdapter: ProviderAdapter = {
 
   async sendRequest(ctx, req): Promise<ChatResponse> {
     const res = await providerFetch(ctx, joinUrl(ctx.endpoint, '/v1/messages'), { method: 'POST', headers: headers(ctx), body: JSON.stringify(body(req, false)) });
-    const json = await readJson<{ model?: string; content?: { type?: string; text?: string; id?: string; name?: string; input?: unknown }[]; stop_reason?: string; usage?: { input_tokens?: number; output_tokens?: number } }>(res, ctx.apiKey);
+    const json = await readJson<{ model?: string; content?: { type?: string; text?: string; thinking?: string; id?: string; name?: string; input?: unknown }[]; stop_reason?: string; usage?: { input_tokens?: number; output_tokens?: number } }>(res, ctx.apiKey);
     if (!Array.isArray(json.content)) throw invalidResponse('no content in response');
     const text = json.content.filter((b) => b.type === 'text' && typeof b.text === 'string').map((b) => b.text).join('');
     const toolCalls = json.content.filter((b) => b.type === 'tool_use' && typeof b.id === 'string' && typeof b.name === 'string')
       .map((b) => ({ id: b.id!, name: b.name!, arguments: JSON.stringify(b.input ?? {}) }));
+    // Thinking blocks (when thinking is on): the model's reasoning, passed on apart from the answer.
+    const reasoning = json.content.filter((b) => b.type === 'thinking' && typeof b.thinking === 'string').map((b) => b.thinking).join('\n\n');
     return {
       model: json.model ?? req.model, content: text, finishReason: finish(json.stop_reason), usage: usage(json.usage?.input_tokens ?? null, json.usage?.output_tokens ?? null),
+      ...(reasoning ? { reasoning } : {}),
       ...(toolCalls.length ? { toolCalls } : {}),
     };
   },
@@ -175,7 +178,7 @@ export const anthropicAdapter: ProviderAdapter = {
         index?: number;
         content_block?: { type?: string; id?: string; name?: string };
         message?: { model?: string; usage?: { input_tokens?: number; output_tokens?: number } };
-        delta?: { type?: string; text?: string; stop_reason?: string; partial_json?: string };
+        delta?: { type?: string; text?: string; thinking?: string; stop_reason?: string; partial_json?: string };
         usage?: { output_tokens?: number; input_tokens?: number };
         error?: { message?: string };
       };
@@ -199,6 +202,7 @@ export const anthropicAdapter: ProviderAdapter = {
           break;
         case 'content_block_delta':
           if (data.delta?.type === 'text_delta' && data.delta.text) yield { type: 'delta', text: data.delta.text };
+          if (data.delta?.type === 'thinking_delta' && data.delta.thinking) yield { type: 'reasoning', text: data.delta.thinking };
           if (data.delta?.type === 'input_json_delta' && data.delta.partial_json && typeof data.index === 'number' && toolIndex.has(data.index)) {
             yield { type: 'tool_call', index: toolIndex.get(data.index)!, arguments: data.delta.partial_json };
           }

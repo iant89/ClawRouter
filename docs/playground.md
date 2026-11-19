@@ -32,6 +32,10 @@ the first byte and in total, a finish reason other than `stop`, and the notices 
 sent (header). Users with `requests.read` get **Request details**, the same dialog as the
 Requests page, with each attempt.
 
+When the provider sends the model's reasoning apart from the answer (`reasoning_content`; see
+[gateway: reasoning](gateway.md#reasoning)), it appears above the answer in a collapsed
+**Reasoning** panel. It is never sent back with the conversation.
+
 Settings: key, model, system prompt, streaming (on by default), temperature and maximum
 tokens (empty means the model's default). Text only: images, files and tools are not offered
 in the playground.

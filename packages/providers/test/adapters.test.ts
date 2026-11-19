@@ -193,18 +193,30 @@ describe('discovery metadata', () => {
 describe('Google thinking models', () => {
   const google = registry.get('google');
 
-  test('thought summaries never reach the answer; reasoning tokens count as output', async () => {
+  test('thought summaries are the reasoning, never the answer; reasoning tokens count as output', async () => {
     mock.mode = 'ok';
     const res = await google.sendRequest(ctx('/google/v1beta'), request('gemini-3.5-flash'));
     expect(res.content).toBe('Hello from thinking Gemini');
+    expect(res.reasoning).toBe('The user greets me; answer politely.');
     // 5 answer tokens + 40 reasoning tokens, billed as output.
     expect([res.usage.inputTokens, res.usage.outputTokens, res.usage.totalTokens]).toEqual([6, 45, 51]);
   });
 
-  test('streams leave thought parts out too', async () => {
+  test('thinking models are asked for their thoughts; models from before thinking are not', async () => {
+    mock.mode = 'ok';
+    const config = async (model: string) => {
+      await google.sendRequest(ctx('/google/v1beta'), request(model));
+      return (mock.requests.at(-1)!.body as { generationConfig?: Record<string, unknown> }).generationConfig?.thinkingConfig;
+    };
+    expect(await config('gemini-3.5-flash')).toEqual({ includeThoughts: true });
+    expect(await config('gemini-2.0-flash')).toBeUndefined();
+  });
+
+  test('streams send thought parts as reasoning, apart from the answer', async () => {
     mock.mode = 'ok';
     const events: StreamEvent[] = [];
     for await (const e of google.sendStreamingRequest(ctx('/google/v1beta'), request('gemini-3.5-flash'))) events.push(e);
+    expect(events.filter((e) => e.type === 'reasoning').map((e) => (e as { text: string }).text)).toEqual(['Thinking about it.']);
     expect(events.filter((e) => e.type === 'delta').map((e) => (e as { text: string }).text).join('')).toBe('Thought through');
     const done = events.at(-1) as Extract<StreamEvent, { type: 'done' }>;
     expect([done.usage.inputTokens, done.usage.outputTokens]).toEqual([6, 32]);
@@ -228,21 +240,55 @@ describe('OpenRouter', () => {
     ]);
   });
 
-  test('every call names ClawRouter as the app; the reported cost is kept; reasoning never becomes the answer', async () => {
+  test('every call names ClawRouter as the app; the reported cost is kept; reasoning is passed on apart from the answer', async () => {
     mock.mode = 'ok';
     const res = await openrouter.sendRequest(ctx('/openrouter/api/v1'), request('anthropic/claude-haiku-5.5'));
     expect(mock.openRouterHeaders).toEqual({ referer: 'https://github.com/iant89/ClawRouter', title: 'ClawRouter' });
     expect(res.content).toBe('Hello from OpenRouter');
+    expect(res.reasoning).toBe('The user greets me.');
     expect(res.usage.costUsd).toBe(0.0000041);
     const events: StreamEvent[] = [];
     for await (const e of openrouter.sendStreamingRequest(ctx('/openrouter/api/v1'), request('anthropic/claude-haiku-5.5'))) events.push(e);
     expect(events.filter((e) => e.type === 'delta').map((e) => (e as { text: string }).text).join('')).toBe('Hi there');
     expect((events.at(-1) as Extract<StreamEvent, { type: 'done' }>).usage.costUsd).toBe(0.0000029);
+    expect(events.find((e) => e.type === 'reasoning')).toEqual({ type: 'reasoning', text: 'Thinking.' });
   });
 
   test('other OpenAI-style providers never report a cost, even when a server sends one', async () => {
     mock.mode = 'ok';
     const res = await registry.get('openai_compatible').sendRequest(ctx('/openrouter/api/v1'), request('anthropic/claude-haiku-5.5'));
     expect(res.usage.costUsd).toBeUndefined();
+  });
+});
+
+describe('reasoning sent apart from the answer', () => {
+  const texts = (events: StreamEvent[], type: 'delta' | 'reasoning') => events.filter((e) => e.type === type).map((e) => (e as { text: string }).text).join('');
+
+  test('reasoning_content (DeepSeek, vLLM) from OpenAI-style servers, in replies and streams', async () => {
+    mock.mode = 'ok';
+    for (const [kind, base, key] of [['openai', '/openai/v1', mock.key], ['openai_compatible', '/local/v1', null]] as const) {
+      const adapter = registry.get(kind);
+      const res = await adapter.sendRequest(ctx(base, key), request('deepseek-reasoner'));
+      expect([res.content, res.reasoning]).toEqual(['Paris.', 'The capital of France is Paris.']);
+      const events: StreamEvent[] = [];
+      for await (const e of adapter.sendStreamingRequest(ctx(base, key), request('deepseek-reasoner'))) events.push(e);
+      expect([texts(events, 'delta'), texts(events, 'reasoning')]).toEqual(['Paris.', 'The capital is Paris.']);
+    }
+  });
+
+  test('Anthropic thinking blocks, in replies and streams; the signature is not passed on', async () => {
+    mock.mode = 'ok';
+    const anthropic = registry.get('anthropic');
+    const res = await anthropic.sendRequest(ctx('/anthropic'), request('claude-thinking'));
+    expect([res.content, res.reasoning]).toEqual(['Hello.', 'A greeting; answer briefly.']);
+    const events: StreamEvent[] = [];
+    for await (const e of anthropic.sendStreamingRequest(ctx('/anthropic'), request('claude-thinking'))) events.push(e);
+    expect([texts(events, 'delta'), texts(events, 'reasoning')]).toEqual(['Hello.', 'A greeting; answer briefly.']);
+    expect(JSON.stringify(events)).not.toContain('c2ln');
+  });
+
+  test('a reply without reasoning has no reasoning field', async () => {
+    mock.mode = 'ok';
+    expect('reasoning' in await registry.get('openai').sendRequest(ctx('/openai/v1'), request('gpt-4o-mini'))).toBe(false);
   });
 });

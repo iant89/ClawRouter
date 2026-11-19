@@ -14,6 +14,21 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 
 ### Important
 
+- **IMPORTANT** · 2026-11-19 · Owner request: reasoning is passed on to clients
+  "I think reasoning content should be passed along." `ChatResponse.reasoning` and the stream
+  event `{ type: 'reasoning' }` (providers) carry it apart from `content`; every `ChatFormatter`
+  has `reasoning()`. Decisions made here (keep unless the owner says otherwise): **on always**,
+  no setting; Chat Completions uses DeepSeek's `reasoning_content` (not OpenRouter's
+  `reasoning`), Responses a `reasoning` item with `reasoning_text` content, Messages a `thinking`
+  block with an empty `signature`; reasoning sent back by clients is dropped, never forwarded
+  (DeepSeek refuses it); Google is asked for thoughts (`includeThoughts`) except Gemini 1.x/2.0 and
+  Gemma 1–3 (`NO_THINKING` in `google.ts`); Anthropic thinking is not turned on. A new provider
+  kind or chat endpoint must handle reasoning too. Not done: passing on a client's
+  `reasoning_effort` / `thinking` request, and `reasoning_tokens` in usage (Responses reports 0).
+  Tests: `packages/api/test/reasoning-api.test.ts`, "reasoning sent apart from the answer" in
+  `packages/providers/test/adapters.test.ts`; docs: `docs/gateway.md#reasoning`. Gemini thoughts
+  were not seen through ClawRouter live (3.5 Flash 503s, Flash-Lite did not think): re-check.
+
 - **IMPORTANT** · 2026-11-19 · Owner request: OpenRouter provider; provider-reported cost
   The `openrouter` kind (`openRouterAdapter` in `packages/providers/src/adapters/openai.ts`) uses
   the shared OpenAI-style adapter. The model list parser now also reads OpenRouter's fields for

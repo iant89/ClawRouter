@@ -343,7 +343,7 @@ export function createGatewayService(options: {
         const notices = noticesFor(key, o, !req.usesTools && !o.value.toolCalls?.length);
         const answer = format.complete(notices.prefix ? { ...o.value, content: notices.prefix + o.value.content } : o.value, o.candidate.modelRef);
         run.capture?.clientResponse(200, JSON.stringify(answer, null, 2));
-        run.succeed(o, withEstimate(o.value.usage, promptChars, o.value.content.length));
+        run.succeed(o, withEstimate(o.value.usage, promptChars, o.value.content.length + (o.value.reasoning?.length ?? 0)));
         return { kind: 'json', status: 200, headers: { ...routeHeaders(o), ...notices.headers }, body: answer };
       }
 
@@ -410,6 +410,11 @@ export function createGatewayService(options: {
             if (event.type === 'delta') {
               outputChars += event.text.length;
               send(controller, format.text(event.text));
+              return;
+            }
+            if (event.type === 'reasoning') {
+              outputChars += event.text.length;
+              send(controller, format.reasoning(event.text));
               return;
             }
             if (event.type === 'tool_call') {

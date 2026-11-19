@@ -58,7 +58,8 @@ usage tracking and an administration console built on
   [Open WebUI](docs/clients/open-webui.md), [LibreChat](docs/clients/librechat.md) and
   [Claude Code](docs/clients/claude-code.md) (see [playground](docs/playground.md)). Besides the
   OpenAI-compatible endpoints, ClawRouter speaks Anthropic's **Messages API** at `/v1/messages`,
-  so Claude clients can run on any provider (see [gateway](docs/gateway.md#anthropic-messages-api)).
+  so Claude clients can run on any provider (see [gateway](docs/gateway.md#anthropic-messages-api)). A model's
+  **reasoning** reaches clients in each API's own shape (see [gateway](docs/gateway.md#reasoning)).
 - **Architecture:** [`docs/architecture.md`](docs/architecture.md) ·
   **Security model:** [`docs/authentication.md`](docs/authentication.md),
   [`docs/authorization.md`](docs/authorization.md) · **Console:**

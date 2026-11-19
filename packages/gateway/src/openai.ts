@@ -298,12 +298,18 @@ export const unixTime = (d: Date) => Math.floor(d.getTime() / 1000);
 /** Serializes one SSE event. */
 export const sse = (data: unknown) => `data: ${typeof data === 'string' ? data : JSON.stringify(data)}\n\n`;
 
-/** The assistant message of a chat completion: text, or tool calls (content null when there is no text). */
-export function assistantMessage(r: { content: string; toolCalls?: ToolCall[] }): Record<string, unknown> {
-  if (!r.toolCalls?.length) return { role: 'assistant', content: r.content };
+/**
+ * The assistant message of a chat completion: text, or tool calls (content null when there
+ * is no text). Reasoning goes in `reasoning_content`, the field DeepSeek introduced and most
+ * chat apps read (Open WebUI, LibreChat); clients that do not know it ignore it.
+ */
+export function assistantMessage(r: { content: string; reasoning?: string; toolCalls?: ToolCall[] }): Record<string, unknown> {
+  const reasoning = r.reasoning ? { reasoning_content: r.reasoning } : {};
+  if (!r.toolCalls?.length) return { role: 'assistant', content: r.content, ...reasoning };
   return {
     role: 'assistant',
     content: r.content || null,
+    ...reasoning,
     tool_calls: r.toolCalls.map((c) => ({ id: c.id, type: 'function', function: { name: c.name, arguments: c.arguments } })),
   };
 }

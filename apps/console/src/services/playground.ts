@@ -42,6 +42,8 @@ export interface PlaygroundSettings {
 /** What the gateway said about one answer. */
 export interface PlaygroundAnswer {
   content: string;
+  /** The model's reasoning, when the provider sends it apart from the answer (`reasoning_content`). */
+  reasoning: string;
   /** The model that answered (`provider/model`), from X-ClawRouter-Model. */
   model: string | null;
   /** Provider calls made, retries and failovers included. */
@@ -59,7 +61,7 @@ export interface PlaygroundAnswer {
 }
 
 type Chunk = {
-  choices?: { delta?: { content?: string | null }; message?: { content?: string | null }; finish_reason?: string | null }[];
+  choices?: { delta?: { content?: string | null; reasoning_content?: string | null }; message?: { content?: string | null; reasoning_content?: string | null }; finish_reason?: string | null }[];
   usage?: { prompt_tokens?: number; completion_tokens?: number } | null;
   error?: { message?: string };
 };
@@ -77,11 +79,11 @@ function readNotices(res: Response): PlaygroundAnswer['notices'] {
 /**
  * Sends the conversation through the gateway as the chosen key (the session
  * proves who you are; the key's secret never reaches the browser). Streamed text
- * goes to `onText` as it arrives. Nothing is stored anywhere: the conversation
+ * goes to `onText` as it arrives, with the reasoning so far. Nothing is stored anywhere: the conversation
  * lives in the page.
  */
 export async function sendPlaygroundChat(
-  settings: PlaygroundSettings, messages: PlaygroundMessage[], onText: (soFar: string) => void, signal: AbortSignal,
+  settings: PlaygroundSettings, messages: PlaygroundMessage[], onText: (soFar: string, reasoning: string) => void, signal: AbortSignal,
 ): Promise<PlaygroundAnswer> {
   const request = {
     model: settings.model,
@@ -119,7 +121,7 @@ export async function sendPlaygroundChat(
   }
 
   const answer: PlaygroundAnswer = {
-    content: '', model: res.headers.get('x-clawrouter-model'), attempts: Number(res.headers.get('x-clawrouter-attempts')) || null, requestId,
+    content: '', reasoning: '', model: res.headers.get('x-clawrouter-model'), attempts: Number(res.headers.get('x-clawrouter-attempts')) || null, requestId,
     notices: readNotices(res), inputTokens: null, outputTokens: null, finishReason: null, firstByteMs, totalMs: 0, interrupted: null,
   };
   const takeUsage = (u: Chunk['usage']) => {
@@ -131,9 +133,10 @@ export async function sendPlaygroundChat(
   if (!(res.headers.get('content-type') ?? '').includes('text/event-stream')) {
     const body = (await res.json()) as Chunk;
     answer.content = body.choices?.[0]?.message?.content ?? '';
+    answer.reasoning = body.choices?.[0]?.message?.reasoning_content ?? '';
     answer.finishReason = body.choices?.[0]?.finish_reason ?? null;
     takeUsage(body.usage);
-    onText(answer.content);
+    onText(answer.content, answer.reasoning);
     answer.totalMs = Math.round(performance.now() - started);
     return answer;
   }
@@ -156,9 +159,13 @@ export async function sendPlaygroundChat(
       return;
     }
     const choice = chunk.choices?.[0];
+    if (choice?.delta?.reasoning_content) {
+      answer.reasoning += choice.delta.reasoning_content;
+      onText(answer.content, answer.reasoning);
+    }
     if (choice?.delta?.content) {
       answer.content += choice.delta.content;
-      onText(answer.content);
+      onText(answer.content, answer.reasoning);
     }
     if (choice?.finish_reason) answer.finishReason = choice.finish_reason;
     takeUsage(chunk.usage);

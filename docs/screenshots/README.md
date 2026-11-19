@@ -586,3 +586,13 @@ prices). "Degraded" in the header comes from a leftover mock provider in the dev
 | ![Descending](37-discovery-prices/02-price-descending.png) | Sorted by price, most expensive first: input · output per million tokens |
 | ![Free only](37-discovery-prices/03-free-only.png) | Free only (17): the import button counts only the 12 visible, checked models; 353 hidden selections are named |
 | ![No prices](37-discovery-prices/04-no-published-prices.png) | Google publishes no prices: no Price column and no switch |
+
+## 38 · Reasoning in the playground
+
+Captured 2026-11-19 live with Groq's gpt-oss-20b, which sends its reasoning in a separate field.
+
+| Screenshot | Shows |
+| --- | --- |
+| ![Collapsed](38-reasoning/01-reasoning-collapsed.png) | The answer with its reasoning collapsed above it |
+| ![Expanded](38-reasoning/02-reasoning-expanded.png) | The Reasoning panel opened |
+| ![Light](38-reasoning/03-light.png) | Light theme |

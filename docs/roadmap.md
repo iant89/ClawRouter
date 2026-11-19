@@ -528,6 +528,16 @@ See [gateway](gateway.md#anthropic-messages-api). Requested 2026-11-19: `/v1/mes
 - [x] Errors in Anthropic's shape; `x-api-key` or Bearer keys; `count_tokens` (estimate); `/v1/models` in Anthropic's shape on `anthropic-version`
 - [x] Tested live with the official Anthropic SDK and Claude Code 2.1.328 on Groq, and Claude Code's full request on the mock; [Claude Code guide](clients/claude-code.md) and a card in the playground
 
+
+## Owner request: pass reasoning on ✅
+
+See [gateway](gateway.md#reasoning). Requested 2026-11-19: "reasoning content should be passed along".
+
+- [x] Adapters read reasoning apart from the answer: `reasoning_content` / `reasoning` (OpenAI-style), thinking blocks (Anthropic), thought parts (Google, now asked for on thinking models)
+- [x] Clients get it as `reasoning_content` (Chat Completions), a `reasoning` item (Responses) or a `thinking` block (Messages), in replies and streams
+- [x] The playground shows it in a collapsed Reasoning panel
+- [x] Tested live with Groq gpt-oss-20b on all three APIs and in the playground; Gemini thought parts checked directly against Google's API
+
 ---
 
 ## Future roadmap (§41)

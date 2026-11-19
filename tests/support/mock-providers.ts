@@ -142,6 +142,17 @@ export function startMockProviders(key = 'sk-test-0123456789abcdefWXYZ'): MockPr
           return json({ error: { message: `Incorrect API key provided: ${h.get('authorization')?.slice(7) ?? ''}` } }, 401);
         }
         if (path === '/v1/models') return json({ object: 'list', data: state.openaiModels.map((id) => ({ id })) });
+        // A DeepSeek-style reasoning model ("…-reasoner"): reasoning in `reasoning_content`, apart from the answer.
+        if (path === '/v1/chat/completions' && String((body as { model?: unknown }).model ?? '').endsWith('-reasoner') && !callTool) {
+          if (!stream) return json({ id: 'r1', model: 'deepseek-reasoner', choices: [{ index: 0, message: { role: 'assistant', content: 'Paris.', reasoning_content: 'The capital of France is Paris.' }, finish_reason: 'stop' }], usage: { prompt_tokens: 8, completion_tokens: 12, total_tokens: 20 } });
+          return sse([
+            { data: { model: 'deepseek-reasoner', choices: [{ delta: { role: 'assistant', content: null, reasoning_content: 'The capital ' } }] } },
+            { data: { choices: [{ delta: { content: null, reasoning_content: 'is Paris.' } }] } },
+            { data: { choices: [{ delta: { content: 'Paris.', reasoning_content: null }, finish_reason: 'stop' }] } },
+            { data: { choices: [], usage: { prompt_tokens: 8, completion_tokens: 12, total_tokens: 20 } } },
+            { data: '[DONE]' },
+          ]);
+        }
         if (path === '/v1/chat/completions') {
           if (callTool && !stream) {
             return json({ id: 'c1', model: 'gpt-4o-mini-2024', choices: [{ index: 0, message: { role: 'assistant', content: null, tool_calls: [{ id: 'call_abc', type: 'function', function: { name: toolName, arguments: '{"city":"Paris"}' } }] }, finish_reason: 'tool_calls' }], usage: { prompt_tokens: 20, completion_tokens: 8, total_tokens: 28 } });
@@ -224,6 +235,23 @@ export function startMockProviders(key = 'sk-test-0123456789abcdefWXYZ'): MockPr
               { event: 'content_block_delta', data: { type: 'content_block_delta', index: 1, delta: { type: 'input_json_delta', partial_json: '"Paris"}' } } },
               { event: 'content_block_stop', data: { type: 'content_block_stop', index: 1 } },
               { event: 'message_delta', data: { type: 'message_delta', delta: { stop_reason: 'tool_use' }, usage: { output_tokens: 12 } } },
+              { event: 'message_stop', data: { type: 'message_stop' } },
+            ]);
+          }
+          // Extended thinking: a signed thinking block before the answer.
+          if (String((body as { model?: unknown }).model ?? '').includes('thinking') && !callTool) {
+            if (!stream) return json({ id: 'm3', type: 'message', model: 'claude-sonnet-4-5', content: [{ type: 'thinking', thinking: 'A greeting; answer briefly.', signature: 'c2ln' }, { type: 'text', text: 'Hello.' }], stop_reason: 'end_turn', usage: { input_tokens: 9, output_tokens: 20 } });
+            return sse([
+              { event: 'message_start', data: { type: 'message_start', message: { model: 'claude-sonnet-4-5', usage: { input_tokens: 9, output_tokens: 1 } } } },
+              { event: 'content_block_start', data: { type: 'content_block_start', index: 0, content_block: { type: 'thinking', thinking: '', signature: '' } } },
+              { event: 'content_block_delta', data: { type: 'content_block_delta', index: 0, delta: { type: 'thinking_delta', thinking: 'A greeting; ' } } },
+              { event: 'content_block_delta', data: { type: 'content_block_delta', index: 0, delta: { type: 'thinking_delta', thinking: 'answer briefly.' } } },
+              { event: 'content_block_delta', data: { type: 'content_block_delta', index: 0, delta: { type: 'signature_delta', signature: 'c2ln' } } },
+              { event: 'content_block_stop', data: { type: 'content_block_stop', index: 0 } },
+              { event: 'content_block_start', data: { type: 'content_block_start', index: 1, content_block: { type: 'text', text: '' } } },
+              { event: 'content_block_delta', data: { type: 'content_block_delta', index: 1, delta: { type: 'text_delta', text: 'Hello.' } } },
+              { event: 'content_block_stop', data: { type: 'content_block_stop', index: 1 } },
+              { event: 'message_delta', data: { type: 'message_delta', delta: { stop_reason: 'end_turn' }, usage: { output_tokens: 20 } } },
               { event: 'message_stop', data: { type: 'message_stop' } },
             ]);
           }

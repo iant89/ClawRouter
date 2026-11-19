@@ -47,6 +47,18 @@ function openAiPart(p: MessagePart): Record<string, unknown> {
   }
 }
 
+/**
+ * Reasoning sent apart from the answer: `reasoning_content` (DeepSeek, vLLM, Qwen, Moonshot)
+ * or `reasoning` (OpenRouter, Groq, Ollama). Groq and Ollama put it in the answer itself as
+ * `<think>` text unless asked otherwise; that text stays in the answer.
+ */
+interface OpenAiReasoning {
+  reasoning_content?: string | null;
+  reasoning?: string | null;
+}
+const reasoningOf = (m: OpenAiReasoning | undefined): string =>
+  typeof m?.reasoning_content === 'string' && m.reasoning_content ? m.reasoning_content : typeof m?.reasoning === 'string' ? m.reasoning : '';
+
 /** A tool call as OpenAI-style APIs send it. */
 interface OpenAiToolCall {
   id?: string;
@@ -234,14 +246,16 @@ export function createOpenAiStyleAdapter(options: OpenAiStyleOptions): ProviderA
 
     async sendRequest(ctx, req): Promise<ChatResponse> {
       const res = await providerFetch(ctx, joinUrl(ctx.endpoint, '/chat/completions'), { method: 'POST', headers: headers(ctx), body: JSON.stringify(body(req, false)) });
-      const json = await readJson<{ model?: string; choices?: { message?: { content?: string | null; tool_calls?: OpenAiToolCall[] }; finish_reason?: string }[]; usage?: OpenAiUsage }>(res, ctx.apiKey);
+      const json = await readJson<{ model?: string; choices?: { message?: OpenAiReasoning & { content?: string | null; tool_calls?: OpenAiToolCall[] }; finish_reason?: string }[]; usage?: OpenAiUsage }>(res, ctx.apiKey);
       const choice = json.choices?.[0];
       if (!choice) throw invalidResponse('no choices in response');
       const toolCalls = (choice.message?.tool_calls ?? []).filter((c) => typeof c.function?.name === 'string').map((c, i) => ({
         id: withSignature(typeof c.id === 'string' && c.id ? c.id : `call_${i}`, c), name: c.function!.name!, arguments: typeof c.function!.arguments === 'string' ? c.function!.arguments : '{}',
       }));
+      const reasoning = reasoningOf(choice.message);
       return {
         model: json.model ?? req.model, content: choice.message?.content ?? '', finishReason: finish(choice.finish_reason), usage: usage(json.usage),
+        ...(reasoning ? { reasoning } : {}),
         ...(toolCalls.length ? { toolCalls } : {}),
       };
     },
@@ -271,7 +285,7 @@ export function createOpenAiStyleAdapter(options: OpenAiStyleOptions): ProviderA
       let model = req.model;
       for await (const event of parseSse(res.body, ctx.signal)) {
         if (event.data === '[DONE]') break;
-        let chunk: { model?: string; choices?: { delta?: { content?: string | null; tool_calls?: (OpenAiToolCall & { index?: number })[] }; finish_reason?: string | null }[]; usage?: OpenAiUsage | null; x_groq?: { usage?: OpenAiUsage | null } };
+        let chunk: { model?: string; choices?: { delta?: OpenAiReasoning & { content?: string | null; tool_calls?: (OpenAiToolCall & { index?: number })[] }; finish_reason?: string | null }[]; usage?: OpenAiUsage | null; x_groq?: { usage?: OpenAiUsage | null } };
         try {
           chunk = JSON.parse(event.data);
         } catch {
@@ -279,6 +293,8 @@ export function createOpenAiStyleAdapter(options: OpenAiStyleOptions): ProviderA
         }
         if (chunk.model) model = chunk.model;
         const choice = chunk.choices?.[0];
+        const thinking = reasoningOf(choice?.delta);
+        if (thinking) yield { type: 'reasoning', text: thinking };
         if (choice?.delta?.content) yield { type: 'delta', text: choice.delta.content };
         for (const t of choice?.delta?.tool_calls ?? []) {
           sawToolCall = true;

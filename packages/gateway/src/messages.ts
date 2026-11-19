@@ -330,7 +330,7 @@ export function messagesFormat(o: { id: string; estimatedInputTokens: number }):
 
   // Streaming: one open content block at a time, numbered in order.
   let next = 0;
-  let open: { kind: 'text'; index: number } | { kind: 'tool'; index: number; stream: number } | null = null;
+  let open: { kind: 'text' | 'thinking'; index: number } | { kind: 'tool'; index: number; stream: number } | null = null;
   const close = (): string[] => {
     if (!open) return [];
     const index = open.index;
@@ -347,8 +347,10 @@ export function messagesFormat(o: { id: string; estimatedInputTokens: number }):
     complete(r: ChatResponse, m: string) {
       model = m;
       const content: Record<string, unknown>[] = [];
+      // Reasoning as a thinking block, first, as Claude writes it. The signature is empty: ClawRouter drops thinking blocks sent back, so none is checked.
+      if (r.reasoning) content.push({ type: 'thinking', thinking: r.reasoning, signature: '' });
       if (r.content) content.push({ type: 'text', text: r.content });
-      outputChars = r.content.length;
+      outputChars = r.content.length + (r.reasoning?.length ?? 0);
       for (const c of r.toolCalls ?? []) {
         outputChars += c.name.length + c.arguments.length;
         content.push({ type: 'tool_use', id: c.id, name: c.name, input: inputOf(c.arguments) });
@@ -376,6 +378,17 @@ export function messagesFormat(o: { id: string; estimatedInputTokens: number }):
       }
       outputChars += delta.length;
       out.push(event('content_block_delta', { index: open.index, delta: { type: 'text_delta', text: delta } }));
+      return out;
+    },
+    reasoning(delta) {
+      const out: string[] = [];
+      if (open?.kind !== 'thinking') {
+        out.push(...close());
+        open = { kind: 'thinking', index: next++ };
+        out.push(event('content_block_start', { index: open.index, content_block: { type: 'thinking', thinking: '', signature: '' } }));
+      }
+      outputChars += delta.length;
+      out.push(event('content_block_delta', { index: open.index, delta: { type: 'thinking_delta', thinking: delta } }));
       return out;
     },
     toolCall(piece: ToolCallPiece) {

@@ -220,6 +220,8 @@ function usageOf(u: Usage): Record<string, unknown> | null {
 }
 
 const outputText = (text: string) => ({ type: 'output_text', text, annotations: [], logprobs: [] });
+/** A reasoning output item, as OpenAI's open-weight models report raw reasoning (`reasoning_text`, no summary). */
+const reasoningItem = (id: string, text: string) => ({ type: 'reasoning', id, status: 'completed', summary: [], content: [{ type: 'reasoning_text', text }] });
 
 /**
  * POST /v1/responses: the response object and its streamed events
@@ -257,6 +259,20 @@ export function responsesFormat(o: { id: string; createdAt: number; echo: Respon
   let items = 0;
   const itemId = (kind: string) => `${kind}_${suffix}_${items}`;
 
+  // The open reasoning item: the model's reasoning, as `reasoning_text` (how OpenAI's open-weight models report it).
+  let thinking: { id: string; index: number; text: string } | null = null;
+  const closeReasoning = (): string[] => {
+    if (!thinking) return [];
+    const t = thinking;
+    thinking = null;
+    const item = reasoningItem(t.id, t.text);
+    output[t.index] = item;
+    return [
+      event('response.reasoning_text.done', { item_id: t.id, output_index: t.index, content_index: 0, text: t.text }),
+      event('response.output_item.done', { output_index: t.index, item }),
+    ];
+  };
+
   const closeMessage = (): string[] => {
     if (!message) return [];
     const m = message;
@@ -286,6 +302,8 @@ export function responsesFormat(o: { id: string; createdAt: number; echo: Respon
   return {
     complete(r: ChatResponse, m: string) {
       model = m;
+      if (r.reasoning) output.push(reasoningItem(`rs_${suffix}_0`, r.reasoning));
+      items = output.length;
       if (r.content) output.push({ type: 'message', id: itemId('msg'), status: 'completed', role: 'assistant', content: [outputText(r.content)] });
       for (const [i, c] of (r.toolCalls ?? []).entries()) {
         items = output.length + i;
@@ -298,7 +316,7 @@ export function responsesFormat(o: { id: string; createdAt: number; echo: Respon
       return [event('response.created', { response: response('in_progress') }), event('response.in_progress', { response: response('in_progress') })];
     },
     text(delta) {
-      const out: string[] = [];
+      const out: string[] = closeReasoning();
       if (!message) {
         const index = output.length;
         items = index;
@@ -313,8 +331,21 @@ export function responsesFormat(o: { id: string; createdAt: number; echo: Respon
       out.push(event('response.output_text.delta', { item_id: message.id, output_index: message.index, content_index: 0, delta, logprobs: [] }));
       return out;
     },
-    toolCall(piece: ToolCallPiece) {
+    reasoning(delta) {
       const out = closeMessage();
+      if (!thinking) {
+        const index = output.length;
+        items = index;
+        thinking = { id: itemId('rs'), index, text: '' };
+        output.push({ type: 'reasoning', id: thinking.id, status: 'in_progress', summary: [], content: [] });
+        out.push(event('response.output_item.added', { output_index: index, item: { type: 'reasoning', id: thinking.id, status: 'in_progress', summary: [], content: [] } }));
+      }
+      thinking.text += delta;
+      out.push(event('response.reasoning_text.delta', { item_id: thinking.id, output_index: thinking.index, content_index: 0, delta }));
+      return out;
+    },
+    toolCall(piece: ToolCallPiece) {
+      const out = [...closeReasoning(), ...closeMessage()];
       let call = calls.get(piece.index);
       if (!call) {
         const index = output.length;
@@ -335,10 +366,10 @@ export function responsesFormat(o: { id: string; createdAt: number; echo: Respon
     },
     finish(reason, usage) {
       const final = ending(reason, usage);
-      return [...closeMessage(), ...closeCalls(), event(final.status === 'incomplete' ? 'response.incomplete' : 'response.completed', { response: ending(reason, usage) })];
+      return [...closeReasoning(), ...closeMessage(), ...closeCalls(), event(final.status === 'incomplete' ? 'response.incomplete' : 'response.completed', { response: ending(reason, usage) })];
     },
     end() {
-      return [...closeMessage(), ...closeCalls(), event('response.completed', { response: ending('stop', { inputTokens: null, outputTokens: null, totalTokens: null, source: 'none' }) })];
+      return [...closeReasoning(), ...closeMessage(), ...closeCalls(), event('response.completed', { response: ending('stop', { inputTokens: null, outputTokens: null, totalTokens: null, source: 'none' }) })];
     },
     error() {
       return [event('response.failed', { response: response('failed', { error: { code: 'server_error', message: 'The model provider failed while streaming the response.' } }) })];

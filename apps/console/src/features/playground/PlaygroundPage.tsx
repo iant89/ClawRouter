@@ -16,7 +16,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import {
-  Button, Card, CopyButton, Dialog, Link, MessageStrip, NumberInput, Page, PromptInput, Select, StatusIndicator, Switch, Text, TextArea, WithFieldHelp,
+  Button, Card, CopyButton, Dialog, Link, MessageStrip, NumberInput, Page, Panel, PromptInput, Select, StatusIndicator, Switch, Text, TextArea, WithFieldHelp,
 } from '@enterprise-ui/react';
 import type { ApiKeyInfo } from '@clawrouter/shared';
 import { ApiClientError } from '../../services/api-client.ts';
@@ -32,6 +32,8 @@ interface Turn {
   id: number;
   role: 'user' | 'assistant';
   content: string;
+  /** Assistant turns: the model's reasoning, when the provider sends it apart from the answer. */
+  reasoning?: string;
   /** Assistant turns: what the gateway said about the answer (null while it streams). */
   answer?: PlaygroundAnswer | null;
   /** Assistant turns that failed: the error, instead of an answer. */
@@ -143,8 +145,8 @@ export function PlaygroundPage() {
     const controller = new AbortController();
     abortRef.current = controller;
     try {
-      const answer = await sendPlaygroundChat({ keyId, model, stream, temperature, maxTokens }, history, (soFar) => update(reply.id, { content: soFar }), controller.signal);
-      update(reply.id, { content: answer.content, answer });
+      const answer = await sendPlaygroundChat({ keyId, model, stream, temperature, maxTokens }, history, (soFar, reasoning) => update(reply.id, { content: soFar, reasoning }), controller.signal);
+      update(reply.id, { content: answer.content, reasoning: answer.reasoning, answer });
     } catch (err) {
       if (err instanceof DOMException && err.name === 'AbortError') update(reply.id, { stopped: true, answer: undefined });
       else update(reply.id, { error: describeError(err), answer: undefined });
@@ -215,7 +217,15 @@ export function PlaygroundPage() {
                     {t.error.message}{t.error.requestId && <> <span className="claw-mono">({t.error.requestId})</span></>}
                   </MessageStrip>
                 ) : (
-                  <div className="claw-chat-text">{t.content || (t.answer === null && !t.stopped ? '…' : '')}</div>
+                  <>
+                    {t.reasoning && (
+                      // Collapsed: it is the model's working, not its answer. Never sent back with the conversation.
+                      <Panel title="Reasoning" headingLevel={3} defaultExpanded={false} className="claw-chat-reasoning">
+                        <div className="claw-chat-text">{t.reasoning}</div>
+                      </Panel>
+                    )}
+                    <div className="claw-chat-text">{t.content || (t.answer === null && !t.stopped ? '…' : '')}</div>
+                  </>
                 )}
                 {t.stopped && <Text size="sm" tone="secondary" as="div">Stopped.</Text>}
                 {t.answer && <AnswerMeta answer={t.answer} onDetails={canSeeRequests && t.answer.requestId ? () => setDetails(t.answer!.requestId) : undefined} />}

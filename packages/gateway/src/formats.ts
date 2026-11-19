@@ -36,6 +36,8 @@ export interface ChatFormatter {
   /** Before the first piece of a stream. */
   start(model: string): string[];
   text(delta: string): string[];
+  /** A piece of the model's reasoning, written the way this API carries reasoning apart from the answer. */
+  reasoning(delta: string): string[];
   toolCall(piece: ToolCallPiece): string[];
   /** The provider finished. Includes whatever ends the stream. */
   finish(reason: FinishReason, usage: Usage): string[];
@@ -65,6 +67,7 @@ export function chatCompletionsFormat(o: { id: string; created: number; includeU
       return [sse(chunk({ role: 'assistant', content: '' }, null))];
     },
     text: (delta) => [sse(chunk({ content: delta }, null))],
+    reasoning: (delta) => [sse(chunk({ reasoning_content: delta }, null))],
     toolCall: (piece) => [sse(chunk({ tool_calls: [toolCallDelta(piece)] }, null))],
     finish(reason, usage) {
       const block = usageBlock(usage);
