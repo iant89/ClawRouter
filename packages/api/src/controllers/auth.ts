@@ -77,6 +77,8 @@ export interface AuthControllerDeps {
   preferences: PreferencesService;
   /** The mcpEnabled setting; absent: off. */
   mcpEnabled?: () => boolean;
+  /** The playgroundEnabled setting; absent: on. */
+  playgroundEnabled?: () => boolean;
 }
 
 const verifyBody = v.object({
@@ -91,11 +93,11 @@ const challengeBody = v.object({ challenge: v.string({ min: 1, max: 128 }) });
 const wizardStep: Validator<SetupWizardStep | null | undefined> = (value, path, issues) =>
   value === undefined || value === null ? value : v.oneOf(SETUP_WIZARD_STEPS)(value, path, issues);
 
-export function authController({ auth, authz, setup, cookie, twoFactor, apiKeys, onboarding, preferences, mcpEnabled }: AuthControllerDeps) {
+export function authController({ auth, authz, setup, cookie, twoFactor, apiKeys, onboarding, preferences, mcpEnabled, playgroundEnabled }: AuthControllerDeps) {
   /** The session body, with the roles and permissions the console uses to adapt its UI. */
   const sessionBody = (user: AuthSession['user'], info: AuthSession['session']): AuthSession => {
     const principal = authz.principalFor(user.id);
-    return { user, session: info, roles: principal.roles, permissions: [...principal.permissions].sort(), twoFactorSetupRequired: twoFactor.setupRequired(user.id), keyLifetimeLimitHours: apiKeys.creatorLimitHours(user.id), onboarding: onboarding.infoFor(user.id, principal.permissions), mcpServer: mcpEnabled?.() ?? false, theme: preferences.theme(user.id) };
+    return { user, session: info, roles: principal.roles, permissions: [...principal.permissions].sort(), twoFactorSetupRequired: twoFactor.setupRequired(user.id), keyLifetimeLimitHours: apiKeys.creatorLimitHours(user.id), onboarding: onboarding.infoFor(user.id, principal.permissions), mcpServer: mcpEnabled?.() ?? false, playground: playgroundEnabled?.() ?? true, theme: preferences.theme(user.id) };
   };
 
   /** Password step. With two-factor sign-in, answers a challenge for the second step instead of a session. */

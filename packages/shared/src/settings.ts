@@ -57,6 +57,10 @@ export const SETTING_DEFINITIONS = {
     group: 'MCP server', label: 'Let agents use the MCP server (/v1/mcp)', unit: 'on/off', min: 0, max: 1, env: null, kind: 'switch',
     description: "ClawRouter's own MCP server at /v1/mcp: read-only tools an agent such as Claude Code can use to ask about health, usage, requests, providers and models, with the permissions of its API key's owner. When off, /v1/mcp does not exist (404) and the console hides MCP access on keys; keys keep their MCP access for when it is turned on again.",
   },
+  playgroundEnabled: {
+    group: 'Playground', label: 'Let users chat in the playground', unit: 'on/off', min: 0, max: 1, env: null, kind: 'switch',
+    description: 'Gateway → Playground: chat with a model in the console as one of your own API keys. When off, the page and its API do not exist for anyone (404) and the menu item is hidden. When on, only roles with the playground.use permission can open it.',
+  },
   noticeHeaderEnabled: {
     group: 'Client notices', label: 'Send notices in a response header', unit: 'on/off', min: 0, max: 1, env: null, kind: 'switch',
     description: 'Adds the X-ClawRouter-Notices header (a JSON list) to gateway responses that have a notice: degraded health, a failover, an announcement. Clients that do not read it are unaffected.',

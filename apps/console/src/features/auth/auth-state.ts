@@ -98,6 +98,7 @@ function sameSession(a: AuthSession, b: AuthSession): boolean {
     // The setup wizard and tour state decide what the console shows.
     JSON.stringify(a.onboarding) === JSON.stringify(b.onboarding) &&
     a.mcpServer === b.mcpServer &&
+    a.playground === b.playground &&
     a.theme === b.theme
   );
 }

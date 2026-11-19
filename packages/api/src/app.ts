@@ -102,6 +102,8 @@ export interface ApiDependencies {
   version?: string;
   /** Whether the MCP server (/v1/mcp) is on: the mcpEnabled setting, read on every request. Absent: off. */
   mcpEnabled?: () => boolean;
+  /** Whether the playground is on: the playgroundEnabled setting, read on every request. Absent: on. */
+  playgroundEnabled?: () => boolean;
   /** The services' clock (tests use a fake one). */
   now?: () => Date;
 }
@@ -138,7 +140,7 @@ export function createApiApp(deps: ApiDependencies): ApiApp {
   const keys = apiKeysController(deps.apiKeys);
   const mine = keyRequestsController(deps.apiKeys, deps.keyRequests);
   const gw = gatewayController(deps.gateway);
-  const play = playgroundController(deps.gateway, deps.apiKeys);
+  const play = playgroundController(deps.gateway, deps.apiKeys, () => deps.playgroundEnabled?.() ?? true);
   const rl = rateLimitsController(deps.limits);
   const rq = requestsController(deps.requests);
   const cap = capturesController(deps.captures);
@@ -284,9 +286,10 @@ export function createApiApp(deps: ApiDependencies): ApiApp {
   router.post('/api/api-key-requests/:id/approve', 'api_keys.write', mine.approve);
   router.post('/api/api-key-requests/:id/deny', 'api_keys.write', mine.deny);
   router.get('/api/gateway/metrics', 'requests.read', gw.metrics);
-  // The playground: own keys only (the handler checks the key belongs to the signed-in user).
-  router.get('/api/playground/models', 'authenticated', play.models);
-  router.post('/api/playground/chat', 'authenticated', play.chat);
+  // The playground: the playground.use permission, own keys only (the handler checks the key belongs to the signed-in user).
+  // When the playgroundEnabled setting is off, both answer 404.
+  router.get('/api/playground/models', 'playground.use', play.models);
+  router.post('/api/playground/chat', 'playground.use', play.chat);
   router.get('/api/rate-limits', 'rate_limits.read', rl.get);
   router.put('/api/rate-limits', 'rate_limits.write', rl.put);
   router.get('/api/rate-limits/usage', 'rate_limits.read', rl.usage);

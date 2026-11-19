@@ -29,7 +29,7 @@ describe('system settings', () => {
     const h = createHarness();
     const admin = await h.completeSetup();
     const list = await data<SettingInfo[]>(await h.request('/api/settings', { cookie: admin }));
-    expect(list.map((s) => s.key)).toEqual(['sessionIdleMinutes', 'sessionMaxHours', 'signInMaxFailures', 'requestRetentionDays', 'usageRetentionDays', 'healthHistoryDays', 'keyMaxLifetimeDays', 'quotasEnabled', 'mcpEnabled', 'noticeHeaderEnabled', 'noticeReplyEnabled', 'noticeCleanupEnabled', 'noticeIntervalMinutes', 'capturesEnabled', 'capturesMaxCount']);
+    expect(list.map((s) => s.key)).toEqual(['sessionIdleMinutes', 'sessionMaxHours', 'signInMaxFailures', 'requestRetentionDays', 'usageRetentionDays', 'healthHistoryDays', 'keyMaxLifetimeDays', 'quotasEnabled', 'mcpEnabled', 'playgroundEnabled', 'noticeHeaderEnabled', 'noticeReplyEnabled', 'noticeCleanupEnabled', 'noticeIntervalMinutes', 'capturesEnabled', 'capturesMaxCount']);
     expect(list[0]).toMatchObject({ value: 60, defaultValue: 60, overridden: false, env: 'CLAWROUTER_SESSION_IDLE_MINUTES', unit: 'minutes' });
 
     const changed: string[] = [];
@@ -86,7 +86,7 @@ describe('system settings', () => {
     const repo = createSqliteSettingsRepository(h.db);
     repo.set('system.usage_retention_days', 90);
     repo.set('system.session_max_hours', 99_999);
-    const reloaded = createSettingsService({ repo, audit: createAuditService(createSqliteAuditRepository(h.db)), defaults: { sessionIdleMinutes: 60, sessionMaxHours: 12, signInMaxFailures: 10, requestRetentionDays: 30, usageRetentionDays: 400, healthHistoryDays: 7, keyMaxLifetimeDays: 30, quotasEnabled: 1, mcpEnabled: 0, noticeHeaderEnabled: 1, noticeReplyEnabled: 1, noticeCleanupEnabled: 1, noticeIntervalMinutes: 30, capturesEnabled: 0, capturesMaxCount: 500 } });
+    const reloaded = createSettingsService({ repo, audit: createAuditService(createSqliteAuditRepository(h.db)), defaults: { sessionIdleMinutes: 60, sessionMaxHours: 12, signInMaxFailures: 10, requestRetentionDays: 30, usageRetentionDays: 400, healthHistoryDays: 7, keyMaxLifetimeDays: 30, quotasEnabled: 1, mcpEnabled: 0, playgroundEnabled: 1, noticeHeaderEnabled: 1, noticeReplyEnabled: 1, noticeCleanupEnabled: 1, noticeIntervalMinutes: 30, capturesEnabled: 0, capturesMaxCount: 500 } });
     expect(reloaded.get('usageRetentionDays')).toBe(90);
     expect(reloaded.get('sessionMaxHours')).toBe(12);
   });

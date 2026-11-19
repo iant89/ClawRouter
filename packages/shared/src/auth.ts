@@ -64,6 +64,8 @@ export interface AuthSession {
   onboarding: OnboardingInfo;
   /** Whether ClawRouter's MCP server (/v1/mcp) is on (the mcpEnabled setting): the console shows MCP access on keys only then. */
   mcpServer: boolean;
+  /** Whether the playground is on (the playgroundEnabled setting). Opening it also needs playground.use. */
+  playground: boolean;
   /** The user's console theme (their choice, or the default). */
   theme: ThemeChoice;
 }

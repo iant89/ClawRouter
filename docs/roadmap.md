@@ -538,6 +538,15 @@ See [gateway](gateway.md#reasoning). Requested 2026-11-19: "reasoning content sh
 - [x] The playground shows it in a collapsed Reasoning panel
 - [x] Tested live with Groq gpt-oss-20b on all three APIs and in the playground; Gemini thought parts checked directly against Google's API
 
+
+## Owner request: the playground can be turned off and limited ✅
+
+See [playground](playground.md#how-it-works). Requested 2026-11-19: "Let's do both, that way it can be disabled entirely as well as limit who can use it if it's enabled."
+
+- [x] Setting `playgroundEnabled` (on by default): when off, the routes are 404 for everyone and the page leaves the menu, the tour and the router
+- [x] Permission `playground.use` for Administrator, Operator and Viewer; migration 0026 gives it to existing custom roles
+- [x] Checked in a browser, including an upgrade of a database with a custom role
+
 ---
 
 ## Future roadmap (§41)

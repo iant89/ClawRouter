@@ -23,8 +23,15 @@ without curl or a separate app, and for seeing what an application would get.
 - **Nothing stored.** The conversation lives in the page and is gone when you leave or press
   **Clear conversation** (spec §22). Failed and stopped answers are not sent back in the
   conversation. Only the chosen key and model are remembered, in this browser.
-- **Access:** both routes are `'authenticated'`: anyone signed in, with their own keys only.
-  No new permission. Users without a key see how to create or request one.
+- **Access:** both routes need the `playground.use` permission (Administrator, Operator and
+  Viewer have it; custom roles get it in the role editor, and migration 0026 gave it to every
+  custom role that existed before, so nobody lost the playground on upgrade). The key must be
+  your own. Users without a key see how to create or request one.
+- **Off switch:** Settings → API keys and quotas → Playground ("Let users chat in the
+  playground", `playgroundEnabled`, on by default). When off, both routes answer 404 for
+  everyone, administrators included, the menu item and its tour sentence disappear, and
+  `/playground` shows "Page not found". The session's `playground` field tells the console.
+  The chat-app guides in `docs/clients/` stay available; only their card in the playground goes.
 
 Each answer shows the model that answered (`X-ClawRouter-Model`), the attempts when more
 than one, tokens (streams ask for usage with `stream_options.include_usage`), the time to
@@ -62,5 +69,7 @@ version when you re-test.
 
 `packages/api/test/playground-api.test.ts`: a chat as your own key, recorded under it;
 streaming; the model list and the key's allowed models; another user's, revoked and missing
-keys refused; no session (401); an invalid body. Navigation tests include the page.
-Screenshots: `docs/screenshots/33-playground/`.
+keys refused; no session (401); an invalid body; the off switch (404 for everyone, the
+session flag) and the permission (403 for a custom role without it). The migration test
+checks existing custom roles get `playground.use`. Navigation tests include the page and the
+switch. Screenshots: `docs/screenshots/33-playground/`, `39-playground-switch/`.

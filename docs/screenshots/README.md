@@ -596,3 +596,14 @@ Captured 2026-11-19 live with Groq's gpt-oss-20b, which sends its reasoning in a
 | ![Collapsed](38-reasoning/01-reasoning-collapsed.png) | The answer with its reasoning collapsed above it |
 | ![Expanded](38-reasoning/02-reasoning-expanded.png) | The Reasoning panel opened |
 | ![Light](38-reasoning/03-light.png) | Light theme |
+
+## 39 · Turning the playground off, and its permission
+
+Captured 2026-11-19. The "Support" custom role was created on the previous version; the upgrade
+(migration 0026) gave it `playground.use`.
+
+| Screenshot | Shows |
+| --- | --- |
+| ![Setting](39-playground-switch/01-setting.png) | Settings → API keys and quotas → Playground |
+| ![Permission](39-playground-switch/02-permission.png) | `playground.use` in the permission matrix, for every role including the custom one |
+| ![Off](39-playground-switch/03-off.png) | Switched off: no Playground in the menu, and `/playground` is "Page not found" |

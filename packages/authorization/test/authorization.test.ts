@@ -37,8 +37,8 @@ describe('built-in roles (spec §16)', () => {
     for (const p of PERMISSIONS) if (/^(users|roles|sessions|settings|api_keys)\./.test(p) && p !== 'api_keys.own') expect(op.has(p)).toBe(false);
   });
 
-  test('VIEWER is read-only', () => {
-    expect(permissionsOfRole('VIEWER').every((p) => p.endsWith('.read'))).toBe(true);
+  test('VIEWER is read-only (the playground only uses their own keys)', () => {
+    expect(permissionsOfRole('VIEWER').every((p) => p.endsWith('.read') || p === 'playground.use')).toBe(true);
     expect(permissionsOfRole('VIEWER')).not.toContain('audit.read');
   });
 

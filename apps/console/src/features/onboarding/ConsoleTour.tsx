@@ -18,6 +18,7 @@ import { useMemo } from 'react';
 import { Tour, type TourStep } from '@enterprise-ui/react';
 import { finishTour } from '../../services/onboarding.ts';
 import { useAuth, usePermissions, useSession } from '../auth/AuthContext.tsx';
+import { switchedOff } from '../../app/navigation.ts';
 import { tourSteps } from './tour-steps.ts';
 
 /**
@@ -28,11 +29,11 @@ import { tourSteps } from './tour-steps.ts';
  */
 export function ConsoleTour({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { refresh } = useAuth();
-  const { user } = useSession();
+  const { user, playground } = useSession();
   const { set } = usePermissions();
   const steps = useMemo<TourStep[]>(
-    () => tourSteps(set, user.displayName).map((s) => ({ id: s.id, title: s.title, content: s.text, target: s.target, placement: s.placement })),
-    [set, user.displayName],
+    () => tourSteps(set, user.displayName, switchedOff({ playground })).map((s) => ({ id: s.id, title: s.title, content: s.text, target: s.target, placement: s.placement })),
+    [set, user.displayName, playground],
   );
 
   const end = (outcome: 'COMPLETED' | 'SKIPPED') => {

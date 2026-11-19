@@ -14,6 +14,20 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 
 ### Important
 
+- **IMPORTANT** · 2026-11-19 · Owner request: the playground can be turned off, and is a permission
+  "Let's do both, that way it can be disabled entirely as well as limit who can use it." The
+  `playgroundEnabled` setting (on by default; Settings → API keys and quotas → Playground): when
+  off, `/api/playground/*` answer 404 for everyone (checked in the handler, after the permission,
+  so a user without the permission still gets 403), and the console hides the page through the
+  session's `playground` field (`switchedOff()` in `app/navigation.ts`, used by the menu, the page
+  router and the tour; compared in `sameSession`). Do **not** drop `playground.use` from the
+  console's permission set instead: the role and user pages compare permission sets. Permission
+  `playground.use`: Administrator, Operator **and Viewer** (everyone had the playground before);
+  migration 0026 gave it to every existing custom role. A user with no role at all lost the
+  playground, even with a key from an approved request (accepted; give them a role). Tests in
+  `packages/api/test/playground-api.test.ts`, the 0026 test in
+  `packages/database/test/migrations.test.ts`; docs `docs/playground.md`.
+
 - **IMPORTANT** · 2026-11-19 · Owner request: reasoning is passed on to clients
   "I think reasoning content should be passed along." `ChatResponse.reasoning` and the stream
   event `{ type: 'reasoning' }` (providers) carry it apart from `content`; every `ChatFormatter`
@@ -95,8 +109,9 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
   them), and asked for a section near the bottom listing Open WebUI and LibreChat with links to
   **tested** setup guides. Keep: the playground acts as one of the user's own active keys chosen
   by id (`ApiKeyService.ownPrincipal`; the secret never reaches the browser), goes through
-  `gateway.chat()` so every limit and record applies, stores nothing, and both routes are
-  `'authenticated'` (own keys only, no permission). A guide in `docs/clients/` says which version
+  `gateway.chat()` so every limit and record applies, and stores nothing. Since 2026-11-19 both
+  routes need `playground.use` and the `playgroundEnabled` setting (see the entry above); still own
+  keys only. A guide in `docs/clients/` says which version
   was tested and how; re-test before changing a guide's tested version, and add a client to
   `features/playground/chat-clients.ts` only after testing it the same way. See
   `docs/playground.md`; tests in `packages/api/test/playground-api.test.ts`.

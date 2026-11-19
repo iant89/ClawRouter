@@ -68,8 +68,8 @@ const AREA_TITLE: Record<string, string> = { gateway: 'The gateway', ai: 'AI inf
  * header, and where to replay it. A Viewer gets a shorter tour than an
  * administrator; nothing they cannot open is mentioned.
  */
-export function tourSteps(permissions: ReadonlySet<string>, displayName: string): ConsoleTourStep[] {
-  const groups = visibleNavigation(permissions);
+export function tourSteps(permissions: ReadonlySet<string>, displayName: string, off: ReadonlySet<PageId> = new Set()): ConsoleTourStep[] {
+  const groups = visibleNavigation(permissions, off);
   const steps: ConsoleTourStep[] = [
     {
       id: 'welcome',
