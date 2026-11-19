@@ -34,7 +34,45 @@ the policy itself are in [security](security.md).
 | SEC-023 | Filesystem hardening | Medium | ⬜ |
 | SEC-024 | systemd hardening | High | ⬜ |
 | SEC-025 | Security health check (`doctor --security`) | Medium | ⬜ |
-| SEC-026 | Security CI pipeline | High | ⬜ (the roadmap text was cut off after "Dependency audit") |
+| SEC-026 | Security CI pipeline | High | ⬜ |
+| SEC-027 | Security regression corpus (`tests/security/cases/`) | High | ⬜ |
+| SEC-028 | Security event model | Medium | ⬜ |
+| SEC-029 | Security alerting | Medium | ⬜ |
+| SEC-030 | Security event retention | Low | ⬜ |
+| SEC-031 | HTTP request smuggling review | Medium | ⬜ |
+| SEC-032 | CORS security | High | ⬜ |
+| SEC-033 | API error hardening | Medium | ⬜ |
+| SEC-034 | HTTP method security | Low | ⬜ |
+| SEC-035 | Provider isolation | High | ⬜ |
+| SEC-036 | Provider response validation | High | ⬜ |
+| SEC-037 | Provider timeouts | High | ⬜ |
+| SEC-038 | Provider retry protection | Medium | ⬜ |
+| SEC-039 | Resource ownership testing | High | ⬜ |
+| SEC-040 | IDOR security audit | High | ⬜ |
+| SEC-041 | Connection limits | Medium | ⬜ |
+| SEC-042 | Streaming resource protection | High | ⬜ |
+| SEC-043 | Memory exhaustion testing | High | ⬜ |
+| SEC-044 | Reproducible release build | Medium | ⬜ |
+| SEC-045 | Release security manifest | Low | ⬜ |
+| SEC-046 | Security changelog | Low | ⬜ |
+| SEC-047 | Threat model (`docs/security/threat-model.md`) | High | ⬜ |
+| SEC-048 | Security architecture (`docs/security/architecture.md`) | High | ⬜ |
+| SEC-049 | Security deployment guide | High | ⬜ |
+| SEC-050 | Security policy (`SECURITY.md`) | High | ⬜ |
+| SEC-051 | Security advisories | Medium | ⬜ |
+
+**Implementation order:** the phases in sequence, 1 (network boundary) to 17
+(disclosure program). **Principle:** treat every boundary as hostile: the
+reverse proxy, the HTTP API, MCP and gateway input, provider URLs (untrusted
+destinations) and provider responses (untrusted input) all enforce their own
+controls.
+
+### Final security gate
+
+A release may be called "security hardened" only when all of these are done:
+SEC-001 to SEC-012, SEC-014, SEC-015, SEC-017 to SEC-021, SEC-024 to SEC-029,
+SEC-032, SEC-033, SEC-035 to SEC-043, and SEC-047 to SEC-051. (Not in the gate:
+SEC-013, 016, 022, 023, 030, 031, 034, 044 to 046.) Status: 4 of 41.
 
 ## Phase 1: Network security boundary
 
@@ -201,6 +239,122 @@ stream duration.
 
 ## Phase 9: Continuous security
 
-- **SEC-026** ⬜ Every pull request runs typecheck, unit tests, integration
-  tests, security tests, a dependency audit, … (the rest of the item was cut off
-  when the roadmap was pasted; ask the owner).
+- **SEC-026** ⬜ Every pull request runs, in order: typecheck, unit tests,
+  integration tests, security tests, dependency audit, secret scanning, SAST,
+  container scanning, SBOM generation, build verification. Security tests cannot
+  be skipped silently; critical failures block merge; high-severity findings
+  block merge unless explicitly waived; dependency and container vulnerabilities
+  are reported; secrets in commits fail CI; security reports are kept as CI
+  artifacts; release builds use the same pipeline. (Today CI runs typecheck,
+  tests, `bun audit` and `scan-secrets`.)
+- **SEC-027** ⬜ `tests/security/cases/`: every discovered vulnerability becomes
+  a permanent regression test (fix, add the test, merge the fix only with it).
+  Cases for SSRF, CSRF, XSS, path traversal, authorization bypass, session
+  fixation, API-key and secret leakage, MCP privilege escalation, request
+  smuggling, HTTP desynchronization, DNS rebinding, denial of service,
+  configuration injection, backup/restore attacks, WebSocket authorization and
+  provider credential leakage.
+
+## Phase 10: Security observability
+
+- **SEC-028** ⬜ Standard security event names (`AUTH_LOGIN_SUCCESS`,
+  `AUTH_LOGIN_FAILURE`, `AUTH_ACCOUNT_LOCKED`, `AUTH_SESSION_CREATED/REVOKED/EXPIRED`,
+  `API_KEY_CREATED/REVOKED/SUSPENDED`, `USER_CREATED/DISABLED/ROLE_CHANGED`,
+  `MCP_ACCESS_GRANTED/DENIED`, `MCP_TOOL_DENIED`, `SSRF_BLOCKED`,
+  `INVALID_PROVIDER_URL`, `RATE_LIMIT_EXCEEDED`, `COST_LIMIT_EXCEEDED`,
+  `BACKUP_CREATED/RESTORED`, `CREDENTIAL_BACKUP_CREATED`, `CONFIG_IMPORT`,
+  `CONFIG_IMPORT_REJECTED`), each with timestamp, request id, actor where
+  available, source IP where appropriate, result and reason; never secrets.
+  (The audit log already records most of these under its own action names.)
+- **SEC-029** ⬜ Alerts (INFO / WARNING / HIGH / CRITICAL) for repeated sign-in
+  failures, API-key brute force, many denied requests, repeated SSRF attempts,
+  repeated MCP authorization failures, excessive provider failures, cost-limit
+  violations, request-volume spikes, configuration changes, new administrators,
+  provider credential changes and backup restores.
+- **SEC-030** ⬜ Retention for security events: configurable period, automatic
+  expiry, bounded growth, protected from ordinary users, critical events kept
+  longer, documented.
+
+## Phase 11: API security
+
+- **SEC-031** ⬜ Request smuggling review: Content-Length, Transfer-Encoding,
+  HTTP/1.1 parsing, HTTP/2, reverse-proxy interaction, connection reuse, chunked
+  encoding, malformed headers; tested directly, behind nginx and behind another
+  supported proxy (Caddy).
+- **SEC-032** ⬜ CORS: no wildcard origin with credentials, explicit origins,
+  minimal methods and headers, explicit credentials, validated preflights,
+  restrictive production defaults. (Today: no CORS at all on `/api` or `/v1`.)
+- **SEC-033** ⬜ Errors never expose stack traces, filesystem or database paths,
+  environment variables, provider keys, encryption keys, internal addresses, SQL
+  or internal credentials; details go to server logs only.
+- **SEC-034** ⬜ Every route defines its methods; unexpected methods, needless
+  method tunneling, OPTIONS and HEAD behavior are refused; tested for GET, POST,
+  PUT, PATCH, DELETE, OPTIONS and HEAD.
+
+## Phase 12: Provider security
+
+- **SEC-035** ⬜ Provider isolation: provider-specific error handling, timeouts,
+  retry limits and circuit breakers; no credential cross-contamination; no
+  shared mutable provider state.
+- **SEC-036** ⬜ Provider responses are untrusted input: content type, JSON
+  structure, maximum size and depth, expected fields, string lengths, numeric
+  ranges and stream events are validated.
+- **SEC-037** ⬜ Separate limits for DNS, TCP connect, TLS handshake, request
+  headers and body, first response byte, streaming and total duration. (DNS has
+  a 5 s timeout since SEC-001; calls have one total timeout.)
+- **SEC-038** ⬜ Retries cannot amplify load: maximum count, exponential backoff
+  with jitter, only safe failures, provider rate limits respected, global and
+  per-request retry budgets.
+
+## Phase 13: Tenancy and data isolation
+
+- **SEC-039** ⬜ Users cannot reach another user's API keys, requests, usage,
+  audit events, provider configurations, backups, sessions or MCP permissions:
+  a resource id belonging to user B, used by user A, must be refused.
+- **SEC-040** ⬜ IDOR audit of every endpoint taking a user, API key, provider,
+  request, backup, session or audit-event id: ownership is enforced on the
+  server, never by hard-to-guess ids.
+
+## Phase 14: DoS resilience
+
+- **SEC-041** ⬜ Limits for HTTP, WebSocket, MCP and provider connections and
+  concurrent requests: global, per IP, per API key and per user.
+- **SEC-042** ⬜ Streams: maximum duration and output bytes, idle timeout,
+  backpressure and proper cancellation, against infinite streams, slow clients
+  and providers, large responses, abandoned connections and leaks.
+- **SEC-043** ⬜ Stress tests (large JSON, many messages, large tool definitions,
+  large provider responses, many requests, WebSockets and MCP connections, large
+  configuration imports): memory stays bounded, requests are refused before
+  allocation grows, the process stays responsive and degrades gracefully.
+
+## Phase 15: Release security
+
+- **SEC-044** ⬜ Reproducible builds: pinned build dependencies and runtime,
+  recorded build environment and source commit, verified artifacts.
+- **SEC-045** ⬜ Each release publishes version, commit, build time, runtime
+  version, dependency versions, SBOM, checksums, signature and security status.
+- **SEC-046** ⬜ A security changelog per release: fixes, improvements,
+  dependency updates, breaking security changes, new security configuration,
+  deprecated insecure behavior.
+
+## Phase 16: Security documentation
+
+- **SEC-047** ⬜ `docs/security/threat-model.md`: assets (provider credentials,
+  API keys, accounts, sessions, prompts, responses, usage, audit logs, the
+  encryption key, backups, the host), trust boundaries, attackers, attack
+  surfaces, assumptions, controls, residual risks.
+- **SEC-048** ⬜ `docs/security/architecture.md`: Internet → reverse proxy → HTTP
+  security layer (authentication, authorization, CSRF, rate and resource limits)
+  → core (admin API, gateway API, MCP) → outbound security layer (URL, DNS, SSRF,
+  TLS, timeouts) → providers.
+- **SEC-049** ⬜ Deployment guides for Docker, systemd, nginx, Caddy, Cloudflare,
+  LAN-only and Internet-facing: firewall, TLS, reverse proxy, trusted proxies,
+  file permissions, backup security, secret management, network topology.
+
+## Phase 17: Responsible disclosure
+
+- **SEC-050** ⬜ `SECURITY.md`: supported versions, how to report, response
+  time, disclosure process, CVEs, update policy.
+- **SEC-051** ⬜ Advisory process (private investigation → fix → regression test
+  → patch → advisory) with affected and fixed versions, severity, attack
+  requirements, impact, mitigation and upgrade instructions.

@@ -15,8 +15,8 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 ### Important
 
 - **IMPORTANT** · 2026-11-19 · Owner's security roadmap; outbound network policy (SSRF) built
-  The owner pasted a 26-item security hardening roadmap (SEC-001…SEC-026, the last item cut off
-  mid-text); it is tracked in `docs/security-roadmap.md`. Phase 1 built on
+  The owner pasted a 51-item security hardening roadmap (SEC-001…SEC-051, in two messages; phases
+  1–17 in order, then a final gate); it is tracked in `docs/security-roadmap.md`. Phase 1 built on
   `claude/clawrouter-security-hardening-fm633m`: SEC-001/007/008 as `packages/security`
   (`createOutboundGuard`): every provider connection is checked (scheme, metadata names, every DNS
   answer classified) and **pinned** to the checked IP (`Host` + TLS `serverName` keep the name; Bun
