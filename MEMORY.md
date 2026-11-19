@@ -576,15 +576,9 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 
 ### Messages
 
-- **MESSAGE** · 2026-11-19 · The Anthropic Messages API and the AGPL license / 1.0.0 wait for review
-  `claude/anthropic-messages`: `/v1/messages`, `count_tokens`, Anthropic-shaped errors and model
-  list, the Claude Code guide and playground card, screenshots 34. `claude/license-agpl-1.0` is
-  built on it: LICENSE (AGPL-3.0-or-later), headers on 448 files, version 1.0.0. No migration.
-  On "merge", fast-forward `main` to `claude/license-agpl-1.0` (it contains both).
-
-- **MESSAGE** · 2026-11-19 · Everything merged after the playground and provider errors
-  Nothing else in ClawRouter waits for review. Old branches to delete on GitHub (the session cannot): every merged
-  `claude/*` branch (now including `claude/hopeful-maxwell-3xrz6m`, `claude/captures-live-groq`, `claude/client-notices`,
+- **MESSAGE** · 2026-11-19 · Everything merged after the Anthropic Messages API and the AGPL license (1.0.0)
+  Nothing in ClawRouter waits for review. Old branches to delete on GitHub (the session cannot): every merged
+  `claude/*` branch (now including `claude/anthropic-messages`, `claude/license-agpl-1.0`, `claude/hopeful-maxwell-3xrz6m`, `claude/captures-live-groq`, `claude/client-notices`,
   `claude/announcement-emoji` and `claude/eui-shared-components`), the superseded `claude/mcp-server`
   and the stale `claude/groq-provider`; never merge those two (duplicate migration 0020 / older
   Groq code). Still open: the native Gemini adapter (key in `x-goog-api-key`, added by the owner in the
@@ -593,6 +587,12 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 ---
 
 ## Resolved
+
+- **MESSAGE** · 2026-11-19 · The Anthropic Messages API and the AGPL license / 1.0.0 wait for review.
+  Resolved 2026-11-19: the owner said "Merge"; `main` was fast-forwarded to
+  `claude/license-agpl-1.0` (this commit), which contains `claude/anthropic-messages`:
+  `/v1/messages` and `count_tokens`, the Claude Code guide, LICENSE (AGPL-3.0-or-later), headers
+  on every source file, version 1.0.0. No migration.
 
 - **MESSAGE** · 2026-11-18 · The playground and chat-app guides wait for review. Resolved
   2026-11-19: the owner said "Merge"; `main` was fast-forwarded to `claude/hopeful-maxwell-3xrz6m`
