@@ -15,10 +15,11 @@
  */
 
 import { AppError } from '@clawrouter/core';
+import { OutboundBlockedError } from '@clawrouter/security';
 import type { ProviderCallContext } from './types.ts';
 
 /** Why a provider call failed, in provider-independent terms. */
-export type ProviderFailure = 'auth' | 'forbidden' | 'rate_limited' | 'timeout' | 'unreachable' | 'bad_request' | 'not_found' | 'server_error' | 'invalid_response' | 'cancelled';
+export type ProviderFailure = 'auth' | 'forbidden' | 'blocked' | 'rate_limited' | 'timeout' | 'unreachable' | 'bad_request' | 'not_found' | 'server_error' | 'invalid_response' | 'cancelled';
 
 /**
  * A failed provider call. `message` is safe to show administrators: it never
@@ -89,6 +90,7 @@ function failureFor(status: number, detail = ''): ProviderFailure {
 const FAILURE_TEXT: Record<ProviderFailure, string> = {
   auth: 'The provider rejected the credentials',
   forbidden: 'The provider refused this key access',
+  blocked: 'The provider endpoint is not allowed',
   rate_limited: 'The provider is rate limiting requests',
   timeout: 'The provider did not respond in time',
   unreachable: 'The provider could not be reached',
@@ -114,6 +116,8 @@ export async function providerFetch(ctx: ProviderCallContext, url: string, init:
   } catch (error) {
     if (ctx.signal?.aborted) throw new ProviderCallError('cancelled', FAILURE_TEXT.cancelled, null, error);
     if (timeout.aborted) throw new ProviderCallError('timeout', `${FAILURE_TEXT.timeout} (${ctx.timeoutMs} ms)`, null, error);
+    // The outbound network policy refused the destination (SEC-001): a configuration problem, never worth a retry.
+    if (error instanceof OutboundBlockedError) throw new ProviderCallError('blocked', scrub(error.message, ctx.apiKey), null, error);
     const reason = error instanceof Error ? scrub(error.message, ctx.apiKey).slice(0, 200) : 'network error';
     throw new ProviderCallError('unreachable', `${FAILURE_TEXT.unreachable}: ${reason}`, null, error);
   }

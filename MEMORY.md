@@ -34,7 +34,8 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
   a freshly migrated db**) and installs that file; a new migration therefore needs nothing extra, but
   anything that changes the schema outside migrations would make every backup unrestorable. Security
   tests live in `tests/security/` (SEC-012/027). SEC-002: MCP audited; tool answers capped at 1 MB
-  (`MCP_RESULT_LIMIT`), ids at 200 chars. Phase 1 is done; next is phase 2 (SEC-005 cost limits,
+  (`MCP_RESULT_LIMIT`), ids at 200 chars. Policy refusals are the `blocked` failure kind (never
+  retried). Full roadmap text: `docs/security-roadmap-full.md`. Phase 1 merged; next is phase 2 (SEC-005 cost limits,
   SEC-006 request resource limits).
 
 - **IMPORTANT** · 2026-11-19 · Owner request: the playground can be turned off, and is a permission
@@ -681,15 +682,9 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 
 ### Messages
 
-- **MESSAGE** · 2026-11-19 · Security hardening phase 1 waits for review
-  `claude/clawrouter-security-hardening-fm633m`: phase 1, the outbound network policy (SEC-001/007/008),
-  the MCP and backup/restore audits (SEC-002/003) and
-  container hardening (SEC-004); see `docs/security-roadmap.md`. No migration. Tell the owner about
-  the upgrade risk for local http providers before merging.
-
 - **MESSAGE** · 2026-11-19 · Everything merged after the native Gemini adapter and OpenRouter
   Nothing in ClawRouter waits for review. Old branches to delete on GitHub (the session cannot): every merged
-  `claude/*` branch (now including `claude/gemini-native`, `claude/openrouter-provider`, `claude/anthropic-messages`, `claude/license-agpl-1.0`, `claude/hopeful-maxwell-3xrz6m`, `claude/captures-live-groq`, `claude/client-notices`,
+  `claude/*` branch (now including `claude/clawrouter-security-hardening-fm633m`, `claude/gemini-native`, `claude/openrouter-provider`, `claude/anthropic-messages`, `claude/license-agpl-1.0`, `claude/hopeful-maxwell-3xrz6m`, `claude/captures-live-groq`, `claude/client-notices`,
   `claude/announcement-emoji` and `claude/eui-shared-components`), the superseded `claude/mcp-server`
   and the stale `claude/groq-provider`; never merge those two (duplicate migration 0020 / older
   Groq code). Still open: OpenAI and Anthropic live; multi-node shared state.
@@ -697,6 +692,16 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 ---
 
 ## Resolved
+
+- **MESSAGE** · 2026-11-19 · Security hardening phase 1 waits for review. Resolved 2026-11-19: the
+  owner said "Review and merge phase 1" and asked for the entire roadmap in docs. The review found
+  one bug, fixed before merging: a call refused by the outbound policy was an `unreachable` failure
+  and was **retried** (2 attempts at an endpoint that can never be reached); it is now the `blocked`
+  kind (next model, no retry, not a provider failure). The roadmap's full text is in
+  `docs/security-roadmap-full.md` (word for word; do not edit it), the tracking copy in
+  `docs/security-roadmap.md`. `main` was fast-forwarded to
+  `claude/clawrouter-security-hardening-fm633m` (this commit). No migration. Upgrade risk told to the
+  owner: local `http://` providers need `CLAWROUTER_OUTBOUND_ALLOWLIST`.
 
 - **MESSAGE** · 2026-11-19 · The native Gemini adapter and the OpenRouter provider wait for review.
   Resolved 2026-11-19: the owner said "Merge"; `main` was fast-forwarded to

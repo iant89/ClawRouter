@@ -64,6 +64,27 @@ describe('outbound network policy (API)', () => {
     expect(result.data.ok).toBe(true);
   });
 
+  test('a gateway request to a refused endpoint is tried once, never retried, and the client is not told the address', async () => {
+    const h = createHarness();
+    const calls: string[] = [];
+    h.setProviderFetch((async (input: RequestInfo | URL) => {
+      calls.push(String(input));
+      return new Response('{}');
+    }) as typeof fetch);
+    const admin = await h.completeSetup();
+    const created = (await (await create(h, admin, 'https://api.example.test/v1', 'internal')).json()) as ApiSuccess<{ id: string }>;
+    h.models.create({ id: 'u', username: 'admin' }, { providerId: created.data.id, providerModelId: 'm1', capabilities: ['CHAT'] }, { ip: null });
+    h.db.run("UPDATE providers SET endpoint = 'https://172.16.0.9/v1' WHERE id = ?", [created.data.id]);
+    const key = ((await (await h.request('/api/api-keys', { method: 'POST', cookie: admin, json: { name: 'app' } })).json()) as ApiSuccess<{ secret: string }>).data.secret;
+    const res = await h.request('/v1/chat/completions', { method: 'POST', headers: { authorization: `Bearer ${key}` }, json: { model: 'internal/m1', messages: [{ role: 'user', content: 'hi' }] } });
+    const text = await res.text();
+    expect(res.status).toBe(502);
+    expect(text).toContain('1 attempt');
+    expect(text).toContain('blocked');
+    expect(text).not.toContain('172.16');
+    expect(calls).toEqual([]);
+  });
+
   test('an endpoint stored before the policy (or edited in the database) is refused at call time, before any connection', async () => {
     const h = createHarness();
     const calls: string[] = [];

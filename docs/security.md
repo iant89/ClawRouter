@@ -75,6 +75,12 @@ database directly, is refused at call time before any connection. `bun run
 doctor` names refused provider endpoints with the fix, and warns about a
 catch-all allowlist range.
 
+**When a call is refused.** The provider call fails with the `blocked` kind: the
+gateway moves to the next model without retrying (nothing was sent, and nothing
+would change), and it does not count as a provider failure. Clients see only
+"last error: blocked"; the reason, which can name internal addresses, is in the
+log and the provider's status detail.
+
 **Upgrading.** A provider on plain `http` or a private address (a local Ollama,
 vLLM or LM Studio) worked before and is now refused until its host is listed:
 run `bun run doctor`, then set e.g. `CLAWROUTER_OUTBOUND_ALLOWLIST=127.0.0.1` or

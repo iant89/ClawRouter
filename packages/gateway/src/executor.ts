@@ -62,6 +62,9 @@ export function classify(error: unknown): { verdict: Verdict; countsAsFailure: b
         return { verdict: 'stop', countsAsFailure: false, kind: 'bad_request' };
       case 'forbidden':
         return { verdict: 'next-model', countsAsFailure: false, kind: 'forbidden' };
+      // Refused by the outbound network policy: no call was made, and none would succeed.
+      case 'blocked':
+        return { verdict: 'next-model', countsAsFailure: false, kind: 'blocked' };
       case 'rate_limited': {
         const wait = error.retryAfterSeconds;
         return { verdict: wait !== null && wait <= RETRY_AFTER_LIMIT_S ? 'retry' : 'next-model', countsAsFailure: true, kind: 'rate_limited' };

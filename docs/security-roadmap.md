@@ -3,7 +3,10 @@
 The owner's security hardening roadmap (2026-11-19): harden ClawRouter for
 secure Internet-facing production use. Priority P0 → P4. Tick an item only when
 it is built **and** tested, as in the [roadmap](roadmap.md). The review report and
-the policy itself are in [security](security.md).
+the policy itself are in [security](security.md). The roadmap's **full original
+text**, every item with every checkbox, is in
+[security-roadmap-full.md](security-roadmap-full.md); this page is the condensed
+tracking copy with status, findings and decisions.
 
 **Legend:** ✅ done · 🟡 in progress · ⬜ not started
 
