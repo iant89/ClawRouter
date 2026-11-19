@@ -67,6 +67,16 @@ answered 403 "Key limit exceeded"):
 - These free models are reasoning models: with a small `max_tokens` they can spend it all on
   reasoning (in OpenRouter's separate `reasoning` field, never passed on) and answer nothing,
   with finish reason `length`.
+- **Every free chat model, the same day** (15; the two free Lyria models make music and are not
+  chat): a streamed request offering a tool, then the tool result sent back, not streamed.
+  12 passed both (ernie-5.5-flash-preview, dots-3-note-preview, ling-3.2-flash, lfm-3-1.7b,
+  nemotron-3-nano-omni-30b-a3b-reasoning, nemotron-3-ultra-550b-a55b, `openrouter/free`,
+  particle-1, flint-v1.0, north-mini-code, nemotron-3.5-lightning, nemotron-3.5-super-vl);
+  dots-3-note, particle-1 and nemotron-3-nano-omni also named an image's colour. Every one
+  cost $0 with OpenRouter's usage. Not ClawRouter's doing: both free Gemma 4 models answered
+  429 every time (Google's free capacity behind OpenRouter), and inkling-2-small:free answers
+  403 "only available on agentic harnesses", which ClawRouter counts as a credential failure.
+  A free account allows 50 free-model requests a day, and ClawRouter's retry of a 429 uses two.
 
 Adding a provider means writing an adapter and registering it in
 `createDefaultRegistry()`. Nothing else changes: adapters contain no routing

@@ -409,6 +409,10 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
   are named and never imported; keep that if the dialog gets more filters. `guessKind` now also
   treats `imagen`, `banana`, `lyria` and `veo` ids as "other" (OpenRouter lists Lyria as free).
   The dialog is size `xl` when a Price column is shown.
+  Same day, every free chat model was tested live (results in `docs/providers.md`): 12 of 15
+  pass streamed tool calls and the round trip. Open, not fixed: an OpenRouter 403 about the model
+  ("only available on agentic harnesses", inkling-2-small:free) is classified `auth` ("rejected
+  the credentials") and counts as a provider failure; it is a model restriction, not the key.
 
 - **NOTE** · 2026-11-19 · Live OpenRouter testing
   The owner saved an OpenRouter key as a network secret for openrouter.ai (Bearer); give the
