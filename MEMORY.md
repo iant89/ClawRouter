@@ -627,16 +627,9 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 
 ### Messages
 
-- **MESSAGE** · 2026-11-19 · The native Gemini adapter and the OpenRouter provider wait for review
-  `claude/gemini-native`: paging, model classification, Vision, thought parts and reasoning
-  tokens in `google.ts`, tested live; docs and screenshots 35. `claude/openrouter-provider` is
-  built on it: the `openrouter` kind, provider-reported cost, screenshots 36, and prices in the
-  discovery dialog (Price column, Free badge, "Free only", sorting; screenshots 37). No migration. On
-  "merge", fast-forward `main` to `claude/openrouter-provider` (it contains both).
-
-- **MESSAGE** · 2026-11-19 · Everything merged after the Anthropic Messages API and the AGPL license (1.0.0)
+- **MESSAGE** · 2026-11-19 · Everything merged after the native Gemini adapter and OpenRouter
   Nothing in ClawRouter waits for review. Old branches to delete on GitHub (the session cannot): every merged
-  `claude/*` branch (now including `claude/anthropic-messages`, `claude/license-agpl-1.0`, `claude/hopeful-maxwell-3xrz6m`, `claude/captures-live-groq`, `claude/client-notices`,
+  `claude/*` branch (now including `claude/gemini-native`, `claude/openrouter-provider`, `claude/anthropic-messages`, `claude/license-agpl-1.0`, `claude/hopeful-maxwell-3xrz6m`, `claude/captures-live-groq`, `claude/client-notices`,
   `claude/announcement-emoji` and `claude/eui-shared-components`), the superseded `claude/mcp-server`
   and the stale `claude/groq-provider`; never merge those two (duplicate migration 0020 / older
   Groq code). Still open: OpenAI and Anthropic live; multi-node shared state.
@@ -644,6 +637,13 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 ---
 
 ## Resolved
+
+- **MESSAGE** · 2026-11-19 · The native Gemini adapter and the OpenRouter provider wait for review.
+  Resolved 2026-11-19: the owner said "Merge"; `main` was fast-forwarded to
+  `claude/openrouter-provider` (this commit), which contains `claude/gemini-native`: the live
+  native Gemini fixes, the `openrouter` kind with provider-reported cost, prices / Free only /
+  sorting in discovery, every free OpenRouter model tested live, 403 as `forbidden` and no
+  immediate same-model retry of a 429. No migration.
 
 - **MESSAGE** · 2026-11-19 · The Anthropic Messages API and the AGPL license / 1.0.0 wait for review.
   Resolved 2026-11-19: the owner said "Merge"; `main` was fast-forwarded to
