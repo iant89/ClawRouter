@@ -23,6 +23,7 @@
  *
  * The current database is kept next to it as <db>.before-restore-<time>.
  */
+import { dirname, resolve } from 'node:path';
 import { AppError, createLogger, loadConfig } from '@clawrouter/core';
 import { checkBackup, restoreBackup, runningServer } from '../apps/server/src/backup.ts';
 import { loadSecretBox } from '../apps/server/src/secret-key.ts';
@@ -37,7 +38,8 @@ const config = loadConfig();
 const log = createLogger({ level: 'warn', format: 'pretty' });
 try {
   const box = loadSecretBox(config, log);
-  const check = await checkBackup(backup, box);
+  // The check copies the database: next to the live one, where there is room for it.
+  const check = await checkBackup(backup, box, dirname(resolve(config.database.path)));
   const m = check.manifest;
   console.log(`Backup from ${m.createdAt} (${m.label}, ClawRouter ${m.clawrouterVersion}), ${(m.database.bytes / 1048576).toFixed(1)} MB, ${m.migrations.length} migrations.`);
   console.log(`Encrypted with key ${m.secretKey.fingerprint}; the configured key is ${box.fingerprint}${m.secretKey.fingerprint === box.fingerprint ? ' (the same)' : ''}.`);

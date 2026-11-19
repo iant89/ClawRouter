@@ -11,7 +11,7 @@ the policy itself are in [security](security.md).
 |---|---|---|---|
 | SEC-001 | SSRF protection | Critical | ✅ (SMTP not yet) |
 | SEC-002 | MCP security audit | Critical | ⬜ |
-| SEC-003 | Backup / restore security audit | Critical | ⬜ |
+| SEC-003 | Backup / restore security audit | Critical | ✅ |
 | SEC-004 | Container hardening | Critical | ✅ |
 | SEC-005 | Cost-based rate limiting | High | ⬜ |
 | SEC-006 | Request resource limits | High | ⬜ |
@@ -72,7 +72,7 @@ controls.
 A release may be called "security hardened" only when all of these are done:
 SEC-001 to SEC-012, SEC-014, SEC-015, SEC-017 to SEC-021, SEC-024 to SEC-029,
 SEC-032, SEC-033, SEC-035 to SEC-043, and SEC-047 to SEC-051. (Not in the gate:
-SEC-013, 016, 022, 023, 030, 031, 034, 044 to 046.) Status: 4 of 41.
+SEC-013, 016, 022, 023, 030, 031, 034, 044 to 046.) Status: 5 of 41.
 
 ## Phase 1: Network security boundary
 
@@ -104,14 +104,45 @@ chaining, error leakage, sensitive data, rate limits, concurrency and malicious
 clients; as anonymous, signed-in user, Viewer, Operator, Administrator, keys with
 and without MCP access, expired and revoked keys, and a disabled user.
 
-### SEC-003 Backup / restore security audit ⬜
+### SEC-003 Backup / restore security audit ✅
 
-Audit creation, listing, download, import, restore, configuration export and
-import, and secret-key handling for path traversal (`../`, absolute paths,
-symlinks), arbitrary file creation or overwrite, permission changes, malicious,
-corrupted or oversized SQLite files, archive bombs, malicious configuration and
-secret-key exposure. Rule: canonicalize the path, verify it is inside the backup
-directory, then touch the filesystem.
+Audited 2026-11-19. **Surface:** backups are made, listed and restored only by
+the command-line tools (`bun run backup`, `restore`, `doctor`, `migrate`) and by
+the server itself (scheduled, pre-migrate, pre-import); there is **no HTTP route**
+to list, download, upload or restore a backup, and backups are directories, not
+archives. Configuration export/import is the one HTTP surface (`/api/configuration`,
+`configuration.manage`). The attacker considered is whoever can write into a
+backup directory before an operator restores from it.
+
+Found and fixed (`apps/server/src/backup.ts`):
+
+| Finding | Fix |
+|---|---|
+| Restore checked the backup's database in place, then read it again to install it: what was installed was not necessarily what was checked, and SQLite read any `-wal` file planted next to it during the check. | The database is copied **once** into a private directory next to the live one (0700, file 0600, `O_EXCL`), hashed while copying; every check runs on the copy and that same file is moved into place. |
+| Symbolic links were followed: `clawrouter.db -> /etc/shadow` would be read. | Files are opened with `O_NOFOLLOW` and must be regular files; a linked backup directory is refused; listing and pruning skip linked entries, so pruning never deletes through a link. |
+| A crafted database (an extra trigger that rewrites a password hash, a view, a table, a changed column) passed the integrity check and checksum. | Its schema must equal what this version's migrations create for the migrations it records; its migration ledger must match the manifest. |
+| A malformed manifest crashed with a raw exception. | The manifest is capped at 1 MB and its shape validated (hex checksum, fixed database file name, integer sizes, lists). |
+| Whole files were read into memory to hash and copy. | Streamed in 1 MB pieces; the size must match the manifest and fit in the free space first. |
+| Backup labels became part of a path unchecked (only internal values today). | Labels must be `[a-z0-9-]`. |
+
+Checked and fine: backup directories 0700 and files 0600 (also `secret.key` when
+included); the restored database 0600; a restore refuses a running server, a
+newer schema and (without `--force`) a key that cannot open its secrets; the
+secret key is never printed, only its fingerprint and file location; exports
+carry no secret. Imported provider endpoints pass the outbound policy (SSRF
+through an import is refused), and imported roles get the no-escalation checks.
+
+- [x] Backup creation, listing, restore; configuration export and import; secret-key handling
+- [x] Download / upload / HTTP import of backups: none exist (nothing to traverse)
+- [x] Path traversal, `../`, absolute paths: backup paths come from the operator's command line; names inside are fixed; labels validated
+- [x] Symlink attacks, arbitrary file overwrite or creation (`O_NOFOLLOW`, `O_EXCL`, private staging)
+- [x] Malicious, corrupted and oversized SQLite databases
+- [x] Archive bombs: no archives
+- [x] Malicious configuration (outbound policy, role rules; SEC-017 goes further)
+- [x] Secret-key exposure
+
+Tests: `tests/security/backup-restore.test.ts`, `tests/security/configuration-import.test.ts`
+(the schema cases were verified to fail with the check removed).
 
 ### SEC-004 Container hardening ✅
 

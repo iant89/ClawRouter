@@ -29,8 +29,11 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
   A new outbound connection must go through the guard. **Upgrade risk:** existing local `http://`
   providers (Ollama etc.) are refused until allowlisted; `bun run doctor` names them. Not covered: the
   SMTP client. SEC-004: `deploy/compose.yaml` hardening, checked in Docker 29.10 (no caps,
-  NoNewPrivs, read-only root); AppArmor/SELinux not verified. Next: SEC-002 (MCP audit), SEC-003
-  (backup/restore audit).
+  NoNewPrivs, read-only root); AppArmor/SELinux not verified. SEC-003: restore stages one copy
+  (`O_NOFOLLOW`, private dir beside the db), checks it (checksum, integrity, ledger, **schema equal to
+  a freshly migrated db**) and installs that file; a new migration therefore needs nothing extra, but
+  anything that changes the schema outside migrations would make every backup unrestorable. Security
+  tests live in `tests/security/` (SEC-012/027). Next: SEC-002 (MCP audit).
 
 - **IMPORTANT** · 2026-11-19 · Owner request: the playground can be turned off, and is a permission
   "Let's do both, that way it can be disabled entirely as well as limit who can use it." The

@@ -192,6 +192,13 @@ values are then entered again). The current database is kept as
 `<database>.before-restore-<time>`. Restored databases are migrated forward, and the
 restore is audited.
 
+A backup directory is treated as untrusted: its database is copied once into a
+private folder next to the live database (so restore needs free space there for
+one copy), and every check runs on that copy before the same file is moved into
+place. Symbolic links are refused, the manifest is validated, and the schema
+must be exactly what ClawRouter's migrations create (a database with an extra
+trigger or table is refused). See [SEC-003](security-roadmap.md).
+
 ## The secret key
 
 Provider API keys, the mail server password and authenticator-app secrets are

@@ -78,7 +78,7 @@ describe('backups (phase 17)', () => {
     expect((await checkBackup(path, h.secrets)).errors.join(' ')).toContain('newer ClawRouter');
     writeFileSync(manifestFile, JSON.stringify(manifest));
     appendFileSync(join(path, 'clawrouter.db'), 'x');
-    expect((await checkBackup(path, h.secrets)).errors.join(' ')).toContain('checksum');
+    expect((await checkBackup(path, h.secrets)).errors.join(' ')).toContain('damaged');
     await expect(checkBackup(dir, h.secrets)).rejects.toThrow('not a complete ClawRouter backup');
   });
 
