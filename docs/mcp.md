@@ -81,8 +81,12 @@ they are not protocol errors.
   default per-key limit, plus per-user, global and concurrency), and answers 429 when
   over. `initialize`, `ping` and `tools/list` are free. Quotas are not charged: tool
   calls use no tokens.
+- A tool answer over **1 MB** is refused as a tool error asking for a narrower
+  question (a shorter period, a filter, a smaller page). Request ids are at most
+  200 characters, numeric ids whole numbers. The security audit is
+  [SEC-002](security-roadmap.md).
 - Each tool call is logged (`component: mcp`) with the tool, key prefix, outcome
-  (`ok`, `tool_error`, `failed`) and duration. Tool calls are not audit records
+  (`ok`, `tool_error`, `too_large`, `failed`) and duration. Tool calls are not audit records
   (nothing changes) and do not appear in request history (they are not model requests).
 
 ## Protocol details

@@ -33,7 +33,9 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
   (`O_NOFOLLOW`, private dir beside the db), checks it (checksum, integrity, ledger, **schema equal to
   a freshly migrated db**) and installs that file; a new migration therefore needs nothing extra, but
   anything that changes the schema outside migrations would make every backup unrestorable. Security
-  tests live in `tests/security/` (SEC-012/027). Next: SEC-002 (MCP audit).
+  tests live in `tests/security/` (SEC-012/027). SEC-002: MCP audited; tool answers capped at 1 MB
+  (`MCP_RESULT_LIMIT`), ids at 200 chars. Phase 1 is done; next is phase 2 (SEC-005 cost limits,
+  SEC-006 request resource limits).
 
 - **IMPORTANT** · 2026-11-19 · Owner request: the playground can be turned off, and is a permission
   "Let's do both, that way it can be disabled entirely as well as limit who can use it." The
@@ -680,7 +682,8 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 ### Messages
 
 - **MESSAGE** · 2026-11-19 · Security hardening phase 1 waits for review
-  `claude/clawrouter-security-hardening-fm633m`: the outbound network policy (SEC-001/007/008) and
+  `claude/clawrouter-security-hardening-fm633m`: phase 1, the outbound network policy (SEC-001/007/008),
+  the MCP and backup/restore audits (SEC-002/003) and
   container hardening (SEC-004); see `docs/security-roadmap.md`. No migration. Tell the owner about
   the upgrade risk for local http providers before merging.
 

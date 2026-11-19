@@ -10,7 +10,7 @@ the policy itself are in [security](security.md).
 | Item | Title | Priority | Status |
 |---|---|---|---|
 | SEC-001 | SSRF protection | Critical | ✅ (SMTP not yet) |
-| SEC-002 | MCP security audit | Critical | ⬜ |
+| SEC-002 | MCP security audit | Critical | ✅ |
 | SEC-003 | Backup / restore security audit | Critical | ✅ |
 | SEC-004 | Container hardening | Critical | ✅ |
 | SEC-005 | Cost-based rate limiting | High | ⬜ |
@@ -72,9 +72,12 @@ controls.
 A release may be called "security hardened" only when all of these are done:
 SEC-001 to SEC-012, SEC-014, SEC-015, SEC-017 to SEC-021, SEC-024 to SEC-029,
 SEC-032, SEC-033, SEC-035 to SEC-043, and SEC-047 to SEC-051. (Not in the gate:
-SEC-013, 016, 022, 023, 030, 031, 034, 044 to 046.) Status: 5 of 41.
+SEC-013, 016, 022, 023, 030, 031, 034, 044 to 046.) Status: 6 of 41.
 
 ## Phase 1: Network security boundary
+
+Done, with two open boxes: the SMTP client is outside the outbound policy
+(SEC-001), and AppArmor/SELinux could not be verified here (SEC-004).
 
 ### SEC-001 SSRF protection ✅
 
@@ -95,14 +98,43 @@ Tests: `packages/security/test/policy.test.ts`, `guard.test.ts`,
 `packages/api/test/outbound-api.test.ts`, the outbound case in
 `apps/server/test/recovery.test.ts` (doctor), `packages/core/test/config.test.ts`.
 
-### SEC-002 MCP security audit ⬜
+### SEC-002 MCP security audit ✅
 
-Treat `/v1/mcp` as an independent boundary. Test authentication, API-key
-authorization, tool enumeration and hidden tools, parameter validation,
-permission bypass, object ownership, pagination, result-size limits, tool
-chaining, error leakage, sensitive data, rate limits, concurrency and malicious
-clients; as anonymous, signed-in user, Viewer, Operator, Administrator, keys with
-and without MCP access, expired and revoked keys, and a disabled user.
+Audited 2026-11-19 (`packages/api/src/mcp/server.ts`, `tools.ts`). `/v1/mcp` is
+its own boundary: a 404 before any key check while the `mcpEnabled` setting is
+off; then an API key **with MCP access** (401 without a key, for a wrong,
+expired or revoked key or a disabled owner; 403 for a key without MCP access); a
+same-origin `Origin` check against browser pages (DNS rebinding); a 256 KB body
+cap; one JSON-RPC message per request. Tools only read, go through the same
+services as the console with the same permission each, and use the owner's
+permissions **read again on every message**.
+
+Found and fixed:
+
+| Finding | Fix |
+|---|---|
+| No limit on a tool's answer: a broad `get_usage` series or a large registry could return many megabytes into an agent's context. | Answers over 1 MB (`MCP_RESULT_LIMIT`) are refused as a tool error that tells the model to narrow the question (logged as `too_large`). |
+| Any request id was echoed back, whatever its length (up to the 256 KB body), and non-integer numbers such as `1e400` were accepted. | Ids are at most 200 characters; numeric ids must be safe integers. |
+
+Checked and fine:
+
+- [x] Authentication and API-key authorization (anonymous, console session, wrong key, key without MCP access, expired, revoked, disabled owner, MCP switched off)
+- [x] Tool enumeration per role: Administrator all 10; Operator with the audit log; Viewer without it; everyone their own quota and keys
+- [x] Hidden-tool discovery: an unpermitted tool answers exactly like a tool that does not exist
+- [x] Parameter validation: typed readers with length and range limits; the schema is advice, the readers are the rules; prototype keys in arguments are ignored
+- [x] Permission bypass: permissions are read per message (removing a role removes its tools at once)
+- [x] Object ownership: `list_my_api_keys` and `get_my_quota` show only the caller's own
+- [x] Pagination: page sizes capped (50 or 200); a page past the end is a tool error
+- [x] Result-size limits (fixed above)
+- [x] Tool chaining: every tool only reads; none returns or creates a secret
+- [x] Error leakage: unexpected failures answer a generic 500 (no path, SQL or secret); tool errors carry only validation and "not found" text
+- [x] Sensitive data: no credential in any tool answer (canary test in `mcp-api.test.ts`)
+- [x] Rate limiting: `tools/call` counts against the key's limits (429); `tools/list`, `initialize` and `ping` do not (they return no data; unauthenticated probing is limited per address by the invalid-key limit)
+- [x] Concurrent requests: each answer carries its own id and the right caller's tools
+- [x] Malicious clients: deep nesting, huge ids, non-string methods, `__proto__` / `constructor` names, array arguments, oversized bodies, cross-site origins
+
+Tests: `tests/security/mcp.test.ts` (the size and id cases were verified to fail
+without the fixes) and `packages/api/test/mcp-api.test.ts`.
 
 ### SEC-003 Backup / restore security audit ✅
 

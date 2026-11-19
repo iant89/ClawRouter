@@ -31,6 +31,10 @@ import { allowedTools, MCP_TOOLS, ToolInputError, type McpCaller, type McpToolSe
 /** Newest first. A client asking for one of these gets it; any other gets the newest. */
 export const MCP_PROTOCOL_VERSIONS = ['2025-11-25', '2025-06-18', '2025-03-26'] as const;
 const MCP_BODY_LIMIT = 256 * 1024;
+/** A tool answer larger than this is refused as a tool error (SEC-002): it would flood the agent's context, and the tool has filters. */
+export const MCP_RESULT_LIMIT = 1024 * 1024;
+/** Longest request id echoed back. */
+const MAX_ID_LENGTH = 200;
 
 const INSTRUCTIONS = 'ClawRouter is an AI gateway in front of OpenAI, Anthropic, Google, Groq and local models. '
   + 'These tools read its state: health, usage and cost, request history, providers, models, rate limits and the audit log. '
@@ -100,6 +104,8 @@ export function createMcpHandler(deps: McpServerDependencies) {
     // Notifications (no id) and responses to requests we never send need no answer.
     if (!hasId) return new Response(null, { status: 202 });
     const id = m.id as string | number;
+    if (typeof id === 'string' && id.length > MAX_ID_LENGTH) return rpcError(null, INVALID_REQUEST, `Request ids are at most ${MAX_ID_LENGTH} characters.`, 400);
+    if (typeof id === 'number' && !Number.isSafeInteger(id)) return rpcError(null, INVALID_REQUEST, 'Numeric request ids must be whole numbers.', 400);
     if (typeof m.method !== 'string') return rpcError(id, INVALID_REQUEST, 'Expected a method.', 400);
     const params = isObject(m.params) ? m.params : {};
 
@@ -139,8 +145,13 @@ export function createMcpHandler(deps: McpServerDependencies) {
         const started = performance.now();
         try {
           const data = await tool.run(isObject(params.arguments) ? params.arguments : {}, caller, deps);
+          const result = toolResult(data);
+          if (result.content[0]!.text.length > MCP_RESULT_LIMIT) {
+            ctx.log.info('mcp tool call', { component: 'mcp', tool: tool.name, prefix: key.prefix, outcome: 'too_large', durationMs: Math.round(performance.now() - started) });
+            return rpcResult(id, toolError(`The answer is larger than ${MCP_RESULT_LIMIT / 1024} KB. Ask for less: a shorter period, a filter, a smaller limit or the next page.`));
+          }
           ctx.log.info('mcp tool call', { component: 'mcp', tool: tool.name, prefix: key.prefix, outcome: 'ok', durationMs: Math.round(performance.now() - started) });
-          return rpcResult(id, toolResult(data));
+          return rpcResult(id, result);
         } catch (error) {
           // Wrong arguments and "not found" go back to the model as tool errors it can act on.
           const message = error instanceof ToolInputError ? error.message
