@@ -87,7 +87,8 @@ export function RequestDetailDialog({ id, onClose }: { id: string | null; onClos
               { term: 'Answered by', description: r.modelRef ? <span className="claw-mono">{r.modelRef}{r.provider ? ` · ${r.provider.name}` : ''}</span> : '—' },
               { term: 'Attempts', description: describeAttempts(r) },
               { term: 'Tokens', description: `${describeTokens(r)}${r.usageSource === 'estimated' ? ' (estimated: the provider reported none)' : ''}` },
-              { term: 'Estimated cost', description: r.costUsd !== null ? formatUsd(r.costUsd) : r.inputTokens ? 'Unknown (the model has no prices)' : '—' },
+              // The provider's own charge when it reports one (OpenRouter), otherwise estimated from the model's prices.
+              { term: 'Cost', description: r.costUsd !== null ? formatUsd(r.costUsd) : r.inputTokens ? 'Unknown (the model has no prices)' : '—' },
             ]}
           />
           {r.attemptLog.length > 0 && (

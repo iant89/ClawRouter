@@ -23,7 +23,7 @@ invalid-key limit).
 | Attempts, retries, failovers | Plus the **attempt log**: each try's model, outcome and duration, and models skipped for their rate limit |
 | HTTP status, error code and message | Client-safe only (the same text the client got); provider internals stay in the server log |
 | Input and output tokens, usage source | `provider` (reported), `estimated` (see below) or `none` |
-| Estimated cost (USD) | From the model's prices **at the time**; later price changes do not rewrite history |
+| Cost (USD) | What the provider charged when it reports it (OpenRouter), otherwise estimated from the model's prices **at the time**; later price changes do not rewrite history |
 
 **Never stored:** prompts, completions, embeddings input, API keys or any other
 request content (spec §22). There is no payload retention setting because there
@@ -47,6 +47,12 @@ The client's own response never contains an invented `usage` block.
 million tokens, set on each model in the model registry). If a model has no price
 for tokens it used, the cost is **unknown** (`null`), not zero; usage reports count
 those as "unpriced" requests.
+
+**Reported cost wins.** A provider that says what a request cost (OpenRouter's
+`usage.cost`, in replies and at the end of streams) has that amount recorded instead of the
+estimate, in history, usage and quotas. It can differ from list price × tokens: live on
+2026-11-19, a PDF sent to a free model cost $0.002 (OpenRouter's PDF reading), which the
+estimate would have recorded as $0. A free model's reported $0 is a price, not "unpriced".
 
 ## Usage records
 

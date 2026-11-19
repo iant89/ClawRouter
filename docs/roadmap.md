@@ -501,6 +501,15 @@ See [playground](playground.md). Requested 2026-11-18: a playground page, with O
 - [x] Chat apps card: base URL, configuration snippets with this server's address, links to the guides
 - [x] Setup guides tested end to end: [Open WebUI](clients/open-webui.md) 0.13.4 and [LibreChat](clients/librechat.md) v0.8.9, against the mock provider and live with Groq
 
+## Owner request: OpenRouter provider ✅
+
+See [providers](providers.md#openrouter-tested-live). Requested 2026-11-19.
+
+- [x] `openrouter` provider kind: names, context, output limit, Vision, Tool use and prices from the model list; batch-only, image-generation and expired models are not chat models
+- [x] The provider's reported cost (`usage.cost`) recorded instead of the estimate, in history, usage and quotas
+- [x] App attribution headers; images and PDFs
+- [x] Tested live on free models: discovery, chat, streams, image, PDF, tools, Claude Code through `/v1/messages`
+
 ## Owner request: native Gemini adapter, live ✅
 
 See [providers](providers.md#google-native-api-tested-live). Requested 2026-11-19: make the native Google adapter work against the real API.

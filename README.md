@@ -4,7 +4,7 @@
 <https://github.com/iant89/ClawRouter>
 
 Self-hosted AI model gateway and control platform: one stable API in front of
-OpenAI, Anthropic, Google, Groq and local models, with routing, failover, rate limiting,
+OpenAI, Anthropic, Google, Groq, OpenRouter and local models, with routing, failover, rate limiting,
 usage tracking and an administration console built on
 [ENTERPRISE-UI](https://github.com/iant89/ENTERPRISE-UI).
 
@@ -19,7 +19,7 @@ usage tracking and an administration console built on
   setup, login throttling, audit, session revocation) and phase 3
   **authorization** (ADMIN / OPERATOR / VIEWER roles enforced on every route), and
   phase 4, the **console shell** with notifications, phase 5, the **provider
-  engine** (OpenAI, Anthropic, Google, Groq, local / OpenAI-compatible, with encrypted
+  engine** (OpenAI, Anthropic, Google, Groq, OpenRouter, local / OpenAI-compatible, with encrypted
   credentials), phase 6, the **model registry** (discovery, availability,
   capabilities, prices), and phase 7, the **routing engine** (aliases, priorities,
   weights, health-aware fallback, failover policies), and phase 8, the **request
@@ -182,7 +182,7 @@ clawrouter/
     authentication/  users, sessions, password hashing, login throttling, initial setup
     authorization/   roles, permissions, role assignment
     notifications/   per-user and per-permission notifications, event producers
-    providers/   provider adapters (OpenAI, Anthropic, Google, Groq, OpenAI-compatible), encrypted credentials, status
+    providers/   provider adapters (OpenAI, Anthropic, Google, Groq, OpenRouter, OpenAI-compatible), encrypted credentials, status
     models/      model registry: discovery, availability, capabilities, cost metadata
     routing/     routing engine (pure), routing configuration, failure tracker
     audit/       append-only audit log

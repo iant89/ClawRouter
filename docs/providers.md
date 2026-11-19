@@ -25,6 +25,7 @@ Each provider kind is an **adapter** implementing `ProviderAdapter`
 | `anthropic` | Messages API, `https://api.anthropic.com` | `x-api-key`, `anthropic-version: 2023-06-01` | System messages moved to `system`; `max_tokens` defaults to 4096 |
 | `google` | Gemini `generateContent` / `streamGenerateContent`, `https://generativelanguage.googleapis.com/v1beta` | `x-goog-api-key` header (never `?key=`) | `assistant` → `model` role; system → `systemInstruction`; tools as `functionDeclarations`, Gemini 3 thought signatures carried in tool call ids; images, audio and PDFs inline; embeddings with `batchEmbedContents`. The model list follows `nextPageToken`; every chat model is offered with Vision and Tool use; music, image, video, speech, live-audio, transcription, computer-use and Interactions-only models (Deep Research, Antigravity) are not chat models. Thought summaries (`thought: true` parts) never reach the answer, and reasoning tokens (`thoughtsTokenCount`) count as output tokens, as Google bills them. Tested live 2026-11-19 (see below) |
 | `groq` | Chat Completions, `https://api.groq.com/openai/v1` | `Authorization: Bearer` (`gsk_…` keys) | `max_completion_tokens`; streamed usage read from `x_groq.usage`. The model list gives names, context window and output limit, image input (Vision) and prices (filled in as the model's cost on import); retired models and models that do not answer in text (Whisper, Orpheus speech) are not chat models. Ids may contain a slash (`openai/gpt-oss-120b`): clients can send them as they are. Chat only: no embeddings. Tested live 2026-11-16 |
+| `openrouter` | Chat Completions, `https://openrouter.ai/api/v1` | `Authorization: Bearer` (`sk-or-…` keys) | Hundreds of models from many providers behind one key; free ones end in `:free`. The model list gives names, context window, output limit, image input (Vision), tool support (Tool use) and prices; models that the chat API does not serve (the half-price `:batch` variants, batch API only), image-generation models and expired models (`expiration_date`) are not chat models. Each answer's exact cost (`usage.cost`) is recorded instead of the estimate. Calls name ClawRouter as the app (`HTTP-Referer`, `X-Title`). Images and PDFs (read for any model, which OpenRouter may charge for). No embeddings. Tested live 2026-11-19 (see below) |
 | `openai_compatible` | Chat Completions at any URL | optional Bearer | Ollama, vLLM, LM Studio, llama.cpp, LiteLLM… Endpoint required. Also Google's compatible endpoint `https://generativelanguage.googleapis.com/v1beta/openai` (Bearer = the Gemini API key): `models/` is dropped from ids, `display_name` is read, Gemini 3 thought signatures travel in tool call ids and go back in `extra_content`, and a stream that ends tool calls with "stop" is reported as `tool_calls`. Tested live 2026-11-16 |
 
 ### Google (native API), tested live
@@ -49,6 +50,23 @@ Live on 2026-11-19 against Google's Gemini API (key in `x-goog-api-key`):
   answered 503 "high demand" or not at all within 60 s, and the free tier allows only a few
   requests a minute (429 "You exceeded your current quota"). Give aliases fallbacks, e.g. a
   `-lite` model.
+
+### OpenRouter, tested live
+
+Live on 2026-11-19 with a key whose account had no credit, so free models only (a paid model
+answered 403 "Key limit exceeded"):
+
+- **Discovery:** 445 models; 371 offered as chat, with context, output limit and prices, Vision on
+  238 and Tool use on 320; 74 not chat (61 `:batch` variants served only by
+  `/api/v1/batches`, and image-generation models).
+- **Through `/v1/chat/completions`** on nvidia/nemotron-3.5-super-vl:free: a plain answer, a
+  stream, an image (colour named), a PDF (text read), a tool call and its answer, a streamed tool
+  call. Cost recorded: $0, except the PDF request: $0.002, OpenRouter's charge for reading it.
+- **Through `/v1/messages`:** Claude Code 2.1.328 with its full default request (about 12,500
+  input tokens) on nvidia/nemotron-3.5-lightning:free read a file and answered, in two turns.
+- These free models are reasoning models: with a small `max_tokens` they can spend it all on
+  reasoning (in OpenRouter's separate `reasoning` field, never passed on) and answer nothing,
+  with finish reason `length`.
 
 Adding a provider means writing an adapter and registering it in
 `createDefaultRegistry()`. Nothing else changes: adapters contain no routing

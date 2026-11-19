@@ -561,3 +561,16 @@ from a leftover mock provider in the development database.
 | --- | --- |
 | ![Discover](35-gemini-native/01-discover-classified.png) | Discovery: Antigravity, Deep Research, computer use and Nano Banana detected as "other"; chat models with vision and tool use |
 | ![Filtered](35-gemini-native/02-discover-filtered.png) | Filtered to "3.5": the two chat models (registered) beside live-translate, transcription and Lyria (music), detected as "other" |
+
+## 36 · OpenRouter provider
+
+Captured 2026-11-19 against OpenRouter's real model list (445 models) and live requests on free
+models. "Degraded" in the header comes from a leftover mock provider in the development database.
+The detail dialog was captured before its "Estimated cost" label became "Cost" (the provider's
+own charge when it reports one).
+
+| Screenshot | Shows |
+| --- | --- |
+| ![Add](36-openrouter/01-add-provider.png) | Add provider with the OpenRouter type: the endpoint is filled in |
+| ![Discover](36-openrouter/02-discover.png) | Discovery filtered to "claude-haiku": chat models with vision and tools, the `:batch` variant detected as "other" |
+| ![Cost](36-openrouter/03-request-reported-cost.png) | A PDF request to a free model: OpenRouter charged $0.002 (its PDF reading), recorded instead of the $0 estimate |

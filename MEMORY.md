@@ -14,6 +14,20 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 
 ### Important
 
+- **IMPORTANT** · 2026-11-19 · Owner request: OpenRouter provider; provider-reported cost
+  The `openrouter` kind (`openRouterAdapter` in `packages/providers/src/adapters/openai.ts`) uses
+  the shared OpenAI-style adapter. The model list parser now also reads OpenRouter's fields for
+  every OpenAI-style kind: `context_length`, `top_provider`, `architecture` input/output
+  modalities, `supported_parameters` (tools), `endpoints` (a model whose list leaves out
+  `/chat/completions`, e.g. the `:batch` variants, is not a chat model) and `expiration_date`
+  (expired models are left out). **Provider-reported cost:** `Usage.costUsd` (providers) flows
+  through the gateway's `withEstimate` to the request log, where it is recorded instead of the
+  estimate (`packages/requests/src/service.ts`); only adapters created with `reportsCost` set it
+  (OpenRouter's `usage.cost`). A reported $0 is a price, not "unpriced". Keep that when changing
+  cost code. Attribution headers `HTTP-Referer` (the repository URL) and `X-Title: ClawRouter`.
+  Tests: `packages/api/test/openrouter-api.test.ts`, the OpenRouter block in
+  `packages/providers/test/adapters.test.ts`; docs: `docs/providers.md` (OpenRouter, tested live).
+
 - **IMPORTANT** · 2026-11-19 · Owner rule: AGPL-3.0-or-later, file headers, version 1.0.0
   The owner asked for the AGPLv3 license, their name ("Ian Thomas") and the repository URL in
   a professional header on every file, and version 1.0.0; they chose **AGPL v3 or later**
@@ -388,6 +402,15 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 
 ### Notes
 
+- **NOTE** · 2026-11-19 · Live OpenRouter testing
+  The owner saved an OpenRouter key as a network secret for openrouter.ai (Bearer); give the
+  provider the placeholder key `proxy-injected`. The account had **no credit** that day (key limit
+  $0): only `:free` models answer; paid ones answer 403 "Key limit exceeded". Free accounts also
+  have a small daily request cap. Free models seen were reasoning models (OpenRouter's separate
+  `reasoning` field, never passed on): a small `max_tokens` can end in an empty answer with
+  `length`. A PDF sent to a free model cost $0.002 (OpenRouter's PDF reading). Claude Code's full
+  default request works on nvidia/nemotron-3.5-lightning:free.
+
 - **NOTE** · 2026-11-19 · Live native Gemini testing
   The owner saved a Gemini key as a network secret for generativelanguage.googleapis.com in the
   environment settings: type **Bearer**, with the custom header row changed to header
@@ -589,10 +612,11 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 
 ### Messages
 
-- **MESSAGE** · 2026-11-19 · The native Gemini adapter waits for review
-  Built on `claude/gemini-native`: paging, model classification, Vision, thought parts and
-  reasoning tokens in `google.ts`, tested live; docs and screenshots 35. No migration. Merge into
-  `main` when the owner says so.
+- **MESSAGE** · 2026-11-19 · The native Gemini adapter and the OpenRouter provider wait for review
+  `claude/gemini-native`: paging, model classification, Vision, thought parts and reasoning
+  tokens in `google.ts`, tested live; docs and screenshots 35. `claude/openrouter-provider` is
+  built on it: the `openrouter` kind, provider-reported cost, screenshots 36. No migration. On
+  "merge", fast-forward `main` to `claude/openrouter-provider` (it contains both).
 
 - **MESSAGE** · 2026-11-19 · Everything merged after the Anthropic Messages API and the AGPL license (1.0.0)
   Nothing in ClawRouter waits for review. Old branches to delete on GitHub (the session cannot): every merged

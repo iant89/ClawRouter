@@ -141,7 +141,7 @@ export function SetupWizard() {
   const content: Record<SetupWizardStep, { title: string; description: ReactNode; body: ReactNode }> = {
     provider: {
       title: 'Connect a provider',
-      description: 'A provider is where requests go: OpenAI, Anthropic, Google, Groq, or a local OpenAI-compatible server. Its API key is encrypted and never shown again.',
+      description: 'A provider is where requests go: OpenAI, Anthropic, Google, Groq, OpenRouter, or a local OpenAI-compatible server. Its API key is encrypted and never shown again.',
       body: !can('providers.write') ? <NotAllowed what="add providers" /> : (
         <div style={stack}>
           {providers.length > 0 && (
