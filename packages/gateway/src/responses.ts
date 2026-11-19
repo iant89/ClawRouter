@@ -18,6 +18,8 @@ import { AppError } from '@clawrouter/core';
 import type { ChatResponse, FinishReason, Usage } from '@clawrouter/providers';
 import type { ChatFormatter, ToolCallPiece } from './formats.ts';
 import { invalid, parseChatRequest, type ParsedChatRequest } from './openai.ts';
+import { limitError } from './request-limits.ts';
+import type { RequestLimits } from '@clawrouter/shared';
 
 /**
  * The OpenAI Responses API (POST /v1/responses), translated to the chat pipeline.
@@ -191,7 +193,7 @@ export function parseResponsesRequest(body: unknown): { req: ParsedChatRequest; 
 /** Chat Completions parameter names in an error, renamed to what the client sent. */
 export function renamed(error: unknown, source: (string | null)[] = []): unknown {
   if (!(error instanceof AppError) || error.code !== 'VALIDATION_ERROR') return error;
-  const details = error.details as { param?: string | null; issues?: { path: string; message: string }[] } | undefined;
+  const details = error.details as { param?: string | null; issues?: { path: string; message: string }[]; code?: string; limit?: string } | undefined;
   const map = (p: string | null | undefined): string | null => {
     if (!p) return p ?? null;
     const m = /^messages\[(\d+)\](.*)$/.exec(p);
@@ -205,7 +207,10 @@ export function renamed(error: unknown, source: (string | null)[] = []): unknown
     return p.replace(/^tools\[(\d+)\]\.function\./, 'tools[$1].');
   };
   const param = map(details?.param);
-  return invalid(error.publicMessage.replace(/'max_completion_tokens'/g, "'max_output_tokens'").replace(/'messages'/g, "'input'"), param);
+  const message = error.publicMessage.replace(/'max_completion_tokens'/g, "'max_output_tokens'").replace(/'messages'/g, "'input'");
+  // A request limit (SEC-006) keeps its code and name.
+  if (details?.code === 'request_limit' && details.limit) return limitError(details.limit as keyof RequestLimits, message, param);
+  return invalid(message, param);
 }
 
 /** Usage in the Responses format. */

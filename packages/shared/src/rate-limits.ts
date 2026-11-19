@@ -177,7 +177,7 @@ export const REQUEST_LIMIT_RANGES: Record<keyof RequestLimits, { min: number; ma
   maxTokensPerRequest: { min: 2, max: 100_000_000, nullable: true },
   maxConcurrentPerKey: { min: 1, max: 1_000_000, nullable: true },
   maxConcurrentPerUser: { min: 1, max: 1_000_000, nullable: true },
-  maxStreamSeconds: { min: 10, max: 86_400, nullable: true },
+  maxStreamSeconds: { min: 1, max: 86_400, nullable: true },
 };
 
 
