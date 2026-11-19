@@ -75,8 +75,10 @@ answered 403 "Key limit exceeded"):
   dots-3-note, particle-1 and nemotron-3-nano-omni also named an image's colour. Every one
   cost $0 with OpenRouter's usage. Not ClawRouter's doing: both free Gemma 4 models answered
   429 every time (Google's free capacity behind OpenRouter), and inkling-2-small:free answers
-  403 "only available on agentic harnesses", which ClawRouter counts as a credential failure.
-  A free account allows 50 free-model requests a day, and ClawRouter's retry of a 429 uses two.
+  403 "only available on agentic harnesses" (now classified `forbidden`: the next model is tried and
+  OpenRouter is not held responsible; it used none of the daily allowance).
+  A free account allows 50 free-model requests a day. A 429 is now tried once, not twice
+  (see [gateway](gateway.md)); a re-check showed one attempt and no use of the allowance.
 
 Adding a provider means writing an adapter and registering it in
 `createDefaultRegistry()`. Nothing else changes: adapters contain no routing

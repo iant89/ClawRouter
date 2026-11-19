@@ -38,10 +38,21 @@ type Verdict = 'retry' | 'next-model' | 'stop';
 
 /**
  * What a failed attempt means:
- *   - retry: transient (timeout, network, 5xx, 429, garbled response); the same model may work;
+ *   - retry: transient (timeout, network, 5xx, garbled response); the same model may work;
  *   - next-model: this model cannot work (credentials, not found, misconfigured); skip its retries;
  *   - stop: the request itself is at fault (400) or was cancelled; trying elsewhere would not help.
+ *
+ * A provider's 429 is retried only when the provider asks for a short wait (Retry-After up to
+ * RETRY_AFTER_LIMIT_S); otherwise the next model is tried. Asking again a quarter of a second
+ * later rarely helps, and on metered free tiers (OpenRouter counts free-model requests per day)
+ * every retry is spent from the account's allowance.
+ *
+ * A 403 (`forbidden`) is the provider refusing this key this model (a model offered only to some
+ * apps, a spent credit limit on paid models): the next model is tried, but it does not count as a
+ * provider failure, because the provider's other models on the same key keep working.
  */
+export const RETRY_AFTER_LIMIT_S = 2;
+
 export function classify(error: unknown): { verdict: Verdict; countsAsFailure: boolean; kind: string } {
   if (error instanceof ProviderCallError) {
     switch (error.failure) {
@@ -49,6 +60,12 @@ export function classify(error: unknown): { verdict: Verdict; countsAsFailure: b
         return { verdict: 'stop', countsAsFailure: false, kind: 'cancelled' };
       case 'bad_request':
         return { verdict: 'stop', countsAsFailure: false, kind: 'bad_request' };
+      case 'forbidden':
+        return { verdict: 'next-model', countsAsFailure: false, kind: 'forbidden' };
+      case 'rate_limited': {
+        const wait = error.retryAfterSeconds;
+        return { verdict: wait !== null && wait <= RETRY_AFTER_LIMIT_S ? 'retry' : 'next-model', countsAsFailure: true, kind: 'rate_limited' };
+      }
       case 'auth':
       case 'not_found':
         return { verdict: 'next-model', countsAsFailure: true, kind: error.failure };
@@ -130,6 +147,8 @@ export async function runAttempts<T>(
   /** Kinds of failed provider attempts, and the shortest wait a rate-limiting provider asked for. */
   const kinds = new Set<string>();
   let providerWait: number | null = null;
+  /** The wait a rate-limiting provider asked for before retrying the same model (ms). */
+  let askedWaitMs = 0;
   let limited: { modelRef: string; denial: ModelLimitDenial } | null = null;
 
   for (const attempt of plan.attempts) {
@@ -144,7 +163,9 @@ export async function runAttempts<T>(
       log?.info('model skipped: rate limit', { component: 'gateway', model: candidate.modelRef, kind: denial.kind });
       continue;
     }
-    if (attempt.try > 1) await pause(Math.min(backoff * (attempt.try - 1), 2_000), signal);
+    // A retry waits its backoff, or the provider's Retry-After when that is longer (at most RETRY_AFTER_LIMIT_S).
+    if (attempt.try > 1) await pause(Math.max(Math.min(backoff * (attempt.try - 1), 2_000), askedWaitMs), signal);
+    askedWaitMs = 0;
     made += 1;
     tried.add(attempt.candidate);
     try {
@@ -175,6 +196,7 @@ export async function runAttempts<T>(
       kinds.add(kind);
       if (kind === 'rate_limited' && error instanceof ProviderCallError && error.retryAfterSeconds !== null) {
         providerWait = providerWait === null ? error.retryAfterSeconds : Math.min(providerWait, error.retryAfterSeconds);
+        if (verdict === 'retry') askedWaitMs = error.retryAfterSeconds * 1000;
       }
     }
   }
@@ -191,7 +213,11 @@ export async function runAttempts<T>(
     });
   }
   // A model the provider no longer has. The provider's explanation (often naming a replacement) is in the logs, not here.
-  const missing = last?.kind === 'not_found' ? ' The model may have been retired by its provider; an administrator can find the provider\'s explanation in ClawRouter\'s logs for this request.' : '';
+  const missing = last?.kind === 'not_found'
+    ? ' The model may have been retired by its provider; an administrator can find the provider\'s explanation in ClawRouter\'s logs for this request.'
+    : last?.kind === 'forbidden'
+      ? ' The provider does not allow this model to be used with ClawRouter\'s key; an administrator can find the provider\'s explanation in ClawRouter\'s logs for this request.'
+      : '';
   throw new AppError('PROVIDER_ERROR', `The model providers could not complete the request (${n} attempt${n === 1 ? '' : 's'}; last error: ${last?.kind ?? 'none'}).${missing}`, {
     expose: true, details: { attempts: n },
   });

@@ -41,6 +41,10 @@ describe('classify', () => {
     expect(classify(new ProviderCallError('timeout', 't')).verdict).toBe('retry');
     expect(classify(new ProviderCallError('server_error', 's')).verdict).toBe('retry');
     expect(classify(new ProviderCallError('auth', 'a')).verdict).toBe('next-model');
+    expect(classify(new ProviderCallError('forbidden', 'f'))).toMatchObject({ verdict: 'next-model', countsAsFailure: false });
+    expect(classify(new ProviderCallError('rate_limited', 'r', 429))).toMatchObject({ verdict: 'next-model', countsAsFailure: true });
+    expect(classify(new ProviderCallError('rate_limited', 'r', 429, undefined, 2)).verdict).toBe('retry');
+    expect(classify(new ProviderCallError('rate_limited', 'r', 429, undefined, 3)).verdict).toBe('next-model');
     expect(classify(new ProviderCallError('bad_request', 'b'))).toMatchObject({ verdict: 'stop', countsAsFailure: false });
     expect(classify(new ProviderCallError('cancelled', 'c'))).toMatchObject({ verdict: 'stop', countsAsFailure: false });
   });
@@ -68,6 +72,42 @@ describe('runAttempts', () => {
     expect((error as AppError).details).toEqual({ attempts: 2 });
   });
 
+  test("a provider's 429 without a short Retry-After moves to the next model without retrying", async () => {
+    const calls: string[] = [];
+    const { result } = run(plan([[0, 1], [0, 2], [1, 1]]), async (c) => {
+      calls.push(c.modelRef);
+      if (c.modelRef === 'a/m') throw new ProviderCallError('rate_limited', 'slow down', 429);
+      return 'ok';
+    });
+    expect(await result).toMatchObject({ value: 'ok', attempts: 2, failovers: 1, retries: 0 });
+    expect(calls).toEqual(['a/m', 'b/m']);
+  });
+
+  test("a short Retry-After is retried on the same model, after the provider's wait", async () => {
+    const calls: [string, number][] = [];
+    const t0 = performance.now();
+    const { result } = run(plan([[0, 1], [0, 2], [1, 1]]), async (c) => {
+      calls.push([c.modelRef, performance.now() - t0]);
+      if (calls.length === 1) throw new ProviderCallError('rate_limited', 'slow down', 429, undefined, 1);
+      return 'ok';
+    });
+    expect(await result).toMatchObject({ value: 'ok', attempts: 2, failovers: 0, retries: 1 });
+    expect(calls.map(([m]) => m)).toEqual(['a/m', 'a/m']);
+    expect(calls[1]![1]).toBeGreaterThanOrEqual(990);
+  });
+
+  test('a 403 moves to the next model and is not held against the provider', async () => {
+    const calls: string[] = [];
+    const { result, failures } = run(plan([[0, 1], [0, 2], [1, 1]]), async (c) => {
+      calls.push(c.modelRef);
+      if (c.modelRef === 'a/m') throw new ProviderCallError('forbidden', 'only available on agentic harnesses', 403);
+      return 'ok';
+    });
+    expect(await result).toMatchObject({ value: 'ok', attempts: 2, retries: 0 });
+    expect(calls).toEqual(['a/m', 'b/m']);
+    expect(failures.count('a')).toBe(0);
+  });
+
   test('a cancelled request makes no further attempts', async () => {
     const controller = new AbortController();
     let calls = 0;
@@ -91,8 +131,9 @@ describe('what clients are told when providers fail', () => {
     expect(error.code).toBe('RATE_LIMITED');
     expect(error.status).toBe(429);
     expect(error.headers).toEqual({ 'Retry-After': '12' });
-    expect(error.publicMessage).toBe('The model providers are rate limiting requests (3 attempts). Try again in 12 s.');
-    expect(error.details).toEqual({ attempts: 3, code: 'provider_rate_limited' });
+    // Neither wait is short enough to retry the same model: one attempt per model.
+    expect(error.publicMessage).toBe('The model providers are rate limiting requests (2 attempts). Try again in 12 s.');
+    expect(error.details).toEqual({ attempts: 2, code: 'provider_rate_limited' });
   });
 
   test('rate limited without a Retry-After: 429 without the header', async () => {
@@ -100,6 +141,14 @@ describe('what clients are told when providers fail', () => {
     expect(error.code).toBe('RATE_LIMITED');
     expect(error.headers).toEqual({});
     expect(error.publicMessage).toContain('Try again shortly.');
+  });
+
+  test("a 403 is explained without the provider's words", async () => {
+    const error = await failed(plan([[0, 1]]), async () => { throw new ProviderCallError('forbidden', 'The provider refused this key access (HTTP 403): only available on agentic harnesses, see https://openrouter.ai/apps', 403); });
+    expect(error.code).toBe('PROVIDER_ERROR');
+    expect(error.publicMessage).toContain('last error: forbidden');
+    expect(error.publicMessage).toContain('does not allow this model');
+    expect(error.publicMessage).not.toContain('harnesses');
   });
 
   test('rate limited on one model, a server error on the other: still a provider error (502)', async () => {

@@ -18,7 +18,7 @@ import { AppError } from '@clawrouter/core';
 import type { ProviderCallContext } from './types.ts';
 
 /** Why a provider call failed, in provider-independent terms. */
-export type ProviderFailure = 'auth' | 'rate_limited' | 'timeout' | 'unreachable' | 'bad_request' | 'not_found' | 'server_error' | 'invalid_response' | 'cancelled';
+export type ProviderFailure = 'auth' | 'forbidden' | 'rate_limited' | 'timeout' | 'unreachable' | 'bad_request' | 'not_found' | 'server_error' | 'invalid_response' | 'cancelled';
 
 /**
  * A failed provider call. `message` is safe to show administrators: it never
@@ -73,8 +73,13 @@ export function retryAfterSeconds(value: string | null, now = Date.now()): numbe
   return Math.min(Math.ceil(seconds), 3600);
 }
 
-function failureFor(status: number): ProviderFailure {
-  if (status === 401 || status === 403) return 'auth';
+function failureFor(status: number, detail = ''): ProviderFailure {
+  if (status === 401) return 'auth';
+  // Google answers a wrong API key with 400 "API key not valid" (reason API_KEY_INVALID).
+  if (status === 400 && /API key not valid|API_KEY_INVALID/i.test(detail)) return 'auth';
+  // 403 is the provider refusing this key something (a model it may not use, a spent credit limit,
+  // a model only offered to some apps), not a wrong key: other models on the same key still work.
+  if (status === 403) return 'forbidden';
   if (status === 429) return 'rate_limited';
   if (status === 404) return 'not_found';
   if (status >= 500) return 'server_error';
@@ -83,6 +88,7 @@ function failureFor(status: number): ProviderFailure {
 
 const FAILURE_TEXT: Record<ProviderFailure, string> = {
   auth: 'The provider rejected the credentials',
+  forbidden: 'The provider refused this key access',
   rate_limited: 'The provider is rate limiting requests',
   timeout: 'The provider did not respond in time',
   unreachable: 'The provider could not be reached',
@@ -115,8 +121,8 @@ export async function providerFetch(ctx: ProviderCallContext, url: string, init:
     throw new ProviderCallError('invalid_response', `The provider answered with a redirect (HTTP ${response.status}); redirects are not followed`, response.status);
   }
   if (!response.ok) {
-    const failure = failureFor(response.status);
     const detail = await errorText(response, ctx.apiKey);
+    const failure = failureFor(response.status, detail);
     const wait = response.status === 429 || response.status === 503 ? retryAfterSeconds(response.headers.get('retry-after')) : null;
     throw new ProviderCallError(failure, `${FAILURE_TEXT[failure]} (HTTP ${response.status})${detail ? `: ${detail}` : ''}`, response.status, undefined, wait);
   }

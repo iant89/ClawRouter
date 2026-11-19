@@ -51,6 +51,7 @@ export const OUTCOME_LABEL: Record<string, string> = {
   rate_limited: "Provider's rate limit (429)",
   invalid_response: 'Unreadable response',
   auth: 'Credentials rejected',
+  forbidden: 'Access refused by the provider (403)',
   not_found: 'Model not found at the provider',
   bad_request: 'Request rejected by the provider',
   cancelled: 'Cancelled',

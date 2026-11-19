@@ -216,8 +216,10 @@ list, typed errors) and with Claude Code 2.1.328 (see its guide).
 
    | Failure | Effect |
    |---|---|
-   | timeout, network, 5xx, 429, unreadable response | retry the same model if the plan has a retry, otherwise next model. Counted in the failure tracker |
-   | auth, not found, misconfigured | skip this model's retries, next model. Counted |
+   | timeout, network, 5xx, unreadable response | retry the same model if the plan has a retry, otherwise next model. Counted in the failure tracker |
+   | provider 429 | next model, **without** retrying the same one, unless the provider asked for a wait of at most 2 s (`Retry-After`): then it is retried after that wait. Retrying sooner than asked rarely helps and only adds load (and, on metered free tiers, may count against a daily allowance). Counted |
+   | auth (401, or Google's 400 "API key not valid"), not found, misconfigured | skip this model's retries, next model. Counted |
+   | provider 403 (`forbidden`: the provider refuses this key the model, e.g. a model offered only to some apps, or a spent credit limit on paid models) | skip this model's retries, next model. **Not** counted: the provider's other models on the same key keep working. The client is told the provider does not allow the model, never the provider's words |
    | provider 400 (the request is at fault) | stop; the client gets 400 in ClawRouter's words: "too large for the model" when the provider says so, otherwise a generic "rejected as invalid" |
    | client disconnected | stop |
 

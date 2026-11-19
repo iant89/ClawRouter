@@ -282,7 +282,7 @@ export function startMockProviders(key = 'sk-test-0123456789abcdefWXYZ'): MockPr
 
       if (family === 'google') {
         if (url.searchParams.has('key')) return json({ error: { message: 'key must not be in the URL' } }, 400);
-        if (state.mode === 'auth' || h.get('x-goog-api-key') !== key) return json({ error: { code: 403, message: 'API key not valid' } }, 403);
+        if (state.mode === 'auth' || h.get('x-goog-api-key') !== key) return json({ error: { code: 400, message: 'API key not valid. Please pass a valid API key.', status: 'INVALID_ARGUMENT', details: [{ reason: 'API_KEY_INVALID' }] } }, 400);
         if (path === '/v1beta/models') {
           // Two pages, like Google's list once it is long: a thinking model and a speech model on the second.
           if (url.searchParams.get('pageToken') === 'page-2') {

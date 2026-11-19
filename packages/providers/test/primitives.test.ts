@@ -71,6 +71,14 @@ describe('providerFetch', () => {
     expect(error.message).not.toContain('sk-secret-key-123');
   });
 
+  test("403 is a refusal of this key (forbidden), not a wrong key; Google's 400 for a bad key is auth", async () => {
+    const failure = async (status: number, message: string) => (await providerFetch(ctx(fake(Response.json({ error: { message } }, { status }))), 'https://x', {}).catch((e) => e)).failure;
+    expect(await failure(403, 'thinkingmachines/inkling-2-small:free is only available on agentic harnesses')).toBe('forbidden');
+    expect(await failure(403, 'Key limit exceeded')).toBe('forbidden');
+    expect(await failure(400, 'API key not valid. Please pass a valid API key.')).toBe('auth');
+    expect(await failure(400, "Unsupported value: 'temperature'")).toBe('bad_request');
+  });
+
   test('refuses redirects', async () => {
     const error = await providerFetch(ctx(fake(new Response(null, { status: 307, headers: { location: 'https://evil' } }))), 'https://x', {}).catch((e) => e);
     expect(error.failure).toBe('invalid_response');

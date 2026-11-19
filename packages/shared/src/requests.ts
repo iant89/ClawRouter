@@ -33,7 +33,7 @@ export type UsageSource = 'provider' | 'estimated' | 'none';
 export interface RequestAttempt {
   modelRef: string;
   providerId: string;
-  /** 'ok', 'skipped_rate_limit' (our model limit; no provider call), or the provider failure kind: timeout, server_error, rate_limited (the provider's 429), auth… */
+  /** 'ok', 'skipped_rate_limit' (our model limit; no provider call), or the provider failure kind: timeout, server_error, rate_limited (the provider's 429), auth (401), forbidden (403)… */
   outcome: string;
   durationMs: number;
 }

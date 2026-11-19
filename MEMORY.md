@@ -410,9 +410,12 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
   treats `imagen`, `banana`, `lyria` and `veo` ids as "other" (OpenRouter lists Lyria as free).
   The dialog is size `xl` when a Price column is shown.
   Same day, every free chat model was tested live (results in `docs/providers.md`): 12 of 15
-  pass streamed tool calls and the round trip. Open, not fixed: an OpenRouter 403 about the model
-  ("only available on agentic harnesses", inkling-2-small:free) is classified `auth` ("rejected
-  the credentials") and counts as a provider failure; it is a model restriction, not the key.
+  pass streamed tool calls and the round trip.
+  Owner said "make both fixes" (same day): **403 is `forbidden`**, not `auth` (next model, not
+  counted in the failure tracker, client told the provider does not allow the model); only 401
+  and Google's 400 "API key not valid" are `auth`. **A provider 429 is not retried on the same
+  model** unless `Retry-After` ≤ 2 s (`RETRY_AFTER_LIMIT_S` in `executor.ts`), then after that
+  wait. The Google mock now answers a wrong key with 400 `API_KEY_INVALID`, like the real API.
 
 - **NOTE** · 2026-11-19 · Live OpenRouter testing
   The owner saved an OpenRouter key as a network secret for openrouter.ai (Bearer); give the
