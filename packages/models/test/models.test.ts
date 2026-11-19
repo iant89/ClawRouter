@@ -44,6 +44,9 @@ describe('discovery and import', () => {
     const found = await h.models.discover(google.id);
     expect(found).toEqual([
       { providerModelId: 'gemini-2.0-flash', displayName: 'Gemini 2.0 Flash', contextLength: 1048576, maxOutputTokens: 8192, capabilities: ['CHAT', 'TOOL_USE'], cost: null, registered: false },
+      // From the second page: the speech model is listed without capabilities (not a chat model).
+      { providerModelId: 'gemini-2.5-flash-preview-tts', displayName: 'Gemini 2.5 Flash Preview TTS', contextLength: 8192, maxOutputTokens: 16384, capabilities: [], cost: null, registered: false },
+      { providerModelId: 'gemini-3.5-flash', displayName: 'Gemini 3.5 Flash', contextLength: 1048576, maxOutputTokens: 65536, capabilities: ['CHAT', 'TOOL_USE'], cost: null, registered: false },
       { providerModelId: 'text-embedding-004', displayName: 'Text Embedding 004', contextLength: 2048, maxOutputTokens: 1, capabilities: ['EMBEDDINGS'], cost: null, registered: false },
     ]);
   });

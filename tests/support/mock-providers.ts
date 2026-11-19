@@ -245,12 +245,33 @@ export function startMockProviders(key = 'sk-test-0123456789abcdefWXYZ'): MockPr
         if (url.searchParams.has('key')) return json({ error: { message: 'key must not be in the URL' } }, 400);
         if (state.mode === 'auth' || h.get('x-goog-api-key') !== key) return json({ error: { code: 403, message: 'API key not valid' } }, 403);
         if (path === '/v1beta/models') {
+          // Two pages, like Google's list once it is long: a thinking model and a speech model on the second.
+          if (url.searchParams.get('pageToken') === 'page-2') {
+            return json({
+              models: [
+                { name: 'models/gemini-3.5-flash', displayName: 'Gemini 3.5 Flash', inputTokenLimit: 1048576, outputTokenLimit: 65536, supportedGenerationMethods: ['generateContent', 'countTokens'], thinking: true },
+                { name: 'models/gemini-2.5-flash-preview-tts', displayName: 'Gemini 2.5 Flash Preview TTS', inputTokenLimit: 8192, outputTokenLimit: 16384, supportedGenerationMethods: ['countTokens', 'generateContent'] },
+              ],
+            });
+          }
           return json({
             models: [
               { name: 'models/gemini-2.0-flash', displayName: 'Gemini 2.0 Flash', inputTokenLimit: 1048576, outputTokenLimit: 8192, supportedGenerationMethods: ['generateContent', 'countTokens'] },
               { name: 'models/text-embedding-004', displayName: 'Text Embedding 004', inputTokenLimit: 2048, outputTokenLimit: 1, supportedGenerationMethods: ['embedContent'] },
             ],
+            nextPageToken: 'page-2',
           });
+        }
+        // A thinking model: a thought summary part, then the answer; reasoning tokens counted apart.
+        if (path === '/v1beta/models/gemini-3.5-flash:generateContent') {
+          return json({ candidates: [{ content: { role: 'model', parts: [{ text: 'The user greets me; answer politely.', thought: true }, { text: 'Hello from thinking Gemini', thoughtSignature: 'dGhvdWdodA==' }] }, finishReason: 'STOP' }], usageMetadata: { promptTokenCount: 6, candidatesTokenCount: 5, thoughtsTokenCount: 40, totalTokenCount: 51 }, modelVersion: 'gemini-3.5-flash' });
+        }
+        if (path === '/v1beta/models/gemini-3.5-flash:streamGenerateContent' && url.searchParams.get('alt') === 'sse') {
+          return sse([
+            { data: { candidates: [{ content: { parts: [{ text: 'Thinking about it.', thought: true }] } }] } },
+            { data: { candidates: [{ content: { parts: [{ text: 'Thought ' }] } }] } },
+            { data: { candidates: [{ content: { parts: [{ text: 'through' }] }, finishReason: 'STOP' }], usageMetadata: { promptTokenCount: 6, candidatesTokenCount: 2, thoughtsTokenCount: 30, totalTokenCount: 38 }, modelVersion: 'gemini-3.5-flash' } },
+          ]);
         }
         if (path === '/v1beta/models/text-embedding-004:batchEmbedContents') {
           const requests = (body as { requests: unknown[] }).requests;

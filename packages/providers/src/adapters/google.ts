@@ -23,11 +23,15 @@ import { baseValidation, connectionChecks, guessKind, splitSystem } from './comm
 interface GeminiUsage {
   promptTokenCount?: number;
   candidatesTokenCount?: number;
+  /** Thinking models: reasoning tokens, billed as output but not part of the answer. */
+  thoughtsTokenCount?: number;
   totalTokenCount?: number;
 }
 
 interface GeminiPart {
   text?: string;
+  /** A thought summary from a thinking model: reasoning, never part of the answer. */
+  thought?: boolean;
   functionCall?: { name?: string; args?: unknown; id?: string };
   /** Gemini 3: must be sent back with the function call on the next turn. */
   thoughtSignature?: string;
@@ -42,9 +46,12 @@ interface GeminiResponse {
 const finish = (reason: string | undefined): FinishReason =>
   reason === 'STOP' ? 'stop' : reason === 'MAX_TOKENS' ? 'length' : reason === 'SAFETY' || reason === 'RECITATION' || reason === 'BLOCKLIST' || reason === 'PROHIBITED_CONTENT' ? 'content_filter' : 'other';
 
-const usageOf = (u: GeminiUsage | undefined): Usage =>
-  u ? { inputTokens: u.promptTokenCount ?? null, outputTokens: u.candidatesTokenCount ?? null, totalTokens: u.totalTokenCount ?? null, source: 'provider' }
-    : { inputTokens: null, outputTokens: null, totalTokens: null, source: 'none' };
+/** Output tokens include the reasoning of thinking models: Google bills them as output. */
+const usageOf = (u: GeminiUsage | undefined): Usage => {
+  if (!u) return { inputTokens: null, outputTokens: null, totalTokens: null, source: 'none' };
+  const output = u.candidatesTokenCount === undefined && u.thoughtsTokenCount === undefined ? null : (u.candidatesTokenCount ?? 0) + (u.thoughtsTokenCount ?? 0);
+  return { inputTokens: u.promptTokenCount ?? null, outputTokens: output, totalTokens: u.totalTokenCount ?? null, source: 'provider' };
+};
 
 const info: ProviderKindInfo = {
   kind: 'google',
@@ -85,19 +92,33 @@ function body(req: ChatRequest) {
   };
 }
 
-const textOf = (r: GeminiResponse) => (r.candidates?.[0]?.content?.parts ?? []).map((p) => p.text ?? '').join('');
+/** The answer's text; thought summaries (reasoning) are left out. */
+const textOf = (r: GeminiResponse) => (r.candidates?.[0]?.content?.parts ?? []).filter((p) => p.thought !== true).map((p) => p.text ?? '').join('');
+
+/** Most model-list pages followed: Google lists fewer than 100 models today. */
+const MAX_MODEL_PAGES = 10;
 
 async function listModels(ctx: ProviderCallContext) {
-  const res = await providerFetch(ctx, joinUrl(ctx.endpoint, '/models?pageSize=100'), { method: 'GET', headers: headers(ctx) });
   type GoogleModel = { name: string; displayName?: unknown; inputTokenLimit?: unknown; outputTokenLimit?: unknown; supportedGenerationMethods?: unknown };
-  const json = await readJson<{ models?: Partial<GoogleModel>[] }>(res, ctx.apiKey);
-  if (!Array.isArray(json.models)) throw invalidResponse('model list has no "models" array');
+  const models: Partial<GoogleModel>[] = [];
+  let pageToken: string | null = null;
+  for (let page = 0; page < MAX_MODEL_PAGES; page++) {
+    const query = `/models?pageSize=100${pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : ''}`;
+    const res = await providerFetch(ctx, joinUrl(ctx.endpoint, query), { method: 'GET', headers: headers(ctx) });
+    const json = await readJson<{ models?: Partial<GoogleModel>[]; nextPageToken?: unknown }>(res, ctx.apiKey);
+    if (!Array.isArray(json.models)) throw invalidResponse('model list has no "models" array');
+    models.push(...json.models);
+    pageToken = typeof json.nextPageToken === 'string' && json.nextPageToken ? json.nextPageToken : null;
+    if (!pageToken) break;
+  }
   const num = (v: unknown) => (typeof v === 'number' && Number.isInteger(v) && v > 0 ? v : null);
-  return json.models
+  return models
     .filter((m): m is GoogleModel => typeof m.name === 'string')
     .map((m) => {
       const methods = Array.isArray(m.supportedGenerationMethods) ? (m.supportedGenerationMethods as unknown[]) : [];
-      const kind = methods.includes('generateContent') ? 'chat' as const : methods.includes('embedContent') ? 'embedding' as const : methods.length ? 'other' as const : guessKind(m.name);
+      // Speech, image and other non-text models also offer generateContent: their names give them away.
+      const kind = guessKind(m.name) === 'other' ? 'other' as const
+        : methods.includes('generateContent') ? 'chat' as const : methods.includes('embedContent') ? 'embedding' as const : methods.length ? 'other' as const : guessKind(m.name);
       return {
         id: m.name.replace(/^models\//, ''),
         displayName: typeof m.displayName === 'string' ? m.displayName : null,

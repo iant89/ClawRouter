@@ -28,7 +28,7 @@ const registry = createDefaultRegistry();
 const cases = [
   { kind: 'openai', base: '/openai/v1', model: 'gpt-4o-mini', text: 'Hello from OpenAI', streamText: 'Hello', models: 3, usage: [7, 4, 11], streamUsage: [7, 2, 9], streamFinish: 'stop' },
   { kind: 'anthropic', base: '/anthropic', model: 'claude-sonnet-4-5', text: 'Hello from Anthropic', streamText: 'Hi there', models: 1, usage: [9, 5, 14], streamUsage: [9, 2, 11], streamFinish: 'length' },
-  { kind: 'google', base: '/google/v1beta', model: 'gemini-2.0-flash', text: 'Hello from Gemini', streamText: 'Gemini', models: 2, usage: [6, 3, 9], streamUsage: [6, 2, 8], streamFinish: 'stop' },
+  { kind: 'google', base: '/google/v1beta', model: 'gemini-2.0-flash', text: 'Hello from Gemini', streamText: 'Gemini', models: 4, usage: [6, 3, 9], streamUsage: [6, 2, 8], streamFinish: 'stop' },
   { kind: 'groq', base: '/groq/openai/v1', model: 'llama-3.3-70b-versatile', text: 'Hello from Groq', streamText: 'Hello', models: 6, usage: [12, 5, 17], streamUsage: [12, 2, 14], streamFinish: 'stop' },
   { kind: 'openai_compatible', base: '/local/v1', model: 'llama3', text: 'Hello from OpenAI', streamText: 'Hello', models: 3, usage: [7, 4, 11], streamUsage: [7, 2, 9], streamFinish: 'stop' },
 ] as const;
@@ -165,6 +165,9 @@ describe('discovery metadata', () => {
     expect(google).toEqual([
       { id: 'gemini-2.0-flash', displayName: 'Gemini 2.0 Flash', contextLength: 1048576, maxOutputTokens: 8192, kind: 'chat' },
       { id: 'text-embedding-004', displayName: 'Text Embedding 004', contextLength: 2048, maxOutputTokens: 1, kind: 'embedding' },
+      // The second page (nextPageToken is followed); a speech model offers generateContent but is not a chat model.
+      { id: 'gemini-3.5-flash', displayName: 'Gemini 3.5 Flash', contextLength: 1048576, maxOutputTokens: 65536, kind: 'chat' },
+      { id: 'gemini-2.5-flash-preview-tts', displayName: 'Gemini 2.5 Flash Preview TTS', contextLength: 8192, maxOutputTokens: 16384, kind: 'other' },
     ]);
     const openai = await registry.get('openai').listModels(ctx('/openai/v1'));
     expect(openai.map((m) => [m.id, m.kind])).toEqual([['gpt-4o-mini', 'chat'], ['gpt-4o', 'chat'], ['text-embedding-3-small', 'embedding']]);
@@ -179,5 +182,26 @@ describe('discovery metadata', () => {
       { id: 'canopylabs/orpheus-v1-english', displayName: 'Orpheus V1 English', kind: 'other', contextLength: 4000, maxOutputTokens: 50000, vision: false, cost: { inputPerMTok: 22, outputPerMTok: null } },
       { id: 'meta-llama/llama-guard-4-12b', displayName: null, kind: 'other', contextLength: 131072, maxOutputTokens: null },
     ]);
+  });
+});
+
+describe('Google thinking models', () => {
+  const google = registry.get('google');
+
+  test('thought summaries never reach the answer; reasoning tokens count as output', async () => {
+    mock.mode = 'ok';
+    const res = await google.sendRequest(ctx('/google/v1beta'), request('gemini-3.5-flash'));
+    expect(res.content).toBe('Hello from thinking Gemini');
+    // 5 answer tokens + 40 reasoning tokens, billed as output.
+    expect([res.usage.inputTokens, res.usage.outputTokens, res.usage.totalTokens]).toEqual([6, 45, 51]);
+  });
+
+  test('streams leave thought parts out too', async () => {
+    mock.mode = 'ok';
+    const events: StreamEvent[] = [];
+    for await (const e of google.sendStreamingRequest(ctx('/google/v1beta'), request('gemini-3.5-flash'))) events.push(e);
+    expect(events.filter((e) => e.type === 'delta').map((e) => (e as { text: string }).text).join('')).toBe('Thought through');
+    const done = events.at(-1) as Extract<StreamEvent, { type: 'done' }>;
+    expect([done.usage.inputTokens, done.usage.outputTokens]).toEqual([6, 32]);
   });
 });
