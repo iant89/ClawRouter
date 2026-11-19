@@ -99,6 +99,8 @@ export interface Usage {
   totalTokens: number | null;
   /** Spec §23: provider-reported vs locally estimated. Adapters only report what the provider sent. */
   source: 'provider' | 'none';
+  /** What the provider charged, in US$, when it says so (OpenRouter's `usage.cost`). Preferred over ClawRouter's estimate. */
+  costUsd?: number | null;
 }
 
 export interface ChatResponse {

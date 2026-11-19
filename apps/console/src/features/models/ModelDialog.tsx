@@ -57,9 +57,9 @@ function initial(model: ModelInfo | null, providers: ProviderInfo[]): Values {
 }
 
 /** Shown beside both price fields. */
-const PRICE_HELP = 'Per million tokens, used to estimate cost on the Usage page. Groq publishes its prices, which are filled in and kept up to date; for other providers, enter them from the provider\'s price list.';
+const PRICE_HELP = 'Per million tokens, used to estimate cost on the Usage page. Groq and OpenRouter publish their prices, which are filled in and kept up to date (OpenRouter also reports each request\'s exact cost, which is used instead); for other providers, enter them from the provider\'s price list.';
 /** Provider kinds whose model lists include prices. */
-const PUBLISHES_PRICES = new Set(['groq']);
+const PUBLISHES_PRICES = new Set(['groq', 'openrouter']);
 
 /** Add a model by hand (for providers that cannot list models) or edit one. */
 export function ModelDialog({ open, model, providers, onClose, onSaved }: {

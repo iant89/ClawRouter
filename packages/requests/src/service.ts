@@ -48,7 +48,7 @@ export interface RequestEnd {
   attemptLog: RequestAttempt[];
   errorCode: string | null;
   errorMessage: string | null;
-  usage: { inputTokens: number | null; outputTokens: number | null; source: UsageSource };
+  usage: { inputTokens: number | null; outputTokens: number | null; source: UsageSource; costUsd?: number | null };
 }
 
 /** A request being recorded. `finish` is idempotent: only the first call counts. */
@@ -113,7 +113,9 @@ export function createRequestLogService(options: {
           const output = end.usage.outputTokens ?? 0;
           const model = end.modelRef ? models.resolveRef(end.modelRef) : undefined;
           const counted = input + output > 0;
-          const costUsd = counted ? estimateCost(model?.cost, input, output) : null;
+          // The provider's own charge when it reports one (OpenRouter); otherwise an estimate from the model's prices.
+          const reportedCost = typeof end.usage.costUsd === 'number' && Number.isFinite(end.usage.costUsd) && end.usage.costUsd >= 0 ? end.usage.costUsd : null;
+          const costUsd = reportedCost ?? (counted ? estimateCost(model?.cost, input, output) : null);
           const at = now();
           safely('finish', () => {
             repo.finish(start.id, {

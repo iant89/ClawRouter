@@ -71,7 +71,8 @@ describe('/api/providers', () => {
   test('kinds describe each provider type', async () => {
     const { h, viewer } = await world();
     const kinds = (await json<ApiSuccess<ProviderKindInfo[]>>(await h.request('/api/providers/kinds', { cookie: viewer }))).data;
-    expect(kinds.map((k) => k.kind)).toEqual(['openai', 'anthropic', 'google', 'groq', 'openai_compatible']);
+    expect(kinds.map((k) => k.kind)).toEqual(['openai', 'anthropic', 'google', 'groq', 'openrouter', 'openai_compatible']);
+    expect(kinds.find((k) => k.kind === 'openrouter')).toMatchObject({ displayName: 'OpenRouter', apiKeyRequired: true, endpointRequired: false, defaultEndpoint: 'https://openrouter.ai/api/v1', inputMedia: ['image_url', 'image_data', 'pdf'] });
     expect(kinds.find((k) => k.kind === 'groq')).toMatchObject({ displayName: 'Groq', apiKeyRequired: true, endpointRequired: false, defaultEndpoint: 'https://api.groq.com/openai/v1' });
     expect(kinds.find((k) => k.kind === 'openai_compatible')).toMatchObject({ apiKeyRequired: false, endpointRequired: true });
   });

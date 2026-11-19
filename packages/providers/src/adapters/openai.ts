@@ -24,14 +24,18 @@ interface OpenAiUsage {
   prompt_tokens?: number;
   completion_tokens?: number;
   total_tokens?: number;
+  /** OpenRouter: what the request cost, in US$ (credits). */
+  cost?: number;
 }
 
 const finish = (reason: string | null | undefined): FinishReason =>
   reason === 'stop' ? 'stop' : reason === 'length' ? 'length' : reason === 'content_filter' ? 'content_filter' : reason === 'tool_calls' || reason === 'function_call' ? 'tool_use' : 'other';
 
-const usageOf = (u: OpenAiUsage | undefined | null): Usage =>
-  u ? { inputTokens: u.prompt_tokens ?? null, outputTokens: u.completion_tokens ?? null, totalTokens: u.total_tokens ?? null, source: 'provider' }
-    : { inputTokens: null, outputTokens: null, totalTokens: null, source: 'none' };
+const usageOf = (u: OpenAiUsage | undefined | null, reportsCost = false): Usage =>
+  u ? {
+    inputTokens: u.prompt_tokens ?? null, outputTokens: u.completion_tokens ?? null, totalTokens: u.total_tokens ?? null, source: 'provider',
+    ...(reportsCost && typeof u.cost === 'number' && Number.isFinite(u.cost) && u.cost >= 0 ? { costUsd: u.cost } : {}),
+  } : { inputTokens: null, outputTokens: null, totalTokens: null, source: 'none' };
 
 /** A message part in OpenAI's format (the format clients send it in). */
 function openAiPart(p: MessagePart): Record<string, unknown> {
@@ -94,7 +98,7 @@ const nameOf = (m: { name?: unknown; display_name?: unknown }): string | null =>
   return n ? n.trim().slice(0, 200) : null;
 };
 
-/** A model in an OpenAI-style list. OpenAI sends only `id`; Groq adds the rest. */
+/** A model in an OpenAI-style list. OpenAI sends only `id`; Groq and OpenRouter add the rest. */
 interface ListedOpenAiModel {
   id?: unknown;
   name?: unknown;
@@ -107,6 +111,16 @@ interface ListedOpenAiModel {
   output_modalities?: unknown;
   /** Groq: e.g. ["tools", "json_mode", "reasoning"]. */
   supported_features?: unknown;
+  /** OpenRouter: the context window, the best provider's limits, and what goes in and out. */
+  context_length?: unknown;
+  top_provider?: { context_length?: unknown; max_completion_tokens?: unknown } | null;
+  architecture?: { input_modalities?: unknown; output_modalities?: unknown } | null;
+  /** OpenRouter: request parameters the model takes, e.g. ["tools", "max_tokens", …]. */
+  supported_parameters?: unknown;
+  /** OpenRouter: the APIs that serve it, e.g. ["/api/v1/chat/completions", …]; batch variants only ["/api/v1/batches"]. */
+  endpoints?: unknown;
+  /** OpenRouter: the day the model goes away (YYYY-MM-DD). */
+  expiration_date?: unknown;
   /** US$ per token, as decimal strings. */
   pricing?: { prompt?: unknown; completion?: unknown } | null;
 }
@@ -120,7 +134,7 @@ const perMillion = (v: unknown): number | null => {
 };
 
 export interface OpenAiStyleOptions {
-  kind: Extract<ProviderKind, 'openai' | 'groq' | 'openai_compatible'>;
+  kind: Extract<ProviderKind, 'openai' | 'groq' | 'openrouter' | 'openai_compatible'>;
   displayName: string;
   description: string;
   defaultEndpoint: string | null;
@@ -132,6 +146,12 @@ export interface OpenAiStyleOptions {
   maxTokensField: 'max_completion_tokens' | 'max_tokens';
   /** Ask for usage in streams with `stream_options` (OpenAI). Groq sends it in `x_groq.usage` without being asked; both are read. */
   streamOptions: boolean;
+  /** Sent with every call (OpenRouter's app attribution). */
+  extraHeaders?: Record<string, string>;
+  /** The provider reports what each request cost in `usage.cost`, in US$ (OpenRouter). */
+  reportsCost?: boolean;
+  /** For expiry dates in model lists. */
+  now?: () => Date;
 }
 
 /** OpenAI Chat Completions, and the many servers that implement the same API. */
@@ -151,8 +171,10 @@ export function createOpenAiStyleAdapter(options: OpenAiStyleOptions): ProviderA
   const headers = (ctx: ProviderCallContext): Record<string, string> => ({
     'content-type': 'application/json',
     accept: 'application/json',
+    ...options.extraHeaders,
     ...(ctx.apiKey ? { authorization: `Bearer ${ctx.apiKey}` } : {}),
   });
+  const usage = (u: OpenAiUsage | undefined | null) => usageOf(u, options.reportsCost);
 
   const body = (req: ChatRequest, stream: boolean) => ({
     model: req.model,
@@ -172,14 +194,20 @@ export function createOpenAiStyleAdapter(options: OpenAiStyleOptions): ProviderA
     const res = await providerFetch(ctx, joinUrl(ctx.endpoint, '/models'), { method: 'GET', headers: headers(ctx) });
     const json = await readJson<{ data?: ListedOpenAiModel[] }>(res, ctx.apiKey);
     if (!Array.isArray(json.data)) throw invalidResponse('model list has no "data" array');
+    const today = (options.now?.() ?? new Date()).toISOString().slice(0, 10);
     return json.data
-      // Groq marks retired models `active: false`; they cannot be called.
-      .filter((m): m is ListedOpenAiModel & { id: string } => typeof m.id === 'string' && m.active !== false)
+      // Groq marks retired models `active: false`; OpenRouter gives an expiration date. Neither can be called afterwards.
+      .filter((m): m is ListedOpenAiModel & { id: string } => typeof m.id === 'string' && m.active !== false
+        && !(typeof m.expiration_date === 'string' && /^\d{4}-\d{2}-\d{2}/.test(m.expiration_date) && m.expiration_date.slice(0, 10) < today))
       .map((m) => {
-        const inputs = strings(m.input_modalities);
-        const outputs = strings(m.output_modalities);
-        // Groq says what goes in and out: a model that does not answer in text (speech, transcription) is not a chat model.
-        const kind = outputs && !outputs.includes('text') ? 'other' : guessKind(m.id);
+        const inputs = strings(m.input_modalities) ?? strings(m.architecture?.input_modalities);
+        const outputs = strings(m.output_modalities) ?? strings(m.architecture?.output_modalities);
+        const endpoints = strings(m.endpoints);
+        // A model whose API list leaves out chat completions (OpenRouter's :batch variants) cannot answer a chat request.
+        const chatServed = !endpoints || endpoints.some((e) => e.endsWith('/chat/completions'));
+        // Groq and OpenRouter say what goes in and out: a model that does not answer in text (speech, transcription) is not a chat model.
+        const kind = !chatServed || (outputs && !outputs.includes('text')) ? 'other' : guessKind(m.id);
+        const features = strings(m.supported_features) ?? strings(m.supported_parameters);
         const input = perMillion(m.pricing?.prompt);
         const output = perMillion(m.pricing?.completion);
         return {
@@ -188,9 +216,10 @@ export function createOpenAiStyleAdapter(options: OpenAiStyleOptions): ProviderA
           displayName: nameOf(m),
           kind,
           // Groq (and some compatible servers) report these; OpenAI does not.
-          contextLength: num(m.context_window), maxOutputTokens: num(m.max_completion_tokens),
+          contextLength: num(m.context_window) ?? num(m.context_length) ?? num(m.top_provider?.context_length),
+          maxOutputTokens: num(m.max_completion_tokens) ?? num(m.top_provider?.max_completion_tokens),
           ...(inputs ? { vision: inputs.includes('image') } : {}),
-          ...(strings(m.supported_features) ? { tools: strings(m.supported_features)!.includes('tools') } : {}),
+          ...(features ? { tools: features.includes('tools') } : {}),
           ...(input !== null || output !== null ? { cost: { inputPerMTok: input, outputPerMTok: output } } : {}),
         };
       });
@@ -212,7 +241,7 @@ export function createOpenAiStyleAdapter(options: OpenAiStyleOptions): ProviderA
         id: withSignature(typeof c.id === 'string' && c.id ? c.id : `call_${i}`, c), name: c.function!.name!, arguments: typeof c.function!.arguments === 'string' ? c.function!.arguments : '{}',
       }));
       return {
-        model: json.model ?? req.model, content: choice.message?.content ?? '', finishReason: finish(choice.finish_reason), usage: usageOf(json.usage),
+        model: json.model ?? req.model, content: choice.message?.content ?? '', finishReason: finish(choice.finish_reason), usage: usage(json.usage),
         ...(toolCalls.length ? { toolCalls } : {}),
       };
     },
@@ -237,7 +266,7 @@ export function createOpenAiStyleAdapter(options: OpenAiStyleOptions): ProviderA
       });
       if (!res.body) throw invalidResponse('empty stream');
       let reason: FinishReason = 'other';
-      let usage: Usage = usageOf(null);
+      let streamed: Usage = usageOf(null);
       let sawToolCall = false;
       let model = req.model;
       for await (const event of parseSse(res.body, ctx.signal)) {
@@ -262,10 +291,10 @@ export function createOpenAiStyleAdapter(options: OpenAiStyleOptions): ProviderA
         }
         if (choice?.finish_reason) reason = finish(choice.finish_reason);
         const reported = chunk.usage ?? chunk.x_groq?.usage;
-        if (reported) usage = usageOf(reported);
+        if (reported) streamed = usage(reported);
       }
       // Google's stream ends tool calls with "stop"; clients expect tool_calls.
-      yield { type: 'done', finishReason: sawToolCall && reason === 'stop' ? 'tool_use' : reason, usage, model };
+      yield { type: 'done', finishReason: sawToolCall && reason === 'stop' ? 'tool_use' : reason, usage: streamed, model };
     },
   };
 }
@@ -311,4 +340,28 @@ export const groqAdapter = createOpenAiStyleAdapter({
   streamOptions: false,
   // Groq's vision models take images by URL or inline; no audio or files in chat.
   inputMedia: ['image_url', 'image_data'],
+});
+
+/**
+ * OpenRouter: one OpenAI-style API in front of hundreds of models from many
+ * providers, at https://openrouter.ai/api/v1. Its model list says, per model, the
+ * context window, output limit, what goes in and out, whether it takes tools, the
+ * APIs that serve it and an expiry date; every answer reports what it cost
+ * (`usage.cost`), which ClawRouter records instead of its own estimate. Requests
+ * name ClawRouter as the app (`HTTP-Referer`, `X-Title`). No embeddings.
+ */
+export const openRouterAdapter = createOpenAiStyleAdapter({
+  kind: 'openrouter',
+  displayName: 'OpenRouter',
+  description: 'OpenRouter (OpenAI-compatible): hundreds of models from OpenAI, Anthropic, Google, Meta, Mistral and others behind one key, with free models marked ":free".',
+  defaultEndpoint: 'https://openrouter.ai/api/v1',
+  apiKeyRequired: true,
+  capabilities: ['CHAT', 'CODING', 'REASONING', 'VISION', 'TOOL_USE'],
+  maxTokensField: 'max_tokens',
+  // Usage, cost included, comes in the last chunk without being asked.
+  streamOptions: false,
+  // Images by URL or inline; PDFs are read for any model (OpenRouter extracts the text when the model cannot).
+  inputMedia: ['image_url', 'image_data', 'pdf'],
+  extraHeaders: { 'HTTP-Referer': 'https://github.com/iant89/ClawRouter', 'X-Title': 'ClawRouter' },
+  reportsCost: true,
 });

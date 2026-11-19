@@ -30,6 +30,7 @@ const cases = [
   { kind: 'anthropic', base: '/anthropic', model: 'claude-sonnet-4-5', text: 'Hello from Anthropic', streamText: 'Hi there', models: 1, usage: [9, 5, 14], streamUsage: [9, 2, 11], streamFinish: 'length' },
   { kind: 'google', base: '/google/v1beta', model: 'gemini-2.0-flash', text: 'Hello from Gemini', streamText: 'Gemini', models: 7, usage: [6, 3, 9], streamUsage: [6, 2, 8], streamFinish: 'stop' },
   { kind: 'groq', base: '/groq/openai/v1', model: 'llama-3.3-70b-versatile', text: 'Hello from Groq', streamText: 'Hello', models: 6, usage: [12, 5, 17], streamUsage: [12, 2, 14], streamFinish: 'stop' },
+  { kind: 'openrouter', base: '/openrouter/api/v1', model: 'anthropic/claude-haiku-5.5', text: 'Hello from OpenRouter', streamText: 'Hi there', models: 5, usage: [12, 5, 17], streamUsage: [12, 2, 14], streamFinish: 'stop' },
   { kind: 'openai_compatible', base: '/local/v1', model: 'llama3', text: 'Hello from OpenAI', streamText: 'Hello', models: 3, usage: [7, 4, 11], streamUsage: [7, 2, 9], streamFinish: 'stop' },
 ] as const;
 
@@ -207,5 +208,41 @@ describe('Google thinking models', () => {
     expect(events.filter((e) => e.type === 'delta').map((e) => (e as { text: string }).text).join('')).toBe('Thought through');
     const done = events.at(-1) as Extract<StreamEvent, { type: 'done' }>;
     expect([done.usage.inputTokens, done.usage.outputTokens]).toEqual([6, 32]);
+  });
+});
+
+describe('OpenRouter', () => {
+  const openrouter = registry.get('openrouter');
+
+  test('the model list: limits, vision, tools and prices; batch-only, image-output and expired models are not chat models', async () => {
+    mock.mode = 'ok';
+    const models = await openrouter.listModels(ctx('/openrouter/api/v1'));
+    expect(models).toEqual([
+      { id: 'anthropic/claude-haiku-5.5', displayName: 'Anthropic: Claude Haiku 5.5', kind: 'chat', contextLength: 1000000, maxOutputTokens: 128000, vision: true, tools: true, cost: { inputPerMTok: 0.1, outputPerMTok: 0.5 } },
+      // Served only by OpenRouter's batch API: it cannot answer a chat request.
+      { id: 'anthropic/claude-haiku-5.5:batch', displayName: 'Anthropic: Claude Haiku 5.5 (batch)', kind: 'other', contextLength: 1000000, maxOutputTokens: 128000, vision: true, tools: true, cost: { inputPerMTok: 0.05, outputPerMTok: 0.25 } },
+      { id: 'nvidia/nemotron-3.5-lightning:free', displayName: 'NVIDIA: Nemotron 3.5 Lightning (free)', kind: 'chat', contextLength: 1000000, maxOutputTokens: 65536, vision: false, tools: true, cost: { inputPerMTok: 0, outputPerMTok: 0 } },
+      { id: 'acme/plain-chat', displayName: 'Acme: Plain Chat', kind: 'chat', contextLength: 32768, maxOutputTokens: null, vision: false, tools: false, cost: { inputPerMTok: 1, outputPerMTok: 2 } },
+      // An image-generation model (it also writes text): not offered as chat, like Google's own *-image models.
+      { id: 'google/gemini-3.1-flash-image', displayName: 'Google: Gemini 3.1 Flash Image', kind: 'other', contextLength: 65536, maxOutputTokens: 32768, vision: true, tools: false, cost: { inputPerMTok: 0.5, outputPerMTok: 3 } },
+    ]);
+  });
+
+  test('every call names ClawRouter as the app; the reported cost is kept; reasoning never becomes the answer', async () => {
+    mock.mode = 'ok';
+    const res = await openrouter.sendRequest(ctx('/openrouter/api/v1'), request('anthropic/claude-haiku-5.5'));
+    expect(mock.openRouterHeaders).toEqual({ referer: 'https://github.com/iant89/ClawRouter', title: 'ClawRouter' });
+    expect(res.content).toBe('Hello from OpenRouter');
+    expect(res.usage.costUsd).toBe(0.0000041);
+    const events: StreamEvent[] = [];
+    for await (const e of openrouter.sendStreamingRequest(ctx('/openrouter/api/v1'), request('anthropic/claude-haiku-5.5'))) events.push(e);
+    expect(events.filter((e) => e.type === 'delta').map((e) => (e as { text: string }).text).join('')).toBe('Hi there');
+    expect((events.at(-1) as Extract<StreamEvent, { type: 'done' }>).usage.costUsd).toBe(0.0000029);
+  });
+
+  test('other OpenAI-style providers never report a cost, even when a server sends one', async () => {
+    mock.mode = 'ok';
+    const res = await registry.get('openai_compatible').sendRequest(ctx('/openrouter/api/v1'), request('anthropic/claude-haiku-5.5'));
+    expect(res.usage.costUsd).toBeUndefined();
   });
 });

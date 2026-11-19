@@ -53,6 +53,8 @@ interface Usage {
   inputTokens: number | null;
   outputTokens: number | null;
   source: UsageSource;
+  /** The provider's own charge, when it reports one. */
+  costUsd?: number | null;
 }
 
 /** Rough local token count (about four characters per token), used only when the provider reports none. */
@@ -63,7 +65,7 @@ function withEstimate(reported: Usage, inputChars: number, outputChars: number):
   const input = reported.inputTokens ?? estimateTokens(inputChars);
   const output = reported.outputTokens ?? estimateTokens(outputChars);
   const estimated = reported.inputTokens === null || reported.outputTokens === null;
-  return { inputTokens: input, outputTokens: output, source: estimated ? 'estimated' : 'provider' };
+  return { inputTokens: input, outputTokens: output, source: estimated ? 'estimated' : 'provider', ...(typeof reported.costUsd === 'number' ? { costUsd: reported.costUsd } : {}) };
 }
 
 /**

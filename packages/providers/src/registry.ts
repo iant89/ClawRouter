@@ -17,7 +17,7 @@
 import type { ProviderKind, ProviderKindInfo } from '@clawrouter/shared';
 import { anthropicAdapter } from './adapters/anthropic.ts';
 import { googleAdapter } from './adapters/google.ts';
-import { groqAdapter, openAiAdapter, openAiCompatibleAdapter } from './adapters/openai.ts';
+import { groqAdapter, openAiAdapter, openAiCompatibleAdapter, openRouterAdapter } from './adapters/openai.ts';
 import type { ProviderAdapter } from './types.ts';
 
 /**
@@ -48,5 +48,5 @@ export class ProviderRegistry {
 }
 
 export function createDefaultRegistry(): ProviderRegistry {
-  return new ProviderRegistry().register(openAiAdapter).register(anthropicAdapter).register(googleAdapter).register(groqAdapter).register(openAiCompatibleAdapter);
+  return new ProviderRegistry().register(openAiAdapter).register(anthropicAdapter).register(googleAdapter).register(groqAdapter).register(openRouterAdapter).register(openAiCompatibleAdapter);
 }

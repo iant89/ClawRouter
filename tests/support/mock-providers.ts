@@ -51,6 +51,8 @@ export interface MockProviders {
   streamEventsSent: number;
   /** Groq prices to publish instead of the built-in ones, by model id (US$ per token, as strings); null removes them. */
   groqPrices: Record<string, { prompt: string; completion: string } | null>;
+  /** The attribution headers OpenRouter last received. */
+  openRouterHeaders: { referer: string | null; title: string | null } | null;
   stop(): Promise<void>;
 }
 
@@ -59,7 +61,7 @@ const enc = new TextEncoder();
 export function startMockProviders(key = 'sk-test-0123456789abcdefWXYZ'): MockProviders {
   const state: MockProviders = {
     url: '', key, requests: [], mode: 'ok', slowMs: 0, openaiModels: ['gpt-4o-mini', 'gpt-4o', 'text-embedding-3-small'],
-    failFamilies: new Set(), badRequestFamilies: new Set(), streamBreak: false, streamDelayMs: 0, streamEventsSent: 0, groqPrices: {}, stop: async () => {},
+    failFamilies: new Set(), badRequestFamilies: new Set(), streamBreak: false, streamDelayMs: 0, streamEventsSent: 0, groqPrices: {}, openRouterHeaders: null, stop: async () => {},
   };
 
   const sse = (events: { event?: string; data: unknown }[]) =>
@@ -237,6 +239,43 @@ export function startMockProviders(key = 'sk-test-0123456789abcdefWXYZ'): MockPr
             { event: 'content_block_stop', data: { type: 'content_block_stop', index: 0 } },
             { event: 'message_delta', data: { type: 'message_delta', delta: { stop_reason: 'max_tokens' }, usage: { output_tokens: 2 } } },
             { event: 'message_stop', data: { type: 'message_stop' } },
+          ]);
+        }
+      }
+
+      // OpenRouter: the OpenAI shape under /api/v1, a rich model list, and each answer's cost in usage.cost.
+      if (family === 'openrouter') {
+        if (state.mode === 'auth' || h.get('authorization') !== `Bearer ${key}`) return json({ error: { code: 401, message: 'No auth credentials found' } }, 401);
+        state.openRouterHeaders = { referer: h.get('http-referer'), title: h.get('x-title') };
+        if (path === '/api/v1/models') {
+          const chat = ['/api/v1/chat/completions', '/api/v1/completions', '/api/v1/messages', '/api/v1/responses'];
+          // Shaped like OpenRouter's real list (2026-11-19).
+          return json({ data: [
+            { id: 'anthropic/claude-haiku-5.5', name: 'Anthropic: Claude Haiku 5.5', context_length: 1000000, architecture: { modality: 'text+image+file->text', input_modalities: ['text', 'image', 'file'], output_modalities: ['text'] }, pricing: { prompt: '0.0000001', completion: '0.0000005' }, top_provider: { context_length: 1000000, max_completion_tokens: 128000 }, supported_parameters: ['max_tokens', 'temperature', 'tools', 'tool_choice'], endpoints: chat, expiration_date: null },
+            { id: 'anthropic/claude-haiku-5.5:batch', name: 'Anthropic: Claude Haiku 5.5 (batch)', context_length: 1000000, architecture: { input_modalities: ['text', 'image', 'file'], output_modalities: ['text'] }, pricing: { prompt: '0.00000005', completion: '0.00000025' }, top_provider: { context_length: 1000000, max_completion_tokens: 128000 }, supported_parameters: ['max_tokens', 'tools'], endpoints: ['/api/v1/batches'] },
+            { id: 'nvidia/nemotron-3.5-lightning:free', name: 'NVIDIA: Nemotron 3.5 Lightning (free)', context_length: 1000000, architecture: { input_modalities: ['text'], output_modalities: ['text'] }, pricing: { prompt: '0', completion: '0' }, top_provider: { context_length: 1000000, max_completion_tokens: 65536 }, supported_parameters: ['max_tokens', 'reasoning', 'tools', 'tool_choice'], endpoints: chat },
+            { id: 'acme/plain-chat', name: 'Acme: Plain Chat', context_length: 32768, architecture: { input_modalities: ['text'], output_modalities: ['text'] }, pricing: { prompt: '0.000001', completion: '0.000002' }, top_provider: { context_length: 32768, max_completion_tokens: null }, supported_parameters: ['max_tokens', 'temperature'], endpoints: chat },
+            { id: 'google/gemini-3.1-flash-image', name: 'Google: Gemini 3.1 Flash Image', context_length: 65536, architecture: { input_modalities: ['image', 'text'], output_modalities: ['image', 'text'] }, pricing: { prompt: '0.0000005', completion: '0.000003' }, top_provider: { context_length: 65536, max_completion_tokens: 32768 }, supported_parameters: ['max_tokens'], endpoints: [...chat, '/api/v1/images'] },
+            { id: 'thinkingmachines/inkling-2-small:free', name: 'Thinking Machines: Inkling 2 Small (free)', context_length: 131072, architecture: { input_modalities: ['text'], output_modalities: ['text'] }, pricing: { prompt: '0', completion: '0' }, top_provider: { context_length: 131072, max_completion_tokens: 8192 }, supported_parameters: ['max_tokens'], endpoints: chat, expiration_date: '2026-11-18' },
+          ] });
+        }
+        if (path === '/api/v1/chat/completions') {
+          // OpenRouter's charge differs from list price × tokens (e.g. the provider it routed to); free models cost 0.
+          const free = String((body as { model?: unknown }).model ?? '').endsWith(':free');
+          const usage = { prompt_tokens: 12, completion_tokens: 5, total_tokens: 17, cost: free ? 0 : 0.0000041, is_byok: false, completion_tokens_details: { reasoning_tokens: 2 } };
+          if (callTool && !stream) {
+            return json({ id: 'gen-1', provider: 'Anthropic', model: 'anthropic/claude-haiku-5.5', choices: [{ index: 0, message: { role: 'assistant', content: null, reasoning: null, tool_calls: [{ id: 'toolu_or1', type: 'function', function: { name: toolName, arguments: '{"city":"Paris"}' } }] }, finish_reason: 'tool_calls' }], usage });
+          }
+          if (!stream) {
+            // Reasoning comes in its own field and must never become the answer.
+            return json({ id: 'gen-1', provider: 'Anthropic', model: 'anthropic/claude-haiku-5.5', choices: [{ index: 0, message: { role: 'assistant', content: 'Hello from OpenRouter', reasoning: 'The user greets me.', refusal: null }, finish_reason: 'stop', native_finish_reason: 'end_turn' }], usage });
+          }
+          return sse([
+            { data: { id: 'gen-2', provider: 'Anthropic', model: 'anthropic/claude-haiku-5.5', choices: [{ index: 0, delta: { role: 'assistant', content: '', reasoning: 'Thinking.' } }] } },
+            { data: { id: 'gen-2', choices: [{ index: 0, delta: { content: 'Hi ' } }] } },
+            { data: { id: 'gen-2', choices: [{ index: 0, delta: { content: 'there' }, finish_reason: 'stop' }] } },
+            { data: { id: 'gen-2', choices: [{ index: 0, delta: { content: '' }, finish_reason: 'stop' }], usage: { ...usage, completion_tokens: 2, total_tokens: 14, cost: free ? 0 : 0.0000029 } } },
+            { data: '[DONE]' },
           ]);
         }
       }

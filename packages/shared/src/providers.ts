@@ -15,7 +15,7 @@
  */
 
 /** Provider vocabulary (spec §8, §9). Browser-safe; never carries credentials. */
-export const PROVIDER_KINDS = ['openai', 'anthropic', 'google', 'groq', 'openai_compatible'] as const;
+export const PROVIDER_KINDS = ['openai', 'anthropic', 'google', 'groq', 'openrouter', 'openai_compatible'] as const;
 export type ProviderKind = (typeof PROVIDER_KINDS)[number];
 
 export const PROVIDER_STATES = ['UNKNOWN', 'HEALTHY', 'DEGRADED', 'OFFLINE', 'DISABLED'] as const;

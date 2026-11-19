@@ -21,7 +21,7 @@ export * from './endpoint.ts';
 export * from './registry.ts';
 export * from './repository.ts';
 export * from './service.ts';
-export { groqAdapter, openAiAdapter, openAiCompatibleAdapter, createOpenAiStyleAdapter } from './adapters/openai.ts';
+export { groqAdapter, openAiAdapter, openAiCompatibleAdapter, openRouterAdapter, createOpenAiStyleAdapter } from './adapters/openai.ts';
 export { anthropicAdapter, ANTHROPIC_DEFAULT_MAX_TOKENS } from './adapters/anthropic.ts';
 export { googleAdapter } from './adapters/google.ts';
 export * from './key-rotation.ts';
