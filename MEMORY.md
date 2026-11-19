@@ -533,16 +533,9 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 
 ### Messages
 
-- **MESSAGE** · 2026-11-18 · The playground and chat-app guides wait for review
-  Built on `claude/hopeful-maxwell-3xrz6m` (the session's assigned branch, not a
-  `claude/<feature>` name): Gateway → Playground, `docs/clients/open-webui.md`,
-  `docs/clients/librechat.md`, screenshots 33. No migration. Merge into `main` when the owner
-  says so. 2026-11-19: re-tested live with Groq (guides, screenshots 11–13 updated), and the
-  owner's provider-error change (see the owner rule) is on the same branch.
-
-- **MESSAGE** · 2026-11-17 · Everything merged after client notices and announcements
+- **MESSAGE** · 2026-11-19 · Everything merged after the playground and provider errors
   Nothing in ClawRouter waits for review. Old branches to delete on GitHub (the session cannot): every merged
-  `claude/*` branch (now including `claude/captures-live-groq`, `claude/client-notices`,
+  `claude/*` branch (now including `claude/hopeful-maxwell-3xrz6m`, `claude/captures-live-groq`, `claude/client-notices`,
   `claude/announcement-emoji` and `claude/eui-shared-components`), the superseded `claude/mcp-server`
   and the stale `claude/groq-provider`; never merge those two (duplicate migration 0020 / older
   Groq code). Still open: an Anthropic-compatible `/v1/messages` (so Claude Code can use
@@ -552,6 +545,12 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 ---
 
 ## Resolved
+
+- **MESSAGE** · 2026-11-18 · The playground and chat-app guides wait for review. Resolved
+  2026-11-19: the owner said "Merge"; `main` was fast-forwarded to `claude/hopeful-maxwell-3xrz6m`
+  (this commit): Gateway → Playground, the Open WebUI and LibreChat guides (tested with the mock
+  and live with Groq), and provider error text kept from clients with 429 for provider rate
+  limits. No migration.
 
 - **WARNING** · 2026-11-19 · Provider error text reaches clients word for word. Resolved
   2026-11-19: the owner said "make the changes"; provider 400s and retired-model errors now get
