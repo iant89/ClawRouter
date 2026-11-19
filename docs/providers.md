@@ -23,9 +23,32 @@ Each provider kind is an **adapter** implementing `ProviderAdapter`
 |---|---|---|---|
 | `openai` | Chat Completions, `https://api.openai.com/v1` | `Authorization: Bearer` | `max_completion_tokens`; asks for streamed usage |
 | `anthropic` | Messages API, `https://api.anthropic.com` | `x-api-key`, `anthropic-version: 2023-06-01` | System messages moved to `system`; `max_tokens` defaults to 4096 |
-| `google` | Gemini `generateContent`, `https://generativelanguage.googleapis.com/v1beta` | `x-goog-api-key` header (never `?key=`) | `assistant` → `model` role; system → `systemInstruction` |
+| `google` | Gemini `generateContent` / `streamGenerateContent`, `https://generativelanguage.googleapis.com/v1beta` | `x-goog-api-key` header (never `?key=`) | `assistant` → `model` role; system → `systemInstruction`; tools as `functionDeclarations`, Gemini 3 thought signatures carried in tool call ids; images, audio and PDFs inline; embeddings with `batchEmbedContents`. The model list follows `nextPageToken`; every chat model is offered with Vision and Tool use; music, image, video, speech, live-audio, transcription, computer-use and Interactions-only models (Deep Research, Antigravity) are not chat models. Thought summaries (`thought: true` parts) never reach the answer, and reasoning tokens (`thoughtsTokenCount`) count as output tokens, as Google bills them. Tested live 2026-11-19 (see below) |
 | `groq` | Chat Completions, `https://api.groq.com/openai/v1` | `Authorization: Bearer` (`gsk_…` keys) | `max_completion_tokens`; streamed usage read from `x_groq.usage`. The model list gives names, context window and output limit, image input (Vision) and prices (filled in as the model's cost on import); retired models and models that do not answer in text (Whisper, Orpheus speech) are not chat models. Ids may contain a slash (`openai/gpt-oss-120b`): clients can send them as they are. Chat only: no embeddings. Tested live 2026-11-16 |
 | `openai_compatible` | Chat Completions at any URL | optional Bearer | Ollama, vLLM, LM Studio, llama.cpp, LiteLLM… Endpoint required. Also Google's compatible endpoint `https://generativelanguage.googleapis.com/v1beta/openai` (Bearer = the Gemini API key): `models/` is dropped from ids, `display_name` is read, Gemini 3 thought signatures travel in tool call ids and go back in `extra_content`, and a stream that ends tool calls with "stop" is reported as `tool_calls`. Tested live 2026-11-16 |
+
+### Google (native API), tested live
+
+Live on 2026-11-19 against Google's Gemini API (key in `x-goog-api-key`):
+
+- **Discovery:** 65 models on one page: 26 chat models (offered with Vision and Tool use), 3
+  embedding models, 36 others. `antigravity-*` answered "This model only supports Interactions
+  API"; `gemini-2.5-flash` is "no longer available to new users" (ClawRouter reports a retired
+  model).
+- **Through `/v1/chat/completions` on gemini-3.5-flash-lite:** a plain answer, a reasoning
+  question, `max_tokens` reported as `length`, a stream with usage, an image (colour named),
+  a PDF (text read), a tool call and its answer after the result (the id carries the thought
+  signature, 198 characters), a streamed tool call; `/v1/responses`; embeddings with
+  gemini-embedding-001 (3,072 dimensions).
+- **Through `/v1/messages`:** the Anthropic SDK (messages, streams, a tool round trip, a streamed
+  tool call) and Claude Code 2.1.328 with its full default request (about 11,500 input tokens):
+  it read a file and ran a shell command, in three turns.
+- **Thinking models:** gemini-3.8-flash reported 2 answer tokens and 115 reasoning tokens
+  (`thoughtsTokenCount`); ClawRouter counts 117 output tokens.
+- **Google's side that day:** gemini-3.5-flash, gemini-3.6-flash and gemini-3.8-flash often
+  answered 503 "high demand" or not at all within 60 s, and the free tier allows only a few
+  requests a minute (429 "You exceeded your current quota"). Give aliases fallbacks, e.g. a
+  `-lite` model.
 
 Adding a provider means writing an adapter and registering it in
 `createDefaultRegistry()`. Nothing else changes: adapters contain no routing

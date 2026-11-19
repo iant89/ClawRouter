@@ -91,5 +91,8 @@ Tested on 2026-11-19 with Claude Code 2.1.328, started with a clean environment
   settings) against the project's mock OpenAI server, because it is too large for
   Groq's free tier: accepted, a tool call and its result went round, the run finished
   without errors.
+- **Live, with Google's Gemini** (`gemini/gemini-3.5-flash-lite` through the native adapter),
+  the full default request (about 11,500 input tokens each): Claude Code read a file with Read,
+  listed the folder with Bash, and answered correctly, in three turns.
 - The official Anthropic TypeScript SDK (1.10.0) against Groq: messages, streams, a
   tool round trip, a streamed tool call, `count_tokens`, the model list and typed errors.

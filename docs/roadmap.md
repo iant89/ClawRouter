@@ -501,6 +501,14 @@ See [playground](playground.md). Requested 2026-11-18: a playground page, with O
 - [x] Chat apps card: base URL, configuration snippets with this server's address, links to the guides
 - [x] Setup guides tested end to end: [Open WebUI](clients/open-webui.md) 0.13.4 and [LibreChat](clients/librechat.md) v0.8.9, against the mock provider and live with Groq
 
+## Owner request: native Gemini adapter, live ✅
+
+See [providers](providers.md#google-native-api-tested-live). Requested 2026-11-19: make the native Google adapter work against the real API.
+
+- [x] Model list follows `nextPageToken`; chat models offered with Vision and Tool use; music, image, video, speech, live-audio, transcription, computer-use and Interactions-only models are not chat models
+- [x] Thought summaries never reach the answer; reasoning tokens counted as output, as Google bills them
+- [x] Tested live: discovery, chat, streams, image, PDF, tools with thought signatures, embeddings, `/v1/responses`, the Anthropic SDK and Claude Code's full request through `/v1/messages`
+
 ## Owner request: Anthropic Messages API ✅
 
 See [gateway](gateway.md#anthropic-messages-api). Requested 2026-11-19: `/v1/messages`, so Claude clients such as Claude Code can use ClawRouter.

@@ -28,7 +28,7 @@ const registry = createDefaultRegistry();
 const cases = [
   { kind: 'openai', base: '/openai/v1', model: 'gpt-4o-mini', text: 'Hello from OpenAI', streamText: 'Hello', models: 3, usage: [7, 4, 11], streamUsage: [7, 2, 9], streamFinish: 'stop' },
   { kind: 'anthropic', base: '/anthropic', model: 'claude-sonnet-4-5', text: 'Hello from Anthropic', streamText: 'Hi there', models: 1, usage: [9, 5, 14], streamUsage: [9, 2, 11], streamFinish: 'length' },
-  { kind: 'google', base: '/google/v1beta', model: 'gemini-2.0-flash', text: 'Hello from Gemini', streamText: 'Gemini', models: 4, usage: [6, 3, 9], streamUsage: [6, 2, 8], streamFinish: 'stop' },
+  { kind: 'google', base: '/google/v1beta', model: 'gemini-2.0-flash', text: 'Hello from Gemini', streamText: 'Gemini', models: 7, usage: [6, 3, 9], streamUsage: [6, 2, 8], streamFinish: 'stop' },
   { kind: 'groq', base: '/groq/openai/v1', model: 'llama-3.3-70b-versatile', text: 'Hello from Groq', streamText: 'Hello', models: 6, usage: [12, 5, 17], streamUsage: [12, 2, 14], streamFinish: 'stop' },
   { kind: 'openai_compatible', base: '/local/v1', model: 'llama3', text: 'Hello from OpenAI', streamText: 'Hello', models: 3, usage: [7, 4, 11], streamUsage: [7, 2, 9], streamFinish: 'stop' },
 ] as const;
@@ -163,11 +163,15 @@ describe('discovery metadata', () => {
   test('Google reports limits and generation methods; others are classified by id', async () => {
     const google = await registry.get('google').listModels(ctx('/google/v1beta'));
     expect(google).toEqual([
-      { id: 'gemini-2.0-flash', displayName: 'Gemini 2.0 Flash', contextLength: 1048576, maxOutputTokens: 8192, kind: 'chat' },
+      { id: 'gemini-2.0-flash', displayName: 'Gemini 2.0 Flash', contextLength: 1048576, maxOutputTokens: 8192, kind: 'chat', vision: true },
       { id: 'text-embedding-004', displayName: 'Text Embedding 004', contextLength: 2048, maxOutputTokens: 1, kind: 'embedding' },
       // The second page (nextPageToken is followed); a speech model offers generateContent but is not a chat model.
-      { id: 'gemini-3.5-flash', displayName: 'Gemini 3.5 Flash', contextLength: 1048576, maxOutputTokens: 65536, kind: 'chat' },
+      { id: 'gemini-3.5-flash', displayName: 'Gemini 3.5 Flash', contextLength: 1048576, maxOutputTokens: 65536, kind: 'chat', vision: true },
       { id: 'gemini-2.5-flash-preview-tts', displayName: 'Gemini 2.5 Flash Preview TTS', contextLength: 8192, maxOutputTokens: 16384, kind: 'other' },
+      // Music, images and an agent served only by Google's Interactions API: not chat models either.
+      { id: 'lyria-3.5', displayName: 'Lyria 3.5', contextLength: null, maxOutputTokens: null, kind: 'other' },
+      { id: 'gemini-nano-banana-2.1', displayName: 'Nano Banana 2.1', contextLength: null, maxOutputTokens: null, kind: 'other' },
+      { id: 'antigravity-preview-latest', displayName: 'Antigravity Preview', contextLength: null, maxOutputTokens: null, kind: 'other' },
     ]);
     const openai = await registry.get('openai').listModels(ctx('/openai/v1'));
     expect(openai.map((m) => [m.id, m.kind])).toEqual([['gpt-4o-mini', 'chat'], ['gpt-4o', 'chat'], ['text-embedding-3-small', 'embedding']]);

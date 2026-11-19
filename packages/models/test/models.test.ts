@@ -43,10 +43,14 @@ describe('discovery and import', () => {
     const { h, google } = await withProviders();
     const found = await h.models.discover(google.id);
     expect(found).toEqual([
-      { providerModelId: 'gemini-2.0-flash', displayName: 'Gemini 2.0 Flash', contextLength: 1048576, maxOutputTokens: 8192, capabilities: ['CHAT', 'TOOL_USE'], cost: null, registered: false },
-      // From the second page: the speech model is listed without capabilities (not a chat model).
+      // Sorted by id; speech, music, image and Interactions-only models are listed without capabilities.
+      { providerModelId: 'antigravity-preview-latest', displayName: 'Antigravity Preview', contextLength: null, maxOutputTokens: null, capabilities: [], cost: null, registered: false },
+      { providerModelId: 'gemini-2.0-flash', displayName: 'Gemini 2.0 Flash', contextLength: 1048576, maxOutputTokens: 8192, capabilities: ['CHAT', 'VISION', 'TOOL_USE'], cost: null, registered: false },
+      // From the second page (nextPageToken is followed).
       { providerModelId: 'gemini-2.5-flash-preview-tts', displayName: 'Gemini 2.5 Flash Preview TTS', contextLength: 8192, maxOutputTokens: 16384, capabilities: [], cost: null, registered: false },
-      { providerModelId: 'gemini-3.5-flash', displayName: 'Gemini 3.5 Flash', contextLength: 1048576, maxOutputTokens: 65536, capabilities: ['CHAT', 'TOOL_USE'], cost: null, registered: false },
+      { providerModelId: 'gemini-3.5-flash', displayName: 'Gemini 3.5 Flash', contextLength: 1048576, maxOutputTokens: 65536, capabilities: ['CHAT', 'VISION', 'TOOL_USE'], cost: null, registered: false },
+      { providerModelId: 'gemini-nano-banana-2.1', displayName: 'Nano Banana 2.1', contextLength: null, maxOutputTokens: null, capabilities: [], cost: null, registered: false },
+      { providerModelId: 'lyria-3.5', displayName: 'Lyria 3.5', contextLength: null, maxOutputTokens: null, capabilities: [], cost: null, registered: false },
       { providerModelId: 'text-embedding-004', displayName: 'Text Embedding 004', contextLength: 2048, maxOutputTokens: 1, capabilities: ['EMBEDDINGS'], cost: null, registered: false },
     ]);
   });

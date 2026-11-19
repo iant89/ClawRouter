@@ -95,6 +95,15 @@ function body(req: ChatRequest) {
 /** The answer's text; thought summaries (reasoning) are left out. */
 const textOf = (r: GeminiResponse) => (r.candidates?.[0]?.content?.parts ?? []).filter((p) => p.thought !== true).map((p) => p.text ?? '').join('');
 
+/**
+ * Google models that list generateContent but do not answer a chat in text: music
+ * (Lyria), images (Imagen, Nano Banana, *-image), video (Veo), speech, live audio,
+ * transcription, computer use, and agents served only by Google's Interactions API
+ * (Deep Research, Antigravity: "This model only supports Interactions API", live
+ * 2026-11-19). Checked against Google's list of 65 models that day.
+ */
+const NOT_CHAT = /(lyria|banana|imagen|veo|image|tts|native-audio|live|transcribe|computer-use|deep-research|antigravity|^models\/aqa$)/i;
+
 /** Most model-list pages followed: Google lists fewer than 100 models today. */
 const MAX_MODEL_PAGES = 10;
 
@@ -117,7 +126,7 @@ async function listModels(ctx: ProviderCallContext) {
     .map((m) => {
       const methods = Array.isArray(m.supportedGenerationMethods) ? (m.supportedGenerationMethods as unknown[]) : [];
       // Speech, image and other non-text models also offer generateContent: their names give them away.
-      const kind = guessKind(m.name) === 'other' ? 'other' as const
+      const kind = guessKind(m.name) === 'other' || NOT_CHAT.test(m.name) ? 'other' as const
         : methods.includes('generateContent') ? 'chat' as const : methods.includes('embedContent') ? 'embedding' as const : methods.length ? 'other' as const : guessKind(m.name);
       return {
         id: m.name.replace(/^models\//, ''),
@@ -125,6 +134,8 @@ async function listModels(ctx: ProviderCallContext) {
         contextLength: num(m.inputTokenLimit),
         maxOutputTokens: num(m.outputTokenLimit),
         kind,
+        // Gemini and Gemma chat models all take images (the list does not say so per model).
+        ...(kind === 'chat' ? { vision: true } : {}),
       };
     });
 }

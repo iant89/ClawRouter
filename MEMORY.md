@@ -326,13 +326,12 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
   the second kept answering when the first stopped); no automated test, and not tried on macOS or Windows.
   Caddy's automatic certificates were not tried (no public host).
 
-- **WARNING** · 2026-11-12 · Provider adapters never tested against the real APIs (Groq and Gemini via compat are)
-  OpenAI, Anthropic and the **native** Google adapter were only tested against
-  `tests/support/mock-providers.ts`. Expect small fixes the first time real keys are used:
-  request fields, streaming events, model list paging (Anthropic lists at most 100). Groq was
-  tested live on 2026-11-16, and Gemini through Google's OpenAI-compatible endpoint the same
-  day (see Notes). The native Gemini adapter needs the key in the `x-goog-api-key` header,
-  which the credential form cannot save: the owner adds it in the environment settings.
+- **WARNING** · 2026-11-12 · Provider adapters never tested against the real APIs (Groq and both Gemini routes are)
+  OpenAI and Anthropic were only tested against `tests/support/mock-providers.ts`. Expect small
+  fixes the first time real keys are used: request fields, streaming events, model list paging
+  (Anthropic lists at most 100). Groq was tested live on 2026-11-16, Gemini through Google's
+  OpenAI-compatible endpoint the same day, and the **native** Google adapter on 2026-11-19 (see
+  Notes).
 
 - **WARNING** · 2026-11-12 · ENTERPRISE-UI branch `claude/clawapi-design-spec-p0hucn` still exists
   The owner asked for it to be deleted after the move. The deletion was blocked by
@@ -388,6 +387,20 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
     reaches the others within 5 seconds.
 
 ### Notes
+
+- **NOTE** · 2026-11-19 · Live native Gemini testing
+  The owner saved a Gemini key as a network secret for generativelanguage.googleapis.com in the
+  environment settings: type **Bearer**, with the custom header row changed to header
+  `x-goog-api-key` and an **empty prefix** (the secure form cannot do this; the settings form
+  can). Give the ClawRouter `google` provider the placeholder key `proxy-injected`. It reached
+  this session within seconds. Found live and fixed (`google.ts`): music, image, computer-use and
+  Interactions-only models (`antigravity-*`: "This model only supports Interactions API",
+  `deep-research-*`) offered as chat (`NOT_CHAT`), Vision not offered. Fixed beforehand from the
+  docs and confirmed live: `nextPageToken`, `thought: true` parts, `thoughtsTokenCount` (115
+  reasoning tokens on a 2-token answer). Google's side: gemini-3.5/3.6/3.8-flash were often 503
+  "high demand" or silent for 60 s; the free tier allows a few requests a minute (space live
+  tests ~7 s apart); gemini-2.5-flash is retired for new users; gemini-3.5-flash-lite was
+  reliable. Claude Code's full default request works on Gemini (it does not on Groq's free tier).
 
 - **NOTE** · 2026-11-19 · Running Claude Code against a local ClawRouter
   The session's own environment holds many `CLAUDE_*` / `ANTHROPIC_BASE_URL` variables; run the
@@ -576,13 +589,17 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 
 ### Messages
 
+- **MESSAGE** · 2026-11-19 · The native Gemini adapter waits for review
+  Built on `claude/gemini-native`: paging, model classification, Vision, thought parts and
+  reasoning tokens in `google.ts`, tested live; docs and screenshots 35. No migration. Merge into
+  `main` when the owner says so.
+
 - **MESSAGE** · 2026-11-19 · Everything merged after the Anthropic Messages API and the AGPL license (1.0.0)
   Nothing in ClawRouter waits for review. Old branches to delete on GitHub (the session cannot): every merged
   `claude/*` branch (now including `claude/anthropic-messages`, `claude/license-agpl-1.0`, `claude/hopeful-maxwell-3xrz6m`, `claude/captures-live-groq`, `claude/client-notices`,
   `claude/announcement-emoji` and `claude/eui-shared-components`), the superseded `claude/mcp-server`
   and the stale `claude/groq-provider`; never merge those two (duplicate migration 0020 / older
-  Groq code). Still open: the native Gemini adapter (key in `x-goog-api-key`, added by the owner in the
-  environment settings), OpenAI and Anthropic live; multi-node shared state.
+  Groq code). Still open: OpenAI and Anthropic live; multi-node shared state.
 
 ---
 

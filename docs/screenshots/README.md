@@ -551,3 +551,13 @@ from the mock provider, which was never health-checked).
 | ![Apps](34-anthropic-messages/01-apps-card.png) | The playground's apps card, now with Claude Code |
 | ![Config](34-anthropic-messages/02-claude-code-configuration.png) | Claude Code's configuration, filled in with this server's address (no `/v1`) |
 | ![Detail](34-anthropic-messages/03-request-detail-messages.png) | A request from Claude Code in the history: endpoint `/v1/messages (stream)` |
+
+## 35 · Native Gemini adapter
+
+Captured 2026-11-19 against Google's real model list (65 models). "Degraded" in the header comes
+from a leftover mock provider in the development database.
+
+| Screenshot | Shows |
+| --- | --- |
+| ![Discover](35-gemini-native/01-discover-classified.png) | Discovery: Antigravity, Deep Research, computer use and Nano Banana detected as "other"; chat models with vision and tool use |
+| ![Filtered](35-gemini-native/02-discover-filtered.png) | Filtered to "3.5": the two chat models (registered) beside live-translate, transcription and Lyria (music), detected as "other" |

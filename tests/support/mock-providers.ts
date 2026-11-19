@@ -251,6 +251,10 @@ export function startMockProviders(key = 'sk-test-0123456789abcdefWXYZ'): MockPr
               models: [
                 { name: 'models/gemini-3.5-flash', displayName: 'Gemini 3.5 Flash', inputTokenLimit: 1048576, outputTokenLimit: 65536, supportedGenerationMethods: ['generateContent', 'countTokens'], thinking: true },
                 { name: 'models/gemini-2.5-flash-preview-tts', displayName: 'Gemini 2.5 Flash Preview TTS', inputTokenLimit: 8192, outputTokenLimit: 16384, supportedGenerationMethods: ['countTokens', 'generateContent'] },
+                // Seen in Google's real list (2026-11-19): music, images and an Interactions-only agent, all with generateContent.
+                { name: 'models/lyria-3.5', displayName: 'Lyria 3.5', supportedGenerationMethods: ['generateContent'] },
+                { name: 'models/gemini-nano-banana-2.1', displayName: 'Nano Banana 2.1', supportedGenerationMethods: ['generateContent'] },
+                { name: 'models/antigravity-preview-latest', displayName: 'Antigravity Preview', supportedGenerationMethods: ['generateContent'] },
               ],
             });
           }
