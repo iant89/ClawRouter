@@ -74,7 +74,7 @@ Select captures (up to 50) or open one, then **Export…**. The file is JSON:
 
 ```json
 {
-  "format": "clawrouter-capture", "version": 1, "clawrouterVersion": "0.1.0",
+  "format": "clawrouter-capture", "version": 1, "clawrouterVersion": "1.0.0",
   "exportedAt": "…", "masked": false,
   "captures": [{ "id": "cap_…", "trigger": "parse_error", "requestId": "req_…", "endpoint": "chat.completions",
                  "outcome": { … }, "attempts": [ … ], "client": { … }, "exchanges": [ … ] }]

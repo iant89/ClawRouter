@@ -14,6 +14,19 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 
 ### Important
 
+- **IMPORTANT** · 2026-11-19 · Owner rule: AGPL-3.0-or-later, file headers, version 1.0.0
+  The owner asked for the AGPLv3 license, their name ("Ian Thomas") and the repository URL in
+  a professional header on every file, and version 1.0.0; they chose **AGPL v3 or later**
+  over v3 only. `LICENSE` is GNU's canonical text (661 lines; from a PyPI wheel because
+  gnu.org is blocked here, word for word the same as SPDX's copy). Every package.json has
+  `"license": "AGPL-3.0-or-later"` and version 1.0.0 (the root also author, homepage,
+  repository, bugs); the server reports its version from the root package.json. 448 files got
+  the header (TS/TSX/CSS block comments, `#` lines in YAML/TOML/Docker/deploy/.env examples, an
+  HTML comment after the doctype in `apps/console/index.html`); JSON and Markdown cannot carry
+  one. New files must get it too (AGENTS.md rule 12); keep it a plain comment, never `/*!` or
+  `@license` (bundlers would copy it into every chunk). Adding a header to a migration file is
+  safe: the checksum covers only its SQL. The vendored ENTERPRISE-UI is MIT, compatible.
+
 - **IMPORTANT** · 2026-11-19 · Owner request: the Anthropic Messages API (`/v1/messages`)
   The owner asked for `/v1/messages` so Claude clients (Claude Code) can use ClawRouter. It is a
   third front end on `runChat` (`packages/gateway/src/messages.ts`, like `responses.ts`): the
@@ -513,7 +526,6 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
     by itself) have no guaranteed order; filter by `resourceId` in tests.
   - Inline Python in shell commands has been rejected by the session's command
     safety check; edit files with the editor tools instead.
-  - The repository has no LICENSE file yet; ask the owner before adding one.
   - Routing weights are random draws: with weights 3:1 the heavier target is first
     about 75% of the time, not always. Tests inject `seededRandom(...)` (the
     harness uses seed 42), so they are reproducible; production uses `Math.random`.
@@ -564,10 +576,11 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 
 ### Messages
 
-- **MESSAGE** · 2026-11-19 · The Anthropic Messages API waits for review
-  Built on `claude/anthropic-messages`: `/v1/messages`, `count_tokens`, Anthropic-shaped errors
-  and model list, the Claude Code guide and playground card, screenshots 34. No migration. Merge
-  into `main` when the owner says so.
+- **MESSAGE** · 2026-11-19 · The Anthropic Messages API and the AGPL license / 1.0.0 wait for review
+  `claude/anthropic-messages`: `/v1/messages`, `count_tokens`, Anthropic-shaped errors and model
+  list, the Claude Code guide and playground card, screenshots 34. `claude/license-agpl-1.0` is
+  built on it: LICENSE (AGPL-3.0-or-later), headers on 448 files, version 1.0.0. No migration.
+  On "merge", fast-forward `main` to `claude/license-agpl-1.0` (it contains both).
 
 - **MESSAGE** · 2026-11-19 · Everything merged after the playground and provider errors
   Nothing else in ClawRouter waits for review. Old branches to delete on GitHub (the session cannot): every merged

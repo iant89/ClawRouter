@@ -101,6 +101,11 @@ From the specification (§2, §39), plus conventions established while building:
 10. **Server-side pagination and filtering** for anything that can grow (spec §35).
 11. **Every state change worth knowing is audited** (`AuditService.record`), and
     significant ones emit typed events (`packages/core/src/events.ts`).
+12. **Every file starts with the license header.** ClawRouter is AGPL-3.0-or-later,
+    © Ian Thomas. Copy the header from any existing file into every new source or
+    configuration file (`/* … */` in TypeScript and CSS, `#` lines in YAML, Docker and
+    deploy files). Keep it a plain comment: never `/*!` or `@license`, which bundlers
+    copy into every chunk.
 
 ## Tests
 

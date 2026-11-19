@@ -1,5 +1,8 @@
 # ClawRouter
 
+**Version 1.0.0** · Licensed under the [GNU AGPL v3.0 or later](LICENSE) · © 2026 Ian Thomas ·
+<https://github.com/iant89/ClawRouter>
+
 Self-hosted AI model gateway and control platform: one stable API in front of
 OpenAI, Anthropic, Google, Groq and local models, with routing, failover, rate limiting,
 usage tracking and an administration console built on
@@ -228,3 +231,21 @@ curl -s -c jar -H 'content-type: application/json' \
 curl -s -b jar http://127.0.0.1:8080/api/auth/session
 curl -s -b jar -X POST -H 'x-clawrouter-csrf: 1' http://127.0.0.1:8080/api/auth/logout
 ```
+
+## License
+
+Copyright (C) 2026 Ian Thomas.
+
+ClawRouter is free software: you can redistribute it and/or modify it under the terms
+of the GNU Affero General Public License as published by the Free Software Foundation,
+either version 3 of the License, or (at your option) any later version. It is
+distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See
+[LICENSE](LICENSE) for the full text (SPDX: `AGPL-3.0-or-later`).
+
+The AGPL also covers use over a network: if you run a modified version of ClawRouter
+for other people, you must offer them its source code (section 13 of the license).
+
+Every source file starts with the same license notice. The console's design system,
+[ENTERPRISE-UI](https://github.com/iant89/ENTERPRISE-UI) (`vendor/`), is under the MIT
+License.

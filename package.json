@@ -1,6 +1,16 @@
 {
   "name": "clawrouter",
-  "version": "0.1.0",
+  "version": "1.0.0",
+  "license": "AGPL-3.0-or-later",
+  "author": "Ian Thomas",
+  "homepage": "https://github.com/iant89/ClawRouter",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/iant89/ClawRouter.git"
+  },
+  "bugs": {
+    "url": "https://github.com/iant89/ClawRouter/issues"
+  },
   "private": true,
   "description": "ClawRouter: self-hosted AI model gateway and control platform.",
   "type": "module",

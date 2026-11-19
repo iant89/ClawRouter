@@ -36,7 +36,7 @@
     },
     "apps/console": {
       "name": "@clawrouter/console",
-      "version": "0.1.0",
+      "version": "1.0.0",
       "dependencies": {
         "@clawrouter/shared": "workspace:*",
         "@enterprise-ui/react": "file:../../vendor/enterprise-ui-react.tgz",
@@ -46,7 +46,7 @@
     },
     "apps/server": {
       "name": "@clawrouter/server",
-      "version": "0.1.0",
+      "version": "1.0.0",
       "dependencies": {
         "@clawrouter/api": "workspace:*",
         "@clawrouter/audit": "workspace:*",
@@ -74,7 +74,7 @@
     },
     "packages/api": {
       "name": "@clawrouter/api",
-      "version": "0.1.0",
+      "version": "1.0.0",
       "dependencies": {
         "@clawrouter/audit": "workspace:*",
         "@clawrouter/authentication": "workspace:*",
@@ -99,7 +99,7 @@
     },
     "packages/audit": {
       "name": "@clawrouter/audit",
-      "version": "0.1.0",
+      "version": "1.0.0",
       "dependencies": {
         "@clawrouter/core": "workspace:*",
         "@clawrouter/database": "workspace:*",
@@ -108,7 +108,7 @@
     },
     "packages/authentication": {
       "name": "@clawrouter/authentication",
-      "version": "0.1.0",
+      "version": "1.0.0",
       "dependencies": {
         "@clawrouter/audit": "workspace:*",
         "@clawrouter/core": "workspace:*",
@@ -118,7 +118,7 @@
     },
     "packages/authorization": {
       "name": "@clawrouter/authorization",
-      "version": "0.1.0",
+      "version": "1.0.0",
       "dependencies": {
         "@clawrouter/audit": "workspace:*",
         "@clawrouter/core": "workspace:*",
@@ -128,7 +128,7 @@
     },
     "packages/captures": {
       "name": "@clawrouter/captures",
-      "version": "0.1.0",
+      "version": "1.0.0",
       "dependencies": {
         "@clawrouter/audit": "workspace:*",
         "@clawrouter/core": "workspace:*",
@@ -138,7 +138,7 @@
     },
     "packages/configuration": {
       "name": "@clawrouter/configuration",
-      "version": "0.1.0",
+      "version": "1.0.0",
       "dependencies": {
         "@clawrouter/audit": "workspace:*",
         "@clawrouter/authentication": "workspace:*",
@@ -155,21 +155,21 @@
     },
     "packages/core": {
       "name": "@clawrouter/core",
-      "version": "0.1.0",
+      "version": "1.0.0",
       "dependencies": {
         "@clawrouter/shared": "workspace:*",
       },
     },
     "packages/database": {
       "name": "@clawrouter/database",
-      "version": "0.1.0",
+      "version": "1.0.0",
       "dependencies": {
         "@clawrouter/core": "workspace:*",
       },
     },
     "packages/gateway": {
       "name": "@clawrouter/gateway",
-      "version": "0.1.0",
+      "version": "1.0.0",
       "dependencies": {
         "@clawrouter/audit": "workspace:*",
         "@clawrouter/core": "workspace:*",
@@ -185,7 +185,7 @@
     },
     "packages/health": {
       "name": "@clawrouter/health",
-      "version": "0.1.0",
+      "version": "1.0.0",
       "dependencies": {
         "@clawrouter/core": "workspace:*",
         "@clawrouter/database": "workspace:*",
@@ -194,7 +194,7 @@
     },
     "packages/mail": {
       "name": "@clawrouter/mail",
-      "version": "0.1.0",
+      "version": "1.0.0",
       "dependencies": {
         "@clawrouter/audit": "workspace:*",
         "@clawrouter/core": "workspace:*",
@@ -204,7 +204,7 @@
     },
     "packages/models": {
       "name": "@clawrouter/models",
-      "version": "0.1.0",
+      "version": "1.0.0",
       "dependencies": {
         "@clawrouter/audit": "workspace:*",
         "@clawrouter/core": "workspace:*",
@@ -215,7 +215,7 @@
     },
     "packages/notices": {
       "name": "@clawrouter/notices",
-      "version": "0.1.0",
+      "version": "1.0.0",
       "dependencies": {
         "@clawrouter/audit": "workspace:*",
         "@clawrouter/core": "workspace:*",
@@ -225,7 +225,7 @@
     },
     "packages/notifications": {
       "name": "@clawrouter/notifications",
-      "version": "0.1.0",
+      "version": "1.0.0",
       "dependencies": {
         "@clawrouter/core": "workspace:*",
         "@clawrouter/database": "workspace:*",
@@ -234,7 +234,7 @@
     },
     "packages/operations": {
       "name": "@clawrouter/operations",
-      "version": "0.1.0",
+      "version": "1.0.0",
       "dependencies": {
         "@clawrouter/audit": "workspace:*",
         "@clawrouter/core": "workspace:*",
@@ -244,7 +244,7 @@
     },
     "packages/providers": {
       "name": "@clawrouter/providers",
-      "version": "0.1.0",
+      "version": "1.0.0",
       "dependencies": {
         "@clawrouter/audit": "workspace:*",
         "@clawrouter/core": "workspace:*",
@@ -254,7 +254,7 @@
     },
     "packages/rate-limits": {
       "name": "@clawrouter/rate-limits",
-      "version": "0.1.0",
+      "version": "1.0.0",
       "dependencies": {
         "@clawrouter/audit": "workspace:*",
         "@clawrouter/core": "workspace:*",
@@ -264,7 +264,7 @@
     },
     "packages/requests": {
       "name": "@clawrouter/requests",
-      "version": "0.1.0",
+      "version": "1.0.0",
       "dependencies": {
         "@clawrouter/core": "workspace:*",
         "@clawrouter/database": "workspace:*",
@@ -274,7 +274,7 @@
     },
     "packages/routing": {
       "name": "@clawrouter/routing",
-      "version": "0.1.0",
+      "version": "1.0.0",
       "dependencies": {
         "@clawrouter/audit": "workspace:*",
         "@clawrouter/core": "workspace:*",
@@ -286,7 +286,7 @@
     },
     "packages/settings": {
       "name": "@clawrouter/settings",
-      "version": "0.1.0",
+      "version": "1.0.0",
       "dependencies": {
         "@clawrouter/audit": "workspace:*",
         "@clawrouter/core": "workspace:*",
@@ -296,7 +296,7 @@
     },
     "packages/shared": {
       "name": "@clawrouter/shared",
-      "version": "0.1.0",
+      "version": "1.0.0",
     },
   },
   "packages": {

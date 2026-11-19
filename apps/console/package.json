@@ -1,9 +1,12 @@
 {
   "name": "@clawrouter/console",
-  "version": "0.1.0",
+  "version": "1.0.0",
+  "license": "AGPL-3.0-or-later",
   "private": true,
   "type": "module",
-  "exports": { "./index.html": "./index.html" },
+  "exports": {
+    "./index.html": "./index.html"
+  },
   "dependencies": {
     "@clawrouter/shared": "workspace:*",
     "@enterprise-ui/react": "file:../../vendor/enterprise-ui-react.tgz",
