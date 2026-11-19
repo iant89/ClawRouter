@@ -54,7 +54,8 @@ export interface RequestEnd {
 /** A request being recorded. `finish` is idempotent: only the first call counts. */
 export interface RequestHandle {
   streaming(): void;
-  finish(end: RequestEnd): void;
+  /** Returns what the request cost in US dollars (reported or estimated), or null when unpriced. */
+  finish(end: RequestEnd): number | null;
 }
 
 /** Estimated cost from per-million-token prices; null when a needed price is missing. */
@@ -107,7 +108,7 @@ export function createRequestLogService(options: {
           if (!done) safely('status', () => repo.setStatus(start.id, 'STREAMING'));
         },
         finish(end) {
-          if (done) return;
+          if (done) return null;
           done = true;
           const input = end.usage.inputTokens ?? 0;
           const output = end.usage.outputTokens ?? 0;
@@ -132,6 +133,7 @@ export function createRequestLogService(options: {
               costUsd: costUsd ?? 0, unpriced: counted && costUsd === null, durationMs: end.durationMs,
             });
           });
+          return costUsd;
         },
       };
     },
@@ -180,6 +182,11 @@ export function createRequestLogService(options: {
         series,
         breakdown: repo.usageBreakdown(range),
       };
+    },
+
+    /** US dollars recorded since `fromHour` (an ISO hour) for a key, user, model, provider or everything (cost limits). */
+    spendSince(scope: 'key' | 'user' | 'model' | 'provider' | 'global', subject: string, fromHour: string): number {
+      return repo.spendSince(scope, subject, fromHour);
     },
 
     /** A user's completed requests, tokens and estimated cost since `since` (hourly records: from the start of that hour). */

@@ -113,8 +113,10 @@ export const cancelled = () => new ProviderCallError('cancelled', 'The request w
 /** A model refused by its rate limit before any provider call. */
 export interface ModelLimitDenial {
   retryAfterMs: number;
-  kind: 'requests' | 'tokens' | 'burst';
+  /** `cost`: the model or its provider is over a spending limit (SEC-005). */
+  kind: 'requests' | 'tokens' | 'burst' | 'cost';
   window: 'second' | 'minute' | 'hour';
+  cost?: unknown;
   bucket?: { capacity: number; refillAmount: number; refillEverySeconds: number } | null;
   limit: number;
 }

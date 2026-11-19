@@ -17,14 +17,15 @@
 import { AppError, type EventBus, type Logger } from '@clawrouter/core';
 import type { ModelService } from '@clawrouter/models';
 import { mediaOf, ProviderCallError, type ProviderService, type StreamEvent } from '@clawrouter/providers';
-import type { Admission, RateLimitService } from '@clawrouter/rate-limits';
+import type { Admission, ModelDenial, RateLimitService } from '@clawrouter/rate-limits';
 import type { RequestHandle, RequestLogService } from '@clawrouter/requests';
 import type { RoutingService } from '@clawrouter/routing';
-import { formatLifetime, type CaptureSink, type NoticeSource, NOTICE_HEADER, type Capability, type GatewayEndpoint, type MediaKind, type ModelInfo, type RequestAttempt, type RouteCandidate, type RoutePlan, type UsageSource } from '@clawrouter/shared';
+import { DEFAULT_REQUEST_LIMITS, formatLifetime, type RequestLimits, type CaptureSink, type NoticeSource, NOTICE_HEADER, type Capability, type GatewayEndpoint, type MediaKind, type ModelInfo, type RequestAttempt, type RouteCandidate, type RoutePlan, type UsageSource } from '@clawrouter/shared';
 
 /** Routing exclusions caused by the key's age start with this (a readable sentence: plans and request history show it). */
 const KEY_TOO_OLD = 'This API key is older than';
 const NO_MEDIA = 'This provider does not accept';
+const TOO_EXPENSIVE = 'The estimated cost of this request on';
 const MEDIA_WORDS: Record<MediaKind, string> = { image_url: 'image URLs', image_data: 'inline images', audio: 'audio', pdf: 'PDF files' };
 import { modelAllowed, type ApiKeyPrincipal } from './api-keys.ts';
 import { cancelled, ModelsRateLimitedError, runAttempts, type AttemptOutcome } from './executor.ts';
@@ -34,6 +35,7 @@ import { chatCompletionsFormat, type ChatFormatter } from './formats.ts';
 import { parseResponsesRequest, renamed, responsesFormat } from './responses.ts';
 import { messagesFormat, messagesRenamed, parseMessagesRequest } from './messages.ts';
 import { RequestCapture } from './capture.ts';
+import { enforceChatLimits, enforceEmbeddingLimits, estimateChatInput, estimateRequestCost, limitError } from './request-limits.ts';
 import { headerValue, replyPrefix, stripNotices } from '@clawrouter/notices';
 import type { ExchangeTap } from '@clawrouter/providers';
 
@@ -99,8 +101,23 @@ export function createGatewayService(options: {
   const metrics = options.metrics ?? new GatewayMetricsRecorder(() => now().getTime(), () => limits?.rejections() ?? { lastMinute: 0, total: 0 });
   const encoder = new TextEncoder();
   const unlimited: Admission = { headers: {}, charge: async () => {}, release: async () => {} };
-  const checkModel = limits ? (c: RouteCandidate) => limits.useModel(c.modelRef) : undefined;
-  const noRecord: RequestHandle = { streaming: () => {}, finish: () => {} };
+  const checkModel = limits ? (c: RouteCandidate) => limits.useModel(c.modelRef, c.providerId) : undefined;
+  const noRecord: RequestHandle = { streaming: () => {}, finish: () => null };
+  const requestLimits = (): RequestLimits => limits?.requestLimits() ?? DEFAULT_REQUEST_LIMITS;
+
+  /**
+   * maxEstimatedCostPerRequest (SEC-005): a model on which this request could cost
+   * more (input estimate plus the most it may write) is left out of the route.
+   * Unpriced models cannot be estimated and are not left out.
+   */
+  function costExclusion(inputTokens: number, maxOutput: number | undefined): ((m: ModelInfo) => string | null) | undefined {
+    const max = limits?.maxEstimatedCostPerRequest() ?? null;
+    if (max === null) return undefined;
+    return (m) => {
+      const usd = estimateRequestCost(m.cost, inputTokens, maxOutput ?? m.maxOutputTokens ?? 0);
+      return usd !== null && usd > max ? `${TOO_EXPENSIVE} ${m.ref} ($${usd.toFixed(4)}) is above the $${max} limit per request.` : null;
+    };
+  }
 
   /**
    * A model with a maximum key lifetime refuses keys older than that (owner's
@@ -114,7 +131,10 @@ export function createGatewayService(options: {
   }
 
   /** Route, translating "nothing to route to" into client-facing errors. */
-  function plan(key: ApiKeyPrincipal, model: string, capability: Capability, media: Set<MediaKind> = new Set(), tools = false): RoutePlan {
+  function plan(
+    key: ApiKeyPrincipal, model: string, capability: Capability, media: Set<MediaKind> = new Set(), tools = false,
+    tooExpensive?: (m: ModelInfo) => string | null,
+  ): RoutePlan {
     if (!modelAllowed(key, model)) throw new AppError('AUTHORIZATION_ERROR', `This API key is not allowed to use the model '${model}'.`, { details: { param: 'model' } });
     // Media: images need a model marked Vision, and every medium a provider that accepts it.
     // Tools need a model marked Tool use.
@@ -125,11 +145,16 @@ export function createGatewayService(options: {
       return missing.length ? `${NO_MEDIA} ${missing.map((k) => MEDIA_WORDS[k]).join(' or ')}.` : null;
     };
     try {
-      return routing.plan({ model, capabilities, exclude: (m) => tooOldFor(key, m) ?? (media.size ? refusesMedia(m) : null) });
+      return routing.plan({ model, capabilities, exclude: (m) => tooOldFor(key, m) ?? (media.size ? refusesMedia(m) : null) ?? tooExpensive?.(m) ?? null });
     } catch (error) {
       if (error instanceof AppError && error.code === 'ROUTING_ERROR') {
         // Everything left out because the key outlived the models' maximum lifetime: a 403 that says so.
         const excluded = (error.details?.excluded ?? []) as { reason: string }[];
+        // Everything left out because the request could cost too much on each model: the request as sent (400).
+        const costly = excluded.filter((e) => e.reason.startsWith(TOO_EXPENSIVE));
+        if (costly.length && costly.length === excluded.length) {
+          throw limitError('maxEstimatedCostPerRequest', `${costly[0]!.reason} Send a smaller request or a lower max_tokens.`, 'messages');
+        }
         const stale = excluded.filter((e) => e.reason.startsWith(KEY_TOO_OLD));
         if (stale.length && stale.length === excluded.length) {
           throw new AppError('AUTHORIZATION_ERROR', `${stale[0]!.reason} Create a new key.`, { expose: true, details: { param: 'model', code: 'key_too_old' } });
@@ -259,18 +284,19 @@ export function createGatewayService(options: {
           requestId: ctx.requestId, apiKeyId: key.id, model: requestedModel, modelRef: o.candidate.modelRef, providerId: o.candidate.providerId, stream,
           durationMs, attempts: c.attempts, failovers: c.failovers, usage,
         });
-        record.finish({
+        const costUsd = record.finish({
           status: 'COMPLETED', httpStatus: 200, durationMs, modelRef: o.candidate.modelRef, providerId: o.candidate.providerId,
           attempts: c.attempts, retries: c.retries, failovers: c.failovers, attemptLog: trace, errorCode: null, errorMessage: null, usage,
         });
+        limits?.chargeCost({ keyId: key.id, ownerId: key.ownerId, modelRef: o.candidate.modelRef, providerId: o.candidate.providerId }, costUsd);
         capture?.end({ status: 'COMPLETED', httpStatus: 200, errorCode: null, errorMessage: null }, trace);
       },
 
       /** Records a failure and returns the error to throw (rate-limit exhaustion becomes a 429). */
-      fail(caught: unknown, override?: { status: 'FAILED' | 'CANCELLED'; httpStatus: number; code: string; message: string }): unknown {
+      fail(caught: unknown, override?: { status: 'FAILED' | 'CANCELLED'; httpStatus: number; code: string; message: string }, partial?: Usage): unknown {
         let error = caught;
         if (caught instanceof ModelsRateLimitedError && limits) {
-          error = limits.modelsExhausted(caught.modelRef, caught.denial, ctx.requestId);
+          error = limits.modelsExhausted(caught.modelRef, caught.denial as ModelDenial, ctx.requestId);
         }
         if (ended) return error;
         ended = true;
@@ -288,11 +314,18 @@ export function createGatewayService(options: {
             requestId: ctx.requestId, apiKeyId: key.id, model: requestedModel, stream, durationMs, attempts: c.attempts, code: outcome.code, status: outcome.httpStatus,
           });
         }
-        record.finish({
+        const usage = partial ?? { inputTokens: null, outputTokens: null, source: 'none' as const };
+        const costUsd = record.finish({
           status: outcome.status, httpStatus: outcome.httpStatus, durationMs, modelRef: c.last?.modelRef ?? null, providerId: c.last?.providerId ?? null,
-          attempts: c.attempts, retries: c.retries, failovers: c.failovers, attemptLog: trace, errorCode: outcome.code, errorMessage: outcome.message,
-          usage: { inputTokens: null, outputTokens: null, source: 'none' },
+          attempts: c.attempts, retries: c.retries, failovers: c.failovers, attemptLog: trace, errorCode: outcome.code, errorMessage: outcome.message, usage,
         });
+        // A stream that ended early still used the provider: its estimated usage counts against token and cost limits.
+        if (partial && c.last) {
+          const tokens = (partial.inputTokens ?? 0) + (partial.outputTokens ?? 0);
+          void admission.charge(tokens).catch((err: unknown) => log?.error('rate-limit charge failed', { component: 'gateway', error: err }));
+          if (limits) void limits.chargeModel(c.last.modelRef, tokens).catch((err: unknown) => log?.error('rate-limit charge failed', { component: 'gateway', error: err }));
+          limits?.chargeCost({ keyId: key.id, ownerId: key.ownerId, modelRef: c.last.modelRef, providerId: c.last.providerId }, costUsd);
+        }
         capture?.end({ status: outcome.status, httpStatus: outcome.httpStatus, errorCode: outcome.code, errorMessage: outcome.message }, trace);
         return error;
       },
@@ -325,8 +358,10 @@ export function createGatewayService(options: {
       const prepared = prepare(body);
       const format = prepared.format;
       // Notice lines ClawRouter wrote into earlier replies never reach the provider (cleanup setting).
-      const req = { ...prepared.req, messages: withoutNotices(prepared.req.messages) };
-      const route = plan(key, req.model, 'CHAT', mediaOf(req.messages), req.usesTools);
+      const cleaned = { ...prepared.req, messages: withoutNotices(prepared.req.messages) };
+      // Request resource limits (SEC-006); the output limit may lower max_tokens.
+      const req = enforceChatLimits(cleaned, requestLimits());
+      const route = plan(key, req.model, 'CHAT', mediaOf(req.messages), req.usesTools, costExclusion(estimateChatInput(req), req.maxTokens));
       await run.admit();
       const promptChars = req.messages.reduce((n, m) => n + m.content.length, 0);
       const chatRequest = (c: RouteCandidate) => ({
@@ -372,13 +407,24 @@ export function createGatewayService(options: {
       const notices = noticesFor(key, o, !req.usesTools);
       let outputChars = 0;
       let done = false;
+      // maxStreamSeconds (SEC-006): a stream still running after this is ended (the provider call is aborted).
+      const maxStreamSeconds = requestLimits().maxStreamSeconds;
+      let timedOut = false;
+      const streamTimer = maxStreamSeconds === null ? null : setTimeout(() => {
+        timedOut = true;
+        abort.abort();
+      }, maxStreamSeconds * 1000);
       const finishStream = (outcome: { ok: true; usage: Usage } | { ok: false }) => {
         if (done) return;
         done = true;
+        if (streamTimer) clearTimeout(streamTimer);
         ctx.signal.removeEventListener('abort', onClientGone);
-        if (outcome.ok) run.succeed(o, withEstimate(outcome.usage, promptChars, outputChars));
-        else if (abort.signal.aborted) run.fail(cancelled());
-        else run.fail(null, { status: 'FAILED', httpStatus: 200, code: 'STREAM_INTERRUPTED', message: 'The model provider failed while streaming the response.' });
+        if (outcome.ok) return run.succeed(o, withEstimate(outcome.usage, promptChars, outputChars));
+        // The provider read the prompt and wrote part of an answer: that usage is estimated and counted.
+        const partial = withEstimate({ inputTokens: null, outputTokens: null, source: 'none' }, promptChars, outputChars);
+        if (timedOut) run.fail(null, { status: 'FAILED', httpStatus: 200, code: 'STREAM_TIME_LIMIT', message: `The stream was ended after the ${maxStreamSeconds} s limit.` }, partial);
+        else if (abort.signal.aborted) run.fail(cancelled(), undefined, partial);
+        else run.fail(null, { status: 'FAILED', httpStatus: 200, code: 'STREAM_INTERRUPTED', message: 'The model provider failed while streaming the response.' }, partial);
       };
       const send = (controller: ReadableStreamDefaultController<Uint8Array>, events: string[]) => {
         for (const e of events) controller.enqueue(encoder.encode(e));
@@ -457,6 +503,12 @@ export function createGatewayService(options: {
   return {
     metrics,
 
+    /** Body size and nesting limits for /v1 (read by the HTTP layer before parsing). */
+    bodyLimits(): { maxBytes: number; maxDepth: number } {
+      const l = requestLimits();
+      return { maxBytes: l.maxRequestBytes, maxDepth: l.maxJsonDepth };
+    },
+
     /** GET /v1/models: enabled aliases and usable models, limited to what the key may use. */
     listModels(key: ApiKeyPrincipal) {
       const config = routing.get();
@@ -502,6 +554,7 @@ export function createGatewayService(options: {
      */
     countMessageTokens(key: ApiKeyPrincipal, body: unknown): { input_tokens: number } {
       const { req, estimatedInputTokens } = parseMessagesRequest(body, { countOnly: true });
+      enforceChatLimits(req, requestLimits());
       plan(key, req.model, 'CHAT', mediaOf(req.messages), req.usesTools);
       return { input_tokens: estimatedInputTokens };
     },
@@ -511,6 +564,7 @@ export function createGatewayService(options: {
       const run = startRun(key, 'embeddings', body, ctx);
       return recorded(run, async () => {
         const req = parseEmbeddingRequest(body);
+        enforceEmbeddingLimits(req, requestLimits());
         const route = plan(key, req.model, 'EMBEDDINGS');
         await run.admit();
         const o = await runAttempts(route, {

@@ -15,12 +15,16 @@
  */
 
 import { AppError, parse, type Validator } from '@clawrouter/core';
+import { jsonDepthExceeds } from '@clawrouter/gateway';
 import type { RequestContext } from './context.ts';
 
 export const DEFAULT_BODY_LIMIT = 64 * 1024;
 
-const tooLarge = (limit: number) => new AppError('VALIDATION_ERROR', `Request body is too large (limit ${formatBytes(limit)}).`);
-const formatBytes = (n: number) => (n >= 1024 * 1024 ? `${n / (1024 * 1024)} MB` : `${n / 1024} KB`);
+/** `details.code` and `details.limit` tell programs which request limit (SEC-006) refused a body. */
+const limitDetails = (limit: string) => ({ details: { code: 'request_limit', limit, param: null } });
+const tooLarge = (limit: number) => new AppError('VALIDATION_ERROR', `Request body is too large (limit ${formatBytes(limit)}).`, limitDetails('maxRequestBytes'));
+const round = (n: number) => Math.round(n * 100) / 100;
+const formatBytes = (n: number) => (n >= 1024 * 1024 ? `${round(n / (1024 * 1024))} MB` : `${round(n / 1024)} KB`);
 
 /**
  * Reads the body as text, stopping as soon as it exceeds `limit` bytes. The
@@ -51,12 +55,16 @@ export async function readBodyText(request: Request, limit: number): Promise<str
  * Reads a JSON body without a schema. Requires `Content-Type: application/json`,
  * which browsers cannot send cross-site without a CORS preflight (CSRF defence).
  */
-export async function readJsonValue(ctx: RequestContext, limit = DEFAULT_BODY_LIMIT): Promise<unknown> {
+export async function readJsonValue(ctx: RequestContext, limit = DEFAULT_BODY_LIMIT, options: { maxDepth?: number } = {}): Promise<unknown> {
   const type = ctx.request.headers.get('content-type') ?? '';
   if (!/^application\/json(\s*;|$)/i.test(type)) {
     throw new AppError('VALIDATION_ERROR', 'Content-Type must be application/json.');
   }
   const text = await readBodyText(ctx.request, limit);
+  // Counted before parsing, so a deeply nested body is never built in memory.
+  if (options.maxDepth !== undefined && jsonDepthExceeds(text, options.maxDepth)) {
+    throw new AppError('VALIDATION_ERROR', `Request body is nested too deeply (limit ${options.maxDepth} levels).`, limitDetails('maxJsonDepth'));
+  }
   try {
     return JSON.parse(text) as unknown;
   } catch {

@@ -19,11 +19,12 @@ import type { AuditService } from '@clawrouter/audit';
 import {
   NO_RATE_LIMIT, RATE_WINDOW_MS,
   type PutRateLimitsRequest, type RateLimit, type RateLimitConfig, type RateLimitConfigView, type RateLimitScope, type RateLimitUsage,
-  type RateLimitUsageEntry, type RateWindow, type TokenBucket,
+  type RateLimitUsageEntry, type RateWindow, type RequestLimits, type TokenBucket,
 } from '@clawrouter/shared';
 import type { RateLimitConfigStore } from './config-store.ts';
 import { diffSettings, normalizeSettings, upgradeSettings, validateRateLimits } from './config.ts';
 import type { BucketSpec, CounterStore } from './counters.ts';
+import { createCostLimiter, describeCostDenial, type CostDenial, type SpendSource, type SpendTarget } from './costs.ts';
 
 /** The invalid-key limit per address is always per minute. */
 const IP_WINDOW_MS = 60_000;
@@ -53,12 +54,14 @@ export interface Admission {
   release(): Promise<void>;
 }
 
-type Kind = 'requests' | 'tokens' | 'burst' | 'concurrency' | 'invalid_keys';
+type Kind = 'requests' | 'tokens' | 'burst' | 'concurrency' | 'invalid_keys' | 'cost';
 
 /** Why a model was skipped for its own limit. */
 export interface ModelDenial {
   retryAfterMs: number;
-  kind: 'requests' | 'tokens' | 'burst';
+  kind: 'requests' | 'tokens' | 'burst' | 'cost';
+  /** For `cost`: the spending limit that was reached. */
+  cost?: CostDenial;
   limit: number;
   window: RateWindow;
   bucket?: TokenBucket | null;
@@ -89,6 +92,8 @@ function describe(scope: RateLimitScope, kind: Kind, limit: number, window: Rate
     : kind === 'burst' && bucket ? `bursts of up to ${fmt(bucket.capacity)} requests, then ${describeRefill(bucket)}`
       : `${fmt(limit)} ${limit === 1 ? 'request' : 'requests'} per ${window}`;
   const prefix = kind === 'burst' ? 'Too many requests in a short time' : 'Rate limit reached';
+  if (kind === 'concurrency' && scope === 'key') return `This API key already has ${fmt(limit)} ${limit === 1 ? 'request' : 'requests'} in progress (the most allowed at once).`;
+  if (kind === 'concurrency' && scope === 'user') return `Your account already has ${fmt(limit)} ${limit === 1 ? 'request' : 'requests'} in progress across all of your API keys (the most allowed at once).`;
   switch (scope) {
     case 'key': return `${prefix} for this API key (${what}).`;
     case 'user': return `${prefix} for your account: all of your API keys together (${what}).`;
@@ -114,6 +119,8 @@ export function createRateLimitService(options: {
   /** Registered model references, to report limits on models that no longer exist. */
   knownModels: () => string[];
   directory?: SubjectDirectory;
+  /** Recorded spending, for cost limits. Without it no cost limit refuses anything. */
+  spend?: SpendSource;
   events?: EventBus;
   log?: Logger;
   now?: () => Date;
@@ -122,6 +129,23 @@ export function createRateLimitService(options: {
   const now = options.now ?? (() => new Date());
   let cached: RateLimitConfig | null = null;
   const config = () => (cached ??= store.load());
+  const costs = options.spend ? createCostLimiter({ limits: () => config().costLimits, spend: options.spend, now }) : null;
+
+  /** 429 for a reached spending limit, with Retry-After until the period resets. */
+  function costRejected(d: CostDenial, requestId: string | null): AppError {
+    const at = now().getTime();
+    rejectedTotal += 1;
+    rejectedRecently.add(at);
+    const retry = seconds(d.retryAfterMs);
+    const resetsAt = new Date(at + d.retryAfterMs).toISOString();
+    events?.emit('ratelimit.exceeded', { scope: d.scope, subject: d.subject, kind: 'cost', limit: d.limit, retryAfterSeconds: retry, requestId });
+    log?.info('cost limit reached', { component: 'rate-limits', scope: d.scope, period: d.period, limit: d.limit, requestId });
+    return new AppError('RATE_LIMITED', `${describeCostDenial(d)} It resets at ${resetsAt}.`, {
+      expose: true,
+      headers: { 'Retry-After': String(retry) },
+      details: { scope: d.scope, kind: 'cost', code: 'cost_limit_exceeded', period: d.period, resetsAt },
+    });
+  }
   let rejectedTotal = 0;
   // Refusals in the last minute, in one-second buckets: constant cost even under a flood of 429s.
   const rejectedRecently = new RollingSum(1_000, 60);
@@ -182,10 +206,12 @@ export function createRateLimitService(options: {
       const current = store.load();
       const conflict = () => new AppError('CONFLICT', 'The rate limits were changed by someone else. Reload them and apply your change again.', { details: { currentVersion: current.version } });
       if (body.version !== current.version) throw conflict();
-      const settings = normalizeSettings(body);
+      // Older clients and export files have no cost or request limits: the current ones stay.
+      const settings = normalizeSettings({ ...body, costLimits: body.costLimits ?? current.costLimits, requestLimits: body.requestLimits ?? current.requestLimits });
       const saved = store.save(settings, body.version, now().toISOString(), actor.id);
       if (!saved) throw conflict();
       cached = saved;
+      costs?.reset();
       audit.record({
         action: 'RATE_LIMITS_UPDATED', result: 'SUCCESS', resource: 'rate_limits', resourceId: String(saved.version),
         actor: { id: actor.id, name: actor.username }, ip: client.ip, requestId: client.requestId ?? null,
@@ -207,14 +233,29 @@ export function createRateLimitService(options: {
       if (subject.ownerId) checks.push({ scope: 'user', subject: subject.ownerId, limit: c.perUser });
       checks.push({ scope: 'global', subject: 'global', limit: c.global });
 
-      if (!(await counters.acquire('conc:global', c.global.maxConcurrent))) {
-        throw rejected({ scope: 'global', subject: 'global' }, 'concurrency', c.global.maxConcurrent ?? 0, 1000, requestId);
+      const overBudget = costs?.checkSubject(subject.keyId, subject.ownerId);
+      if (overBudget) throw costRejected(overBudget, requestId);
+
+      // Requests in progress: per key, per user (SEC-005), then the whole gateway.
+      const slots: { key: string; scope: RateLimitScope; subject: string; max: number | null }[] = [
+        { key: `conc:key:${subject.keyId}`, scope: 'key', subject: subject.keyId, max: c.requestLimits.maxConcurrentPerKey },
+        ...(subject.ownerId ? [{ key: `conc:user:${subject.ownerId}`, scope: 'user' as const, subject: subject.ownerId, max: c.requestLimits.maxConcurrentPerUser }] : []),
+        { key: 'conc:global', scope: 'global', subject: 'global', max: c.global.maxConcurrent },
+      ];
+      const held: string[] = [];
+      for (const slot of slots) {
+        if (slot.max === null && slot.key !== 'conc:global') continue;
+        if (!(await counters.acquire(slot.key, slot.max))) {
+          for (const k of held) await counters.release(k);
+          throw rejected({ scope: slot.scope, subject: slot.subject }, 'concurrency', slot.max ?? 0, 1000, requestId);
+        }
+        held.push(slot.key);
       }
       let released = false;
       const release = async () => {
         if (released) return;
         released = true;
-        await counters.release('conc:global');
+        for (const k of held) await counters.release(k);
       };
       try {
         for (const check of checks) {
@@ -259,7 +300,9 @@ export function createRateLimitService(options: {
      * Counts an attempt on a model with a limit. Returns null when allowed, or the
      * time until it would be. A limited model is skipped like an unavailable one.
      */
-    async useModel(modelRef: string): Promise<ModelDenial | null> {
+    async useModel(modelRef: string, providerId?: string): Promise<ModelDenial | null> {
+      const overBudget = providerId !== undefined ? costs?.checkModel(modelRef, providerId) : null;
+      if (overBudget) return { retryAfterMs: overBudget.retryAfterMs, kind: 'cost', limit: overBudget.limit, window: 'hour', cost: overBudget };
       const m = modelLimit(modelRef);
       if (!m) return null;
       const check = { scope: 'model' as const, subject: m.model.toLowerCase(), limit: m };
@@ -285,8 +328,24 @@ export function createRateLimitService(options: {
       if (m && tokens > 0) await counters.add(counterKey('tok', { scope: 'model', subject: m.model.toLowerCase(), limit: m }), tokens, RATE_WINDOW_MS[m.window]);
     },
 
+    /** Adds a finished request's cost (US dollars) to the spending seen by cost limits. */
+    chargeCost(target: SpendTarget, usd: number | null) {
+      if (usd !== null) costs?.charge(target, usd);
+    },
+
+    /** The request resource limits (SEC-006) and per-request controls in force now. */
+    requestLimits(): RequestLimits {
+      return config().requestLimits;
+    },
+
+    /** The largest estimated cost a single request may have, or null. */
+    maxEstimatedCostPerRequest(): number | null {
+      return config().costLimits.maxEstimatedCostPerRequest;
+    },
+
     /** Builds the 429 for a request whose every candidate model was rate limited. */
     modelsExhausted(modelRef: string, denial: ModelDenial, requestId: string | null): AppError {
+      if (denial.kind === 'cost' && denial.cost) return costRejected(denial.cost, requestId);
       return rejected({ scope: 'model', subject: modelRef }, denial.kind, denial.limit, denial.retryAfterMs, requestId, {}, denial.window, denial.bucket);
     },
 

@@ -21,12 +21,11 @@ import { readJson, readJsonValue } from '../http/body.ts';
 import type { Handler, RequestContext } from '../http/context.ts';
 import { created, json, ok } from '../http/responses.ts';
 
-/** Chat requests can carry long conversations. */
-// Room for a few images or a PDF sent inline (base64 adds a third). Each item is capped at 15 MB decoded.
-const GATEWAY_BODY_LIMIT = 25 * 1024 * 1024;
-
-/** Reads a JSON body for /v1 without imposing a schema: the gateway validates it in OpenAI terms. */
-const readGatewayBody = (ctx: RequestContext): Promise<unknown> => readJsonValue(ctx, GATEWAY_BODY_LIMIT);
+/** Reads a JSON body for /v1 without imposing a schema: the gateway validates it in OpenAI terms. Size and nesting come from the request limits (SEC-006), read on every request. */
+const readGatewayBody = (gateway: GatewayService, ctx: RequestContext): Promise<unknown> => {
+  const l = gateway.bodyLimits();
+  return readJsonValue(ctx, l.maxBytes, { maxDepth: l.maxDepth });
+};
 
 function toResponse(result: GatewayResult): Response {
   if (result.kind === 'json') return json(result.body, { status: result.status, headers: result.headers });
@@ -46,11 +45,11 @@ export function gatewayController(gateway: GatewayService) {
     const data = list.data.map((m) => ({ type: 'model', id: m.id, display_name: m.id, created_at: new Date(m.created * 1000).toISOString() }));
     return json({ data, has_more: false, first_id: data[0]?.id ?? null, last_id: data.at(-1)?.id ?? null });
   };
-  const chat: Handler = async (ctx) => toResponse(await gateway.chat(key(ctx), await readGatewayBody(ctx), gwContext(ctx)));
-  const embeddings: Handler = async (ctx) => toResponse(await gateway.embeddings(key(ctx), await readGatewayBody(ctx), gwContext(ctx)));
-  const responses: Handler = async (ctx) => toResponse(await gateway.responses(key(ctx), await readGatewayBody(ctx), gwContext(ctx)));
-  const messages: Handler = async (ctx) => toResponse(await gateway.messages(key(ctx), await readGatewayBody(ctx), gwContext(ctx)));
-  const countTokens: Handler = async (ctx) => json(gateway.countMessageTokens(key(ctx), await readGatewayBody(ctx)));
+  const chat: Handler = async (ctx) => toResponse(await gateway.chat(key(ctx), await readGatewayBody(gateway, ctx), gwContext(ctx)));
+  const embeddings: Handler = async (ctx) => toResponse(await gateway.embeddings(key(ctx), await readGatewayBody(gateway, ctx), gwContext(ctx)));
+  const responses: Handler = async (ctx) => toResponse(await gateway.responses(key(ctx), await readGatewayBody(gateway, ctx), gwContext(ctx)));
+  const messages: Handler = async (ctx) => toResponse(await gateway.messages(key(ctx), await readGatewayBody(gateway, ctx), gwContext(ctx)));
+  const countTokens: Handler = async (ctx) => json(gateway.countMessageTokens(key(ctx), await readGatewayBody(gateway, ctx)));
   const metrics: Handler = () => ok<GatewayMetrics>(gateway.metrics.snapshot());
   return { models, chat, embeddings, responses, messages, countTokens, metrics };
 }

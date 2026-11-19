@@ -99,7 +99,10 @@ export function createConfigurationService(o: {
         cost: m.cost ? { inputPerMTok: m.cost.inputPerMTok, outputPerMTok: m.cost.outputPerMTok } : null, maxKeyLifetimeHours: m.maxKeyLifetimeHours,
       })),
       routing: { defaultPolicy: routing.defaultPolicy, aliases: routing.aliases },
-      rateLimits: { perKey: limits.perKey, perUser: limits.perUser, perModel: limits.perModel, global: limits.global, invalidKeysPerIp: limits.invalidKeysPerIp },
+      rateLimits: {
+        perKey: limits.perKey, perUser: limits.perUser, perModel: limits.perModel, global: limits.global, invalidKeysPerIp: limits.invalidKeysPerIp,
+        costLimits: limits.costLimits, requestLimits: limits.requestLimits,
+      },
       roles: o.authz.listRoles().filter((r) => !r.builtIn).map((r) => ({ name: r.name, description: r.description, permissions: r.permissions })),
       settings: {
         system: Object.fromEntries(o.settings.list().filter((s) => s.overridden).map((s) => [s.key, s.value])),
@@ -171,7 +174,7 @@ export function createConfigurationService(o: {
     add({ section: 'routing', name: 'routing', action: routingFields.length ? 'update' : 'unchanged', fields: routingFields });
 
     const limits = o.limits.get();
-    const limitFields = changedFields(limits, doc.rateLimits, ['perKey', 'perUser', 'perModel', 'global', 'invalidKeysPerIp']);
+    const limitFields = changedFields(limits, doc.rateLimits, ['perKey', 'perUser', 'perModel', 'global', 'invalidKeysPerIp', 'costLimits', 'requestLimits']);
     add({ section: 'rateLimits', name: 'rate limits', action: limitFields.length ? 'update' : 'unchanged', fields: limitFields });
 
     const values = new Map(o.settings.list().map((s) => [s.key, s.value]));

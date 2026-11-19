@@ -32,7 +32,7 @@ import { RateLimitsDialog } from './RateLimitsDialog.tsx';
 
 export const USAGE_POLL_MS = 5_000;
 
-const SCOPE_LABEL: Record<RateLimitScope, string> = { global: 'Gateway', key: 'API key', user: 'User', model: 'Model', ip: 'Address' };
+const SCOPE_LABEL: Record<RateLimitScope, string> = { global: 'Gateway', key: 'API key', user: 'User', model: 'Model', provider: 'Provider', ip: 'Address' };
 const LEVEL: Record<UsageLevel, { tone: 'success' | 'warning' | 'error' | 'neutral'; label: string }> = {
   ok: { tone: 'success', label: 'Within limit' },
   near: { tone: 'warning', label: 'Near limit' },
@@ -40,7 +40,7 @@ const LEVEL: Record<UsageLevel, { tone: 'success' | 'warning' | 'error' | 'neutr
   unlimited: { tone: 'neutral', label: 'No limit' },
 };
 
-const settingsOf = ({ perKey, perUser, perModel, global, invalidKeysPerIp }: RateLimitSettings): RateLimitSettings => ({ perKey, perUser, perModel, global, invalidKeysPerIp });
+const settingsOf = ({ perKey, perUser, perModel, global, invalidKeysPerIp, costLimits, requestLimits }: RateLimitSettings): RateLimitSettings => ({ perKey, perUser, perModel, global, invalidKeysPerIp, costLimits, requestLimits });
 
 /** Gateway → Rate Limits: limits per key, user, model and gateway, and live usage against them (spec §12). */
 export function RateLimitsPage() {

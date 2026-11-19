@@ -23,6 +23,8 @@ import { ok } from '../http/responses.ts';
 
 const isObject = (x: unknown): x is Record<string, unknown> => typeof x === 'object' && x !== null && !Array.isArray(x);
 const FIELDS = ['version', 'perKey', 'perUser', 'perModel', 'global', 'invalidKeysPerIp'];
+/** Optional: left out, the current cost and request limits stay (older clients and export files). */
+const OPTIONAL = ['costLimits', 'requestLimits'];
 
 /** Shape only; the rate-limit service validates every value (ranges, model references). */
 const putBody: Validator<PutRateLimitsRequest> = (value, _path, issues) => {
@@ -31,7 +33,7 @@ const putBody: Validator<PutRateLimitsRequest> = (value, _path, issues) => {
     return undefined;
   }
   const before = issues.length;
-  for (const key of Object.keys(value)) if (!FIELDS.includes(key)) issues.push({ path: key, message: 'is not allowed' });
+  for (const key of Object.keys(value)) if (!FIELDS.includes(key) && !OPTIONAL.includes(key)) issues.push({ path: key, message: 'is not allowed' });
   for (const key of FIELDS) if (!(key in value)) issues.push({ path: key, message: 'is required' });
   if (typeof value.version !== 'number' || !Number.isInteger(value.version) || value.version < 0) issues.push({ path: 'version', message: 'must be the version you loaded' });
   if (issues.length !== before) return undefined;

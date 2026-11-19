@@ -83,6 +83,8 @@ export interface RequestRepository {
   addUsage(u: UsageIncrement): void;
   /** One user's totals from the hour `fromHour` on (for usage quotas). */
   userUsageSince(userId: string, fromHour: string): { requests: number; tokens: number; costUsd: number };
+  /** US dollars recorded from the hour `fromHour` on, for one key, user, model, provider or everything (cost limits). */
+  spendSince(scope: 'key' | 'user' | 'model' | 'provider' | 'global', subject: string, fromHour: string): number;
   get(id: string): RequestDetail | undefined;
   list(q: RequestQuery & { limit: number; offset: number }): { items: RequestRecord[]; total: number };
   usageTotals(from: string, to: string): UsageTotals;
@@ -251,6 +253,14 @@ export function createSqliteRequestRepository(db: Database): RequestRepository {
         [o.completedAt, o.status, o.httpStatus, o.modelRef, o.providerId, o.durationMs, o.attempts, o.retries, o.failovers,
           JSON.stringify(o.attemptLog), o.errorCode, o.errorMessage, o.inputTokens, o.outputTokens, o.usageSource, o.costUsd, id],
       );
+    },
+
+    spendSince(scope, subject, fromHour) {
+      const column = { key: 'api_key_id', user: 'user_id', model: 'model_ref', provider: 'provider_id', global: null }[scope];
+      const r = column
+        ? db.get<{ cost: number }>(`SELECT COALESCE(SUM(cost_usd), 0) AS cost FROM usage_records WHERE ${column} = ? AND hour >= ?`, [subject, fromHour])
+        : db.get<{ cost: number }>('SELECT COALESCE(SUM(cost_usd), 0) AS cost FROM usage_records WHERE hour >= ?', [fromHour]);
+      return r?.cost ?? 0;
     },
 
     userUsageSince(userId, fromHour) {

@@ -15,9 +15,13 @@
  */
 
 import {
-  BUCKET_CAPACITY_MAX, BUCKET_REFILL_SECONDS_MAX, DEFAULT_RATE_LIMITS, RATE_LIMIT_MAX, RATE_WINDOWS,
-  type FieldIssue, type RateLimit, type RateLimitConfig, type RateLimitSettings, type RateWindow, type TokenBucket,
+  BUCKET_CAPACITY_MAX, BUCKET_REFILL_SECONDS_MAX, COST_LIMIT_MAX, COST_PERIODS, DEFAULT_COST_LIMITS, DEFAULT_RATE_LIMITS, DEFAULT_REQUEST_LIMITS,
+  RATE_LIMIT_MAX, RATE_WINDOWS, REQUEST_LIMIT_RANGES,
+  type CostLimit, type CostLimits, type FieldIssue, type RateLimit, type RateLimitConfig, type RateLimitSettings, type RateWindow,
+  type RequestLimits, type TokenBucket,
 } from '@clawrouter/shared';
+
+export const MAX_PROVIDER_COST_LIMITS = 200;
 
 export const MAX_MODEL_LIMITS = 500;
 
@@ -99,7 +103,7 @@ export const normalizeLimit = (raw: Partial<RateLimit> | null | undefined): Rate
 export const limitIsEmpty = (l: RateLimit) => l.requests === null && l.tokens === null && l.bucket === null;
 
 /** Validates the settings document. Model references are checked separately (unknown ones are allowed but reported). */
-export function validateRateLimits(s: RateLimitSettings): FieldIssue[] {
+export function validateRateLimits(s: Omit<RateLimitSettings, 'costLimits' | 'requestLimits'> & Partial<RateLimitSettings>): FieldIssue[] {
   const issues: FieldIssue[] = [];
   checkRateLimit(s.perKey, 'perKey', issues);
   checkRateLimit(s.perUser, 'perUser', issues);
@@ -111,6 +115,8 @@ export function validateRateLimits(s: RateLimitSettings): FieldIssue[] {
     issues.push({ path: 'perModel', message: 'must be a list' });
     return issues;
   }
+  if (s.costLimits !== undefined) checkCostLimits(s.costLimits, 'costLimits', issues);
+  if (s.requestLimits !== undefined) checkRequestLimits(s.requestLimits, 'requestLimits', issues);
   if (s.perModel.length > MAX_MODEL_LIMITS) issues.push({ path: 'perModel', message: `at most ${MAX_MODEL_LIMITS} model limits` });
   const seen = new Set<string>();
   s.perModel.forEach((m, i) => {
@@ -134,13 +140,15 @@ export function normalizeSettings(s: RateLimitSettings): RateLimitSettings {
     perModel: s.perModel.map((m) => ({ model: m.model.trim(), ...normalizeLimit(m) })),
     global: { ...normalizeLimit(s.global), maxConcurrent: s.global.maxConcurrent ?? null },
     invalidKeysPerIp: s.invalidKeysPerIp,
+    costLimits: normalizeCostLimits(s.costLimits),
+    requestLimits: normalizeRequestLimits(s.requestLimits),
   };
 }
 
 /** What changed, for the audit record (values only; nothing secret lives here). */
 export function diffSettings(before: RateLimitSettings, after: RateLimitSettings): Record<string, unknown> {
   const changed: Record<string, unknown> = {};
-  for (const k of ['perKey', 'perUser', 'global', 'invalidKeysPerIp'] as const) {
+  for (const k of ['perKey', 'perUser', 'global', 'invalidKeysPerIp', 'costLimits', 'requestLimits'] as const) {
     if (JSON.stringify(before[k]) !== JSON.stringify(after[k])) changed[k] = { from: before[k], to: after[k] };
   }
   const b = new Map(before.perModel.map((m) => [m.model, m]));
@@ -150,4 +158,109 @@ export function diffSettings(before: RateLimitSettings, after: RateLimitSettings
   const modified = [...a.keys()].filter((k) => b.has(k) && JSON.stringify(a.get(k)) !== JSON.stringify(b.get(k)));
   if (added.length || removed.length || modified.length) changed.perModel = { added, removed, changed: modified };
   return changed;
+}
+
+const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
+
+function checkDollars(value: unknown, path: string, issues: FieldIssue[]) {
+  if (value === null || value === undefined) return;
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0.01 || value > COST_LIMIT_MAX) {
+    issues.push({ path, message: `must be an amount in US dollars from 0.01 to ${fmt(COST_LIMIT_MAX)}, or null for no limit` });
+  }
+}
+
+function checkCostLimit(value: unknown, path: string, issues: FieldIssue[], allowed: Set<string>): value is CostLimit {
+  if (!isRecord(value)) {
+    issues.push({ path, message: 'must be { hour, day, month } in US dollars' });
+    return false;
+  }
+  for (const k of Object.keys(value)) if (!allowed.has(k)) issues.push({ path: `${path}.${k}`, message: 'is not a cost limit field' });
+  for (const p of COST_PERIODS) checkDollars(value[p], `${path}.${p}`, issues);
+  return true;
+}
+
+const COST_FIELDS = new Set<string>(COST_PERIODS);
+const MODEL_COST_FIELDS = new Set<string>([...COST_PERIODS, 'model']);
+const PROVIDER_COST_FIELDS = new Set<string>([...COST_PERIODS, 'provider']);
+const costIsEmpty = (c: Partial<CostLimit>) => COST_PERIODS.every((p) => c[p] === null || c[p] === undefined);
+
+/** Validates the cost limits (SEC-005). */
+export function checkCostLimits(value: unknown, path: string, issues: FieldIssue[]) {
+  if (!isRecord(value)) {
+    issues.push({ path, message: 'must be an object with perKey, perUser, perModel, perProvider, global and maxEstimatedCostPerRequest' });
+    return;
+  }
+  const known = new Set(['perKey', 'perUser', 'perModel', 'perProvider', 'global', 'maxEstimatedCostPerRequest']);
+  for (const k of Object.keys(value)) if (!known.has(k)) issues.push({ path: `${path}.${k}`, message: 'is not a cost limit field' });
+  for (const k of ['perKey', 'perUser', 'global'] as const) if (value[k] !== undefined) checkCostLimit(value[k], `${path}.${k}`, issues, COST_FIELDS);
+  checkDollars(value.maxEstimatedCostPerRequest, `${path}.maxEstimatedCostPerRequest`, issues);
+  const list = (key: 'perModel' | 'perProvider', field: 'model' | 'provider', pattern: RegExp, words: string, max: number) => {
+    const items = value[key];
+    if (items === undefined) return;
+    if (!Array.isArray(items)) return issues.push({ path: `${path}.${key}`, message: 'must be a list' });
+    if (items.length > max) issues.push({ path: `${path}.${key}`, message: `at most ${max} entries` });
+    const seen = new Set<string>();
+    items.slice(0, max).forEach((item: unknown, i) => {
+      const p = `${path}.${key}[${i}]`;
+      if (!checkCostLimit(item, p, issues, field === 'model' ? MODEL_COST_FIELDS : PROVIDER_COST_FIELDS)) return;
+      const name = (item as unknown as Record<string, unknown>)[field];
+      if (typeof name !== 'string' || name.length > 300 || !pattern.test(name)) issues.push({ path: `${p}.${field}`, message: `must be ${words}` });
+      else if (seen.has(name.toLowerCase())) issues.push({ path: `${p}.${field}`, message: `"${name}" has two cost limits` });
+      else seen.add(name.toLowerCase());
+      if (costIsEmpty(item as CostLimit)) issues.push({ path: p, message: 'set an hourly, daily or monthly amount, or remove it' });
+    });
+  };
+  list('perModel', 'model', /^[^/\s]+\/\S+$/, 'a model reference, provider/model', MAX_MODEL_LIMITS);
+  list('perProvider', 'provider', /^[^/\s]+$/, 'a provider identifier', MAX_PROVIDER_COST_LIMITS);
+}
+
+/** Validates the request limits (SEC-006). Missing fields keep their defaults. */
+export function checkRequestLimits(value: unknown, path: string, issues: FieldIssue[]) {
+  if (!isRecord(value)) {
+    issues.push({ path, message: 'must be an object of request limits' });
+    return;
+  }
+  for (const [k, v] of Object.entries(value)) {
+    const range = REQUEST_LIMIT_RANGES[k as keyof RequestLimits];
+    if (!range) {
+      issues.push({ path: `${path}.${k}`, message: 'is not a request limit' });
+      continue;
+    }
+    checkWhole(v, `${path}.${k}`, issues, range.min, range.max, range.nullable);
+  }
+}
+
+const costLimit = (c: Partial<CostLimit> | null | undefined): CostLimit => ({
+  hour: c?.hour ?? null, day: c?.day ?? null, month: c?.month ?? null,
+});
+
+/** Fills in missing cost limits with "no limit"; amounts keep at most four decimals. */
+export function normalizeCostLimits(raw: Partial<CostLimits> | null | undefined): CostLimits {
+  const round = (c: CostLimit): CostLimit => ({
+    hour: c.hour === null ? null : Math.round(c.hour * 10_000) / 10_000,
+    day: c.day === null ? null : Math.round(c.day * 10_000) / 10_000,
+    month: c.month === null ? null : Math.round(c.month * 10_000) / 10_000,
+  });
+  const d = DEFAULT_COST_LIMITS;
+  return {
+    perKey: round(costLimit(raw?.perKey ?? d.perKey)),
+    perUser: round(costLimit(raw?.perUser ?? d.perUser)),
+    global: round(costLimit(raw?.global ?? d.global)),
+    perModel: (raw?.perModel ?? []).map((m) => ({ model: m.model.trim(), ...round(costLimit(m)) })),
+    perProvider: (raw?.perProvider ?? []).map((p) => ({ provider: p.provider.trim(), ...round(costLimit(p)) })),
+    maxEstimatedCostPerRequest: raw?.maxEstimatedCostPerRequest ?? null,
+  };
+}
+
+/** Fills in missing request limits with their defaults; values out of range (stored by hand) fall back too. */
+export function normalizeRequestLimits(raw: Partial<RequestLimits> | null | undefined): RequestLimits {
+  const out = { ...DEFAULT_REQUEST_LIMITS };
+  for (const k of Object.keys(DEFAULT_REQUEST_LIMITS) as (keyof RequestLimits)[]) {
+    const v = raw?.[k];
+    if (v === undefined) continue;
+    const issues: FieldIssue[] = [];
+    checkWhole(v, k, issues, REQUEST_LIMIT_RANGES[k].min, REQUEST_LIMIT_RANGES[k].max, REQUEST_LIMIT_RANGES[k].nullable);
+    if (!issues.length) (out as Record<string, number | null>)[k] = v;
+  }
+  return out;
 }
