@@ -17,7 +17,7 @@
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
 import { createSecretBox, generateSecretKey, parseSecretKey } from '@clawrouter/core';
 import { createDefaultRegistry, createProviderService, createSqliteProviderRepository } from '../src/index.ts';
-import { createHarness } from '../../../tests/support/harness.ts';
+import { createHarness, testOutbound } from '../../../tests/support/harness.ts';
 import { startMockProviders, type MockProviders } from '../../../tests/support/mock-providers.ts';
 
 let mock: MockProviders;
@@ -129,7 +129,7 @@ describe('credentials (spec §29)', () => {
     const h = setup();
     const p = await h.providers.create(actor, openai(), client);
     const other = createProviderService({
-      repo: createSqliteProviderRepository(h.db), registry: createDefaultRegistry(), secrets: createSecretBox(parseSecretKey(generateSecretKey())), audit: h.audit, fetch,
+      repo: createSqliteProviderRepository(h.db), registry: createDefaultRegistry(), secrets: createSecretBox(parseSecretKey(generateSecretKey())), audit: h.audit, outbound: testOutbound(fetch),
     });
     const result = await other.test(actor, p.id, client);
     expect(result.ok).toBe(false);
@@ -167,7 +167,7 @@ describe('connection tests and status', () => {
   test('slow responses are DEGRADED', async () => {
     const h = createHarness();
     h.setProviderFetch(fetch);
-    const svc = createProviderService({ repo: createSqliteProviderRepository(h.db), registry: createDefaultRegistry(), secrets: h.secrets, audit: h.audit, fetch, slowThresholdMs: 20 });
+    const svc = createProviderService({ repo: createSqliteProviderRepository(h.db), registry: createDefaultRegistry(), secrets: h.secrets, audit: h.audit, outbound: testOutbound(fetch), slowThresholdMs: 20 });
     const p = await svc.create(actor, openai(), client);
     mock.mode = 'slow';
     mock.slowMs = 60;

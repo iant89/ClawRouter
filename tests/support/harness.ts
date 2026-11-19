@@ -40,6 +40,7 @@ import { createNotificationService, createSqliteNotificationRepository, type Not
 import { createSqliteSettingsRepository, migrations, openSqlite, runMigrations, type Database } from '@clawrouter/database';
 import { createSettingsService, type SettingsService } from '@clawrouter/settings';
 import { createMailService, type MailService } from '@clawrouter/mail';
+import { createOutboundGuard, createOutboundPolicy, staticResolver, type OutboundGuard } from '@clawrouter/security';
 import {
   createDatabaseCheck, createGatewayCheck, createHealthHistoryService, createHealthService, createSqliteHealthHistoryRepository,
   type HealthHistoryService, type HealthService,
@@ -49,6 +50,20 @@ import { createConfigurationService } from '@clawrouter/configuration';
 
 /** Low-cost argon2id so tests stay fast. Never use these parameters in production. */
 export const fastHasher: PasswordHasher = createArgon2Hasher({ memoryCost: 256, timeCost: 1 });
+
+/**
+ * The outbound guard tests use: loopback (the mock providers) and 10.0.0.0/8 are
+ * allowed, every other name "resolves" to a public address without DNS, and
+ * connections are not pinned so fake fetches still see the hostname.
+ */
+export function testOutbound(fetchImpl: typeof fetch = fetch): OutboundGuard {
+  return createOutboundGuard({
+    policy: createOutboundPolicy(['localhost', '127.0.0.0/8', '::1', '10.0.0.0/8']),
+    resolver: staticResolver({ localhost: ['127.0.0.1'] }, ['93.184.215.14']),
+    fetch: fetchImpl,
+    pin: false,
+  });
+}
 
 export const SETUP_TOKEN = 'test-setup-token-0123456789';
 export const ADMIN = { username: 'admin', displayName: 'Ada Admin', password: 'correct horse battery staple' };
@@ -163,7 +178,7 @@ export function createHarness(options: { idleMinutes?: number; maxHours?: number
   let providerFetch: typeof fetch = (() => Promise.reject(new Error('no network in tests'))) as unknown as typeof fetch;
   const providers = createProviderService({
     repo: createSqliteProviderRepository(db), registry: createDefaultRegistry(), secrets, audit, events, log, now: clock.now,
-    fetch: ((input: RequestInfo | URL, init?: RequestInit) => providerFetch(input, init)) as typeof fetch,
+    outbound: testOutbound(((input: RequestInfo | URL, init?: RequestInit) => providerFetch(input, init)) as typeof fetch),
   });
   const models = createModelService({ repo: createSqliteModelRepository(db), providers, audit, events, log, now: clock.now });
   models.subscribe(events);

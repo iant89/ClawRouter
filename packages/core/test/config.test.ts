@@ -86,3 +86,22 @@ describe('loadConfig', () => {
     expect(() => loadConfig({ CLAWROUTER_SHUTDOWN_GRACE_SECONDS: '9999' })).toThrow('CLAWROUTER_SHUTDOWN_GRACE_SECONDS');
   });
 });
+
+describe('outbound allowlist (SEC-001)', () => {
+  const KEY = { CLAWROUTER_SECRET_KEY: 'x'.repeat(44) };
+  test('development reaches loopback; production and test start closed', () => {
+    expect(loadConfig({}).outbound.allowlist).toEqual(['localhost', '127.0.0.0/8', '::1']);
+    expect(loadConfig({ CLAWROUTER_ENV: 'production', ...KEY }).outbound.allowlist).toEqual([]);
+    expect(loadConfig({ CLAWROUTER_ENV: 'test' }).outbound.allowlist).toEqual([]);
+  });
+
+  test('an explicit value replaces the default, even an empty one', () => {
+    expect(loadConfig({ CLAWROUTER_OUTBOUND_ALLOWLIST: '' }).outbound.allowlist).toEqual([]);
+    expect(loadConfig({ CLAWROUTER_ENV: 'production', ...KEY, CLAWROUTER_OUTBOUND_ALLOWLIST: 'ollama, 192.168.1.0/24, *.lan' }).outbound.allowlist)
+      .toEqual(['ollama', '192.168.1.0/24', '*.lan']);
+  });
+
+  test('invalid entries stop startup', () => {
+    expect(() => loadConfig({ CLAWROUTER_OUTBOUND_ALLOWLIST: 'ollama, not a host' })).toThrow('CLAWROUTER_OUTBOUND_ALLOWLIST');
+  });
+});

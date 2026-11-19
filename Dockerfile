@@ -39,6 +39,7 @@ COPY --from=build /src/dist ./
 RUN mkdir -p /data && chown bun:bun /data
 USER bun
 ENV CLAWROUTER_ENV=production \
+    BUN_RUNTIME_TRANSPILER_CACHE_PATH=0 \
     CLAWROUTER_HOST=0.0.0.0 \
     CLAWROUTER_PORT=8080 \
     CLAWROUTER_DATABASE_PATH=/data/clawrouter.db

@@ -13,6 +13,7 @@ usage tracking and an administration console built on
 > `CLAWROUTER_*`.
 
 - **Spec:** [`docs/design-specification.md`](docs/design-specification.md)
+- **Security hardening:** [`docs/security-roadmap.md`](docs/security-roadmap.md) (in progress: the outbound network policy against SSRF and DNS rebinding, and container hardening, are done).
 - **Roadmap and status:** [`docs/roadmap.md`](docs/roadmap.md). Done so far: the
   first working milestone (Bun server, SQLite with migrations, `/api/health`,
   console shell), phase 2 **authentication** (server-side sessions, initial
@@ -179,6 +180,7 @@ clawrouter/
   packages/
     shared/      browser-safe types: API envelope, error codes, health vocabulary
     core/        config, errors, validation, logger (with redaction), typed event bus, ids
+    security/    outbound network policy: IP classification, DNS checks, pinned connections (SSRF)
     database/    data-access interface, SQLite adapter, migrations, settings repository
     authentication/  users, sessions, password hashing, login throttling, initial setup
     authorization/   roles, permissions, role assignment

@@ -8,6 +8,7 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
+    "@clawrouter/security": "workspace:*",
     "@clawrouter/shared": "workspace:*"
   }
 }

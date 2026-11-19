@@ -25,6 +25,7 @@ log level. It never logs a secret.
 | `CLAWROUTER_PORT` | `8080` | `0` picks a free port. |
 | `CLAWROUTER_TLS_CERT_FILE`, `CLAWROUTER_TLS_KEY_FILE` | none | PEM certificate (full chain) and private key: ClawRouter serves HTTPS itself. Both or neither. Turns on Secure cookies unless `CLAWROUTER_COOKIE_SECURE` says otherwise. Restart after renewing the certificate. |
 | `CLAWROUTER_TRUSTED_PROXIES` | none | Comma-separated addresses or CIDR ranges of reverse proxies. `X-Forwarded-For` is read only from these; the right-most untrusted hop is the client. |
+| `CLAWROUTER_OUTBOUND_ALLOWLIST` | none; `localhost,127.0.0.0/8,::1` in development | Destinations provider calls may reach although they are private, loopback or plain `http`: comma-separated hostnames (`ollama`), `*.suffix` wildcards, IP addresses and CIDR ranges. Public `https` needs no entry; cloud metadata services are never reachable. Invalid entries stop startup. See [security](security.md#outbound-network-policy). |
 | `CLAWROUTER_SHUTDOWN_GRACE_SECONDS` | `30` (0–600) | How long a stop waits for requests in flight. The process exits regardless 15 seconds after that. |
 | `CLAWROUTER_REUSE_PORT` | `false` | Lets a new process bind the port while the old one drains (Linux), for restarts without refused connections. |
 | `CLAWROUTER_CONSOLE_ENABLED` | `true` | `false` serves only the APIs (`/api`, `/v1`). |

@@ -37,7 +37,7 @@ describe('graceful shutdown', () => {
   });
 
   async function start(name: string): Promise<{ app: ClawRouter; chat: () => Promise<Response> }> {
-    const config = loadConfig({ CLAWROUTER_ENV: 'test', CLAWROUTER_PORT: '0', CLAWROUTER_DATABASE_PATH: join(dir, `${name}.db`), CLAWROUTER_SETUP_TOKEN: 'x'.repeat(20) });
+    const config = loadConfig({ CLAWROUTER_ENV: 'test', CLAWROUTER_PORT: '0', CLAWROUTER_DATABASE_PATH: join(dir, `${name}.db`), CLAWROUTER_SETUP_TOKEN: 'x'.repeat(20), CLAWROUTER_OUTBOUND_ALLOWLIST: '127.0.0.1' });
     const app = await startClawRouter({ config, log: silentLogger, version: 'test', hasher: fastHasher, providerFetch: fetch });
     const actor = { id: 'ops', username: 'ops' };
     const at = new Date().toISOString();

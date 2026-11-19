@@ -16,6 +16,7 @@
 
 import { AppError, errors, newId, type EventBus, type Logger, type SecretBox } from '@clawrouter/core';
 import type { AuditService } from '@clawrouter/audit';
+import { OutboundBlockedError, type OutboundGuard } from '@clawrouter/security';
 import {
   IDENTIFIER_PATTERN, KEY_EXPIRY_MAX_HOURS, type ConnectionTestResult, type CreateProviderRequest, type FieldIssue, type ProviderDetail, type ProviderInfo,
   type ProviderKindInfo, type ProviderState, type UpdateProviderRequest,
@@ -44,8 +45,12 @@ export interface ProviderServiceOptions {
   events?: EventBus;
   log?: Logger;
   now?: () => Date;
-  /** Injected into every provider call (tests use a fake). */
-  fetch?: typeof fetch;
+  /**
+   * The outbound network guard (SEC-001): endpoints are checked against its
+   * policy, and every provider call connects through it. Required, so no code
+   * path can reach the network around it. Tests inject a fake fetch into the guard.
+   */
+  outbound: OutboundGuard;
   /** A successful check slower than this marks the provider DEGRADED. */
   slowThresholdMs?: number;
   /** Timeout for connection tests and health checks (shorter than request timeouts). */
@@ -102,6 +107,22 @@ export function createProviderService(options: ProviderServiceOptions) {
     }
   }
 
+  /**
+   * Plain http is only for allowlisted local hosts, and a name may fall inside an
+   * allowlisted range only once resolved: check those endpoints fully when they are
+   * saved, so the mistake shows on the form instead of at the first call. https
+   * endpoints are not looked up here (DNS may be down while saving); each call is checked.
+   */
+  async function reachable(endpoint: string): Promise<FieldIssue[]> {
+    if (!endpoint.startsWith('http:')) return [];
+    try {
+      await options.outbound.check(endpoint);
+      return [];
+    } catch (error) {
+      return [{ path: 'endpoint', message: error instanceof OutboundBlockedError ? `is not allowed: ${error.reason}` : 'could not be checked' }];
+    }
+  }
+
   function validateKey(apiKey: string, path = 'apiKey'): FieldIssue[] {
     if (apiKey.length < 8 || apiKey.length > 4096) return [{ path, message: 'must be between 8 and 4096 characters' }];
     if (/\s/.test(apiKey)) return [{ path, message: 'must not contain spaces or line breaks' }];
@@ -137,7 +158,7 @@ export function createProviderService(options: ProviderServiceOptions) {
     const apiKey = await apiKeyFor(p);
     if (adapter.info.apiKeyRequired && !apiKey) throw new ConfigurationProblem('No API key is configured.');
     // A tap (provider captures) copies the exchange as it passes; the call itself is unchanged.
-    const fetchImpl = tap ? tap.wrap(options.fetch ?? fetch, apiKey) : options.fetch;
+    const fetchImpl = tap ? tap.wrap(options.outbound.fetch, apiKey) : options.outbound.fetch;
     return { adapter, ctx: { endpoint: p.endpoint, apiKey, timeoutMs, signal, fetch: fetchImpl } };
   }
 
@@ -203,9 +224,10 @@ export function createProviderService(options: ProviderServiceOptions) {
       let endpoint = '';
       if (!endpointRaw) issues.push({ path: 'endpoint', message: 'is required for this provider kind' });
       else {
-        const checked = checkEndpoint(endpointRaw);
+        const checked = checkEndpoint(endpointRaw, 'endpoint', options.outbound.policy);
         issues.push(...checked.issues);
         endpoint = checked.url ?? '';
+        issues.push(...(await reachable(endpoint)));
       }
       if (input.apiKey !== undefined) issues.push(...validateKey(input.apiKey));
       issues.push(...checkLifetime(input.maxKeyLifetimeHours));
@@ -233,9 +255,10 @@ export function createProviderService(options: ProviderServiceOptions) {
       const issues: FieldIssue[] = [];
       let endpoint: string | undefined;
       if (patch.endpoint !== undefined) {
-        const checked = checkEndpoint(patch.endpoint);
+        const checked = checkEndpoint(patch.endpoint, 'endpoint', options.outbound.policy);
         issues.push(...checked.issues);
         endpoint = checked.url ?? undefined;
+        issues.push(...(await reachable(endpoint ?? '')));
       }
       if (patch.apiKey !== undefined) issues.push(...validateKey(patch.apiKey));
       issues.push(...checkLifetime(patch.maxKeyLifetimeHours));

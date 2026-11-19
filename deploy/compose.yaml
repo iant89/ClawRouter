@@ -29,10 +29,29 @@ services:
       CLAWROUTER_SECRET_KEY_FILE: /run/secrets/clawrouter_key
       # Docker's network: the proxy reaches ClawRouter from this range.
       CLAWROUTER_TRUSTED_PROXIES: 172.16.0.0/12
+      # Provider calls reach public https only. A local model server on this Compose
+      # network needs its service name here, e.g. "ollama" (docs/security.md#outbound-network-policy).
+      # CLAWROUTER_OUTBOUND_ALLOWLIST: ollama
     secrets:
       - clawrouter_key
     volumes:
       - clawrouter-data:/data
+    # Container hardening (SEC-004): if ClawRouter is compromised, the container is all it gets.
+    # The image runs as the unprivileged bun user (uid 1000); only /data and /tmp are writable.
+    user: "1000:1000"
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777,noexec,nosuid,nodev
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    # Docker's default seccomp and AppArmor profiles stay on: never set seccomp=unconfined,
+    # privileged, network_mode: host, pid: host or mount /var/run/docker.sock here.
+    pids_limit: 256
+    mem_limit: 1g
+    ulimits:
+      nofile: { soft: 65536, hard: 65536 }
     # Longer than CLAWROUTER_SHUTDOWN_GRACE_SECONDS (30), so requests in flight finish.
     stop_grace_period: 45s
 

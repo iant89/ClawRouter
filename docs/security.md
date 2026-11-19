@@ -19,6 +19,71 @@ guarded by tests, and the risks that remain. Area details live in
 | 6 | Audit privacy | A failed sign-in stored whatever was typed as the username. A password typed into that field ended up in the audit log and a notification. | The typed name is recorded only if it is an existing account; otherwise `unknownUser: true`. |
 | 7 | Secrets in git | No automated check. | `bun run scan-secrets` (tree, and `--history` for every commit) and `bun audit` run in CI. The tree and full history are clean; no known-vulnerable dependencies. |
 
+## Outbound network policy
+
+Security hardening phase 1 (SEC-001, SEC-007, SEC-008 in the
+[security roadmap](security-roadmap.md)). Provider endpoints are chosen by
+administrators, and anyone who can edit a provider could otherwise point
+ClawRouter at the machine's own services, the private network or a cloud
+metadata service (server-side request forgery). Every provider connection now
+goes through one layer, `@clawrouter/security` (`packages/security/src`):
+
+```
+provider URL ─▶ URL check ─▶ DNS (every address) ─▶ address check ─▶ connect to the checked address
+               scheme, credentials,   system resolver,    each answer classified;    Host header and TLS
+               metadata names,        5 s timeout         any refusal stops it       server name stay the
+               literal IPs                                                           hostname
+```
+
+| Rule | Detail |
+|---|---|
+| Public `https` | Allowed. Certificates are verified as usual; verification is never turned off. |
+| Plain `http` | Only to destinations on `CLAWROUTER_OUTBOUND_ALLOWLIST`. |
+| Loopback, private (RFC 1918, CGNAT, IPv6 ULA and site-local), link-local, reserved, documentation, multicast, `0.0.0.0/8`, `::` | Only when the allowlist names the host or a range containing the address. |
+| Cloud metadata (`169.254.169.254`, `169.254.170.2`, `100.100.100.200`, `192.0.0.192`, `fd00:ec2::254`, `metadata.google.internal`, …) | **Never**, whatever the allowlist says (even `0.0.0.0/0`). |
+| IPv6 forms of IPv4 addresses (`::ffff:127.0.0.1`, NAT64 `64:ff9b::/96`, 6to4 `2002::/16`) | Judged by the IPv4 address inside. Numeric spellings (`2130706433`, `0x7f.1`) are normalized by the URL parser first. |
+| Several DNS answers | **Every** address must pass, not only the first. |
+| Redirects | Never followed. |
+
+**DNS rebinding (SEC-008).** The name is resolved once per request and the
+connection is made to the checked address itself: the URL's host is replaced by
+the IP, the `Host` header keeps the name, and for `https` the name is the TLS
+server name (SNI), so the certificate is still checked against the hostname. A
+name that answers a public address to the check and `127.0.0.1` a moment later
+never gets a second lookup. Tests cover a rebinding resolver, IPv4 and IPv6,
+mixed answers, and a real TLS server on loopback (a certificate for another name
+is refused). Behind an egress proxy (`HTTPS_PROXY`), the proxy resolves names: the
+checks still run, but the connection is not pinned, and the proxy's own policy is
+the last line. When this machine cannot resolve outside names at all (only the
+proxy can), a name is judged as public: `https` passes, plain `http` only for an
+allowlisted hostname; literal addresses and metadata names are still refused.
+Checked live on 2026-11-19 through such a proxy (Groq's model list).
+
+**The allowlist.** `CLAWROUTER_OUTBOUND_ALLOWLIST` takes hostnames (`ollama`),
+`*.suffix` wildcards (`*.lan`), IP addresses and CIDR ranges, comma-separated.
+An allowlisted hostname may resolve to any non-metadata address; a range allows
+the addresses inside it, by any name. It is an environment variable, not a
+console setting, so a console account cannot widen it. Development allows
+`localhost,127.0.0.0/8,::1` unless set; production and test start empty.
+
+**Where it is enforced.** Saving a provider checks the URL (plain `http`
+endpoints are also resolved, so the mistake shows on the form); every call
+(connection tests, health checks, discovery, chat, embeddings, captures) goes
+through `guard.fetch`, which the provider service requires: no code path reaches
+the network around it. An endpoint stored before the policy, or written to the
+database directly, is refused at call time before any connection. `bun run
+doctor` names refused provider endpoints with the fix, and warns about a
+catch-all allowlist range.
+
+**Upgrading.** A provider on plain `http` or a private address (a local Ollama,
+vLLM or LM Studio) worked before and is now refused until its host is listed:
+run `bun run doctor`, then set e.g. `CLAWROUTER_OUTBOUND_ALLOWLIST=127.0.0.1` or
+`ollama` and restart.
+
+**Not covered yet.** The SMTP connection for two-factor mail
+(`packages/mail/src/smtp.ts`) does not go through the policy: mail relays are
+often local, and the host is set by administrators only.
+
 ## Review checklist
 
 | Item | Result |
@@ -52,6 +117,7 @@ guarded by tests, and the risks that remain. Area details live in
 | **Username lockout** | 10 wrong passwords (configurable) block a username for 15 minutes, so someone who knows an administrator's username can keep them out. The per-address limit and the server-side recovery command reduce the impact; a softer per-username delay would remove it (two-factor sign-in does not, since the password step comes first). |
 | **CSP allows inline styles** | The design system sets layout through `style` attributes. Scripts are strictly same-origin, so script injection is still blocked; inline styles only allow visual tampering. |
 | **Per-process counters and settings** | Rate-limit counters, live events and the settings cache live in one process. Running several nodes needs a shared store (spec §41, Redis). |
+| **SMTP outside the outbound policy** | The mail server is set by administrators and is often a local relay; see [outbound network policy](#outbound-network-policy). |
 | **Provider adapters untested against real APIs** | Only the mock providers were reachable; see the MEMORY warning. |
 | **No payload logging, no CORS on `/v1`** | Deliberate: prompts and completions are never stored, and browser apps must call through their backend. |
 
@@ -61,6 +127,7 @@ guarded by tests, and the risks that remain. Area details live in
 2. Set `CLAWROUTER_SECRET_KEY` (or `_FILE`) from `openssl rand -base64 32`, and back it up separately from the database.
 3. Behind a reverse proxy, set `CLAWROUTER_TRUSTED_PROXIES` to the proxy's address only. Pass the `Host` header and WebSocket upgrades on `/api/ws`.
 4. Keep `CLAWROUTER_HOST` on a private interface unless the proxy needs otherwise.
+   Leave `CLAWROUTER_OUTBOUND_ALLOWLIST` empty unless a local model server needs it, and then list only that host or range. In Docker, keep the hardening in `deploy/compose.yaml` ([deployment](deployment.md#container-hardening)).
 5. Rotate the secret key with `bun run rotate-secret-key` if it may have been exposed (it re-encrypts provider keys, the mail password and authenticator-app secrets). Recover lost passwords with `bun run reset-password`, a lost key with `bun run clear-credentials` (see [deployment](deployment.md#recovery)).
 6. Back up regularly and copy backups off the machine. Backups leave the secret key out unless `--include-secret-key` is given: whoever holds both can read every provider key. Run `bun run doctor` after changes.
 7. Run `bun run scan-secrets` and `bun audit` before releases (CI does both).

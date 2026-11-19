@@ -89,6 +89,19 @@ describe('doctor', () => {
     expect(noKey.find((c) => c.area === 'secret key')!.level).toBe('error');
   });
 
+  test('names provider endpoints the outbound policy refuses, and the allowlist', async () => {
+    // A local model server added before the outbound policy existed (SEC-001).
+    const dbPath = join(root, 'outbound.db');
+    const db = openSqlite({ path: dbPath });
+    runMigrations(db, migrations);
+    db.run("INSERT INTO providers (id, name, identifier, kind, endpoint, created_at, updated_at) VALUES ('p1', 'Local', 'local', 'ollama', 'http://127.0.0.1:11434/v1', '2026-01-01', '2026-01-01')");
+    db.close();
+    const closed = await runDoctor(loadConfig({ CLAWROUTER_DATABASE_PATH: dbPath, CLAWROUTER_OUTBOUND_ALLOWLIST: '' }), newBox(), null);
+    expect(closed.find((c) => c.area === 'outbound')).toMatchObject({ level: 'error', message: expect.stringContaining('local (127.0.0.1 is a loopback address'), fix: expect.stringContaining('CLAWROUTER_OUTBOUND_ALLOWLIST') });
+    const open = await runDoctor(loadConfig({ CLAWROUTER_DATABASE_PATH: dbPath, CLAWROUTER_OUTBOUND_ALLOWLIST: '127.0.0.1, 0.0.0.0/0' }), newBox(), null);
+    expect(open.filter((c) => c.area === 'outbound').map((c) => c.level).sort()).toEqual(['info', 'ok', 'warn']);
+  });
+
   test('a database from a newer version is an error', async () => {
     const dbPath = join(root, 'newer.db');
     const db = openSqlite({ path: dbPath });

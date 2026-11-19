@@ -11,6 +11,7 @@
     "@clawrouter/audit": "workspace:*",
     "@clawrouter/core": "workspace:*",
     "@clawrouter/database": "workspace:*",
+    "@clawrouter/security": "workspace:*",
     "@clawrouter/shared": "workspace:*"
   }
 }

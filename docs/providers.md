@@ -112,11 +112,20 @@ Usage is reported as `source: 'provider'` when the provider sent token counts,
 
 ## Endpoint policy
 
-- `https` everywhere, except plain `http` for loopback, private (RFC 1918, IPv6
-  ULA) and single-label hosts such as a Docker service `ollama`, for local models.
+Every provider connection goes through the outbound network policy
+([security](security.md#outbound-network-policy), SEC-001):
+
+- `https` to public addresses only, by default. Loopback, private (RFC 1918,
+  CGNAT, IPv6 ULA), link-local, reserved and multicast addresses, and **plain
+  `http` to anything**, need an entry in `CLAWROUTER_OUTBOUND_ALLOWLIST`
+  (hostnames such as a Docker service `ollama`, `*.lan`, IP addresses, CIDR
+  ranges). Development allows loopback by default.
+- Cloud metadata services (`169.254.169.254`, `metadata.google.internal`,
+  `fd00:ec2::254`, …) are refused whatever the allowlist says.
 - No credentials, query string or fragment in the URL.
-- Cloud metadata and link-local addresses (`169.254.0.0/16`,
-  `metadata.google.internal`, …) are refused.
+- Names are resolved before connecting, **every** address must pass, and the
+  connection goes to the address that was checked (DNS rebinding cannot swap
+  it). TLS certificates are verified against the hostname as usual.
 - **Redirects are never followed**, so a key cannot be redirected to another host.
 - Every call has a timeout (the provider's `timeoutMs`; checks use at most 15 s)
   and is cancelled when the caller aborts.

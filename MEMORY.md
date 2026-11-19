@@ -14,6 +14,24 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 
 ### Important
 
+- **IMPORTANT** · 2026-11-19 · Owner's security roadmap; outbound network policy (SSRF) built
+  The owner pasted a 26-item security hardening roadmap (SEC-001…SEC-026, the last item cut off
+  mid-text); it is tracked in `docs/security-roadmap.md`. Phase 1 built on
+  `claude/clawrouter-security-hardening-fm633m`: SEC-001/007/008 as `packages/security`
+  (`createOutboundGuard`): every provider connection is checked (scheme, metadata names, every DNS
+  answer classified) and **pinned** to the checked IP (`Host` + TLS `serverName` keep the name; Bun
+  verifies the cert against it, tested with a real TLS server). Decisions made here (keep unless the
+  owner says otherwise): public **https** only by default; private/loopback addresses and **any plain
+  http** need `CLAWROUTER_OUTBOUND_ALLOWLIST` (env var, not a console setting, so a console account
+  cannot widen it); development defaults to loopback; metadata addresses are refused even when
+  allowlisted; behind `HTTPS_PROXY` the checks run but nothing is pinned. `ProviderService` **requires**
+  `outbound` (tests: `testOutbound()` in the harness, which allows loopback and 10/8 and does not pin).
+  A new outbound connection must go through the guard. **Upgrade risk:** existing local `http://`
+  providers (Ollama etc.) are refused until allowlisted; `bun run doctor` names them. Not covered: the
+  SMTP client. SEC-004: `deploy/compose.yaml` hardening, checked in Docker 29.10 (no caps,
+  NoNewPrivs, read-only root); AppArmor/SELinux not verified. Next: SEC-002 (MCP audit), SEC-003
+  (backup/restore audit).
+
 - **IMPORTANT** · 2026-11-19 · Owner request: the playground can be turned off, and is a permission
   "Let's do both, that way it can be disabled entirely as well as limit who can use it." The
   `playgroundEnabled` setting (on by default; Settings → API keys and quotas → Playground): when
@@ -657,6 +675,11 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
     unavailable"); retry with a short backoff and confirm with `git ls-remote`.
 
 ### Messages
+
+- **MESSAGE** · 2026-11-19 · Security hardening phase 1 waits for review
+  `claude/clawrouter-security-hardening-fm633m`: the outbound network policy (SEC-001/007/008) and
+  container hardening (SEC-004); see `docs/security-roadmap.md`. No migration. Tell the owner about
+  the upgrade risk for local http providers before merging.
 
 - **MESSAGE** · 2026-11-19 · Everything merged after the native Gemini adapter and OpenRouter
   Nothing in ClawRouter waits for review. Old branches to delete on GitHub (the session cannot): every merged

@@ -60,6 +60,7 @@ packages/shared/    browser-safe types shared by server and console
 packages/core/      config, errors, validation, logger + redaction, event bus, secret box
 packages/database/  Database interface, SQLite adapter, migrations (append-only)
 packages/api/       router, middleware, controllers
+packages/security/  outbound network policy (SSRF, DNS rebinding); every provider connection goes through it
 packages/<domain>/  authentication, authorization, audit, notifications, health, providers, models, routing, gateway, rate-limits, requests, operations, settings, mail, configuration
 tests/support/      harness.ts (fully wired in-memory app), mock-providers.ts (fake provider APIs)
 docs/               design specification, roadmap, per-area docs, screenshots/
@@ -68,7 +69,7 @@ vendor/             ENTERPRISE-UI tarball (committed)
 
 Area docs: [architecture](docs/architecture.md) · [authentication](docs/authentication.md) ·
 [authorization](docs/authorization.md) · [console shell](docs/console-shell.md) ·
-[providers](docs/providers.md) · [models](docs/models.md) · [routing](docs/routing.md) · [gateway](docs/gateway.md) · [rate limits](docs/rate-limits.md) · [requests and usage](docs/requests-usage.md) · [real-time](docs/realtime.md) · [health and operations](docs/health-operations.md) · [logging and audit](docs/logging-audit.md) · [administration](docs/administration.md) · [security](docs/security.md) · [self-service keys](docs/self-service-keys.md) · [two-factor sign-in](docs/two-factor.md) · [onboarding](docs/onboarding.md) · [MCP server](docs/mcp.md) · [provider captures](docs/captures.md) · [client notices](docs/notices.md) · [playground and chat apps](docs/playground.md) · [performance](docs/performance.md) · [configuration](docs/configuration.md) · [deployment](docs/deployment.md) · [screenshots](docs/screenshots/README.md)
+[providers](docs/providers.md) · [models](docs/models.md) · [routing](docs/routing.md) · [gateway](docs/gateway.md) · [rate limits](docs/rate-limits.md) · [requests and usage](docs/requests-usage.md) · [real-time](docs/realtime.md) · [health and operations](docs/health-operations.md) · [logging and audit](docs/logging-audit.md) · [administration](docs/administration.md) · [security](docs/security.md) · [security roadmap](docs/security-roadmap.md) · [self-service keys](docs/self-service-keys.md) · [two-factor sign-in](docs/two-factor.md) · [onboarding](docs/onboarding.md) · [MCP server](docs/mcp.md) · [provider captures](docs/captures.md) · [client notices](docs/notices.md) · [playground and chat apps](docs/playground.md) · [performance](docs/performance.md) · [configuration](docs/configuration.md) · [deployment](docs/deployment.md) · [screenshots](docs/screenshots/README.md)
 
 ## Rules
 

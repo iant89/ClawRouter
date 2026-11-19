@@ -15,21 +15,37 @@
  */
 
 import { describe, expect, test } from 'bun:test';
+import { createOutboundPolicy } from '@clawrouter/security';
 import { checkEndpoint, parseSse, providerFetch, ProviderCallError, scrub } from '../src/index.ts';
 
 describe('endpoint policy', () => {
+  // As configured for an installation with a local model server and the default (empty) allowlist.
+  const local = createOutboundPolicy(['localhost', '127.0.0.0/8', '192.168.0.0/16', 'ollama']);
+  const closed = createOutboundPolicy();
+
   test.each([
     ['https://api.openai.com/v1/', 'https://api.openai.com/v1'],
     ['http://localhost:11434/v1', 'http://localhost:11434/v1'],
     ['http://127.0.0.1:8000', 'http://127.0.0.1:8000'],
     ['http://192.168.1.20:1234/v1', 'http://192.168.1.20:1234/v1'],
     ['http://ollama:11434/v1', 'http://ollama:11434/v1'],
-  ])('accepts %s', (input, normalized) => {
-    expect(checkEndpoint(input)).toEqual({ url: normalized, issues: [] });
+  ])('accepts %s when allowlisted', (input, normalized) => {
+    expect(checkEndpoint(input, 'endpoint', local)).toEqual({ url: normalized, issues: [] });
   });
 
   test.each([
-    ['http://api.example.com/v1', 'https'],
+    ['http://localhost:11434/v1', 'CLAWROUTER_OUTBOUND_ALLOWLIST'],
+    ['http://127.0.0.1:8000', 'loopback'],
+    ['https://192.168.1.20/v1', 'private network'],
+    ['http://ollama:11434/v1', 'plain http'],
+    ['http://api.example.com/v1', 'use https'],
+  ])('refuses %s without an allowlist', (input, message) => {
+    const { url, issues } = checkEndpoint(input, 'endpoint', closed);
+    expect(url).toBeNull();
+    expect(issues[0]!.message).toContain(message);
+  });
+
+  test.each([
     ['ftp://example.com', 'http or https'],
     ['https://user:pw@example.com', 'credentials'],
     ['https://example.com/v1?key=abc', 'query string'],
@@ -37,7 +53,7 @@ describe('endpoint policy', () => {
     ['https://metadata.google.internal', 'metadata'],
     ['not a url', 'valid URL'],
   ])('rejects %s', (input, message) => {
-    const { url, issues } = checkEndpoint(input);
+    const { url, issues } = checkEndpoint(input, 'endpoint', local);
     expect(url).toBeNull();
     expect(issues[0]!.message).toContain(message);
   });

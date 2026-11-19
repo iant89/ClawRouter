@@ -39,6 +39,7 @@ import { createRequestLogService, createSqliteRequestRepository, type RequestLog
 import { createSqliteSettingsRepository, migrationStatus, migrations, openSqlite, runMigrations, type Database } from '@clawrouter/database';
 import { createSettingsService, settingDefaults } from '@clawrouter/settings';
 import { createMailService } from '@clawrouter/mail';
+import { createOutboundGuard, createOutboundPolicy } from '@clawrouter/security';
 import {
   createDatabaseCheck, createGatewayCheck, createHealthHistoryService, createHealthService, createPlatformCheck, createProvidersCheck,
   createSqliteHealthHistoryRepository, createWebSocketCheck, type HealthHistoryService, type HealthService,
@@ -131,7 +132,9 @@ export async function startClawRouter({ config, log, logBuffer, version, console
   // System settings: read at use time by the services below, so console changes apply without a restart.
   const settings = createSettingsService({ repo: createSqliteSettingsRepository(db), defaults: settingDefaults(config), audit, events, log });
   const providers = createProviderService({
-    repo: createSqliteProviderRepository(db), registry: createDefaultRegistry(), secrets, audit, events, log, fetch: providerFetch,
+    repo: createSqliteProviderRepository(db), registry: createDefaultRegistry(), secrets, audit, events, log,
+    // SEC-001: every provider connection is checked and pinned (CLAWROUTER_OUTBOUND_ALLOWLIST).
+    outbound: createOutboundGuard({ policy: createOutboundPolicy(config.outbound.allowlist), fetch: providerFetch }),
   });
   const models = createModelService({ repo: createSqliteModelRepository(db), providers, audit, events, log });
   const unsubscribeModels = models.subscribe(events);
@@ -315,6 +318,8 @@ export async function startClawRouter({ config, log, logBuffer, version, console
 
   const proxies = parseTrustedProxies(config.server.trustedProxies.join(',')).proxies;
   if (proxies.entries.length) log.info('trusting X-Forwarded-For from reverse proxies', { component: 'server', proxies: proxies.entries });
+  // SEC-001: provider calls reach public https only, plus whatever the allowlist names.
+  log.info('outbound network policy', { component: 'server', allowlist: config.outbound.allowlist.length ? config.outbound.allowlist : 'none (public https only)' });
   const handle = (request: Request, srv: Server<SocketData>): Response | Promise<Response> | undefined => {
     if (new URL(request.url).pathname === REALTIME_PATH) {
       const check = realtime.authorize(request);

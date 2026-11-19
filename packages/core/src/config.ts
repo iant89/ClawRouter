@@ -15,6 +15,7 @@
  */
 
 import { dirname, join } from 'node:path';
+import { parseAllowlist } from '@clawrouter/security';
 import { parseTrustedProxies } from './client-address.ts';
 import { AppError } from './errors.ts';
 import { LOG_LEVELS, type LogFormat, type LogLevel } from './logger.ts';
@@ -76,6 +77,14 @@ export interface Config {
     /** How often enabled providers are health-checked. 0 turns background checks off. */
     healthIntervalSeconds: number;
   };
+  outbound: {
+    /**
+     * Destinations provider calls may reach although they are private, loopback or
+     * plain http (hostnames, *.suffix, IP addresses, CIDR ranges). Public https needs
+     * no entry; cloud metadata services are never reachable. Development: loopback.
+     */
+    allowlist: string[];
+  };
   secrets: {
     /** 32-byte key for encrypting stored credentials (base64 or hex). Never stored in the database. */
     key: string | null;
@@ -96,6 +105,9 @@ export interface Config {
     setupToken: string | null;
   };
 }
+
+/** The outbound allowlist in development when CLAWROUTER_OUTBOUND_ALLOWLIST is unset. */
+export const DEVELOPMENT_ALLOWLIST = 'localhost,127.0.0.0/8,::1';
 
 type Env = Record<string, string | undefined>;
 
@@ -181,6 +193,7 @@ export function loadConfig(env: Env = process.env): Config {
     providers: {
       healthIntervalSeconds: int('CLAWROUTER_PROVIDER_HEALTH_INTERVAL_SECONDS', 300, 0, 86_400),
     },
+    outbound: { allowlist: [] },
     secrets: {
       key: env.CLAWROUTER_SECRET_KEY?.trim() || null,
       keyFile: env.CLAWROUTER_SECRET_KEY_FILE?.trim() || null,
@@ -195,6 +208,10 @@ export function loadConfig(env: Env = process.env): Config {
   const proxies = parseTrustedProxies(env.CLAWROUTER_TRUSTED_PROXIES);
   if (proxies.invalid.length) issues.push({ key: 'CLAWROUTER_TRUSTED_PROXIES', message: `must be IP addresses or CIDR ranges, comma-separated (invalid: ${proxies.invalid.join(', ')})` });
   config.server.trustedProxies = [...proxies.proxies.entries];
+  // Development may reach local model servers and the mock providers on loopback; production starts closed.
+  const allowlist = parseAllowlist(env.CLAWROUTER_OUTBOUND_ALLOWLIST ?? (envName === 'development' ? DEVELOPMENT_ALLOWLIST : ''));
+  if (allowlist.invalid.length) issues.push({ key: 'CLAWROUTER_OUTBOUND_ALLOWLIST', message: `must be hostnames, *.suffix wildcards, IP addresses or CIDR ranges, comma-separated (invalid: ${allowlist.invalid.join(', ')})` });
+  config.outbound.allowlist = allowlist.entries;
   if (config.secrets.key && config.secrets.keyFile) {
     issues.push({ key: 'CLAWROUTER_SECRET_KEY', message: 'set either CLAWROUTER_SECRET_KEY or CLAWROUTER_SECRET_KEY_FILE, not both' });
   }

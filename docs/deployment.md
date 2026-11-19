@@ -89,6 +89,35 @@ The key file must belong to uid 1000: Compose mounts it into the container as it
 is, and the `bun` user has to read it. The port is published on `127.0.0.1` only,
 for a proxy on the same host.
 
+### Container hardening
+
+The Compose file runs ClawRouter so that a compromised process stays inside its
+container (SEC-004): the unprivileged `bun` user, a **read-only root
+filesystem** (only the `/data` volume and a small `noexec` tmpfs on `/tmp` are
+writable), **all Linux capabilities dropped**, `no-new-privileges`, a process
+limit and a memory limit. Docker's default seccomp and AppArmor (or SELinux)
+profiles stay on. Never add `privileged`, `network_mode: host`, `pid: host`,
+`seccomp=unconfined` or a mount of `/var/run/docker.sock`. Without Compose, the
+same flags:
+
+```bash
+docker run -d --name clawrouter -p 127.0.0.1:8080:8080 \
+  --user 1000:1000 --read-only --tmpfs /tmp:size=64m,mode=1777,noexec,nosuid,nodev \
+  --cap-drop ALL --security-opt no-new-privileges:true --pids-limit 256 --memory 1g \
+  -v clawrouter-data:/data -v "$PWD/secret.key:/run/secrets/clawrouter_key:ro" \
+  -e CLAWROUTER_SECRET_KEY_FILE=/run/secrets/clawrouter_key clawrouter
+```
+
+Checked on 2026-11-19 (Docker 29.10): the server starts and passes readiness; in
+the container the process is uid 1000 with empty capability sets
+(`CapEff/CapPrm/CapBnd` 0), `NoNewPrivs: 1`, seccomp in filter mode, and writes
+to `/app/dist` or `/etc` fail with "Read-only file system". The image sets
+`BUN_RUNTIME_TRANSPILER_CACHE_PATH=0` so Bun never tries to write a cache.
+
+A local model server on the same Compose network (e.g. an `ollama` service)
+must be named in `CLAWROUTER_OUTBOUND_ALLOWLIST` (see
+[security](security.md#outbound-network-policy)).
+
 ## HTTPS
 
 Console sessions and API keys must not cross the network in clear text. Choose one:

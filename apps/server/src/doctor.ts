@@ -23,6 +23,7 @@ import { migrations, migrationStatus, openSqlite, runMigrations } from '@clawrou
 import { createBackup, listBackups, pruneBackups, runningServer } from './backup.ts';
 import { clearUnreadable } from './clear-credentials.ts';
 import { sealedSecretStores } from './secret-stores.ts';
+import { createOutboundGuard, createOutboundPolicy, OutboundBlockedError, systemResolver } from '@clawrouter/security';
 
 export type CheckLevel = 'ok' | 'warn' | 'error' | 'info';
 
@@ -100,6 +101,18 @@ export async function runDoctor(config: Config, box: SecretBox | null, keyError:
       else add('ok', 'migrations', `up to date (${applied.size})`);
       const users = db.get<{ n: number }>('SELECT COUNT(*) AS n FROM users')!.n;
       if (!users) add('info', 'setup', 'no administrator yet', 'Open the console at /setup with the setup token.');
+      // SEC-001: providers the outbound policy refuses (e.g. a local http server after upgrading) fail every call.
+      const guard = createOutboundGuard({ policy: createOutboundPolicy(config.outbound.allowlist), resolver: systemResolver(3_000) });
+      const providerRows = db.all<{ identifier: string; endpoint: string }>('SELECT identifier, endpoint FROM providers ORDER BY identifier');
+      const refused: string[] = [];
+      for (const p of providerRows) {
+        const reason = await guard.check(p.endpoint).then(() => null, (e: unknown) => (e instanceof OutboundBlockedError ? e.reason : String(e)));
+        if (reason) refused.push(`${p.identifier} (${reason})`);
+      }
+      if (refused.length) {
+        add('error', 'outbound', `${refused.length} provider endpoint(s) refused by the outbound network policy: ${refused.join('; ')}`,
+          'Use https for public hosts. For a local model server, add its host or range to CLAWROUTER_OUTBOUND_ALLOWLIST (docs/security.md#outbound-network-policy).');
+      } else if (providerRows.length) add('ok', 'outbound', `all ${providerRows.length} provider endpoint(s) allowed by the outbound network policy`);
       if (box) {
         const checks = await checkSealedSecrets(sealedSecretStores(db), box);
         const bad = checks.filter((c) => !c.ok);
@@ -140,6 +153,12 @@ export async function runDoctor(config: Config, box: SecretBox | null, keyError:
     add('warn', 'https', `listening on ${config.server.host} over plain HTTP, without a trusted reverse proxy`, 'Serve HTTPS: put ClawRouter behind a TLS proxy (and set CLAWROUTER_TRUSTED_PROXIES), or set CLAWROUTER_TLS_CERT_FILE and CLAWROUTER_TLS_KEY_FILE.');
   } else add('ok', 'https', exposed ? `behind ${config.server.trustedProxies.length} trusted proxy address(es)` : `listening on ${config.server.host} only`);
   if (!config.auth.cookieSecure && (exposed || config.env === 'production')) add('warn', 'cookies', 'session cookies are not marked Secure', 'Serve HTTPS and leave CLAWROUTER_COOKIE_SECURE unset (or true).');
+
+  // Outbound network policy (SEC-001): what provider calls may reach besides public https.
+  if (config.outbound.allowlist.length) add('info', 'outbound', `CLAWROUTER_OUTBOUND_ALLOWLIST allows ${config.outbound.allowlist.join(', ')} (private addresses and plain http)`);
+  if (config.outbound.allowlist.some((e) => /^(0\.0\.0\.0|::)\/0$/.test(e))) {
+    add('warn', 'outbound', 'the outbound allowlist has a catch-all range: providers can reach every private address (metadata services excepted)', 'List only the hosts or ranges of your local model servers.');
+  }
 
   // Backups
   if (dbPath !== ':memory:') {
