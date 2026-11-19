@@ -110,7 +110,7 @@ Things to know:
 | "Connection refused" on the same machine | Open WebUI in Docker is calling `127.0.0.1`. Use `host.docker.internal` and make ClawRouter listen on `0.0.0.0`. |
 | 429 errors in the chat | The key's rate limit or the owner's quota. Raise the key's limit under API Access, or give Open WebUI its own key. |
 | A tool request is refused with "No model … supports tools" | The chosen model is not marked Tool use in ClawRouter. Mark it under Models, or turn off Builtin Tools. |
-| Questions that use a tool fail with "rate_limited" or "Request too large" | Built-in tools make each request large (about 4,700 input tokens with the defaults), and answering with a tool takes two of them a second apart. A provider's per-minute token limit (Groq's free tier: 7,000–8,000 per model) is easily passed. Turn off Builtin Tools, use a higher provider tier, or add fallback targets with their own limits to the alias. |
+| Questions that use a tool fail with "The model providers are rate limiting requests" or "The request is too large for the model" | Built-in tools make each request large (about 4,700 input tokens with the defaults), and answering with a tool takes two of them a second apart. A provider's per-minute token limit (Groq's free tier: 7,000–8,000 per model) is easily passed. Turn off Builtin Tools, use a higher provider tier, or add fallback targets with their own limits to the alias. |
 | The environment variables changed nothing | Open WebUI keeps the connection from its first start. Edit it under Admin Settings → Connections. |
 
 ## What was tested

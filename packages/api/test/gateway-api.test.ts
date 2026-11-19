@@ -222,8 +222,22 @@ describe('POST /v1/chat/completions', () => {
     mock.requests.length = 0;
     const res = await v1(h, key, '/chat/completions', chat('gpt-4o-mini'));
     expect(res.status).toBe(400);
-    expect((await json<OpenAiError>(res)).error.message).toContain('maximum context length');
+    // ClawRouter's own words, never the provider's (it can name the provider account); the provider's text is logged.
+    expect((await json<OpenAiError>(res)).error.message).toStartWith('The request is too large for the model');
+    expect(h.logs.some((r) => r.msg === 'gateway attempt failed' && String(r.error).includes('maximum context length'))).toBe(true);
     expect(mock.requests.filter((r) => r.path.startsWith('/local'))).toHaveLength(0);
+  });
+
+  test('every provider rate limiting: 429 with the provider\'s Retry-After, recorded as failed', async () => {
+    const { h, key } = await world();
+    mock.mode = 'rate_limited';
+    const res = await v1(h, key, '/chat/completions', chat('openai/gpt-4o-mini'));
+    expect(res.status).toBe(429);
+    expect(res.headers.get('retry-after')).toBe('7');
+    const err = (await json<OpenAiError>(res)).error;
+    expect(err.code).toBe('provider_rate_limited');
+    expect(err.message).toContain('The model providers are rate limiting requests');
+    expect(err.message).not.toContain('slow down');
   });
 
   test('an alias routes through its targets', async () => {

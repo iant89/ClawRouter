@@ -95,7 +95,7 @@ export function startMockProviders(key = 'sk-test-0123456789abcdefWXYZ'): MockPr
       if (state.mode === 'slow') await Bun.sleep(state.slowMs);
       if (state.mode === 'redirect') return new Response(null, { status: 302, headers: { location: 'http://evil.example/steal' } });
       if (state.mode === 'server_error') return json({ error: { message: 'upstream exploded' } }, 500);
-      if (state.mode === 'rate_limited') return json({ error: { message: 'slow down' } }, 429);
+      if (state.mode === 'rate_limited') return Response.json({ error: { message: 'slow down' } }, { status: 429, headers: { 'retry-after': '7' } });
       if (state.mode === 'garbage') return new Response('<html>not json</html>', { headers: { 'content-type': 'text/html' } });
 
       const [, family, ...rest] = url.pathname.split('/');

@@ -11,11 +11,14 @@ export type ProviderFailure = 'auth' | 'rate_limited' | 'timeout' | 'unreachable
 export class ProviderCallError extends AppError {
   readonly failure: ProviderFailure;
   readonly httpStatus: number | null;
+  /** From the provider's Retry-After header (429 and 503), in seconds; null when it sent none. */
+  readonly retryAfterSeconds: number | null;
 
-  constructor(failure: ProviderFailure, message: string, httpStatus: number | null = null, cause?: unknown) {
+  constructor(failure: ProviderFailure, message: string, httpStatus: number | null = null, cause?: unknown, retryAfterSeconds: number | null = null) {
     super(failure === 'timeout' ? 'PROVIDER_TIMEOUT' : 'PROVIDER_ERROR', message, { expose: true, cause });
     this.failure = failure;
     this.httpStatus = httpStatus;
+    this.retryAfterSeconds = retryAfterSeconds;
   }
 }
 
@@ -43,6 +46,15 @@ async function errorText(response: Response, apiKey: string | null): Promise<str
   }
   detail = scrub(detail.replace(/\s+/g, ' ').trim(), apiKey).slice(0, 300);
   return detail;
+}
+
+/** Retry-After as seconds (a number or an HTTP date), capped at an hour; null when absent or unreadable. */
+export function retryAfterSeconds(value: string | null, now = Date.now()): number | null {
+  if (!value) return null;
+  const trimmed = value.trim();
+  const seconds = /^\d+(\.\d+)?$/.test(trimmed) ? Number(trimmed) : (Date.parse(trimmed) - now) / 1000;
+  if (!Number.isFinite(seconds) || seconds < 0) return null;
+  return Math.min(Math.ceil(seconds), 3600);
 }
 
 function failureFor(status: number): ProviderFailure {
@@ -89,7 +101,8 @@ export async function providerFetch(ctx: ProviderCallContext, url: string, init:
   if (!response.ok) {
     const failure = failureFor(response.status);
     const detail = await errorText(response, ctx.apiKey);
-    throw new ProviderCallError(failure, `${FAILURE_TEXT[failure]} (HTTP ${response.status})${detail ? `: ${detail}` : ''}`, response.status);
+    const wait = response.status === 429 || response.status === 503 ? retryAfterSeconds(response.headers.get('retry-after')) : null;
+    throw new ProviderCallError(failure, `${FAILURE_TEXT[failure]} (HTTP ${response.status})${detail ? `: ${detail}` : ''}`, response.status, undefined, wait);
   }
   return response;
 }

@@ -90,12 +90,15 @@ describe('Google through its OpenAI-compatible endpoint', () => {
     expect(chunks.map((c) => c.choices[0]?.finish_reason).filter(Boolean)).toEqual(['tool_calls']);
   });
 
-  test('a retired model: the error says what the provider said, unwrapped from Google\'s list', async () => {
-    const { chat } = await world();
+  test('a retired model: the client gets ClawRouter\'s message; the provider\'s explanation, unwrapped from Google\'s list, is in the logs', async () => {
+    const { h, chat } = await world();
     const res = await chat({ model: 'gemini/gemini-2.5-flash', messages: [{ role: 'user', content: 'Hi' }] });
     expect(res.status).toBe(502);
     const message = ((await res.json()) as { error: { message: string } }).error.message;
-    expect(message).toContain('last error: not_found). The provider said: This model models/gemini-2.5-flash is no longer available to new users. Please update your code to use models/gemini-3.8-flash.');
-    expect(message).not.toContain('[{');
+    expect(message).toContain('last error: not_found). The model may have been retired by its provider');
+    expect(message).not.toContain('gemini-3.8-flash');
+    const logged = h.logs.filter((r) => r.msg === 'gateway attempt failed').map((r) => String(r.error)).join('\n');
+    expect(logged).toContain('This model models/gemini-2.5-flash is no longer available to new users. Please update your code to use models/gemini-3.8-flash.');
+    expect(logged).not.toContain('[{');
   });
 });

@@ -169,13 +169,22 @@ and its round trip, and a streamed tool call.
    |---|---|
    | timeout, network, 5xx, 429, unreadable response | retry the same model if the plan has a retry, otherwise next model. Counted in the failure tracker |
    | auth, not found, misconfigured | skip this model's retries, next model. Counted |
-   | provider 400 (the request is at fault) | stop; the client gets 400 with the provider's message (credentials scrubbed) |
+   | provider 400 (the request is at fault) | stop; the client gets 400 in ClawRouter's words: "too large for the model" when the provider says so, otherwise a generic "rejected as invalid" |
    | client disconnected | stop |
 
    Retries back off 250 ms × try (capped at 2 s). The plan caps attempts (at most
    10), so the loop always ends. When every attempt fails the client gets a
    generic 502 (`PROVIDER_ERROR`) or 504 (`PROVIDER_TIMEOUT`) with the attempt
-   count; provider details stay in the server log.
+   count; provider details stay in the server log. When **every** attempt was a
+   provider 429, the client gets 429 (`code: provider_rate_limited`) instead, with
+   `Retry-After` set to the shortest wait the providers asked for (when they sent one).
+
+   **Provider text never reaches clients** (owner's decision, 2026-11-19). Providers
+   write their errors for their own customer: a live Groq refusal named the account's
+   organization id, its tier and an upgrade link. Clients get ClawRouter's own
+   messages; the provider's full text (credentials scrubbed) is in the log record
+   "gateway attempt failed" under the request id, which Administrators and Operators
+   read under System → Logs, and in a capture when captures are on.
 4. Every attempt calls `FailureTracker.recordFailure/recordSuccess`, so failing
    providers are demoted in later plans (phase 7).
 
@@ -207,6 +216,7 @@ and its round trip, and a streamed tool call.
 | 403 | `permission_error` | model not allowed for this key |
 | 404 | `invalid_request_error` (`model_not_found`) | unknown model or alias |
 | 429 | `rate_limit_error` (`rate_limit_exceeded`) | a [rate limit](rate-limits.md) was reached; see `Retry-After` |
+| 429 | `rate_limit_error` (`provider_rate_limited`) | every provider attempt was rate limited; `Retry-After` when the provider gave one |
 | 502 / 504 | `api_error` | every attempt failed / timed out |
 | 503 | `api_error` | no usable model (e.g. all providers disabled, or no model with the capability) |
 

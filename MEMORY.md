@@ -14,6 +14,20 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 
 ### Important
 
+- **IMPORTANT** · 2026-11-19 · Owner rule: provider error text never reaches clients
+  After a live Groq refusal showed chat users the provider account's organization id and an
+  upgrade link, the owner said "make the changes": clients get ClawRouter's own words for
+  provider 400s (`rejectedMessage` in `packages/gateway/src/executor.ts`: "too large for the
+  model" when the provider says so, otherwise generic) and for retired models (no more "The
+  provider said: …"); the provider's text stays in the "gateway attempt failed" log record
+  (System → Logs, by request id) and in captures. When every attempt was a provider 429 the
+  client gets 429 `provider_rate_limited` with `Retry-After` from the provider
+  (`ProviderCallError.retryAfterSeconds`), not 502. Keep: never put provider text into a
+  client-facing message, including new endpoints such as `/v1/messages`. Tests in
+  `packages/gateway/test/executor.test.ts` ("what clients are told") and `gateway-api.test.ts`.
+  Checked live with Groq on 2026-11-19 (an oversized request, a burst giving 429 with
+  `Retry-After: 10`).
+
 - **IMPORTANT** · 2026-11-18 · Owner rule: playground, and tested chat-app guides
   The owner agreed to a playground page instead of building a full chat client into ClawRouter
   (chat apps such as Open WebUI and LibreChat already exist; ClawRouter stays the gateway behind
@@ -258,14 +272,6 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
   guide). Live: Open WebUI's built-in tools make each request ~4,700 input tokens, and a tool
   answer takes two in a second, which passes Groq's free-tier per-minute limits (429, then
   "Request too large" on the Qwen fallback). Plain chat works.
-
-- **WARNING** · 2026-11-19 · Provider error text reaches clients word for word
-  Seen live with Groq through Open WebUI: a provider 400 ("Request too large for model … in
-  organization `org_…` … Upgrade to Dev Tier at https://console.groq.com…") was returned to the
-  chat user as ClawRouter's 400 message, exposing the provider account's organization id and its
-  upgrade link. Provider 429s after all attempts surface as 502 `PROVIDER_ERROR` (not 429). Not
-  changed yet: reported to the owner on 2026-11-19, waiting for a decision (e.g. a generic
-  message for provider 400s, or scrubbing account ids).
 
 - **WARNING** · 2026-11-17 · Client notice limits
   The system-notice interval (once per key per 30 minutes) and the active-announcement cache
@@ -531,7 +537,8 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
   Built on `claude/hopeful-maxwell-3xrz6m` (the session's assigned branch, not a
   `claude/<feature>` name): Gateway → Playground, `docs/clients/open-webui.md`,
   `docs/clients/librechat.md`, screenshots 33. No migration. Merge into `main` when the owner
-  says so. 2026-11-19: re-tested live with Groq (guides, screenshots 11–13 updated).
+  says so. 2026-11-19: re-tested live with Groq (guides, screenshots 11–13 updated), and the
+  owner's provider-error change (see the owner rule) is on the same branch.
 
 - **MESSAGE** · 2026-11-17 · Everything merged after client notices and announcements
   Nothing in ClawRouter waits for review. Old branches to delete on GitHub (the session cannot): every merged
@@ -545,6 +552,12 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 ---
 
 ## Resolved
+
+- **WARNING** · 2026-11-19 · Provider error text reaches clients word for word. Resolved
+  2026-11-19: the owner said "make the changes"; provider 400s and retired-model errors now get
+  ClawRouter's own messages, and all-rate-limited requests get 429 with `Retry-After` (see the
+  owner rule under Important). This reverses the 2026-11-16 Gemini fix that showed retired-model
+  explanations to clients: that text is now in the logs only.
 
 - **MESSAGE** · 2026-11-17 · Components moved to ENTERPRISE-UI wait for review. Resolved 2026-11-17:
   the owner said "Merge". ENTERPRISE-UI pull request 57 (FieldHelp / WithFieldHelp, EmojiPicker with

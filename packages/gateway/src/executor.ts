@@ -58,6 +58,20 @@ function pause(ms: number, signal: AbortSignal): Promise<void> {
   });
 }
 
+/**
+ * What a client is told when a provider refuses a request as invalid. Never the
+ * provider's own text: it can name the provider account (organization ids, tiers,
+ * upgrade links) and is written for the provider's customer, not ours. The full
+ * text stays in ClawRouter's logs under the request id (attempt failures are
+ * logged), where administrators and operators can read it.
+ */
+export function rejectedMessage(providerText: string): string {
+  if (/too large|too long|context.length|context window|maximum context|too many (input )?tokens|tokens per minute|reduce (the|your) (message|prompt|input)/i.test(providerText)) {
+    return 'The request is too large for the model: it has more tokens than the model or its provider allows. Shorten the conversation or the request, or choose a model with a larger context.';
+  }
+  return 'The model provider rejected the request as invalid. An administrator can find the provider\'s explanation in ClawRouter\'s logs for this request.';
+}
+
 export const cancelled = () => new ProviderCallError('cancelled', 'The request was cancelled.');
 
 /** A model refused by its rate limit before any provider call. */
@@ -97,6 +111,9 @@ export async function runAttempts<T>(
   const tried = new Set<number>();
   let made = 0;
   let last: { kind: string; error: unknown } | null = null;
+  /** Kinds of failed provider attempts, and the shortest wait a rate-limiting provider asked for. */
+  const kinds = new Set<string>();
+  let providerWait: number | null = null;
   let limited: { modelRef: string; denial: ModelLimitDenial } | null = null;
 
   for (const attempt of plan.attempts) {
@@ -133,13 +150,16 @@ export async function runAttempts<T>(
       });
       if (verdict === 'stop') {
         if (kind === 'bad_request' && error instanceof ProviderCallError) {
-          // The provider's own explanation (already scrubbed of credentials) helps the client fix the request.
-          throw new AppError('VALIDATION_ERROR', error.message.replace(/^The provider rejected the request \(HTTP \d+\)(: )?/, '') || 'The provider rejected the request.', { details: { param: null } });
+          throw new AppError('VALIDATION_ERROR', rejectedMessage(error.message), { expose: true, details: { param: null } });
         }
         throw error;
       }
       if (verdict === 'next-model') skipped.add(attempt.candidate);
       last = { kind, error };
+      kinds.add(kind);
+      if (kind === 'rate_limited' && error instanceof ProviderCallError && error.retryAfterSeconds !== null) {
+        providerWait = providerWait === null ? error.retryAfterSeconds : Math.min(providerWait, error.retryAfterSeconds);
+      }
     }
   }
 
@@ -148,9 +168,15 @@ export async function runAttempts<T>(
   if (last?.kind === 'timeout') {
     throw new AppError('PROVIDER_TIMEOUT', `The model provider did not respond in time (${n} attempt${n === 1 ? '' : 's'}).`, { expose: true, details: { attempts: n } });
   }
-  // A model the provider no longer has: its explanation (scrubbed) usually names the replacement.
-  const said = last?.kind === 'not_found' && last.error instanceof ProviderCallError ? last.error.message.replace(/^.*?\(HTTP \d+\)(: )?/, '') : '';
-  throw new AppError('PROVIDER_ERROR', `The model providers could not complete the request (${n} attempt${n === 1 ? '' : 's'}; last error: ${last?.kind ?? 'none'}).${said ? ` The provider said: ${said}` : ''}`, {
+  // Every provider asked us to slow down: the client should too (429, not 502), after the provider's own wait when it gave one.
+  if (n > 0 && kinds.size === 1 && kinds.has('rate_limited')) {
+    throw new AppError('RATE_LIMITED', `The model providers are rate limiting requests (${n} attempt${n === 1 ? '' : 's'}). Try again ${providerWait !== null ? `in ${providerWait} s` : 'shortly'}.`, {
+      expose: true, details: { attempts: n, code: 'provider_rate_limited' }, headers: providerWait !== null ? { 'Retry-After': String(providerWait) } : {},
+    });
+  }
+  // A model the provider no longer has. The provider's explanation (often naming a replacement) is in the logs, not here.
+  const missing = last?.kind === 'not_found' ? ' The model may have been retired by its provider; an administrator can find the provider\'s explanation in ClawRouter\'s logs for this request.' : '';
+  throw new AppError('PROVIDER_ERROR', `The model providers could not complete the request (${n} attempt${n === 1 ? '' : 's'}; last error: ${last?.kind ?? 'none'}).${missing}`, {
     expose: true, details: { attempts: n },
   });
 }
