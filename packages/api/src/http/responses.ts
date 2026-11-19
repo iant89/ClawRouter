@@ -49,6 +49,26 @@ export function openAiErrorResponse(error: AppError, requestId: string): Respons
   );
 }
 
+/** Anthropic's error types by HTTP status. */
+const ANTHROPIC_TYPE: Record<number, string> = {
+  400: 'invalid_request_error', 401: 'authentication_error', 403: 'permission_error', 404: 'not_found_error',
+  405: 'invalid_request_error', 409: 'invalid_request_error', 413: 'request_too_large', 429: 'rate_limit_error',
+  503: 'overloaded_error', 504: 'timeout_error',
+};
+
+/**
+ * Error body for /v1/messages, in Anthropic's format so the Anthropic SDKs and
+ * Claude Code understand it: { type: "error", error: { type, message }, request_id }.
+ */
+export function anthropicErrorResponse(error: AppError, requestId: string): Response {
+  const headers = new Headers(error.headers);
+  headers.set('request-id', requestId);
+  return json(
+    { type: 'error', error: { type: ANTHROPIC_TYPE[error.status] ?? 'api_error', message: error.publicMessage }, request_id: requestId },
+    { status: error.status, headers },
+  );
+}
+
 export function errorResponse(error: AppError, requestId: string): Response {
   const body: ApiErrorBody = {
     error: {

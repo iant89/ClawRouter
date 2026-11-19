@@ -16,6 +16,7 @@ import { GatewayMetricsRecorder } from './metrics.ts';
 import { invalid, parseChatRequest, parseEmbeddingRequest, unixTime, type ParsedChatRequest } from './openai.ts';
 import { chatCompletionsFormat, type ChatFormatter } from './formats.ts';
 import { parseResponsesRequest, renamed, responsesFormat } from './responses.ts';
+import { messagesFormat, messagesRenamed, parseMessagesRequest } from './messages.ts';
 import { RequestCapture } from './capture.ts';
 import { headerValue, replyPrefix, stripNotices } from '@clawrouter/notices';
 import type { ExchangeTap } from '@clawrouter/providers';
@@ -175,7 +176,7 @@ export function createGatewayService(options: {
   function startRun(key: ApiKeyPrincipal, endpoint: GatewayEndpoint, body: unknown, ctx: GatewayRequestContext) {
     const raw = typeof body === 'object' && body !== null ? (body as Record<string, unknown>) : {};
     const requestedModel = typeof raw.model === 'string' ? raw.model.slice(0, 300) : '';
-    const stream = endpoint === 'chat.completions' && raw.stream === true;
+    const stream = endpoint !== 'embeddings' && raw.stream === true;
     const record = requests?.begin({ id: ctx.requestId, endpoint, stream, apiKeyId: key.id, userId: key.ownerId, requestedModel }) ?? noRecord;
     const t0 = performance.now();
     const trace: RequestAttempt[] = [];
@@ -459,6 +460,27 @@ export function createGatewayService(options: {
         // Refusals from routing name Chat Completions fields; say them in Responses terms.
         throw renamed(error);
       });
+    },
+
+    /** POST /v1/messages: the Anthropic Messages API, translated to the same pipeline (so Claude clients can use any provider). */
+    messages(key: ApiKeyPrincipal, body: unknown, ctx: GatewayRequestContext): Promise<GatewayResult> {
+      return runChat(key, 'messages', body, ctx, (raw) => {
+        const { req, estimatedInputTokens } = parseMessagesRequest(raw);
+        return { req, format: messagesFormat({ id: `msg_${ctx.requestId.replace(/^req_/, '')}`, estimatedInputTokens }) };
+      }).catch((error: unknown) => {
+        throw messagesRenamed(error);
+      });
+    },
+
+    /**
+     * POST /v1/messages/count_tokens: an estimate (about four characters per token),
+     * after the same checks as a real request (the key may use the model, the model
+     * exists and can take the request). Nothing is sent to a provider or recorded.
+     */
+    countMessageTokens(key: ApiKeyPrincipal, body: unknown): { input_tokens: number } {
+      const { req, estimatedInputTokens } = parseMessagesRequest(body, { countOnly: true });
+      plan(key, req.model, 'CHAT', mediaOf(req.messages), req.usesTools);
+      return { input_tokens: estimatedInputTokens };
     },
 
     /** POST /v1/embeddings */

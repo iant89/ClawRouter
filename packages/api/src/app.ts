@@ -285,6 +285,9 @@ export function createApiApp(deps: ApiDependencies): ApiApp {
   router.post('/v1/chat/completions', 'api_key', gw.chat);
   router.post('/v1/embeddings', 'api_key', gw.embeddings);
   router.post('/v1/responses', 'api_key', gw.responses);
+  // The Anthropic Messages API, for Claude clients (errors in Anthropic's shape: see middleware).
+  router.post('/v1/messages', 'api_key', gw.messages);
+  router.post('/v1/messages/count_tokens', 'api_key', gw.countTokens);
 
   // ClawRouter's own MCP server (read-only tools for agents): API keys with MCP access, acting with the owner's permissions.
   router.post('/v1/mcp', 'mcp', createMcpHandler({

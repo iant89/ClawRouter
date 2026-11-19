@@ -23,12 +23,20 @@ const gwContext = (ctx: RequestContext) => ({ requestId: ctx.requestId, signal: 
 
 /** External AI API, OpenAI-compatible (spec §7, §32). */
 export function gatewayController(gateway: GatewayService) {
-  const models: Handler = (ctx) => json(gateway.listModels(key(ctx)));
+  /** OpenAI's list, or Anthropic's when the client sends anthropic-version (the Anthropic SDKs always do). */
+  const models: Handler = (ctx) => {
+    const list = gateway.listModels(key(ctx));
+    if (!ctx.request.headers.has('anthropic-version')) return json(list);
+    const data = list.data.map((m) => ({ type: 'model', id: m.id, display_name: m.id, created_at: new Date(m.created * 1000).toISOString() }));
+    return json({ data, has_more: false, first_id: data[0]?.id ?? null, last_id: data.at(-1)?.id ?? null });
+  };
   const chat: Handler = async (ctx) => toResponse(await gateway.chat(key(ctx), await readGatewayBody(ctx), gwContext(ctx)));
   const embeddings: Handler = async (ctx) => toResponse(await gateway.embeddings(key(ctx), await readGatewayBody(ctx), gwContext(ctx)));
   const responses: Handler = async (ctx) => toResponse(await gateway.responses(key(ctx), await readGatewayBody(ctx), gwContext(ctx)));
+  const messages: Handler = async (ctx) => toResponse(await gateway.messages(key(ctx), await readGatewayBody(ctx), gwContext(ctx)));
+  const countTokens: Handler = async (ctx) => json(gateway.countMessageTokens(key(ctx), await readGatewayBody(ctx)));
   const metrics: Handler = () => ok<GatewayMetrics>(gateway.metrics.snapshot());
-  return { models, chat, embeddings, responses, metrics };
+  return { models, chat, embeddings, responses, messages, countTokens, metrics };
 }
 
 export const modelList = v.optional<string[]>((value, path, issues) => {
