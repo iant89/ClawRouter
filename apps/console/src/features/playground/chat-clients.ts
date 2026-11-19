@@ -4,13 +4,14 @@
  * configuration, filled in with this server's address.
  */
 export interface ChatClient {
-  id: 'open-webui' | 'librechat';
+  id: 'open-webui' | 'librechat' | 'claude-code';
   name: string;
   summary: string;
   /** The tested setup guide in the repository. */
   guideUrl: string;
   /** Where the configuration goes, shown above the snippet. */
   where: string;
+  /** The configuration, with this server's base URL (`<origin>/v1`). */
   snippet: (baseUrl: string) => string;
 }
 
@@ -52,6 +53,20 @@ export const CHAT_CLIENTS: readonly ChatClient[] = [
       '      titleConvo: true',
       '      titleModel: "current_model"',
       '      modelDisplayLabel: "ClawRouter"',
+    ].join('\n'),
+  },
+  {
+    id: 'claude-code',
+    name: 'Claude Code',
+    summary: 'Anthropic\'s coding agent, through ClawRouter\'s Anthropic-compatible /v1/messages: any tool-using model can run it. Tested with version 2.1.328.',
+    guideUrl: `${GUIDES}/claude-code.md`,
+    where: 'Environment variables where you start Claude Code. The base URL has no /v1: Claude Code adds it. The model needs Tool use, and room for large requests.',
+    snippet: (baseUrl) => [
+      `export ANTHROPIC_BASE_URL=${baseUrl.replace(/\/v1$/, '')}`,
+      'export ANTHROPIC_AUTH_TOKEN=crk_your_key',
+      'export ANTHROPIC_MODEL=your-alias',
+      'export ANTHROPIC_DEFAULT_HAIKU_MODEL=your-alias',
+      'claude',
     ].join('\n'),
   },
 ];

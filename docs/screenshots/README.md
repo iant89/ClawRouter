@@ -539,3 +539,15 @@ Added 2026-11-19, live with a Groq provider behind ClawRouter (the `chat` alias 
 | ![Playground on Groq](33-playground/11-live-playground-groq.png) | The playground streaming a Groq answer: model, tokens and timing, the announcement as a notice |
 | ![Open WebUI on Groq](33-playground/12-live-open-webui-groq.png) | Open WebUI with a Groq answer, Groq-written follow-ups and the announcement line |
 | ![LibreChat on Groq](33-playground/13-live-librechat-groq.png) | LibreChat with a Groq answer; the title also starts with the announcement |
+
+## 34 · Anthropic Messages API
+
+Captured 2026-11-19 on a development server after Claude Code 2.1.328 and the Anthropic SDK ran
+against it (Groq, and the mock OpenAI server for Claude Code's full request; "Degraded" comes
+from the mock provider, which was never health-checked).
+
+| Screenshot | Shows |
+| --- | --- |
+| ![Apps](34-anthropic-messages/01-apps-card.png) | The playground's apps card, now with Claude Code |
+| ![Config](34-anthropic-messages/02-claude-code-configuration.png) | Claude Code's configuration, filled in with this server's address (no `/v1`) |
+| ![Detail](34-anthropic-messages/03-request-detail-messages.png) | A request from Claude Code in the history: endpoint `/v1/messages (stream)` |

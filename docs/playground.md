@@ -38,8 +38,8 @@ in the playground.
 
 ## Chat apps
 
-The **Use ClawRouter from a chat app** card at the bottom shows this server's base URL
-(`<origin>/v1`) with a copy button, and one card per tested chat application
+The **Use ClawRouter from other apps** card at the bottom shows this server's base URL
+(`<origin>/v1`) with a copy button, and one card per tested application
 (`features/playground/chat-clients.ts`): a summary, **Show configuration** (the essential
 configuration, filled in with this server's address) and a link to its setup guide:
 
@@ -47,8 +47,10 @@ configuration, filled in with this server's address) and a link to its setup gui
   see notices in replies.
 - [LibreChat](clients/librechat.md): a custom endpoint in `librechat.yaml`; every-request
   announcements also name conversations.
+- [Claude Code](clients/claude-code.md): environment variables, through the Anthropic-compatible
+  `/v1/messages`; the model needs Tool use and room for large requests.
 
-The guide links point at the repository on GitHub (`docs/clients/`). Both guides say what was
+The guide links point at the repository on GitHub (`docs/clients/`). Each guide says what was
 tested and how. Add a client only after testing it the same way, and update the tested
 version when you re-test.
 

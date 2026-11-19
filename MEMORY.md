@@ -14,6 +14,25 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 
 ### Important
 
+- **IMPORTANT** · 2026-11-19 · Owner request: the Anthropic Messages API (`/v1/messages`)
+  The owner asked for `/v1/messages` so Claude clients (Claude Code) can use ClawRouter. It is a
+  third front end on `runChat` (`packages/gateway/src/messages.ts`, like `responses.ts`): the
+  request becomes a Chat Completions body checked by `parseChatRequest`, the `ChatFormatter`
+  writes Anthropic messages and events, `messagesRenamed` maps error params back. Decisions made
+  here (keep unless the owner says otherwise): Claude-only settings (thinking, effort,
+  cache_control, top_k, metadata, service_tier, context_management) are **accepted and ignored**
+  because Claude clients send them on every request; thinking blocks in history are dropped;
+  server tools (any tool `type` but `custom`), `mcp_servers`, `container`,
+  `output_config.format` and Files API sources are **refused** with 400; usage the provider did
+  not report is **estimated** (Claude Code compacts by `input_tokens`); `count_tokens` is an
+  estimate after the same checks as a request, not recorded; errors on `/v1/messages*` use
+  Anthropic's shape (`anthropicErrorResponse`, chosen by path in `errorBoundary`); `/v1/models`
+  answers in Anthropic's shape when `anthropic-version` is sent. Endpoint `messages` in
+  `GATEWAY_ENDPOINTS` (no migration: the column has no check). Tests:
+  `packages/api/test/messages-api.test.ts`. Guide: `docs/clients/claude-code.md` (Claude Code is
+  a card in the playground). Same change: streamed `/v1/responses` requests are now recorded as
+  streams (`startRun` only did that for chat completions).
+
 - **IMPORTANT** · 2026-11-19 · Owner rule: provider error text never reaches clients
   After a live Groq refusal showed chat users the provider account's organization id and an
   upgrade link, the owner said "make the changes": clients get ClawRouter's own words for
@@ -357,6 +376,18 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 
 ### Notes
 
+- **NOTE** · 2026-11-19 · Running Claude Code against a local ClawRouter
+  The session's own environment holds many `CLAUDE_*` / `ANTHROPIC_BASE_URL` variables; run the
+  test client with `env -i HOME=<scratch> PATH=/opt/node22/bin:/usr/local/bin:/usr/bin:/bin`
+  plus `ANTHROPIC_BASE_URL=http://127.0.0.1:8080` (no `/v1`), `ANTHROPIC_AUTH_TOKEN=<crk key>`,
+  `ANTHROPIC_MODEL=<alias>`, `ANTHROPIC_DEFAULT_HAIKU_MODEL=<alias>`,
+  `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1`, and `claude -p ... --bare --output-format json`.
+  Its full default request is far over Groq's free-tier limits: use `--tools ""` or
+  `--tools "Read"` with `--system-prompt` on Groq, and the mock provider for the full request.
+  The Anthropic SDK installs from npm into a scratch folder (`@anthropic-ai/sdk`, 1.10.0 tested).
+  Not tried: gzip request bodies (Claude Code has a `CLAUDE_CODE_GZIP_REQUEST_BODIES` setting;
+  ClawRouter does not decode `Content-Encoding: gzip`).
+
 - **NOTE** · 2026-11-18 · Testing chat apps in a cloud session
   Docker is installed but its daemon is not running: start it with `dockerd` in the background.
   GitHub's container registry downloads (`pkg-containers.githubusercontent.com`) are blocked;
@@ -533,13 +564,17 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 
 ### Messages
 
+- **MESSAGE** · 2026-11-19 · The Anthropic Messages API waits for review
+  Built on `claude/anthropic-messages`: `/v1/messages`, `count_tokens`, Anthropic-shaped errors
+  and model list, the Claude Code guide and playground card, screenshots 34. No migration. Merge
+  into `main` when the owner says so.
+
 - **MESSAGE** · 2026-11-19 · Everything merged after the playground and provider errors
-  Nothing in ClawRouter waits for review. Old branches to delete on GitHub (the session cannot): every merged
+  Nothing else in ClawRouter waits for review. Old branches to delete on GitHub (the session cannot): every merged
   `claude/*` branch (now including `claude/hopeful-maxwell-3xrz6m`, `claude/captures-live-groq`, `claude/client-notices`,
   `claude/announcement-emoji` and `claude/eui-shared-components`), the superseded `claude/mcp-server`
   and the stale `claude/groq-provider`; never merge those two (duplicate migration 0020 / older
-  Groq code). Still open: an Anthropic-compatible `/v1/messages` (so Claude Code can use
-  ClawRouter), the native Gemini adapter (key in `x-goog-api-key`, added by the owner in the
+  Groq code). Still open: the native Gemini adapter (key in `x-goog-api-key`, added by the owner in the
   environment settings), OpenAI and Anthropic live; multi-node shared state.
 
 ---

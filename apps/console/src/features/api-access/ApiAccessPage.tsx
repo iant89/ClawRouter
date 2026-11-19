@@ -188,8 +188,8 @@ export function ApiAccessPage() {
       {error && <MessageStrip tone="error" title="Cannot load API keys">{error}</MessageStrip>}
       <OwnQuotaCard refreshKey={lastUpdated} />
       <Text tone="secondary">
-        Clients send the key as <span className="claw-mono">Authorization: Bearer crk_…</span> to the OpenAI-compatible endpoints
-        <span className="claw-mono"> /v1/chat/completions</span>, <span className="claw-mono">/v1/responses</span>, <span className="claw-mono">/v1/embeddings</span> and <span className="claw-mono">/v1/models</span>.
+        Clients send the key as <span className="claw-mono">Authorization: Bearer crk_…</span> (or <span className="claw-mono">x-api-key</span>) to the endpoints
+        <span className="claw-mono"> /v1/chat/completions</span>, <span className="claw-mono">/v1/responses</span>, <span className="claw-mono">/v1/messages</span> (Anthropic), <span className="claw-mono">/v1/embeddings</span> and <span className="claw-mono">/v1/models</span>.
         {mcpServer && <>{' '}Keys with MCP access can also connect agents to <span className="claw-mono">/v1/mcp</span>, ClawRouter's own MCP server (read-only tools).</>}
       </Text>
       {(() => {

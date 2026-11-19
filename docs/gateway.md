@@ -23,6 +23,8 @@ Any OpenAI SDK works with `base_url = http://<host>/v1` and the key as its API k
 | `POST /v1/chat/completions` | JSON or streaming (`stream: true`, `stream_options.include_usage`) |
 | `POST /v1/embeddings` | `input` as a string or up to 2048 strings; `encoding_format: "float"` only. OpenAI, OpenAI-compatible and Google; not Anthropic |
 | `POST /v1/responses` | The Responses API (stateless), over the same pipeline: see [Responses API](#responses-api) |
+| `POST /v1/messages` | The Anthropic Messages API, for Claude clients (the Anthropic SDKs, Claude Code): see [Anthropic Messages API](#anthropic-messages-api) |
+| `POST /v1/messages/count_tokens` | An estimate of a Messages request's input tokens |
 
 `model` may be an alias, a model reference (`openai/gpt-4o`) or a provider model id
 (`gpt-4o-mini`), resolved as described in [routing](routing.md). The response's
@@ -131,6 +133,53 @@ false`). `previous_response_id`, `conversation` and `item_reference` are refused
 Tested live against Groq (gpt-oss-20b): a plain answer, a streamed one, a tool call
 and its round trip, and a streamed tool call.
 
+## Anthropic Messages API
+
+`POST /v1/messages` speaks Anthropic's Messages API, so clients built for Claude can use
+any provider ClawRouter routes to. It runs through the same pipeline as chat completions
+(`runChat`): routing, failover, rate limits, quotas, notices, captures, media, tools and
+request history (endpoint `messages`) all apply. Keys are accepted as `x-api-key` (the
+Anthropic SDKs) or `Authorization: Bearer` (Claude Code with `ANTHROPIC_AUTH_TOKEN`).
+Setup for Claude Code: [clients/claude-code.md](clients/claude-code.md).
+
+| Request | Becomes |
+|---|---|
+| `system` (text or text blocks) | a system message |
+| `messages`: `text`, `image` (base64 or URL), `document` (base64 PDF, text, content) | the conversation; images and PDFs as media |
+| assistant `tool_use` blocks; user `tool_result` blocks (`is_error` adds "Error: ") | tool calls and tool results; images in a tool result follow as user content |
+| `tools` (with `input_schema`), `tool_choice` (`auto`, `any`, `tool`, `none`, `disable_parallel_tool_use`) | tools (see above) |
+| `max_tokens` (required), `temperature`, `top_p`, `stop_sequences`, `stream` | the same settings |
+| `thinking`, `output_config.effort`, `cache_control`, `top_k`, `metadata`, `service_tier`, `context_management` | accepted and ignored: they tune Claude, and Claude clients send them on every request |
+| `thinking` / `redacted_thinking` blocks in history | dropped (signed by the model that wrote them) |
+
+Refused with 400: Anthropic's server tools (any tool with a `type` other than
+`custom`: web search, web fetch, code execution, computer use, …), `mcp_servers`,
+`container`, structured outputs (`output_config.format`), and Files API sources.
+
+The answer is a `message` (`content` with `text` and `tool_use` blocks, `input` as an
+object; `stop_reason` `end_turn`, `max_tokens`, `tool_use` or `refusal`). Streams send
+`message_start`, `content_block_start` / `content_block_delta` (`text_delta`,
+`input_json_delta`) / `content_block_stop`, `message_delta` and `message_stop`; a
+provider failure mid-stream ends with an `error` event. `usage` the provider did not
+report is estimated (about four characters per token), because Claude clients read
+`input_tokens` to decide when to compact; cache token counts are always 0.
+
+`POST /v1/messages/count_tokens` takes the same body (without `max_tokens`), runs the
+same checks as a request (the key may use the model, it exists, it can take the media and
+tools) and returns `{ "input_tokens": n }`, an estimate. Nothing is sent to a provider
+or recorded. `GET /v1/models` answers in Anthropic's list shape (`type: "model"`,
+`display_name`, `created_at`, `has_more`) when the request carries `anthropic-version`.
+
+Errors on `/v1/messages*` use Anthropic's shape, `{ "type": "error", "error": { "type",
+"message" }, "request_id" }`, with a `request-id` header: `invalid_request_error` (400),
+`authentication_error` (401), `permission_error` (403), `not_found_error` (404),
+`request_too_large` (413), `rate_limit_error` (429, with `Retry-After`),
+`overloaded_error` (503), `timeout_error` (504), `api_error` (others).
+
+Tested live on 2026-11-19 against Groq with the official Anthropic TypeScript SDK
+(messages, streams, a tool round trip, a streamed tool call, `count_tokens`, the model
+list, typed errors) and with Claude Code 2.1.328 (see its guide).
+
 ## API keys
 
 - Format `crk_<8 hex>_<43 base64url>`. The first part (`crk_3f9a1c2b`) is the public
@@ -203,7 +252,7 @@ and its round trip, and a streamed tool call.
 
 ## Errors
 
-`/v1` uses the OpenAI error shape, so SDKs show useful messages:
+`/v1` uses the OpenAI error shape, so SDKs show useful messages (except `/v1/messages`, which uses Anthropic's: see [Anthropic Messages API](#anthropic-messages-api)):
 
 ```json
 { "error": { "message": "…", "type": "invalid_request_error", "param": "model", "code": "model_not_found", "request_id": "req_…" } }

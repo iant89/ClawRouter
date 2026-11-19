@@ -223,7 +223,7 @@ export function PlaygroundPage() {
         </Card>
       </div>
 
-      <Card title="Use ClawRouter from a chat app" subtitle="Tested chat applications that work with ClawRouter as their OpenAI-compatible server. Use an API key of your own." headingLevel={2}>
+      <Card title="Use ClawRouter from other apps" subtitle="Tested applications that work with ClawRouter as their OpenAI- or Anthropic-compatible server. Use an API key of your own." headingLevel={2}>
         <div className="claw-stack">
           <div className="claw-inline">
             <Text as="span">Base URL</Text>

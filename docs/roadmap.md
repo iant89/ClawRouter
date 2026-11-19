@@ -501,6 +501,15 @@ See [playground](playground.md). Requested 2026-11-18: a playground page, with O
 - [x] Chat apps card: base URL, configuration snippets with this server's address, links to the guides
 - [x] Setup guides tested end to end: [Open WebUI](clients/open-webui.md) 0.13.4 and [LibreChat](clients/librechat.md) v0.8.9, against the mock provider and live with Groq
 
+## Owner request: Anthropic Messages API ✅
+
+See [gateway](gateway.md#anthropic-messages-api). Requested 2026-11-19: `/v1/messages`, so Claude clients such as Claude Code can use ClawRouter.
+
+- [x] `POST /v1/messages` over the shared chat pipeline: text, images, documents, tool_use / tool_result, streaming events, estimated usage
+- [x] Claude-only settings accepted and ignored; server tools, MCP servers, containers and structured outputs refused clearly
+- [x] Errors in Anthropic's shape; `x-api-key` or Bearer keys; `count_tokens` (estimate); `/v1/models` in Anthropic's shape on `anthropic-version`
+- [x] Tested live with the official Anthropic SDK and Claude Code 2.1.328 on Groq, and Claude Code's full request on the mock; [Claude Code guide](clients/claude-code.md) and a card in the playground
+
 ---
 
 ## Future roadmap (§41)
