@@ -509,6 +509,7 @@ See [providers](providers.md#openrouter-tested-live). Requested 2026-11-19.
 - [x] The provider's reported cost (`usage.cost`) recorded instead of the estimate, in history, usage and quotas
 - [x] App attribution headers; images and PDFs
 - [x] Tested live on free models: discovery, chat, streams, image, PDF, tools, Claude Code through `/v1/messages`
+- [x] Discovery shows prices (input · output per million, a Free badge), sorts by price, model and context, and has a "Free only" switch; import takes only the visible, checked models
 
 ## Owner request: native Gemini adapter, live ✅
 

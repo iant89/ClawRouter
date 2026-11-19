@@ -57,6 +57,7 @@ export function splitSystem(messages: ChatMessage[]): { system: string | null; r
 export function guessKind(id: string): 'chat' | 'embedding' | 'other' {
   const lower = id.toLowerCase();
   if (/embed/.test(lower)) return 'embedding';
-  if (/(whisper|tts|dall-e|image|moderation|transcribe|realtime|audio|davinci-00|babbage-00|rerank|guard)/.test(lower)) return 'other';
+  // Speech, transcription, image, music (Lyria) and video (Veo) models, and other models that do not chat.
+  if (/(whisper|tts|dall-e|image|imagen|banana|lyria|veo-|\/veo|moderation|transcribe|realtime|audio|davinci-00|babbage-00|rerank|guard)/.test(lower)) return 'other';
   return 'chat';
 }

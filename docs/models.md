@@ -64,6 +64,25 @@ back, people with `models.read` get a notification.
 Capabilities and limits are a first guess. Review them after importing:
 capability matching in routing depends on them.
 
+### Prices in the discovery dialog
+
+When the provider publishes prices (Groq, OpenRouter), the dialog is wider and has a
+**Price / 1M** column: input · output per million tokens, a green **Free** badge when both are
+zero, and "—" when the provider gives no price for that model. There is no "Paid" badge: a
+price is shown instead. Providers that publish no prices (OpenAI, Anthropic, Google) get no
+column.
+
+- **Sorting**: Model, Context and Price are sortable. Price compares input plus output;
+  models without a known price (or context) stay at the bottom in both directions
+  (`apps/console/src/features/models/model-price.ts`). Equal values are ordered by model id.
+- **Free only** (shown when the list has free models, with their count) hides every model
+  that is not free.
+- **Import takes only what is visible**: checked models hidden by the search or by Free only
+  are not imported, and the dialog says how many are hidden. The button counts the models it
+  will really import.
+- Lists over 150 models are windowed: the Model column shows only the id (the name on hover)
+  so every column fits.
+
 ## API
 
 | Method | Path | Requires |

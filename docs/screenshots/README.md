@@ -574,3 +574,15 @@ own charge when it reports one).
 | ![Add](36-openrouter/01-add-provider.png) | Add provider with the OpenRouter type: the endpoint is filled in |
 | ![Discover](36-openrouter/02-discover.png) | Discovery filtered to "claude-haiku": chat models with vision and tools, the `:batch` variant detected as "other" |
 | ![Cost](36-openrouter/03-request-reported-cost.png) | A PDF request to a free model: OpenRouter charged $0.002 (its PDF reading), recorded instead of the $0 estimate |
+
+## 37 · Prices in model discovery
+
+Captured 2026-11-19 against OpenRouter's real model list (445 models) and Google's (no published
+prices). "Degraded" in the header comes from a leftover mock provider in the development database.
+
+| Screenshot | Shows |
+| --- | --- |
+| ![Ascending](37-discovery-prices/01-price-ascending.png) | Sorted by price, cheapest first: free models with the Free badge; Lyria (music) detected as "other" |
+| ![Descending](37-discovery-prices/02-price-descending.png) | Sorted by price, most expensive first: input · output per million tokens |
+| ![Free only](37-discovery-prices/03-free-only.png) | Free only (17): the import button counts only the 12 visible, checked models; 353 hidden selections are named |
+| ![No prices](37-discovery-prices/04-no-published-prices.png) | Google publishes no prices: no Price column and no switch |

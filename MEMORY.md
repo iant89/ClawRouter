@@ -402,6 +402,14 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 
 ### Notes
 
+- **NOTE** · 2026-11-19 · Discovery dialog: prices, Free only, sorting, visible-only import
+  Owner asked for it ("FREE ONLY" switch and price sorting). Sorting is done in
+  `features/models/model-price.ts` (`manualSorting` on the table) so unknown prices and contexts
+  stay last in both directions. **Import takes only visible, checked rows**: hidden selections
+  are named and never imported; keep that if the dialog gets more filters. `guessKind` now also
+  treats `imagen`, `banana`, `lyria` and `veo` ids as "other" (OpenRouter lists Lyria as free).
+  The dialog is size `xl` when a Price column is shown.
+
 - **NOTE** · 2026-11-19 · Live OpenRouter testing
   The owner saved an OpenRouter key as a network secret for openrouter.ai (Bearer); give the
   provider the placeholder key `proxy-injected`. The account had **no credit** that day (key limit
@@ -615,7 +623,8 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 - **MESSAGE** · 2026-11-19 · The native Gemini adapter and the OpenRouter provider wait for review
   `claude/gemini-native`: paging, model classification, Vision, thought parts and reasoning
   tokens in `google.ts`, tested live; docs and screenshots 35. `claude/openrouter-provider` is
-  built on it: the `openrouter` kind, provider-reported cost, screenshots 36. No migration. On
+  built on it: the `openrouter` kind, provider-reported cost, screenshots 36, and prices in the
+  discovery dialog (Price column, Free badge, "Free only", sorting; screenshots 37). No migration. On
   "merge", fast-forward `main` to `claude/openrouter-provider` (it contains both).
 
 - **MESSAGE** · 2026-11-19 · Everything merged after the Anthropic Messages API and the AGPL license (1.0.0)

@@ -15,10 +15,11 @@
  */
 
 import { useEffect, useMemo, useState } from 'react';
-import { BusyIndicator, Button, Checkbox, Dialog, MessageStrip, SearchField, Select, StatusIndicator, Table, Text, type TableColumn } from '@enterprise-ui/react';
+import { Badge, BusyIndicator, Button, Checkbox, Dialog, MessageStrip, SearchField, Select, StatusIndicator, Switch, Table, Text, type SortState, type TableColumn } from '@enterprise-ui/react';
 import type { DiscoveredModelInfo, ProviderInfo } from '@clawrouter/shared';
 import { discoverModels, importModels } from '../../services/models.ts';
-import { formatTokens } from '../../services/format.ts';
+import { formatPrice, formatTokens } from '../../services/format.ts';
+import { hasPrice, isFree, sortModels } from './model-price.ts';
 
 /** Past this many models, only the visible rows are rendered (fixed row height). */
 const VIRTUALIZE_FROM = 150;
@@ -42,6 +43,8 @@ export function DiscoverDialog({ open, providers, initialProviderId, onClose, on
   const [loading, setLoading] = useState(false);
   const [importing, setImporting] = useState(false);
   const [filter, setFilter] = useState('');
+  const [freeOnly, setFreeOnly] = useState(false);
+  const [sort, setSort] = useState<SortState | null>(null);
 
   useEffect(() => {
     if (open) setProviderId(initialProviderId ?? providers.find((p) => p.enabled)?.id ?? providers[0]?.id ?? null);
@@ -50,6 +53,8 @@ export function DiscoverDialog({ open, providers, initialProviderId, onClose, on
       setSelected(new Set());
       setError(null);
       setFilter('');
+      setFreeOnly(false);
+      setSort(null);
     }
   }, [open, initialProviderId, providers]);
 
@@ -60,6 +65,7 @@ export function DiscoverDialog({ open, providers, initialProviderId, onClose, on
     setError(null);
     setFound(null);
     setSelected(new Set());
+    setFreeOnly(false);
     discoverModels(providerId, controller.signal)
       .then((list) => {
         setFound(list);
@@ -71,12 +77,18 @@ export function DiscoverDialog({ open, providers, initialProviderId, onClose, on
     return () => controller.abort();
   }, [open, providerId]);
 
-  const visible = useMemo(() => (found ?? []).filter((m) => !filter || `${m.providerModelId} ${m.displayName ?? ''}`.toLowerCase().includes(filter.toLowerCase())), [found, filter]);
+  const visible = useMemo(() => sortModels((found ?? []).filter((m) => (!filter || `${m.providerModelId} ${m.displayName ?? ''}`.toLowerCase().includes(filter.toLowerCase()))
+    && (!freeOnly || isFree(m.cost))), sort), [found, filter, freeOnly, sort]);
+  const freeCount = useMemo(() => (found ?? []).filter((m) => isFree(m.cost)).length, [found]);
+  const priced = useMemo(() => (found ?? []).some((m) => hasPrice(m.cost)), [found]);
   // Phase 16: a provider can offer hundreds of models.
   const many = visible.length > VIRTUALIZE_FROM;
   const selectable = visible.filter((m) => !m.registered);
   const allSelected = selectable.length > 0 && selectable.every((m) => selected.has(m.providerModelId));
   const provider = providers.find((p) => p.id === providerId);
+  // Only what is checked and on screen is imported: a filter or "Free only" never imports models it hides.
+  const toImport = useMemo(() => visible.filter((m) => !m.registered && selected.has(m.providerModelId)).map((m) => m.providerModelId), [visible, selected]);
+  const hiddenSelected = selected.size - toImport.length;
 
   const toggle = (id: string, on: boolean) => setSelected((s) => {
     const next = new Set(s);
@@ -86,11 +98,11 @@ export function DiscoverDialog({ open, providers, initialProviderId, onClose, on
   });
 
   const submit = async () => {
-    if (!providerId || !selected.size) return;
+    if (!providerId || !toImport.length) return;
     setImporting(true);
     setError(null);
     try {
-      const result = await importModels(providerId, [...selected]);
+      const result = await importModels(providerId, toImport);
       onImported(result.imported, provider?.name ?? 'provider');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Import failed.');
@@ -106,11 +118,20 @@ export function DiscoverDialog({ open, providers, initialProviderId, onClose, on
       cell: (m) => <Checkbox aria-label={`Import ${m.providerModelId}`} disabled={m.registered} checked={m.registered || selected.has(m.providerModelId)} onChange={(on) => toggle(m.providerModelId, on)} />,
     },
     many
-      // Long lists are windowed (fixed row height): one line per model, the full name on hover.
-      ? { id: 'id', header: 'Model', rowHeader: true, accessor: 'providerModelId', cell: (m) => <span title={m.displayName ?? m.providerModelId}><span className="claw-mono">{m.providerModelId}</span>{m.displayName && m.displayName !== m.providerModelId ? <Text size="sm" tone="secondary"> {m.displayName}</Text> : null}</span> }
-      : { id: 'id', header: 'Model', rowHeader: true, wrap: true, accessor: 'providerModelId', cell: (m) => <span><span className="claw-mono claw-break">{m.providerModelId}</span>{m.displayName && m.displayName !== m.providerModelId ? <><br /><Text size="sm" tone="secondary">{m.displayName}</Text></> : null}</span> },
+      // Long lists are windowed (fixed row height): one line per model, the id only so every column fits; the name on hover.
+      ? { id: 'id', header: 'Model', rowHeader: true, sortable: true, accessor: 'providerModelId', cell: (m) => <span className="claw-mono" title={m.displayName ?? m.providerModelId}>{m.providerModelId}</span> }
+      : { id: 'id', header: 'Model', rowHeader: true, sortable: true, wrap: true, accessor: 'providerModelId', cell: (m) => <span><span className="claw-mono claw-break">{m.providerModelId}</span>{m.displayName && m.displayName !== m.providerModelId ? <><br /><Text size="sm" tone="secondary">{m.displayName}</Text></> : null}</span> },
     { id: 'caps', header: 'Detected as', accessor: (m) => m.capabilities.join(', '), cell: (m) => (m.capabilities.length ? m.capabilities.join(', ').toLowerCase() : <Text tone="secondary">other</Text>) },
-    { id: 'ctx', header: 'Context', align: 'end', accessor: (m) => m.contextLength ?? 0, cell: (m) => <span className="claw-mono">{formatTokens(m.contextLength)}</span> },
+    { id: 'ctx', header: 'Context', align: 'end', sortable: true, accessor: (m) => m.contextLength ?? 0, cell: (m) => <span className="claw-mono">{formatTokens(m.contextLength)}</span> },
+    // Only for providers that publish prices (Groq, OpenRouter): per million tokens, input · output.
+    ...(priced ? [{
+      id: 'price', header: 'Price / 1M', headerText: 'Price per million tokens (input · output)', align: 'end' as const, sortable: true, accessor: (m: DiscoveredModelInfo) => (m.cost?.inputPerMTok ?? 0) + (m.cost?.outputPerMTok ?? 0),
+      cell: (m: DiscoveredModelInfo) => (isFree(m.cost)
+        ? <Badge tone="success">Free</Badge>
+        : hasPrice(m.cost)
+          ? <span className="claw-mono" title="Per million tokens: input · output">{formatPrice(m.cost!.inputPerMTok)} · {formatPrice(m.cost!.outputPerMTok)}</span>
+          : <Text tone="secondary" title="This provider does not publish a price for this model">—</Text>),
+    }] : []),
     { id: 'state', header: 'Status', accessor: (m) => (m.registered ? 1 : 0), cell: (m) => (m.registered ? <StatusIndicator tone="neutral" size="sm">Registered</StatusIndicator> : <StatusIndicator tone="information" size="sm">New</StatusIndicator>) },
   ];
 
@@ -118,12 +139,12 @@ export function DiscoverDialog({ open, providers, initialProviderId, onClose, on
     <Dialog
       open={open}
       onClose={onClose}
-      size="lg"
+      size={priced ? 'xl' : 'lg'}
       title="Discover models"
       footer={
         <>
-          <Button variant="primary" disabled={!selected.size} loading={importing} onClick={() => void submit()}>
-            {selected.size ? `Import ${selected.size} model${selected.size === 1 ? '' : 's'}` : 'Import'}
+          <Button variant="primary" disabled={!toImport.length} loading={importing} onClick={() => void submit()}>
+            {toImport.length ? `Import ${toImport.length} model${toImport.length === 1 ? '' : 's'}` : 'Import'}
           </Button>
           <Button variant="tertiary" onClick={onClose}>Cancel</Button>
         </>
@@ -134,19 +155,22 @@ export function DiscoverDialog({ open, providers, initialProviderId, onClose, on
           <Select label="Provider" value={providerId} onChange={setProviderId} options={providers.map((p) => ({ value: p.id, label: p.name, description: p.enabled ? p.identifier : `${p.identifier} (disabled)` }))} />
           <SearchField aria-label="Filter discovered models" placeholder="Filter models" value={filter} onChange={setFilter} size="sm" />
         </div>
+        {freeCount > 0 && <Switch label={`Free only (${freeCount})`} checked={freeOnly} onChange={setFreeOnly} />}
         {error && <MessageStrip tone="error" announce="assertive">{error}</MessageStrip>}
         {loading && <BusyIndicator active text={`Asking ${provider?.name ?? 'the provider'} for its models…`} />}
         {found && (
           <>
             <Text size="sm" tone="secondary">
               {found.length} model{found.length === 1 ? '' : 's'} offered, {found.filter((m) => m.registered).length} already registered. Capabilities are a first guess; edit them after importing.
+              {hiddenSelected > 0 && ` ${hiddenSelected} selected model${hiddenSelected === 1 ? ' is' : 's are'} hidden by the filter and will not be imported.`}
             </Text>
             {many ? (
               <Table caption="Models offered by the provider" hideCaption columns={columns} data={visible} getRowId={(m) => m.providerModelId} emptyState="No models match."
-                virtualization={{ rowHeight: ROW_HEIGHT, height: 440, overscan: 8 }} />
+                sort={sort} onSortChange={setSort} manualSorting virtualization={{ rowHeight: ROW_HEIGHT, height: 440, overscan: 8 }} />
             ) : (
               <div style={{ maxHeight: '50vh', overflow: 'auto' }}>
-                <Table caption="Models offered by the provider" hideCaption columns={columns} data={visible} getRowId={(m) => m.providerModelId} emptyState="No models match." />
+                <Table caption="Models offered by the provider" hideCaption columns={columns} data={visible} getRowId={(m) => m.providerModelId} emptyState="No models match."
+                  sort={sort} onSortChange={setSort} manualSorting />
               </div>
             )}
           </>
