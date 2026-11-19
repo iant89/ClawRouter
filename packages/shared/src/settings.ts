@@ -59,7 +59,7 @@ export const SETTING_DEFINITIONS = {
   },
   playgroundEnabled: {
     group: 'Playground', label: 'Let users chat in the playground', unit: 'on/off', min: 0, max: 1, env: null, kind: 'switch',
-    description: 'Gateway → Playground: chat with a model in the console as one of your own API keys. When off, the page and its API do not exist for anyone (404) and the menu item is hidden. When on, only roles with the playground.use permission can open it.',
+    description: 'Gateway → Playground: chat with a model in the console as one of your own API keys. When off, the menu item is hidden for everyone, the page says it has been disabled, and its API answers 403 with reason feature_disabled. When on, only roles with the playground.use permission can open it.',
   },
   noticeHeaderEnabled: {
     group: 'Client notices', label: 'Send notices in a response header', unit: 'on/off', min: 0, max: 1, env: null, kind: 'switch',

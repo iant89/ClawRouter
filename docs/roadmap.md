@@ -543,7 +543,7 @@ See [gateway](gateway.md#reasoning). Requested 2026-11-19: "reasoning content sh
 
 See [playground](playground.md#how-it-works). Requested 2026-11-19: "Let's do both, that way it can be disabled entirely as well as limit who can use it if it's enabled."
 
-- [x] Setting `playgroundEnabled` (on by default): when off, the routes are 404 for everyone and the page leaves the menu, the tour and the router
+- [x] Setting `playgroundEnabled` (on by default): when off, the routes answer 403 with reason `feature_disabled` and the page leaves the menu and the tour; opened directly, it says it has been disabled
 - [x] Permission `playground.use` for Administrator, Operator and Viewer; migration 0026 gives it to existing custom roles
 - [x] Checked in a browser, including an upgrade of a database with a custom role
 

@@ -19,6 +19,7 @@ import { BusyIndicator, Button, EmptyState, ErrorBoundary, ToastProvider, type E
 import { ThemeChoiceProvider } from '../features/appearance/ThemeChoice.tsx';
 import { HealthProvider } from '../features/health/HealthContext.tsx';
 import { RealtimeProvider } from '../features/realtime/RealtimeContext.tsx';
+import { DisabledPage } from '../pages/DisabledPage.tsx';
 import { NoAccessPage } from '../pages/NoAccessPage.tsx';
 import { AuthProvider, useAuth, usePermissions, useSession } from '../features/auth/AuthContext.tsx';
 import { redirectFor } from '../features/auth/auth-state.ts';
@@ -79,8 +80,9 @@ const SetupWizard = page(() => import('../features/onboarding/SetupWizard.tsx'),
 function PageFor({ item }: { item: NavItem | undefined }) {
   const { set } = usePermissions();
   const off = switchedOff(useSession());
-  // A page turned off in Settings does not exist, for anyone.
-  if (!item || off.has(item.id)) return <NotFoundPage />;
+  if (!item) return <NotFoundPage />;
+  // Turned off in Settings, for everyone: say so rather than "not found".
+  if (off.has(item.id)) return <DisabledPage item={item} />;
   if (!canSee(item, set)) return <NoAccessPage item={item} />;
   if (item.plannedPhase !== undefined) return <PlannedFeature item={item} />;
   switch (item.id) {

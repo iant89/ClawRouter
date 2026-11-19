@@ -28,9 +28,17 @@ without curl or a separate app, and for seeing what an application would get.
   custom role that existed before, so nobody lost the playground on upgrade). The key must be
   your own. Users without a key see how to create or request one.
 - **Off switch:** Settings → API keys and quotas → Playground ("Let users chat in the
-  playground", `playgroundEnabled`, on by default). When off, both routes answer 404 for
-  everyone, administrators included, the menu item and its tour sentence disappear, and
-  `/playground` shows "Page not found". The session's `playground` field tells the console.
+  playground", `playgroundEnabled`, on by default). When off, the menu item and its tour sentence disappear for
+  everyone, administrators included; `/playground` opened directly says "The playground has been
+  disabled"; and both routes answer **403** to anyone signed in (before the permission check),
+  so a program can tell why:
+
+  ```json
+  { "error": { "code": "AUTHORIZATION_ERROR", "message": "The playground has been disabled by an administrator.",
+    "details": { "reason": "feature_disabled", "feature": "playground" }, "requestId": "req_…" } }
+  ```
+
+  Without `playground.use` (while it is on) the answer is the usual 403 with no `reason`. The session's `playground` field tells the console.
   The chat-app guides in `docs/clients/` stay available; only their card in the playground goes.
 
 Each answer shows the model that answered (`X-ClawRouter-Model`), the attempts when more
@@ -69,7 +77,7 @@ version when you re-test.
 
 `packages/api/test/playground-api.test.ts`: a chat as your own key, recorded under it;
 streaming; the model list and the key's allowed models; another user's, revoked and missing
-keys refused; no session (401); an invalid body; the off switch (404 for everyone, the
+keys refused; no session (401); an invalid body; the off switch (403 `feature_disabled` for everyone, the
 session flag) and the permission (403 for a custom role without it). The migration test
 checks existing custom roles get `playground.use`. Navigation tests include the page and the
 switch. Screenshots: `docs/screenshots/33-playground/`, `39-playground-switch/`.

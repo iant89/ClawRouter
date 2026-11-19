@@ -17,9 +17,10 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 - **IMPORTANT** · 2026-11-19 · Owner request: the playground can be turned off, and is a permission
   "Let's do both, that way it can be disabled entirely as well as limit who can use it." The
   `playgroundEnabled` setting (on by default; Settings → API keys and quotas → Playground): when
-  off, `/api/playground/*` answer 404 for everyone (checked in the handler, after the permission,
-  so a user without the permission still gets 403), and the console hides the page through the
-  session's `playground` field (`switchedOff()` in `app/navigation.ts`, used by the menu, the page
+  off, `/api/playground/*` answer 403 `AUTHORIZATION_ERROR` with `details.reason: 'feature_disabled'`,
+  `feature: 'playground'` (`FEATURE_DISABLED` in shared; owner: programs must be able to parse why),
+  checked in `dispatch` before the permission so everyone signed in gets the reason; the console
+  hides the menu item and shows `DisabledPage` at `/playground`, through the session's `playground` field (`switchedOff()` in `app/navigation.ts`, used by the menu, the page
   router and the tour; compared in `sameSession`). Do **not** drop `playground.use` from the
   console's permission set instead: the role and user pages compare permission sets. Permission
   `playground.use`: Administrator, Operator **and Viewer** (everyone had the playground before);

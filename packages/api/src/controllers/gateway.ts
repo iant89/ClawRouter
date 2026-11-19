@@ -174,19 +174,11 @@ const playgroundKey = (ctx: RequestContext, apiKeys: ApiKeyService, keyId: unkno
  * history and usage all apply exactly as for /v1. Nothing about the conversation is
  * stored: it lives in the browser tab.
  */
-export function playgroundController(gateway: GatewayService, apiKeys: ApiKeyService, enabled: () => boolean = () => true) {
-  /** Turned off in Settings (playgroundEnabled): the playground does not exist for anyone. */
-  const ensureOn = () => {
-    if (!enabled()) throw errors.notFound();
-  };
+export function playgroundController(gateway: GatewayService, apiKeys: ApiKeyService) {
   /** GET ?keyId=: the models that key may use, as /v1/models lists them. */
-  const models: Handler = (ctx) => {
-    ensureOn();
-    return ok(gateway.listModels(playgroundKey(ctx, apiKeys, ctx.url.searchParams.get('keyId'))).data.map((m) => ({ id: m.id, ownedBy: m.owned_by })));
-  };
+  const models: Handler = (ctx) => ok(gateway.listModels(playgroundKey(ctx, apiKeys, ctx.url.searchParams.get('keyId'))).data.map((m) => ({ id: m.id, ownedBy: m.owned_by })));
   /** POST { keyId, request }: `request` is a Chat Completions body; the answer is the gateway's (JSON or an event stream). */
   const chat: Handler = async (ctx) => {
-    ensureOn();
     const body = await readJsonValue(ctx, PLAYGROUND_BODY_LIMIT);
     const raw = typeof body === 'object' && body !== null && !Array.isArray(body) ? (body as Record<string, unknown>) : {};
     const principal = playgroundKey(ctx, apiKeys, raw.keyId);

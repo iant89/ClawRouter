@@ -606,4 +606,4 @@ Captured 2026-11-19. The "Support" custom role was created on the previous versi
 | --- | --- |
 | ![Setting](39-playground-switch/01-setting.png) | Settings → API keys and quotas → Playground |
 | ![Permission](39-playground-switch/02-permission.png) | `playground.use` in the permission matrix, for every role including the custom one |
-| ![Off](39-playground-switch/03-off.png) | Switched off: no Playground in the menu, and `/playground` is "Page not found" |
+| ![Off](39-playground-switch/03-off.png) | Switched off: no Playground in the menu; `/playground` opened directly says it has been disabled |

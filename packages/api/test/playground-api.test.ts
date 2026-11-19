@@ -116,20 +116,33 @@ describe('playground', () => {
 });
 
 describe('turning the playground off, and who may use it (owner request, 2026-11-19)', () => {
-  const models = (h: Harness, cookie: string, keyId: string) => h.request(`/api/playground/models?keyId=${keyId}`, { cookie });
+  const models = (h: Harness, cookie: string | undefined, keyId: string) => h.request(`/api/playground/models?keyId=${keyId}`, { cookie });
   const session = async (h: Harness, cookie: string) => data<{ playground: boolean; permissions: string[] }>(await h.request('/api/auth/session', { cookie }));
 
-  test('on by default; when turned off in Settings both routes are 404 for everyone, and the session says so', async () => {
+  test('on by default; when turned off in Settings both routes say so to everyone (403, reason feature_disabled), and so does the session', async () => {
     const { h, admin, operator, own } = await world();
     const keyId = await own(operator);
     expect((await session(h, operator)).playground).toBe(true);
     const set = (on: number) => h.request('/api/settings', { method: 'PUT', cookie: admin, json: { values: { playgroundEnabled: on } } });
     expect((await set(0)).status).toBe(200);
-    expect((await send(h, operator, keyId, hello())).status).toBe(404);
-    expect((await models(h, operator, keyId)).status).toBe(404);
+    const disabled = async (res: Response) => {
+      expect(res.status).toBe(403);
+      const body = await json<ApiErrorBody>(res);
+      expect(body.error.code).toBe('AUTHORIZATION_ERROR');
+      expect(body.error.message).toBe('The playground has been disabled by an administrator.');
+      expect(body.error.details).toMatchObject({ reason: 'feature_disabled', feature: 'playground' });
+    };
+    await disabled(await send(h, operator, keyId, hello()));
+    await disabled(await models(h, operator, keyId));
     // Administrators too: it does not exist while off.
     const adminKey = await own(admin);
-    expect((await send(h, admin, adminKey, hello())).status).toBe(404);
+    await disabled(await send(h, admin, adminKey, hello()));
+    // Someone without playground.use is told it is disabled too: the reason comes before the permission.
+    const role = await data<{ id: string }>(await h.request('/api/roles', { method: 'POST', cookie: admin, json: { name: 'Readers', permissions: ['usage.read'] } }));
+    await h.addUser('rudi', [role.id]);
+    await disabled(await models(h, await h.login('rudi'), keyId));
+    // Signed out: still 401, nothing is said about the playground.
+    expect((await models(h, undefined, keyId)).status).toBe(401);
     expect((await session(h, operator)).playground).toBe(false);
     // Turned back on: works again, nothing else changed.
     expect((await set(1)).status).toBe(200);
