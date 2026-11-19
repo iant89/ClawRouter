@@ -530,3 +530,12 @@ were pointed at that ClawRouter, with an every-request announcement for the noti
 | ![Builtin Tools](33-playground/08-open-webui-builtin-tools.png) | Open WebUI's Builtin Tools switch, turned off so notices appear |
 | ![Open WebUI notice](33-playground/09-open-webui-notice.png) | The announcement at the start of an Open WebUI reply |
 | ![LibreChat](33-playground/10-librechat-chat.png) | LibreChat on ClawRouter, with the announcement in the reply and the title |
+
+Added 2026-11-19, live with a Groq provider behind ClawRouter (the `chat` alias on
+`groq/openai/gpt-oss-20b`), the every-request announcement still on:
+
+| Screenshot | Shows |
+| --- | --- |
+| ![Playground on Groq](33-playground/11-live-playground-groq.png) | The playground streaming a Groq answer: model, tokens and timing, the announcement as a notice |
+| ![Open WebUI on Groq](33-playground/12-live-open-webui-groq.png) | Open WebUI with a Groq answer, Groq-written follow-ups and the announcement line |
+| ![LibreChat on Groq](33-playground/13-live-librechat-groq.png) | LibreChat with a Groq answer; the title also starts with the announcement |

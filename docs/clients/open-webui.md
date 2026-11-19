@@ -110,6 +110,7 @@ Things to know:
 | "Connection refused" on the same machine | Open WebUI in Docker is calling `127.0.0.1`. Use `host.docker.internal` and make ClawRouter listen on `0.0.0.0`. |
 | 429 errors in the chat | The key's rate limit or the owner's quota. Raise the key's limit under API Access, or give Open WebUI its own key. |
 | A tool request is refused with "No model … supports tools" | The chosen model is not marked Tool use in ClawRouter. Mark it under Models, or turn off Builtin Tools. |
+| Questions that use a tool fail with "rate_limited" or "Request too large" | Built-in tools make each request large (about 4,700 input tokens with the defaults), and answering with a tool takes two of them a second apart. A provider's per-minute token limit (Groq's free tier: 7,000–8,000 per model) is easily passed. Turn off Builtin Tools, use a higher provider tier, or add fallback targets with their own limits to the alias. |
 | The environment variables changed nothing | Open WebUI keeps the connection from its first start. Edit it under Admin Settings → Connections. |
 
 ## What was tested
@@ -130,5 +131,17 @@ tested.
   `📢 ClawRouter: Maintenance tonight at 22:00 UTC.` at the start of the reply after turning
   them off.
 
+**Live, on 2026-11-19**, the same setup with a Groq provider in ClawRouter (the `chat` alias
+on `groq/openai/gpt-oss-20b`, then `groq/qwen/qwen3.8-27b` as a fallback):
+
+- Plain chats answered by Groq, streamed, with Groq-written titles and follow-up suggestions
+  (background requests, each recorded in ClawRouter), and the announcement line once built-in
+  tools were off.
+- With built-in tools on, Groq returned a real tool call (`get_current_timestamp`) and Open
+  WebUI ran it, but the follow-up carrying the result failed: Groq answered 429 (tokens per
+  minute) for gpt-oss-20b, ClawRouter retried and failed over to Qwen, and Groq refused that as
+  too large for the free tier (7,397 input tokens, limit 7,000). See Troubleshooting.
+
+![Open WebUI on Groq](../screenshots/33-playground/12-live-open-webui-groq.png)
 ![Open WebUI chat](../screenshots/33-playground/07-open-webui-chat.png)
 ![Open WebUI with a notice](../screenshots/33-playground/09-open-webui-notice.png)

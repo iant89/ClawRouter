@@ -253,8 +253,19 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
   off (documented in `docs/clients/open-webui.md`). Chat apps' background requests (titles, tags)
   also get every-request announcements, so LibreChat named a conversation after one. Both guides
   advise once/daily/weekly announcements. Not fixed in ClawRouter: it cannot tell a title request
-  from a chat. Both apps were tested against the mock OpenAI server, not a real provider; the Open
-  WebUI Docker image and LibreChat's full Compose install were not run (see each guide).
+  from a chat. Both apps were tested against the mock OpenAI server and, on 2026-11-19, live with
+  Groq; the Open WebUI Docker image and LibreChat's full Compose install were not run (see each
+  guide). Live: Open WebUI's built-in tools make each request ~4,700 input tokens, and a tool
+  answer takes two in a second, which passes Groq's free-tier per-minute limits (429, then
+  "Request too large" on the Qwen fallback). Plain chat works.
+
+- **WARNING** · 2026-11-19 · Provider error text reaches clients word for word
+  Seen live with Groq through Open WebUI: a provider 400 ("Request too large for model … in
+  organization `org_…` … Upgrade to Dev Tier at https://console.groq.com…") was returned to the
+  chat user as ClawRouter's 400 message, exposing the provider account's organization id and its
+  upgrade link. Provider 429s after all attempts surface as 502 `PROVIDER_ERROR` (not 429). Not
+  changed yet: reported to the owner on 2026-11-19, waiting for a decision (e.g. a generic
+  message for provider 400s, or scrubbing account ids).
 
 - **WARNING** · 2026-11-17 · Client notice limits
   The system-notice interval (once per key per 30 minutes) and the active-announcement cache
@@ -347,8 +358,10 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
   Python 3.11 virtual environment (`uv venv -p 3.11`, then `uv pip install open-webui`) and runs
   with `OFFLINE_MODE=true HF_HUB_OFFLINE=1` (its document-search model cannot download; chat
   does not need it). `api.groq.com` was blocked on 2026-11-18 and the Gemini network secret was
-  no longer injected, so a live provider was not available: run `startMockProviders()` from a
-  scratch script as the provider instead. ClawRouter must listen on `0.0.0.0` for containers
+  no longer injected; `startMockProviders()` from a scratch script works as a provider. On
+  2026-11-19 the owner saved a new Groq key as a network secret for api.groq.com on the Default
+  environment (give the provider the placeholder key `proxy-injected`). Its free tier allows
+  7,000–8,000 tokens per minute per model. ClawRouter must listen on `0.0.0.0` for containers
   (`host.docker.internal` with `--add-host=host.docker.internal:host-gateway`).
   React: an effect written as `useEffect(() => expr)` crashed the playground page with "destroy
   is not a function"; use block bodies for effects.
@@ -518,7 +531,7 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
   Built on `claude/hopeful-maxwell-3xrz6m` (the session's assigned branch, not a
   `claude/<feature>` name): Gateway → Playground, `docs/clients/open-webui.md`,
   `docs/clients/librechat.md`, screenshots 33. No migration. Merge into `main` when the owner
-  says so.
+  says so. 2026-11-19: re-tested live with Groq (guides, screenshots 11–13 updated).
 
 - **MESSAGE** · 2026-11-17 · Everything merged after client notices and announcements
   Nothing in ClawRouter waits for review. Old branches to delete on GitHub (the session cannot): every merged

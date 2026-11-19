@@ -499,7 +499,7 @@ See [playground](playground.md). Requested 2026-11-18: a playground page, with O
 - [x] Each answer shows the model that answered, attempts, tokens, timing and notices; request details for `requests.read`
 - [x] Nothing stored (the conversation lives in the page); recorded in request history and usage under the key
 - [x] Chat apps card: base URL, configuration snippets with this server's address, links to the guides
-- [x] Setup guides tested end to end: [Open WebUI](clients/open-webui.md) 0.13.4 and [LibreChat](clients/librechat.md) v0.8.9
+- [x] Setup guides tested end to end: [Open WebUI](clients/open-webui.md) 0.13.4 and [LibreChat](clients/librechat.md) v0.8.9, against the mock provider and live with Groq
 
 ---
 
