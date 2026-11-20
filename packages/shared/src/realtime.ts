@@ -58,8 +58,14 @@ export const REALTIME_CLOSE = {
   TOO_SLOW: 4408,
   /** Too many open connections for this user. */
   TOO_MANY: 4429,
+  /** Nothing (not even a ping) arrived for three heartbeats: reconnect. */
+  IDLE: 4410,
   /** The server is shutting down: reconnect later. */
   SERVER_STOPPING: 4503,
+  /** Standard codes: a message the protocol does not have (1008), a binary frame (1003), too large (1009). */
+  POLICY_VIOLATION: 1008,
+  UNSUPPORTED_DATA: 1003,
+  TOO_LARGE: 1009,
 } as const;
 
 /**

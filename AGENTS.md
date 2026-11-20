@@ -43,6 +43,8 @@ bun run clear-credentials      # lost secret key: forget the values it cannot op
 bun run reset-password <user>  # lost password: prints a temporary one (--enable re-enables, --reset-2fa removes two-factor)
 bun run rotate-secret-key      # new encryption key for every stored secret (CLAWROUTER_NEW_SECRET_KEY)
 bun run scan-secrets           # no credential-shaped strings committed (CI runs it, plus bun audit)
+bun run test:security          # the security regression suite only (tests/security/, see its README)
+bun run security:matrix        # regenerate the authorization matrix after a reviewed access change
 bun run bench:db               # database benchmark on a large seeded database (docs/performance.md)
 bun run bench:gateway          # time ClawRouter adds per /v1 request, throughput, heap
 ```
@@ -118,7 +120,10 @@ From the specification (§2, §39), plus conventions established while building:
   providers or the internet.**
 - Every new route needs authorization coverage: the sweep in
   `packages/api/test/authorization-api.test.ts` calls every protected route
-  anonymously (401), without the permission (403) and with it.
+  anonymously (401), without the permission (403) and with it. A new or changed route
+  also changes the authorization matrix: run `bun run security:matrix` and commit the diff
+  (`tests/security/authorization/matrix.test.ts` fails until you do).
+- A security fix gets a regression test in `tests/security/<category>/` (see its README).
 
 ## Definition of done (per phase or feature)
 

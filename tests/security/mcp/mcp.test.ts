@@ -19,7 +19,7 @@
 
 import { describe, expect, test } from 'bun:test';
 import type { ApiSuccess, CreatedApiKey } from '@clawrouter/shared';
-import { createHarness, type Harness } from '../support/harness.ts';
+import { createHarness, type Harness } from '../../support/harness.ts';
 
 const client = { ip: null };
 const data = async <T>(res: Response) => ((await res.json()) as ApiSuccess<T>).data;

@@ -23,8 +23,8 @@ import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, sy
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { migrations, openSqlite, runMigrations } from '@clawrouter/database';
-import { checkBackup, createBackup, listBackups, pruneBackups, restoreBackup, type BackupManifest } from '../../apps/server/src/backup.ts';
-import { createHarness } from '../support/harness.ts';
+import { checkBackup, createBackup, listBackups, pruneBackups, restoreBackup, type BackupManifest } from '../../../apps/server/src/backup.ts';
+import { createHarness } from '../../support/harness.ts';
 
 const root = mkdtempSync(join(tmpdir(), 'clawrouter-sec-backup-'));
 afterAll(() => rmSync(root, { recursive: true, force: true }));

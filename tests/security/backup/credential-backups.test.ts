@@ -26,8 +26,8 @@ import { join } from 'node:path';
 import { openSqlite } from '@clawrouter/database';
 import {
   checkBackup, createBackup, credentialBackupDir, holdsSecretKey, listBackups, listCredentialBackups, pruneBackups, restoreBackup,
-} from '../../apps/server/src/backup.ts';
-import { createHarness } from '../support/harness.ts';
+} from '../../../apps/server/src/backup.ts';
+import { createHarness } from '../../support/harness.ts';
 
 const root = mkdtempSync(join(tmpdir(), 'clawrouter-sec-credentials-'));
 afterAll(() => rmSync(root, { recursive: true, force: true }));
@@ -144,7 +144,7 @@ describe('credential backups (SEC-011)', () => {
   test('the command line refuses a credential backup without confirmation', async () => {
     const dir = fresh();
     const proc = Bun.spawn(['bun', 'scripts/backup.ts', '--include-secret-key', '--dir', dir], {
-      cwd: join(import.meta.dir, '..', '..'), stdin: 'ignore', stdout: 'pipe', stderr: 'pipe',
+      cwd: join(import.meta.dir, '..', '..', '..'), stdin: 'ignore', stdout: 'pipe', stderr: 'pipe',
       env: { PATH: process.env.PATH ?? '', HOME: process.env.HOME ?? '', NODE_ENV: 'development', CLAWROUTER_DATABASE_PATH: join(dir, 'none.db') },
     });
     const [code, err] = await Promise.all([proc.exited, new Response(proc.stderr).text()]);

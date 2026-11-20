@@ -14,8 +14,27 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 
 ### Important
 
+- **IMPORTANT** · 2026-11-20 · Security phase 4: regression suite (SEC-012), authorization matrix (SEC-014), WebSocket (SEC-015)
+  Built on `claude/nice-maxwell-ckflzs`, **waits for the owner's review** (not merged). No migration.
+  **SEC-012** `tests/security/` is one folder per roadmap category (the five earlier files were
+  moved, paths in docs updated); `suite.test.ts` fails if a category is empty or a test sits at
+  the top level; shared setup in `tests/security/support.ts`; `bun run test:security`.
+  **SEC-014** `tests/security/authorization/matrix.json` and `docs/security/authorization-matrix.md`
+  are **generated** (`bun run security:matrix`) from the router and built-in roles and committed:
+  any route or role-permission change fails the test until regenerated, so access changes show up
+  as a diff. `matrix.test.ts` then calls all 127 routes as 7 principals; a "refused by the access
+  check" 403 is recognised by the `access denied` log record (handler 403s such as escalation do
+  not log it: keep that message if touching `dispatch`). The public-route list is pinned there.
+  **SEC-015** (decisions, keep unless the owner says otherwise): the only client message is exactly
+  `{"type":"ping"}`; anything else **closes** the connection (1008, binary 1003, >1 KB 1009);
+  20 messages / 10 s per connection; silent 75 s → 4410; 30 upgrades per user per minute → 429 with
+  `Retry-After`; each ping re-checks the session. A future console message type must be added to
+  `hub.message` first, or old servers will disconnect new consoles. `REALTIME_SOCKET_OPTIONS`
+  (Bun's 4 KB frame limit, idle 120 s) is shared by `server.ts` and the tests. Checked in Chromium
+  (a minute of pings, stays Live). Next: security phase 5 (SEC-016, SEC-017).
+
 - **IMPORTANT** · 2026-11-20 · Security phase 3: request logging modes (SEC-009), scrubbing (SEC-010), credential backups (SEC-011)
-  Built on `claude/beautiful-euler-7nicga`, **waits for the owner's review** (not merged). Decisions
+  Merged into `main` on 2026-11-20 (pull request 2, from `claude/beautiful-euler-7nicga`). Decisions
   made here (keep unless the owner says otherwise):
   **SEC-009** the `requestLogging` setting (a new `kind: 'choice'` setting with `options`; 0 None,
   1 Metadata = default, 2 Full; env `CLAWROUTER_REQUEST_LOGGING`), read when a request begins.
@@ -30,7 +49,7 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
   **SEC-010** `redact.ts` grew many patterns (JWT, PEM, OAuth, URL passwords, credential headers,
   JSON-in-text, `key=`/`code=`/`sig=` parameters) and stopped redacting counts and settings
   (`NOT_SENSITIVE`: `inputTokens`, `sessionIdleMinutes`, `secureCookies`). Add a new kind of
-  secret to `tests/security/secret-scrubbing.test.ts`. Note `code=` and `key=` in text are now
+  secret to `tests/security/logging/secret-scrubbing.test.ts`. Note `code=` and `key=` in text are now
   always redacted (OAuth codes, Google keys), including harmless ones.
   **SEC-011** a backup with the secret key is a credential backup: `confirmSecretKey: true`
   required in `createBackup`, written to `<dir>/credentials/` (0700 enforced), manifest
@@ -727,8 +746,8 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 ### Messages
 
 - **MESSAGE** · 2026-11-19 · Everything merged after the native Gemini adapter and OpenRouter
-  Security phase 3 waits for review (see Important). Old branches to delete on GitHub (the session cannot): every merged
-  `claude/*` branch (now including `claude/clawrouter-security-hardening-fm633m`, `claude/focused-mendel-0rcfij`, `claude/gemini-native`, `claude/openrouter-provider`, `claude/anthropic-messages`, `claude/license-agpl-1.0`, `claude/hopeful-maxwell-3xrz6m`, `claude/captures-live-groq`, `claude/client-notices`,
+  Security phase 4 waits for review (see Important). Old branches to delete on GitHub (the session cannot): every merged
+  `claude/*` branch (now including `claude/beautiful-euler-7nicga`, `claude/clawrouter-security-hardening-fm633m`, `claude/focused-mendel-0rcfij`, `claude/gemini-native`, `claude/openrouter-provider`, `claude/anthropic-messages`, `claude/license-agpl-1.0`, `claude/hopeful-maxwell-3xrz6m`, `claude/captures-live-groq`, `claude/client-notices`,
   `claude/announcement-emoji` and `claude/eui-shared-components`), the superseded `claude/mcp-server`
   and the stale `claude/groq-provider`; never merge those two (duplicate migration 0020 / older
   Groq code). Still open: OpenAI and Anthropic live; multi-node shared state.

@@ -166,8 +166,9 @@ describe('sessions', () => {
     const admin = await h.completeSetup();
     const { hub, connect } = setup(h);
     const ws = connect(admin);
-    for (let i = 0; i < 7; i++) {
-      h.clock.advance(10 * 60_000);
+    for (let i = 0; i < 7 * 60 && !ws.closed; i++) {
+      h.clock.advance(10_000);
+      if (i % 2 === 0) hub.message(ws, '{"type":"ping"}'); // the console pings every 25 s; pings are not user activity
       hub.checkSessions();
     }
     // 70 minutes of an open socket without user activity: the 60-minute idle limit applies.
@@ -215,17 +216,84 @@ describe('gateway activity', () => {
     expect(hub.size).toBe(0);
   });
 
-  test('pings get pongs; oversized or unknown messages are not acted on', async () => {
+  test('pings get pongs; anything else closes the connection (SEC-015)', async () => {
     const h = createHarness();
     const { hub, connect } = setup(h);
-    const ws = connect(await h.completeSetup());
+    const admin = await h.completeSetup();
+    const ws = connect(admin);
     hub.message(ws, JSON.stringify({ type: 'ping' }));
     expect(ws.sent.at(-1)).toEqual({ type: 'pong' });
-    hub.message(ws, '{"type":"subscribe","all":true}');
-    hub.message(ws, 'not json');
-    expect(ws.sent.at(-1)).toEqual({ type: 'pong' });
-    hub.message(ws, 'x'.repeat(2000));
-    expect(ws.closed?.code).toBe(1009);
+    const closedBy = (message: string | Buffer) => {
+      const c = connect(admin);
+      hub.message(c, message);
+      expect(c.sent.filter((m) => m.type === 'pong')).toEqual([]);
+      return c.closed?.code;
+    };
+    expect(closedBy('{"type":"subscribe","all":true}')).toBe(1008);
+    expect(closedBy('{"type":"ping","events":["*"]}')).toBe(1008);
+    expect(closedBy('[{"type":"ping"}]')).toBe(1008);
+    expect(closedBy('null')).toBe(1008);
+    expect(closedBy('not json')).toBe(1008);
+    expect(closedBy(Buffer.from('{"type":"ping"}'))).toBe(1003);
+    expect(closedBy('x'.repeat(2000))).toBe(1009);
+    expect(closedBy(`{"type":"ping","x":"${'é'.repeat(600)}"}`)).toBe(1009); // 1.2 KB in UTF-8, 600 characters
+    expect(hub.size).toBe(1);
+  });
+
+  test('a message flood closes the connection; normal pinging never does', async () => {
+    const h = createHarness();
+    const { hub, connect } = setup(h, { maxPerUser: 50 });
+    const admin = await h.completeSetup();
+    const calm = connect(admin);
+    for (let i = 0; i < 100; i++) {
+      h.clock.advance(25_000);
+      hub.message(calm, '{"type":"ping"}');
+      hub.checkSessions();
+    }
+    expect(calm.closed).toBeNull();
+    const flood = connect(admin);
+    for (let i = 0; i < 21; i++) hub.message(flood, '{"type":"ping"}');
+    expect(flood.closed?.code).toBe(1008);
+    expect(flood.sent.filter((m) => m.type === 'pong').length).toBe(20);
+  });
+
+  test('silent connections are closed after three heartbeats; an ended session is noticed at the next ping', async () => {
+    const h = createHarness();
+    const { hub, connect } = setup(h);
+    const admin = await h.completeSetup();
+    const silent = connect(admin);
+    h.clock.advance(70_000);
+    hub.checkSessions();
+    expect(silent.closed).toBeNull();
+    h.clock.advance(10_000);
+    hub.checkSessions();
+    expect(silent.closed?.code).toBe(4410);
+
+    const ws = connect(admin);
+    // The session ends without an event reaching the hub (as when it expires): the next ping closes it.
+    h.clock.advance(61 * 60_000);
+    hub.message(ws, '{"type":"ping"}');
+    expect(ws.closed?.code).toBe(4401);
+    expect(ws.sent.filter((m) => m.type === 'pong')).toEqual([]);
+  });
+
+  test('reconnection storms are refused for the rest of the minute', async () => {
+    const h = createHarness();
+    const { hub } = setup(h, { maxUpgradesPerMinute: 5 });
+    const admin = await h.completeSetup();
+    await h.addUser('olga', ['OPERATOR']);
+    const olga = await h.login('olga');
+    const status = (cookie: string) => {
+      const r = hub.authorize(upgradeRequest(cookie));
+      return r.ok ? 101 : r.response.status;
+    };
+    for (let i = 0; i < 5; i++) expect(status(admin)).toBe(101);
+    const refused = hub.authorize(upgradeRequest(admin));
+    expect(refused.ok ? 0 : refused.response.status).toBe(429);
+    expect(refused.ok ? null : Number(refused.response.headers.get('retry-after'))).toBeGreaterThan(0);
+    expect(status(olga)).toBe(101); // per user: someone else is not affected
+    h.clock.advance(61_000);
+    expect(status(admin)).toBe(101);
   });
 });
 
