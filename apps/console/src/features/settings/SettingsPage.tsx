@@ -15,7 +15,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Button, Card, FieldHelp, Input, MessageStrip, Page, RefreshControl, StatusIndicator, Switch, Tab, TabList, TabPanel, Tabs, Text, useToast, WithFieldHelp } from '@enterprise-ui/react';
+import { Button, Card, FieldHelp, Input, MessageStrip, Page, RefreshControl, Select, StatusIndicator, Switch, Tab, TabList, TabPanel, Tabs, Text, useToast, WithFieldHelp } from '@enterprise-ui/react';
 import { useRouter } from '../../app/router.tsx';
 import type { MailServerSettings, SettingInfo, SettingKey } from '@clawrouter/shared';
 import { useResource } from '../../hooks/useResource.ts';
@@ -33,14 +33,15 @@ type Draft = Partial<Record<SettingKey, string>>;
 
 /** Under the field: only what is needed to type a valid value. */
 /** "30 days", or "on" / "off" for a switch. */
-const valueText = (s: SettingInfo, v: number) => (s.kind === 'switch' ? (v ? 'on' : 'off') : `${v} ${s.unit}`);
+const valueText = (s: SettingInfo, v: number) =>
+  s.kind === 'switch' ? (v ? 'on' : 'off') : s.kind === 'choice' ? (s.options?.find((o) => o.value === v)?.label ?? String(v)) : `${v} ${s.unit}`;
 const describeRange = (s: SettingInfo) => `Allowed ${s.min}–${s.max}. Default ${s.defaultValue}.`;
 /** In the field's help tip: what it does, and where the default comes from. */
 const settingHelp = (s: SettingInfo) => (
   <>
     <span>{s.description}</span>
     <span className="claw-field-help-note">
-      Default {s.defaultValue} {s.unit}{s.env ? <>, from <span className="claw-mono">{s.env}</span> when set, otherwise built in</> : ', built in'}.
+      Default {s.kind === 'number' ? `${s.defaultValue} ${s.unit}` : valueText(s, s.defaultValue)}{s.env ? <>, from <span className="claw-mono">{s.env}</span> when set, otherwise built in</> : ', built in'}.
     </span>
   </>
 );
@@ -51,7 +52,7 @@ const TABS = [
   { value: 'api-keys', label: 'API keys and quotas', groups: ['API keys', 'Usage quotas', 'MCP server', 'Playground'] },
   { value: 'notices', label: 'Client notices', groups: ['Client notices'] },
   { value: 'mail', label: 'Mail server', groups: [] },
-  { value: 'retention', label: 'Data retention', groups: ['Data retention', 'Provider captures'] },
+  { value: 'retention', label: 'Data retention', groups: ['Request data', 'Data retention', 'Provider captures'] },
   { value: 'configuration', label: 'Import and export', groups: [] },
 ] as const;
 /** Card titles where the group name would only repeat the tab. */
@@ -60,6 +61,30 @@ type TabValue = (typeof TABS)[number]['value'];
 const isTab = (v: string | null): v is TabValue => TABS.some((t) => t.value === v);
 /** A group no tab names (a setting added later) shows on the first tab rather than nowhere. */
 const tabOfGroup = (group: string): TabValue => TABS.find((t) => (t.groups as readonly string[]).includes(group))?.value ?? TABS[0].value;
+
+/** A setting with named values (request logging): a select, the chosen value explained under it. */
+function ChoiceSetting({ setting, value, disabled, onChange }: { setting: SettingInfo; value: string; disabled: boolean; onChange: (v: string) => void }) {
+  const options = setting.options ?? [];
+  const chosen = options.find((o) => String(o.value) === value);
+  return (
+    <div style={{ display: 'grid', gap: 'var(--eui-space-2, 0.5rem)' }}>
+      <WithFieldHelp label={setting.label} help={settingHelp(setting)}>
+        <Select label={setting.label} value={value} disabled={disabled}
+          options={options.map((o) => ({ value: String(o.value), label: o.label }))}
+          onChange={(v) => v && onChange(v)} />
+      </WithFieldHelp>
+      {chosen && <Text size="sm" tone="secondary">{chosen.description}</Text>}
+      {/* SEC-009: Full stores what users write; say so plainly before and while it is on. */}
+      {setting.key === 'requestLogging' && value === '2' && (
+        <MessageStrip tone="warning" title="Full request logging stores what users write">
+          Every prompt, reply and tool call through the gateway is kept in the database and in its backups until the
+          request history retention deletes it. Holders of requests.content (Administrators) can read it. Tell your
+          users, keep the request history short, and switch back to Metadata when you no longer need it.
+        </MessageStrip>
+      )}
+    </div>
+  );
+}
 
 /**
  * Administration → Settings (spec §16), in tabs: sign-in and sessions (with the
@@ -158,7 +183,10 @@ export function SettingsPage() {
             <div className="claw-settings-grid">
               {settings.map((s) => (
                 <div key={s.key} style={{ display: 'grid', gap: 'var(--eui-space-1, 0.25rem)', alignContent: 'start' }}>
-                  {s.kind === 'switch' ? (
+                  {s.kind === 'choice' ? (
+                    <ChoiceSetting setting={s} value={draft[s.key] ?? String(s.value)} disabled={!canWrite}
+                      onChange={(v) => setDraft((d) => ({ ...d, [s.key]: v }))} />
+                  ) : s.kind === 'switch' ? (
                     <WithFieldHelp label={s.label} help={s.description}>
                       <Switch label={s.label} checked={draft[s.key] === '1'} disabled={!canWrite}
                         onChange={(on) => setDraft((d) => ({ ...d, [s.key]: on ? '1' : '0' }))} />

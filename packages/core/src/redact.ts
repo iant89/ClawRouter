@@ -24,7 +24,7 @@ export const REDACTED = '[REDACTED]';
  */
 const SENSITIVE_KEY = /pass(word|wd|phrase)?(?![a-z])|secret|token|authori[sz]ation|^auth$|cookie|session|api[-_]?key|credential|private[-_]?key|jwt|bearer|csrf|recovery[-_]?codes?|connection[-_]?string|^dsn$|^sig(nature)?$|^x-goog-api-key$/i;
 /** Names that look sensitive but hold counts or settings (token counts, limits): left out before the test above. */
-const NOT_SENSITIVE = /tokens|(token|session)[a-z_]*?(count|limit|usage|estimate|seconds|minutes|hours|days|timeout|lifetime|enabled)s?|sessions|bypass/gi;
+const NOT_SENSITIVE = /secure_?cookies?|tokens|(token|session)[a-z_]*?(count|limit|usage|estimate|seconds|minutes|hours|days|timeout|lifetime|enabled)s?|sessions|bypass/gi;
 
 /** True when a field with this name must never be written out. */
 export function isSensitiveKey(key: string): boolean {

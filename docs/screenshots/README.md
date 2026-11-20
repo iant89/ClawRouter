@@ -620,3 +620,15 @@ provider with that identifier existed.
 | ![Cost limits](40-cost-request-limits/02-edit-cost-limits.png) | Edit cost limits: per key, user, gateway, per request, per model and provider |
 | ![Request limits](40-cost-request-limits/03-edit-request-limits.png) | Edit request limits, every field with its range and an "i" tip |
 | ![Phone](40-cost-request-limits/04-phone.png) | The page at phone width (no sideways scrolling) |
+
+## 41 · Request logging modes (SEC-009)
+
+Captured 2026-11-20 on a scratch install with the mock providers (two requests sent with request
+logging set to Full; the prompt carried a fake `sk-proj-…` key to show the scrubbing).
+
+| Screenshot | Shows |
+| --- | --- |
+| ![Full](41-request-logging/01-settings-full.png) | Settings → Data retention → Request data: Full chosen, its explanation and the privacy warning |
+| ![Detail](41-request-logging/03-detail-before.png) | A request stored under Full: the warning, and the prompt loaded only on "Show prompt and reply" |
+| ![Content](41-request-logging/04-detail-content.png) | The stored prompt (key scrubbed), the image described by type and size, and the reply |
+| ![Metadata](41-request-logging/05-settings-metadata.png) | Back to Metadata: the warning is gone |

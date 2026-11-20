@@ -25,9 +25,37 @@ invalid-key limit).
 | Input and output tokens, usage source | `provider` (reported), `estimated` (see below) or `none` |
 | Cost (USD) | What the provider charged when it reports it (OpenRouter), otherwise estimated from the model's prices **at the time**; later price changes do not rewrite history |
 
-**Never stored:** prompts, completions, embeddings input, API keys or any other
-request content (spec §22). There is no payload retention setting because there
-is no payload storage; adding one would be a deliberate, opt-in feature.
+**Never stored** with the default request logging (Metadata): prompts, completions,
+embeddings input, API keys or any other request content (spec §22).
+
+### Request logging modes (SEC-009)
+
+Settings → Data retention → **Request logging** (`requestLogging`; default from
+`CLAWROUTER_REQUEST_LOGGING` = `none`, `metadata` or `full`) decides what is kept,
+read when each request begins:
+
+| Mode | Kept |
+|---|---|
+| None | No request record at all: the Requests page stays empty and request ids lead only to the server log. **Hourly usage records are still written**, because quotas, cost limits and the Usage page are computed from them. |
+| Metadata (default) | The record above: request id, time, API key and user, model, provider, HTTP status, latency, token counts, cost. |
+| Full | Also the prompt (messages as passed on, ClawRouter's notice lines removed), the reply (text, reasoning, finish reason; for a stream, what was sent), tool calls in both, the names of the tools offered, embedding inputs, and **attachment details** (type, media type, size, a PDF's name or an image URL's host). Attachment data and embedding vectors are never kept. |
+
+Full mode details:
+
+- Stored in `request_content` (migration 0028), one JSON document per request, at most
+  **1 MB** (texts over 200,000 characters are cut; then the oldest message texts are emptied,
+  marked "cut to fit"). Secret-shaped text (keys, tokens, passwords in URLs…) is scrubbed
+  before storing, as in logs. Requests refused before they could be read store no content.
+- Deleted with its request by the request history retention, also after switching back to
+  Metadata; nothing else deletes it. It is in the database, so in every backup.
+- Read in the request's dialog ("Show prompt and reply", behind a privacy notice) or
+  `GET /api/requests/:id/content`, with the **`requests.content`** permission:
+  Administrators by default, not Operators or Viewers (who see only that content exists).
+  Custom roles can be given it. The MCP server never returns it.
+- Choosing Full in Settings shows a privacy warning; the server logs a warning at startup
+  while Full is on; the change is audited as `SETTINGS_CHANGED`.
+
+Tests: `packages/api/test/request-logging-api.test.ts`.
 
 `HTTP status` is 499 for a client that disconnected, and 200 with
 `STREAM_INTERRUPTED` for a stream that broke after it had started.

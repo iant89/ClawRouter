@@ -72,6 +72,7 @@ Losing the key loses every stored secret: see [deployment](deployment.md#the-sec
 
 | Variable | Default | |
 |---|---|---|
+| `CLAWROUTER_REQUEST_LOGGING` | `metadata` | `none`, `metadata` or `full`: what is kept of each request ([SEC-009](requests-usage.md#request-logging-modes-sec-009)). A setting. |
 | `CLAWROUTER_REQUEST_RETENTION_DAYS` | `30` | Request history. A setting. |
 | `CLAWROUTER_USAGE_RETENTION_DAYS` | `400` | Hourly usage. A setting. |
 | `CLAWROUTER_HEALTH_INTERVAL_SECONDS` | `30` | System health checks. |
