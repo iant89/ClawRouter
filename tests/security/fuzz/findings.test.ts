@@ -128,3 +128,13 @@ describe('configuration imports', () => {
     expect(alias).toMatchObject({ name: 'bare', description: '', enabled: true, capabilities: [], policy: null });
   });
 });
+
+describe('audit search', () => {
+  // FTS5 refuses a query holding a NUL ("unterminated string"): the console's audit search and the
+  // MCP search_audit tool answered 500.
+  test('search text with a NUL character is a search, not a 500', async () => {
+    const res = await h.request(`/api/audit?q=${encodeURIComponent('a\u0000bc')}`, { cookie: admin });
+    expect(res.status).toBe(200);
+    expect((await h.request(`/api/audit?q=${encodeURIComponent('\u0000')}`, { cookie: admin })).status).toBe(200);
+  });
+});

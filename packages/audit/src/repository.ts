@@ -102,9 +102,12 @@ export function createSqliteAuditRepository(db: Database): AuditRepository {
       // Free text of 3+ characters uses the trigram index (audit_fts, migration 0017):
       // the same case-insensitive substring match as LIKE, without reading every row.
       // (Actor names repeat across many records, so the actor filter scans instead.)
-      if (q.q && [...q.q].length >= 3) add(`rowid IN (SELECT rowid FROM audit_fts WHERE audit_fts MATCH ?)`, ftsPhrase(q.q));
-      else if (q.q) {
-        const like = `%${escapeLike(q.q)}%`;
+      // NUL characters are dropped: FTS5 refuses a query holding one ("unterminated string", a 500
+      // found by fuzzing, SEC-021) and LIKE stops reading the pattern there.
+      const text = q.q?.replace(/\u0000/g, '');
+      if (text && [...text].length >= 3) add(`rowid IN (SELECT rowid FROM audit_fts WHERE audit_fts MATCH ?)`, ftsPhrase(text));
+      else if (text) {
+        const like = `%${escapeLike(text)}%`;
         add("(actor_name LIKE ? ESCAPE '\\' OR resource_id LIKE ? ESCAPE '\\' OR ip LIKE ? ESCAPE '\\' OR request_id LIKE ? ESCAPE '\\' OR metadata LIKE ? ESCAPE '\\')", like, like, like, like, like);
       }
       const sql = where.length ? `WHERE ${where.join(' AND ')}` : '';

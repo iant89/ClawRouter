@@ -37,6 +37,7 @@
     "bench:gateway": "bun scripts/bench-gateway.ts",
     "security:matrix": "bun scripts/authorization-matrix.ts",
     "test:security": "bun test tests/security",
+    "test:fuzz": "bun test tests/security/fuzz",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "bun test",
     "check": "bun run typecheck && bun test"

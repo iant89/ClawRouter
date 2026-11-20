@@ -26,8 +26,8 @@ import { parseMessagesRequest } from '../../../packages/gateway/src/messages.ts'
 import { parseResponsesRequest } from '../../../packages/gateway/src/responses.ts';
 import type { Harness } from '../../support/harness.ts';
 import { startMockProviders, type MockProviders } from '../../support/mock-providers.ts';
-import { gatewayWorld } from '../support.ts';
-import { expectClientError, expectHandledResponse, forAll, mutate } from './fuzz.ts';
+import { createHarness, gatewayWorld } from '../support.ts';
+import { anyString, expectClientError, expectHandledResponse, forAll, mutate } from './fuzz.ts';
 
 const PNG = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
 const WAV = 'UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=';
@@ -197,5 +197,41 @@ describe('through the whole pipeline to a provider', () => {
     });
     // Some mutated requests must get through, or the provider side was never reached.
     expect(ok).toBeGreaterThan(0);
+  }, 60_000);
+});
+
+/** Every query parameter a console or gateway route reads (from the controllers). */
+const QUERY_NAMES = ['action', 'actor', 'after', 'apiKeyId', 'before', 'bucket', 'capability', 'component', 'from', 'groupBy', 'hours', 'keyId', 'level', 'limit', 'model', 'offset', 'page', 'pageSize', 'problems', 'providerId', 'q', 'requestId', 'resource', 'resourceId', 'result', 'status', 'to', 'trigger', 'type', 'unread', 'usable', 'userId', 'sort', 'order'];
+/** Values that have broken query code: NUL, LIKE and FTS syntax. */
+const QUERY_NASTY = ['a\u0000bc', '\u0000\u0000\u0000', '%_%', '"""', 'a" OR "b', 'NEAR(abc def)'];
+const QUERY_VALUES = ['', '0', '-1', '1', '50', '201', '1e309', 'NaN', 'true', 'x', 'a\u0000bc', '\u0000\u0000\u0000', '%', '_', '\\', '"', "'", '*', 'NEAR(a b)', 'a OR b', '2026-11-20T00:00:00.000Z', '2026-13-45', 'hour', 'day', 'SUCCESS', 'FAILURE', 'CHAT', 'error', 'openai/gpt-4o-mini', '😀😀😀', 'a'.repeat(5000)];
+
+describe('query strings on every GET route', () => {
+  const routes = createHarness().api.router.list().filter((r) => r.method === 'GET' && r.access !== 'public');
+  let mock: MockProviders;
+  let h: Harness;
+  let admin: string;
+  let key: string;
+  beforeAll(async () => {
+    mock = await startMockProviders();
+    ({ h, admin, key } = await gatewayWorld(mock));
+  });
+  afterAll(() => mock.stop());
+
+  test.each(routes.map((r) => [`${r.method} ${r.pattern}`, r] as const))('%s', async (_name, route) => {
+    await forAll(`query ${route.pattern}`, 80, (r) => {
+      const params = new URLSearchParams();
+      for (let n = 1 + r.int(4); n > 0; n--) {
+        params.append(r.pick(QUERY_NAMES), r.bool(0.3) ? r.pick(QUERY_NASTY) : r.bool(0.8) ? r.pick(QUERY_VALUES) : anyString(r));
+      }
+      return `${route.pattern.replace(/:[a-zA-Z]+/g, () => r.pick(['x', crypto.randomUUID(), '%00']))}?${params}`;
+    }, async (path) => {
+      h.logs.length = 0;
+      h.clock.advance(600);
+      const gateway = route.access === 'api_key' || route.access === 'mcp';
+      const res = await h.request(path, gateway ? { headers: { authorization: `Bearer ${key}` } } : { cookie: admin });
+      await expectHandledResponse(res, h.logs, [502, 503, 504]);
+      if (res.status === 401 && !gateway) admin = await h.login();
+    });
   }, 60_000);
 });
