@@ -243,6 +243,12 @@ export function parseDocument(value: unknown): ConfigurationDocument {
   check(doc, DOCUMENT_SCHEMA, '', issues);
   if (issues.length) throw errors.validation(issues);
   const d = doc as unknown as ConfigurationDocument;
+  // Optional alias fields get the defaults the routing API gives them: the routing checks and the
+  // plan read every field (found by fuzzing, SEC-021: an alias without capabilities was a 500).
+  d.routing = {
+    ...d.routing,
+    aliases: d.routing.aliases.map((a) => ({ ...a, description: a.description ?? '', enabled: a.enabled ?? true, capabilities: a.capabilities ?? [], policy: a.policy ?? null })),
+  };
 
   // Values: the rules the services apply, checked up front so nothing is half imported.
   duplicates(d.providers, 'providers', 'identifier', (p) => p.identifier, issues);

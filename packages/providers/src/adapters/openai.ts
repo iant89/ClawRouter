@@ -15,27 +15,28 @@
  */
 
 import type { Capability, MediaKind, ProviderKind, ProviderKindInfo } from '@clawrouter/shared';
-import { invalidResponse, joinUrl, providerFetch, readJson } from '../http.ts';
+import { invalidResponse, joinUrl, parseChunk, providerFetch, readJson } from '../http.ts';
 import { parseSse } from '../sse.ts';
 import type { ChatMessage, ChatRequest, ChatResponse, DiscoveredModel, EmbeddingResponse, MessagePart, ToolDefinition, FinishReason, ProviderAdapter, ProviderCallContext, StreamEvent, Usage } from '../types.ts';
 import { baseValidation, connectionChecks, guessKind } from './common.ts';
+import { list, obj, objects, text, tokens, vector, type Json } from '../untrusted.ts';
 
-interface OpenAiUsage {
-  prompt_tokens?: number;
-  completion_tokens?: number;
-  total_tokens?: number;
-  /** OpenRouter: what the request cost, in US$ (credits). */
-  cost?: number;
-}
-
-const finish = (reason: string | null | undefined): FinishReason =>
+const finish = (reason: unknown): FinishReason =>
   reason === 'stop' ? 'stop' : reason === 'length' ? 'length' : reason === 'content_filter' ? 'content_filter' : reason === 'tool_calls' || reason === 'function_call' ? 'tool_use' : 'other';
 
-const usageOf = (u: OpenAiUsage | undefined | null, reportsCost = false): Usage =>
-  u ? {
-    inputTokens: u.prompt_tokens ?? null, outputTokens: u.completion_tokens ?? null, totalTokens: u.total_tokens ?? null, source: 'provider',
-    ...(reportsCost && typeof u.cost === 'number' && Number.isFinite(u.cost) && u.cost >= 0 ? { costUsd: u.cost } : {}),
-  } : { inputTokens: null, outputTokens: null, totalTokens: null, source: 'none' };
+/**
+ * Usage as OpenAI-style APIs report it (`prompt_tokens`, `completion_tokens`, `total_tokens`;
+ * OpenRouter adds `cost`, what the request cost in US$). Counts of the wrong type are "not reported".
+ */
+const usageOf = (value: unknown, reportsCost = false): Usage => {
+  const u = obj(value);
+  if (!u) return { inputTokens: null, outputTokens: null, totalTokens: null, source: 'none' };
+  const cost = tokens(u.cost);
+  return {
+    inputTokens: tokens(u.prompt_tokens), outputTokens: tokens(u.completion_tokens), totalTokens: tokens(u.total_tokens), source: 'provider',
+    ...(reportsCost && cost !== null ? { costUsd: cost } : {}),
+  };
+};
 
 /** A message part in OpenAI's format (the format clients send it in). */
 function openAiPart(p: MessagePart): Record<string, unknown> {
@@ -52,21 +53,8 @@ function openAiPart(p: MessagePart): Record<string, unknown> {
  * or `reasoning` (OpenRouter, Groq, Ollama). Groq and Ollama put it in the answer itself as
  * `<think>` text unless asked otherwise; that text stays in the answer.
  */
-interface OpenAiReasoning {
-  reasoning_content?: string | null;
-  reasoning?: string | null;
-}
-const reasoningOf = (m: OpenAiReasoning | undefined): string =>
-  typeof m?.reasoning_content === 'string' && m.reasoning_content ? m.reasoning_content : typeof m?.reasoning === 'string' ? m.reasoning : '';
+const reasoningOf = (m: Json | null): string => text(m?.reasoning_content) || text(m?.reasoning) || '';
 
-/** A tool call as OpenAI-style APIs send it. */
-interface OpenAiToolCall {
-  id?: string;
-  type?: string;
-  function?: { name?: string; arguments?: string };
-  /** Google (OpenAI-compatible endpoint): Gemini 3's thought signature, needed back on the next turn. */
-  extra_content?: { google?: { thought_signature?: string } };
-}
 
 /** A message in OpenAI's format, tool calls and tool results included. */
 function openAiMessage(m: ChatMessage): Record<string, unknown> {
@@ -95,8 +83,9 @@ const openAiTool = (t: ToolDefinition) => ({
  * native Gemini adapter, and goes back to Google in `extra_content`.
  */
 const SIGNATURE_MARK = '~';
-function withSignature(id: string, call: OpenAiToolCall): string {
-  const signature = call.extra_content?.google?.thought_signature;
+/** A tool call (`{ id, type, function: { name, arguments }, extra_content }`): Google sends Gemini 3's thought signature in `extra_content`. */
+function withSignature(id: string, call: Json): string {
+  const signature = text(obj(obj(call.extra_content)?.google)?.thought_signature);
   return typeof signature === 'string' && signature ? `${id}${SIGNATURE_MARK}${signature}` : id;
 }
 function splitSignature(id: string): { id: string; signature: string | null } {
@@ -141,8 +130,11 @@ const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) && v > 
 const strings = (v: unknown) => (Array.isArray(v) && v.every((x) => typeof x === 'string') ? (v as string[]) : null);
 /** "0.00000015" US$ per token -> 0.15 per million tokens (null when absent or not a number). */
 const perMillion = (v: unknown): number | null => {
-  const n = typeof v === 'string' ? Number(v) : typeof v === 'number' ? v : NaN;
-  return Number.isFinite(n) && n >= 0 ? Math.round(n * 1e6 * 1e6) / 1e6 : null;
+  // Number('') and Number(' ') are 0: an empty price is unknown, not free.
+  const n = typeof v === 'string' && v.trim() ? Number(v) : typeof v === 'number' ? v : NaN;
+  const perM = Math.round(n * 1e6 * 1e6) / 1e6;
+  // A price so large it overflows (1e308 per token) is not a price.
+  return Number.isFinite(perM) && perM >= 0 ? perM : null;
 };
 
 export interface OpenAiStyleOptions {
@@ -186,7 +178,7 @@ export function createOpenAiStyleAdapter(options: OpenAiStyleOptions): ProviderA
     ...options.extraHeaders,
     ...(ctx.apiKey ? { authorization: `Bearer ${ctx.apiKey}` } : {}),
   });
-  const usage = (u: OpenAiUsage | undefined | null) => usageOf(u, options.reportsCost);
+  const usage = (u: unknown) => usageOf(u, options.reportsCost);
 
   const body = (req: ChatRequest, stream: boolean) => ({
     model: req.model,
@@ -204,38 +196,48 @@ export function createOpenAiStyleAdapter(options: OpenAiStyleOptions): ProviderA
 
   async function listModels(ctx: ProviderCallContext): Promise<DiscoveredModel[]> {
     const res = await providerFetch(ctx, joinUrl(ctx.endpoint, '/models'), { method: 'GET', headers: headers(ctx) });
-    const json = await readJson<{ data?: ListedOpenAiModel[] }>(res, ctx.apiKey);
+    const json = await readJson(res, ctx.apiKey);
     if (!Array.isArray(json.data)) throw invalidResponse('model list has no "data" array');
     const today = (options.now?.() ?? new Date()).toISOString().slice(0, 10);
-    return json.data
+    return (objects(json.data) as ListedOpenAiModel[])
       // Groq marks retired models `active: false`; OpenRouter gives an expiration date. Neither can be called afterwards.
-      .filter((m): m is ListedOpenAiModel & { id: string } => typeof m.id === 'string' && m.active !== false
+      .filter((m): m is ListedOpenAiModel & { id: string } => typeof m.id === 'string' && m.id.replace(/^models\//, '') !== '' && m.active !== false
         && !(typeof m.expiration_date === 'string' && /^\d{4}-\d{2}-\d{2}/.test(m.expiration_date) && m.expiration_date.slice(0, 10) < today))
       .map((m) => {
-        const inputs = strings(m.input_modalities) ?? strings(m.architecture?.input_modalities);
-        const outputs = strings(m.output_modalities) ?? strings(m.architecture?.output_modalities);
+        const architecture = obj(m.architecture);
+        const top = obj(m.top_provider);
+        const pricing = obj(m.pricing);
+        const inputs = strings(m.input_modalities) ?? strings(architecture?.input_modalities);
+        const outputs = strings(m.output_modalities) ?? strings(architecture?.output_modalities);
         const endpoints = strings(m.endpoints);
         // A model whose API list leaves out chat completions (OpenRouter's :batch variants) cannot answer a chat request.
         const chatServed = !endpoints || endpoints.some((e) => e.endsWith('/chat/completions'));
         // Groq and OpenRouter say what goes in and out: a model that does not answer in text (speech, transcription) is not a chat model.
         const kind = !chatServed || (outputs && !outputs.includes('text')) ? 'other' : guessKind(m.id);
         const features = strings(m.supported_features) ?? strings(m.supported_parameters);
-        const input = perMillion(m.pricing?.prompt);
-        const output = perMillion(m.pricing?.completion);
+        const input = perMillion(pricing?.prompt);
+        const output = perMillion(pricing?.completion);
         return {
           // Google's OpenAI-compatible list says "models/gemini-…"; its API takes the name without the prefix too.
           id: m.id.replace(/^models\//, ''),
           displayName: nameOf(m),
           kind,
           // Groq (and some compatible servers) report these; OpenAI does not.
-          contextLength: num(m.context_window) ?? num(m.context_length) ?? num(m.top_provider?.context_length),
-          maxOutputTokens: num(m.max_completion_tokens) ?? num(m.top_provider?.max_completion_tokens),
+          contextLength: num(m.context_window) ?? num(m.context_length) ?? num(top?.context_length),
+          maxOutputTokens: num(m.max_completion_tokens) ?? num(top?.max_completion_tokens),
           ...(inputs ? { vision: inputs.includes('image') } : {}),
           ...(features ? { tools: features.includes('tools') } : {}),
           ...(input !== null || output !== null ? { cost: { inputPerMTok: input, outputPerMTok: output } } : {}),
         };
       });
   }
+
+  /** Tool calls in an answer: `{ id, type, function: { name, arguments } }`; those without a name are left out. */
+  const toolCallsOf = (value: unknown) => objects(value).flatMap((c, i) => {
+    const fn = obj(c.function);
+    const name = text(fn?.name);
+    return name === undefined ? [] : [{ id: withSignature(text(c.id) || `call_${i}`, c), name, arguments: text(fn?.arguments) ?? '{}' }];
+  });
 
   return {
     info,
@@ -246,15 +248,14 @@ export function createOpenAiStyleAdapter(options: OpenAiStyleOptions): ProviderA
 
     async sendRequest(ctx, req): Promise<ChatResponse> {
       const res = await providerFetch(ctx, joinUrl(ctx.endpoint, '/chat/completions'), { method: 'POST', headers: headers(ctx), body: JSON.stringify(body(req, false)) });
-      const json = await readJson<{ model?: string; choices?: { message?: OpenAiReasoning & { content?: string | null; tool_calls?: OpenAiToolCall[] }; finish_reason?: string }[]; usage?: OpenAiUsage }>(res, ctx.apiKey);
-      const choice = json.choices?.[0];
+      const json = await readJson(res, ctx.apiKey);
+      const choice = obj(list(json.choices)[0]);
       if (!choice) throw invalidResponse('no choices in response');
-      const toolCalls = (choice.message?.tool_calls ?? []).filter((c) => typeof c.function?.name === 'string').map((c, i) => ({
-        id: withSignature(typeof c.id === 'string' && c.id ? c.id : `call_${i}`, c), name: c.function!.name!, arguments: typeof c.function!.arguments === 'string' ? c.function!.arguments : '{}',
-      }));
-      const reasoning = reasoningOf(choice.message);
+      const message = obj(choice.message);
+      const toolCalls = toolCallsOf(message?.tool_calls);
+      const reasoning = reasoningOf(message);
       return {
-        model: json.model ?? req.model, content: choice.message?.content ?? '', finishReason: finish(choice.finish_reason), usage: usage(json.usage),
+        model: text(json.model) || req.model, content: text(message?.content) ?? '', finishReason: finish(choice.finish_reason), usage: usage(json.usage),
         ...(reasoning ? { reasoning } : {}),
         ...(toolCalls.length ? { toolCalls } : {}),
       };
@@ -262,15 +263,17 @@ export function createOpenAiStyleAdapter(options: OpenAiStyleOptions): ProviderA
 
     async embed(ctx, req): Promise<EmbeddingResponse> {
       const res = await providerFetch(ctx, joinUrl(ctx.endpoint, '/embeddings'), { method: 'POST', headers: headers(ctx), body: JSON.stringify({ model: req.model, input: req.input }) });
-      const json = await readJson<{ model?: string; data?: { embedding?: unknown; index?: number }[]; usage?: OpenAiUsage }>(res, ctx.apiKey);
+      const json = await readJson(res, ctx.apiKey);
       if (!Array.isArray(json.data)) throw invalidResponse('no "data" in embeddings response');
-      const sorted = [...json.data].sort((a, b) => (a.index ?? 0) - (b.index ?? 0));
-      if (sorted.length !== req.input.length || !sorted.every((d) => Array.isArray(d.embedding))) throw invalidResponse('embeddings do not match the inputs');
-      const u = json.usage;
+      const order = (d: unknown) => { const i = obj(d)?.index; return typeof i === 'number' && Number.isFinite(i) ? i : 0; };
+      const vectors = [...json.data].sort((a, b) => order(a) - order(b)).map((d) => vector(obj(d)?.embedding));
+      if (vectors.length !== req.input.length || !vectors.every((v) => v !== null)) throw invalidResponse('embeddings do not match the inputs');
+      const u = obj(json.usage);
+      const prompt = tokens(u?.prompt_tokens);
       return {
-        model: json.model ?? req.model,
-        embeddings: sorted.map((d) => d.embedding as number[]),
-        usage: u ? { inputTokens: u.prompt_tokens ?? null, outputTokens: 0, totalTokens: u.total_tokens ?? u.prompt_tokens ?? null, source: 'provider' } : usageOf(null),
+        model: text(json.model) || req.model,
+        embeddings: vectors as number[][],
+        usage: u ? { inputTokens: prompt, outputTokens: 0, totalTokens: tokens(u.total_tokens) ?? prompt, source: 'provider' } : usageOf(null),
       };
     },
 
@@ -285,28 +288,29 @@ export function createOpenAiStyleAdapter(options: OpenAiStyleOptions): ProviderA
       let model = req.model;
       for await (const event of parseSse(res.body, ctx.signal)) {
         if (event.data === '[DONE]') break;
-        let chunk: { model?: string; choices?: { delta?: OpenAiReasoning & { content?: string | null; tool_calls?: (OpenAiToolCall & { index?: number })[] }; finish_reason?: string | null }[]; usage?: OpenAiUsage | null; x_groq?: { usage?: OpenAiUsage | null } };
-        try {
-          chunk = JSON.parse(event.data);
-        } catch {
-          throw invalidResponse('malformed stream chunk');
-        }
-        if (chunk.model) model = chunk.model;
-        const choice = chunk.choices?.[0];
-        const thinking = reasoningOf(choice?.delta);
+        const chunk = parseChunk(event.data);
+        model = text(chunk.model) || model;
+        const choice = obj(list(chunk.choices)[0]);
+        const delta = obj(choice?.delta);
+        const thinking = reasoningOf(delta);
         if (thinking) yield { type: 'reasoning', text: thinking };
-        if (choice?.delta?.content) yield { type: 'delta', text: choice.delta.content };
-        for (const t of choice?.delta?.tool_calls ?? []) {
+        const content = text(delta?.content);
+        if (content) yield { type: 'delta', text: content };
+        for (const t of objects(delta?.tool_calls)) {
           sawToolCall = true;
+          const fn = obj(t.function);
+          const id = text(t.id);
+          const name = text(fn?.name);
+          const args = text(fn?.arguments);
           yield {
-            type: 'tool_call', index: typeof t.index === 'number' ? t.index : 0,
-            ...(typeof t.id === 'string' && t.id ? { id: withSignature(t.id, t) } : {}),
-            ...(typeof t.function?.name === 'string' && t.function.name ? { name: t.function.name } : {}),
-            ...(typeof t.function?.arguments === 'string' && t.function.arguments ? { arguments: t.function.arguments } : {}),
+            type: 'tool_call', index: Number.isInteger(t.index) && (t.index as number) >= 0 ? (t.index as number) : 0,
+            ...(id ? { id: withSignature(id, t) } : {}),
+            ...(name ? { name } : {}),
+            ...(args ? { arguments: args } : {}),
           };
         }
         if (choice?.finish_reason) reason = finish(choice.finish_reason);
-        const reported = chunk.usage ?? chunk.x_groq?.usage;
+        const reported = obj(chunk.usage) ?? obj(obj(chunk.x_groq)?.usage);
         if (reported) streamed = usage(reported);
       }
       // Google's stream ends tool calls with "stop"; clients expect tool_calls.

@@ -15,43 +15,37 @@
  */
 
 import type { ProviderKindInfo } from '@clawrouter/shared';
-import { invalidResponse, joinUrl, providerFetch, readJson } from '../http.ts';
+import { invalidResponse, joinUrl, parseChunk, providerFetch, readJson } from '../http.ts';
+import { list, obj, objects, text, tokens, vector, type Json } from '../untrusted.ts';
 import { parseSse } from '../sse.ts';
 import type { ChatMessage, ChatRequest, MessagePart, ToolCall, ToolChoice, ChatResponse, EmbeddingResponse, FinishReason, ProviderAdapter, ProviderCallContext, StreamEvent, Usage } from '../types.ts';
 import { baseValidation, connectionChecks, guessKind, splitSystem } from './common.ts';
 
-interface GeminiUsage {
-  promptTokenCount?: number;
-  candidatesTokenCount?: number;
-  /** Thinking models: reasoning tokens, billed as output but not part of the answer. */
-  thoughtsTokenCount?: number;
-  totalTokenCount?: number;
-}
+/**
+ * A Gemini answer or stream chunk: `candidates[0].content.parts`, `usageMetadata` and
+ * `modelVersion`. Every field is read as untrusted (wrong types count as absent).
+ */
+type GeminiResponse = Json;
 
-interface GeminiPart {
-  text?: string;
-  /** A thought summary from a thinking model: reasoning, never part of the answer. */
-  thought?: boolean;
-  functionCall?: { name?: string; args?: unknown; id?: string };
-  /** Gemini 3: must be sent back with the function call on the next turn. */
-  thoughtSignature?: string;
-}
-
-interface GeminiResponse {
-  candidates?: { content?: { parts?: GeminiPart[] }; finishReason?: string }[];
-  usageMetadata?: GeminiUsage;
-  modelVersion?: string;
-}
-
-const finish = (reason: string | undefined): FinishReason =>
+const finish = (reason: unknown): FinishReason =>
   reason === 'STOP' ? 'stop' : reason === 'MAX_TOKENS' ? 'length' : reason === 'SAFETY' || reason === 'RECITATION' || reason === 'BLOCKLIST' || reason === 'PROHIBITED_CONTENT' ? 'content_filter' : 'other';
 
-/** Output tokens include the reasoning of thinking models: Google bills them as output. */
-const usageOf = (u: GeminiUsage | undefined): Usage => {
+/**
+ * `usageMetadata`: promptTokenCount, candidatesTokenCount, thoughtsTokenCount (thinking models'
+ * reasoning tokens) and totalTokenCount. Output tokens include the reasoning: Google bills it as output.
+ */
+const usageOf = (value: unknown): Usage => {
+  const u = obj(value);
   if (!u) return { inputTokens: null, outputTokens: null, totalTokens: null, source: 'none' };
-  const output = u.candidatesTokenCount === undefined && u.thoughtsTokenCount === undefined ? null : (u.candidatesTokenCount ?? 0) + (u.thoughtsTokenCount ?? 0);
-  return { inputTokens: u.promptTokenCount ?? null, outputTokens: output, totalTokens: u.totalTokenCount ?? null, source: 'provider' };
+  const answer = tokens(u.candidatesTokenCount);
+  const thoughts = tokens(u.thoughtsTokenCount);
+  const output = answer === null && thoughts === null ? null : (answer ?? 0) + (thoughts ?? 0);
+  return { inputTokens: tokens(u.promptTokenCount), outputTokens: output, totalTokens: tokens(u.totalTokenCount), source: 'provider' };
 };
+
+/** The first candidate's parts (`{ text, thought, functionCall: { name, args }, thoughtSignature }`). */
+const partsOf = (r: GeminiResponse) => objects(obj(obj(list(r.candidates)[0])?.content)?.parts);
+const firstFinish = (r: GeminiResponse) => obj(list(r.candidates)[0])?.finishReason;
 
 const info: ProviderKindInfo = {
   kind: 'google',
@@ -101,9 +95,9 @@ function body(req: ChatRequest) {
 }
 
 /** The answer's text; thought summaries (reasoning) are left out. */
-const textOf = (r: GeminiResponse) => (r.candidates?.[0]?.content?.parts ?? []).filter((p) => p.thought !== true).map((p) => p.text ?? '').join('');
+const textOf = (r: GeminiResponse) => partsOf(r).filter((p) => p.thought !== true).map((p) => text(p.text) ?? '').join('');
 /** Thought summaries from a thinking model: its reasoning, passed on apart from the answer. */
-const thoughtsOf = (r: GeminiResponse) => (r.candidates?.[0]?.content?.parts ?? []).filter((p) => p.thought === true).map((p) => p.text ?? '').join('');
+const thoughtsOf = (r: GeminiResponse) => partsOf(r).filter((p) => p.thought === true).map((p) => text(p.text) ?? '').join('');
 
 /**
  * Google models that list generateContent but do not answer a chat in text: music
@@ -118,29 +112,28 @@ const NOT_CHAT = /(lyria|banana|imagen|veo|image|tts|native-audio|live|transcrib
 const MAX_MODEL_PAGES = 10;
 
 async function listModels(ctx: ProviderCallContext) {
-  type GoogleModel = { name: string; displayName?: unknown; inputTokenLimit?: unknown; outputTokenLimit?: unknown; supportedGenerationMethods?: unknown };
-  const models: Partial<GoogleModel>[] = [];
+  const models: Json[] = [];
   let pageToken: string | null = null;
   for (let page = 0; page < MAX_MODEL_PAGES; page++) {
     const query = `/models?pageSize=100${pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : ''}`;
     const res = await providerFetch(ctx, joinUrl(ctx.endpoint, query), { method: 'GET', headers: headers(ctx) });
-    const json = await readJson<{ models?: Partial<GoogleModel>[]; nextPageToken?: unknown }>(res, ctx.apiKey);
+    const json = await readJson(res, ctx.apiKey);
     if (!Array.isArray(json.models)) throw invalidResponse('model list has no "models" array');
-    models.push(...json.models);
-    pageToken = typeof json.nextPageToken === 'string' && json.nextPageToken ? json.nextPageToken : null;
+    models.push(...objects(json.models));
+    pageToken = text(json.nextPageToken) || null;
     if (!pageToken) break;
   }
   const num = (v: unknown) => (typeof v === 'number' && Number.isInteger(v) && v > 0 ? v : null);
   return models
-    .filter((m): m is GoogleModel => typeof m.name === 'string')
+    .filter((m): m is Json & { name: string } => typeof m.name === 'string' && m.name.replace(/^models\//, '') !== '')
     .map((m) => {
-      const methods = Array.isArray(m.supportedGenerationMethods) ? (m.supportedGenerationMethods as unknown[]) : [];
+      const methods = list(m.supportedGenerationMethods);
       // Speech, image and other non-text models also offer generateContent: their names give them away.
       const kind = guessKind(m.name) === 'other' || NOT_CHAT.test(m.name) ? 'other' as const
         : methods.includes('generateContent') ? 'chat' as const : methods.includes('embedContent') ? 'embedding' as const : methods.length ? 'other' as const : guessKind(m.name);
       return {
         id: m.name.replace(/^models\//, ''),
-        displayName: typeof m.displayName === 'string' ? m.displayName : null,
+        displayName: text(m.displayName) ?? null,
         contextLength: num(m.inputTokenLimit),
         maxOutputTokens: num(m.outputTokenLimit),
         kind,
@@ -159,15 +152,15 @@ export const googleAdapter: ProviderAdapter = {
 
   async sendRequest(ctx, req): Promise<ChatResponse> {
     const res = await providerFetch(ctx, joinUrl(ctx.endpoint, `${modelPath(req.model)}:generateContent`), { method: 'POST', headers: headers(ctx), body: JSON.stringify(body(req)) });
-    const json = await readJson<GeminiResponse>(res, ctx.apiKey);
+    const json = await readJson(res, ctx.apiKey);
     if (!Array.isArray(json.candidates)) throw invalidResponse('no candidates in response');
     const toolCalls = toolCallsOf(json);
     const reasoning = thoughtsOf(json);
     return {
-      model: json.modelVersion ?? req.model, content: textOf(json), usage: usageOf(json.usageMetadata),
+      model: text(json.modelVersion) || req.model, content: textOf(json), usage: usageOf(json.usageMetadata),
       ...(reasoning ? { reasoning } : {}),
       // Gemini says STOP after a function call; clients expect tool_calls.
-      finishReason: toolCalls.length ? 'tool_use' : finish(json.candidates[0]?.finishReason),
+      finishReason: toolCalls.length ? 'tool_use' : finish(firstFinish(json)),
       ...(toolCalls.length ? { toolCalls } : {}),
     };
   },
@@ -178,12 +171,13 @@ export const googleAdapter: ProviderAdapter = {
       method: 'POST', headers: headers(ctx),
       body: JSON.stringify({ requests: req.input.map((text) => ({ model: name, content: { parts: [{ text }] } })) }),
     });
-    const json = await readJson<{ embeddings?: { values?: unknown }[] }>(res, ctx.apiKey);
-    if (!Array.isArray(json.embeddings) || json.embeddings.length !== req.input.length || !json.embeddings.every((e) => Array.isArray(e.values))) {
+    const json = await readJson(res, ctx.apiKey);
+    const vectors = list(json.embeddings).map((e) => vector(obj(e)?.values));
+    if (!Array.isArray(json.embeddings) || vectors.length !== req.input.length || !vectors.every((v) => v !== null)) {
       throw invalidResponse('embeddings do not match the inputs');
     }
     // The Gemini API reports no token usage for embeddings.
-    return { model: req.model, embeddings: json.embeddings.map((e) => e.values as number[]), usage: usageOf(undefined) };
+    return { model: req.model, embeddings: vectors as number[][], usage: usageOf(undefined) };
   },
 
   async *sendStreamingRequest(ctx, req): AsyncGenerator<StreamEvent> {
@@ -196,21 +190,17 @@ export const googleAdapter: ProviderAdapter = {
     let calls = 0;
     let model = req.model;
     for await (const event of parseSse(res.body, ctx.signal)) {
-      let chunk: GeminiResponse;
-      try {
-        chunk = JSON.parse(event.data);
-      } catch {
-        throw invalidResponse('malformed stream chunk');
-      }
+      const chunk = parseChunk(event.data);
       const thoughts = thoughtsOf(chunk);
       if (thoughts) yield { type: 'reasoning', text: thoughts };
-      const text = textOf(chunk);
-      if (text) yield { type: 'delta', text };
+      const answer = textOf(chunk);
+      if (answer) yield { type: 'delta', text: answer };
       // Gemini sends each function call whole, in one chunk.
       for (const call of toolCallsOf(chunk)) yield { type: 'tool_call', index: calls++, id: call.id, name: call.name, arguments: call.arguments };
-      if (chunk.candidates?.[0]?.finishReason) reason = finish(chunk.candidates[0].finishReason);
-      if (chunk.usageMetadata) usage = usageOf(chunk.usageMetadata);
-      if (chunk.modelVersion) model = chunk.modelVersion;
+      const finished = firstFinish(chunk);
+      if (finished) reason = finish(finished);
+      if (obj(chunk.usageMetadata)) usage = usageOf(chunk.usageMetadata);
+      model = text(chunk.modelVersion) || model;
     }
     yield { type: 'done', finishReason: calls ? 'tool_use' : reason, usage, model };
   },
@@ -241,9 +231,11 @@ const signatureOf = (id: string): string | null => {
 };
 
 function toolCallsOf(r: GeminiResponse): ToolCall[] {
-  return (r.candidates?.[0]?.content?.parts ?? [])
-    .filter((p) => typeof p.functionCall?.name === 'string')
-    .map((p) => ({ id: callId(p.thoughtSignature), name: p.functionCall!.name!, arguments: JSON.stringify(p.functionCall!.args ?? {}) }));
+  return partsOf(r).flatMap((p) => {
+    const call = obj(p.functionCall);
+    const name = text(call?.name);
+    return name === undefined ? [] : [{ id: callId(text(p.thoughtSignature)), name, arguments: JSON.stringify(call!.args ?? {}) }];
+  });
 }
 
 const parseArgs = (text: string): unknown => {

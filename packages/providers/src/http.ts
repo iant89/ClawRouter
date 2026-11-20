@@ -17,6 +17,7 @@
 import { AppError } from '@clawrouter/core';
 import { OutboundBlockedError } from '@clawrouter/security';
 import type { ProviderCallContext } from './types.ts';
+import { obj, type Json } from './untrusted.ts';
 
 /** Why a provider call failed, in provider-independent terms. */
 export type ProviderFailure = 'auth' | 'forbidden' | 'blocked' | 'rate_limited' | 'timeout' | 'unreachable' | 'bad_request' | 'not_found' | 'server_error' | 'invalid_response' | 'cancelled';
@@ -133,12 +134,34 @@ export async function providerFetch(ctx: ProviderCallContext, url: string, init:
   return response;
 }
 
-export async function readJson<T>(response: Response, apiKey: string | null): Promise<T> {
+/**
+ * A provider's JSON answer, which must be an object: `null`, a list or a bare value is an
+ * invalid response, not something to read fields from. The fields are untrusted (read
+ * them with `untrusted.ts`).
+ */
+export async function readJson(response: Response, apiKey: string | null): Promise<Json> {
+  let value: unknown;
   try {
-    return (await response.json()) as T;
+    value = await response.json();
   } catch (error) {
     throw new ProviderCallError('invalid_response', FAILURE_TEXT.invalid_response, response.status, scrub(String(error), apiKey));
   }
+  const json = obj(value);
+  if (!json) throw new ProviderCallError('invalid_response', `${FAILURE_TEXT.invalid_response}: the answer is not a JSON object`, response.status);
+  return json;
+}
+
+/** One stream event's JSON data, which must be an object. */
+export function parseChunk(data: string, what = 'malformed stream chunk'): Json {
+  let value: unknown;
+  try {
+    value = JSON.parse(data);
+  } catch {
+    throw invalidResponse(what);
+  }
+  const json = obj(value);
+  if (!json) throw invalidResponse(what);
+  return json;
 }
 
 /** Joins an endpoint base and a path without doubling or dropping slashes. */
