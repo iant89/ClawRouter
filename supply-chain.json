@@ -1,0 +1,17 @@
+{
+  "lockfile": {
+    "registries": [""],
+    "tarballs": {
+      "../../vendor/enterprise-ui-react.tgz": "vendor/enterprise-ui-react.tgz"
+    },
+    "trustedDependencies": []
+  },
+  "audit": {
+    "failOn": ["high", "critical"],
+    "exceptions": []
+  },
+  "licenses": {
+    "allowed": ["MIT", "ISC", "Apache-2.0", "BSD-2-Clause", "BSD-3-Clause", "0BSD", "BlueOak-1.0.0", "CC0-1.0", "Unlicense", "MPL-2.0", "AGPL-3.0-or-later"],
+    "packages": {}
+  }
+}

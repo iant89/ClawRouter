@@ -137,7 +137,7 @@ often local, and the host is set by administrators only.
 5. Rotate the secret key with `bun run rotate-secret-key` if it may have been exposed (it re-encrypts provider keys, the mail password and authenticator-app secrets). Recover lost passwords with `bun run reset-password`, a lost key with `bun run clear-credentials` (see [deployment](deployment.md#recovery)).
 6. Keep ClawRouter's files private to its account (files 0600, directories 0700; [file permissions](deployment.md#file-permissions)) and run maintenance commands as that account.
 7. Back up regularly and copy backups off the machine. Backups leave the secret key out unless `--include-secret-key` is given: whoever holds both can read every provider key. Run `bun run doctor` after changes.
-8. Run `bun run scan-secrets` and `bun audit` before releases (CI does both).
+8. Run `bun run scan-secrets` and `bun run deps:check` before releases (CI does both). Install releases only after verifying them ([releases](releases.md#verifying-a-release-you-downloaded)).
 
 ## Screenshots
 

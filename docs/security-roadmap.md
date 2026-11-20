@@ -29,9 +29,9 @@ tracking copy with status, findings and decisions.
 | SEC-015 | WebSocket security | High | ✅ |
 | SEC-016 | Configuration security classification | Medium | ✅ |
 | SEC-017 | Configuration import sandbox | High | ✅ |
-| SEC-018 | Dependency security | Medium | ⬜ |
-| SEC-019 | Software bill of materials | Medium | ⬜ |
-| SEC-020 | Signed releases | Medium | ⬜ |
+| SEC-018 | Dependency security | Medium | ✅ |
+| SEC-019 | Software bill of materials | Medium | ✅ |
+| SEC-020 | Signed releases | Medium | ✅ (first release not yet run) |
 | SEC-021 | Fuzz testing | Medium | ✅ |
 | SEC-022 | CSP tightening (`style-src 'unsafe-inline'`) | Low | ⬜ |
 | SEC-023 | Filesystem hardening | Medium | ✅ |
@@ -75,7 +75,7 @@ controls.
 A release may be called "security hardened" only when all of these are done:
 SEC-001 to SEC-012, SEC-014, SEC-015, SEC-017 to SEC-021, SEC-024 to SEC-029,
 SEC-032, SEC-033, SEC-035 to SEC-043, and SEC-047 to SEC-051. (Not in the gate:
-SEC-013, 016, 022, 023, 030, 031, 034, 044 to 046.) Status: 16 of 41.
+SEC-013, 016, 022, 023, 030, 031, 034, 044 to 046.) Status: 19 of 41.
 
 ## Phase 1: Network security boundary
 
@@ -425,13 +425,36 @@ Checked in Chromium: the console stays live through a minute of pings with the s
 
 ## Phase 6: Supply chain security
 
-- **SEC-018** ⬜ Automated auditing, lockfile verification, automated updates,
-  license scanning, CI failure on high and critical vulnerabilities. (Today:
-  `bun audit` and `--frozen-lockfile` in CI.)
-- **SEC-019** ⬜ An SPDX and CycloneDX SBOM per release (version, dependencies
-  and versions, runtime dependencies).
-- **SEC-020** ⬜ Signed release artifacts, published SHA-256 checksums, a
-  documented verification process, verification in CI.
+See [releases and the supply chain](releases.md). Policy: `supply-chain.json`; code:
+`scripts/supply-chain/`; tests: `tests/security/supply-chain/`.
+
+- **SEC-018** ✅ `bun run deps:check` (CI, on every change and weekly).
+  - [x] Automated auditing: `bun audit` through the policy; fails closed when the
+    advisory database cannot be reached; exceptions need a reason and an end date.
+  - [x] Lockfile verification: registry packages only from the npm registry with sha512
+    hashes, the committed tarball checked against its hash, no git/URL/link sources,
+    exact versions for direct dependencies, no install scripts (`trustedDependencies`);
+    `--frozen-lockfile` in CI and the Docker build.
+  - [x] Automated updates: Dependabot (npm via Bun, GitHub Actions, the Docker base
+    image), weekly, reviewed pull requests.
+  - [x] License scanning: every package's license must be allowed (permissive and
+    AGPL-compatible); missing licenses read from LICENSE files or set by hand.
+  - [x] High and critical advisories fail CI. Decision: moderate and low are printed, not
+    failed (before this, plain `bun audit` failed on any level).
+- **SEC-019** ✅ `bun run sbom`: SPDX 2.3 and CycloneDX 1.6 JSON, in every release.
+  - [x] Application version (and commit), [x] dependencies with versions, hashes,
+    licenses and the dependency graph, runtime vs development scope, [x] runtime
+    dependencies (Bun, its SQLite). Deterministic. Checked with `pyspdxtools` and the
+    CycloneDX schema (strict).
+- **SEC-020** ✅ `.github/workflows/release.yml` on a version tag.
+  - [x] Signed artifacts: cosign keyless (Sigstore, the workflow's identity, Rekor).
+  - [x] Checksums: `SHA256SUMS` (signed too), published with the release.
+  - [x] Verification process documented ([releases](releases.md#verifying-a-release-you-downloaded)).
+  - [x] Verified in CI: before publishing, after publishing (the download), and the
+    unsigned artifacts on every CI run. The release tarball is reproducible.
+  - Not run yet: no tag has been pushed, so signing and the published-release check
+    have not run; the cosign commands follow its documentation (could not be run here).
+    The Docker image is not signed.
 
 ## Phase 7: Advanced security
 

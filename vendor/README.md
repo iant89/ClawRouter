@@ -23,7 +23,8 @@ bun run check
 ```
 
 Then update the source commit above and commit the tarball, `bun.lock` and this
-file together.
+file together. `bun run deps:check` (CI) fails when the tarball does not match its
+hash in `bun.lock`, so a replaced tarball cannot slip in without a lockfile change.
 
 Once ENTERPRISE-UI is on npm, replace the `file:` dependency in
 `apps/console/package.json` with a version range and delete this directory.

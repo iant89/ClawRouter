@@ -14,6 +14,25 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 
 ### Important
 
+- **IMPORTANT** · 2026-11-20 · Security phase 6: dependency checks (SEC-018), SBOM (SEC-019), signed releases (SEC-020)
+  Built on `claude/clever-fermi-tyfev2` after SEC-023, **waits for the owner's review**. No migration,
+  no new dependency. Policy `supply-chain.json`; code `scripts/supply-chain/` (entries `deps.ts`,
+  `sbom.ts`, `release.ts`); guide `docs/releases.md`; tests `tests/security/supply-chain/`.
+  Decisions made here (keep unless the owner says otherwise): CI's plain `bun audit` became
+  `bun run deps:check`: **high/critical fail, moderate/low are only printed** (the roadmap's
+  wording; before, any level failed); an unreachable advisory database fails; exceptions need a
+  reason and an `expires` date. Lockfile: npm registry + sha512 only, the vendored tarball must
+  match its `bun.lock` hash, exact versions for direct deps, no `trustedDependencies`. Licenses
+  allowed: permissive + AGPL-3.0-or-later (GPL not listed: ask the owner first). Signing is
+  **cosign keyless** (Sigstore, identity = `release.yml` for the tag); no key to manage. The release
+  tarball and SBOMs are reproducible (checked: two clean builds, same SHA-256), SBOMs pass
+  `pyspdxtools` and the CycloneDX 1.6 strict schema. `release:package` refuses a Bun other than the
+  Dockerfile's; a test pins every workflow action to a SHA and every `bun-version` to the Dockerfile.
+  **Not verified:** the release workflow never ran (no tag pushed; pushing one publishes a real
+  release, so ask first), and cosign could not be run here (running a downloaded binary was refused),
+  so the sign/verify commands follow cosign v3.1.4's documented flags. Dependabot's `bun` ecosystem
+  has not opened a pull request yet. The Docker image is not signed. Next: SEC-022 (CSP), then phase 8.
+
 - **IMPORTANT** · 2026-11-20 · Security SEC-023: filesystem hardening
   Built on `claude/clever-fermi-tyfev2`, **waits for the owner's review**. No migration.
   Decisions made here (keep unless the owner says otherwise): ClawRouter's files are 0600 and
