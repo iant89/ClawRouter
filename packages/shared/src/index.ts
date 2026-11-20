@@ -32,6 +32,7 @@ export * from './logs.ts';
 export * from './settings.ts';
 export * from './two-factor.ts';
 export * from './configuration.ts';
+export * from './classification.ts';
 export * from './quotas.ts';
 export * from './onboarding.ts';
 export * from './captures.ts';

@@ -15,6 +15,8 @@
  */
 
 import { AppError, errors } from '@clawrouter/core';
+import { validateRoutingConfig } from '@clawrouter/routing';
+import { parseDocument } from './sandbox.ts';
 import type { AuditService } from '@clawrouter/audit';
 import type { AuthorizationService } from '@clawrouter/authorization';
 import type { TwoFactorService } from '@clawrouter/authentication';
@@ -26,7 +28,7 @@ import type { RoutingService } from '@clawrouter/routing';
 import type { SettingsService } from '@clawrouter/settings';
 import {
   BUILT_IN_ROLE_IDS, CONFIGURATION_FORMAT, CONFIGURATION_SECTIONS, isSettingKey, type ConfigurationDocument, type ConfigurationSection,
-  type ExportedModel, type ExportedProvider, type FieldIssue, type ImportChange, type ImportPlan, type ImportResult, type Permission,
+  type FieldIssue, type ImportChange, type ImportPlan, type ImportResult, type Permission,
 } from '@clawrouter/shared';
 
 export interface ConfigurationActor {
@@ -117,8 +119,38 @@ export function createConfigurationService(o: {
     return doc;
   }
 
-  /** What importing `doc` would change, section by section. Reads only. */
-  function plan(actor: ConfigurationActor, doc: ConfigurationDocument): ImportPlan {
+  /**
+   * SEC-017: the checks of the import sandbox that need this server's state. A
+   * document that fails one is refused as a whole, before anything is applied.
+   */
+  function stateIssues(doc: ConfigurationDocument): FieldIssue[] {
+    const issues: FieldIssue[] = [];
+    // Every endpoint, against the URL rules and the outbound policy (SSRF), whether or not it would change.
+    doc.providers.forEach((p, i) => issues.push(...o.providers.endpointIssues(p.endpoint, `providers[${i}].endpoint`)));
+    // A provider name belongs to one provider: the file must not give it to another one here.
+    const here = o.providers.list();
+    doc.providers.forEach((p, i) => {
+      const owner = here.find((x) => x.name.toLowerCase() === p.name.trim().toLowerCase());
+      if (owner && owner.identifier !== p.identifier) issues.push({ path: `providers[${i}].name`, message: `is the name of provider ${owner.identifier} here` });
+    });
+    // Alias targets must be models that exist here or are created by this import.
+    const knownProviders = new Set([...here.map((p) => p.identifier), ...doc.providers.map((p) => p.identifier)]);
+    const refs = new Set([...o.models.listAll().map((m) => m.ref), ...doc.models.filter((m) => knownProviders.has(m.provider)).map((m) => `${m.provider}/${m.providerModelId}`)]);
+    issues.push(...validateRoutingConfig(doc.routing, refs).map((i) => ({ path: `routing.${i.path}`, message: i.message })));
+    // Email-only sign-in codes need the mail server this import leaves in place.
+    const { signIn, mail } = doc.settings;
+    if (signIn.require !== 'off' && !signIn.methods.totp && signIn.methods.email && !(mail.enabled && mail.host && mail.from)) {
+      issues.push({ path: 'settings.signIn.require', message: 'email codes need a configured mail server; allow the authenticator app or include one' });
+    }
+    return issues;
+  }
+
+  /** What importing `doc` would change, section by section. Reads only. Refuses a document the server cannot take. */
+  function plan(actor: ConfigurationActor, input: unknown): ImportPlan {
+    // Always through the sandbox, also when called directly rather than through the API.
+    const doc = parseDocument(input);
+    const invalid = stateIssues(doc);
+    if (invalid.length) throw errors.validation(invalid.slice(0, 100));
     const changes: ImportChange[] = [];
     const add = (c: ImportChange) => changes.push(c);
 
@@ -196,11 +228,17 @@ export function createConfigurationService(o: {
     const touched = new Set(changes.filter((c) => c.action === 'create' || c.action === 'update').map((c) => c.section));
     // Roles: also only permissions the importer holds (no escalation), as when creating them by hand.
     const needed = new Set<Permission>([...touched].map((s) => WRITE[s]));
-    for (const r of doc.roles) if (changes.some((c) => c.section === 'roles' && c.name === r.name && (c.action === 'create' || c.action === 'update'))) for (const p of r.permissions) needed.add(p);
+    // Changing an existing role also involves the permissions it has now (as updateRole checks).
+    for (const r of doc.roles) {
+      if (!changes.some((c) => c.section === 'roles' && c.name === r.name && (c.action === 'create' || c.action === 'update'))) continue;
+      for (const p of r.permissions) needed.add(p);
+      for (const p of roles.get(r.name.toLowerCase())?.permissions ?? []) needed.add(p);
+    }
     return { changes, counts, missingPermissions: [...needed].filter((p) => !actor.permissions.has(p)).sort() };
   }
 
-  async function apply(actor: ConfigurationActor, doc: ConfigurationDocument, client: Client): Promise<ImportResult> {
+  async function apply(actor: ConfigurationActor, input: unknown, client: Client): Promise<ImportResult> {
+    const doc = parseDocument(input);
     const planned = plan(actor, doc);
     if (planned.missingPermissions.length) {
       throw new AppError('AUTHORIZATION_ERROR', `This import needs ${planned.missingPermissions.join(', ')}, which you do not hold.`, { details: { missingPermissions: planned.missingPermissions } });
@@ -233,15 +271,21 @@ export function createConfigurationService(o: {
             o.models.create(who, { ...body, providerId: provider.id, providerModelId: m.providerModelId }, client);
           }
         } else if (change.section === 'routing') {
-          o.routing.update(who, { version: o.routing.get().version, ...doc.routing }, client);
+          o.routing.update(who, { defaultPolicy: doc.routing.defaultPolicy, aliases: doc.routing.aliases, version: o.routing.get().version }, client);
         } else if (change.section === 'rateLimits') {
-          o.limits.update(who, { version: o.limits.get().version, ...doc.rateLimits }, client);
+          const l = doc.rateLimits;
+          o.limits.update(who, {
+            perKey: l.perKey, perUser: l.perUser, perModel: l.perModel, global: l.global, invalidKeysPerIp: l.invalidKeysPerIp,
+            ...(l.costLimits ? { costLimits: l.costLimits } : {}), ...(l.requestLimits ? { requestLimits: l.requestLimits } : {}), version: o.limits.get().version,
+          }, client);
         } else if (change.name === 'system settings') {
           o.settings.update(who, Object.fromEntries(Object.entries(doc.settings.system).filter(([k]) => isSettingKey(k))), client);
         } else if (change.name === 'two-factor sign-in') {
-          o.twoFactor.updatePolicy(who, doc.settings.signIn, { ip: client.ip, userAgent: client.userAgent ?? null, requestId: client.requestId ?? null });
+          o.twoFactor.updatePolicy(who, { methods: doc.settings.signIn.methods, require: doc.settings.signIn.require }, { ip: client.ip, userAgent: client.userAgent ?? null, requestId: client.requestId ?? null });
         } else if (change.name === 'mail server') {
-          await o.mail.update(who, doc.settings.mail, client);
+          // Only the exported fields: never a password, even if a caller skipped the sandbox.
+          const { enabled, host, port, security, username, from } = doc.settings.mail;
+          await o.mail.update(who, { enabled, host, port, security, username, from }, client);
         }
       } catch (error) {
         const issues = (error as AppError).details?.issues as FieldIssue[] | undefined;
@@ -264,24 +308,3 @@ export function createConfigurationService(o: {
   return { export: exportDocument, plan, apply, parse: parseDocument };
 }
 
-/** Checks the document's shape; the services check every value when it is applied. */
-export function parseDocument(value: unknown): ConfigurationDocument {
-  const doc = value as Partial<ConfigurationDocument> | null;
-  const issues: FieldIssue[] = [];
-  if (typeof doc !== 'object' || doc === null || doc.format !== CONFIGURATION_FORMAT) throw errors.validation([{ path: 'format', message: `must be "${CONFIGURATION_FORMAT}": this is not a ClawRouter configuration export` }]);
-  if (doc.formatVersion !== 1) issues.push({ path: 'formatVersion', message: 'must be 1 (a newer ClawRouter made this file)' });
-  const list = <T>(path: string, v: unknown, check: (x: T) => boolean) => {
-    if (!Array.isArray(v)) return issues.push({ path, message: 'must be a list' });
-    v.forEach((x, i) => { if (typeof x !== 'object' || x === null || !check(x as T)) issues.push({ path: `${path}[${i}]`, message: 'is incomplete' }); });
-    return 0;
-  };
-  list<ExportedProvider>('providers', doc.providers, (p) => typeof p.identifier === 'string' && typeof p.kind === 'string' && typeof p.endpoint === 'string' && typeof p.name === 'string');
-  list<ExportedModel>('models', doc.models, (m) => typeof m.provider === 'string' && typeof m.providerModelId === 'string' && Array.isArray(m.capabilities));
-  list<{ name: string; permissions: string[] }>('roles', doc.roles, (r) => typeof r.name === 'string' && Array.isArray(r.permissions));
-  if (typeof doc.routing !== 'object' || doc.routing === null || !Array.isArray(doc.routing.aliases)) issues.push({ path: 'routing', message: 'must have defaultPolicy and aliases' });
-  if (typeof doc.rateLimits !== 'object' || doc.rateLimits === null) issues.push({ path: 'rateLimits', message: 'is missing' });
-  const s = doc.settings;
-  if (typeof s !== 'object' || s === null || typeof s.system !== 'object' || typeof s.signIn !== 'object' || typeof s.mail !== 'object') issues.push({ path: 'settings', message: 'must have system, signIn and mail' });
-  if (issues.length) throw errors.validation(issues);
-  return doc as ConfigurationDocument;
-}

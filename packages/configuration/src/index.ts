@@ -15,3 +15,4 @@
  */
 
 export * from './service.ts';
+export * from './sandbox.ts';

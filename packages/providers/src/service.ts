@@ -205,6 +205,9 @@ export function createProviderService(options: ProviderServiceOptions) {
   const service = {
     kinds: (): ProviderKindInfo[] => registry.kinds(),
 
+    /** What saving this endpoint would refuse (URL shape and the outbound policy), without saving anything. */
+    endpointIssues: (raw: string, path = 'endpoint'): FieldIssue[] => checkEndpoint(raw, path, options.outbound.policy).issues,
+
     list(): ProviderInfo[] {
       const creds = repo.credentialSummaries();
       return repo.list().map((p) => toInfo(p, creds));

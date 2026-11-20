@@ -46,7 +46,7 @@ import {
   type HealthHistoryService, type HealthService,
 } from '@clawrouter/health';
 import { CSRF_HEADER, requestLoggingMode } from '@clawrouter/shared';
-import { createConfigurationService } from '@clawrouter/configuration';
+import { createConfigurationService, type ConfigurationService } from '@clawrouter/configuration';
 
 /** Low-cost argon2id so tests stay fast. Never use these parameters in production. */
 export const fastHasher: PasswordHasher = createArgon2Hasher({ memoryCost: 256, timeCost: 1 });
@@ -103,6 +103,7 @@ export interface Harness {
   requests: RequestLogService;
   captures: CaptureService;
   notices: NoticeService;
+  configuration: ConfigurationService;
   secrets: SecretBox;
   /** Replaces the fetch used for provider calls. */
   setProviderFetch(fn: typeof fetch): void;
@@ -237,7 +238,7 @@ export function createHarness(options: { idleMinutes?: number; maxHours?: number
   const api = createApiApp({ log, logBuffer, audit, health, configuration, onboarding, preferences, healthHistory, auth, authz, userAdmin, settings, twoFactor, mail, notifications, providers, models, routing, apiKeys, keyRequests, gateway, limits, quotas, requests, operations, captures, notices, setup, now: clock.now, mcpEnabled: () => settings.get('mcpEnabled') === 1, playgroundEnabled: () => settings.get('playgroundEnabled') === 1, cookie: { secure: options.secureCookie ?? false } });
 
   const h: Harness = {
-    db, clock, events, users, audit, auth, authz, userAdmin, settings, twoFactor, onboarding, mail, outbox, notifications, providers, models, routing, apiKeys, keyRequests, gateway, limits, quotas, requests, captures, notices, secrets, setup, health, healthHistory, operations, api, logs, logBuffer,
+    db, clock, events, users, audit, auth, authz, userAdmin, settings, twoFactor, onboarding, mail, outbox, notifications, providers, models, routing, apiKeys, keyRequests, gateway, limits, quotas, requests, captures, notices, configuration, secrets, setup, health, healthHistory, operations, api, logs, logBuffer,
     setProviderFetch(fn) {
       providerFetch = fn;
     },

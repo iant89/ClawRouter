@@ -632,3 +632,13 @@ logging set to Full; the prompt carried a fake `sk-proj-…` key to show the scr
 | ![Detail](41-request-logging/03-detail-before.png) | A request stored under Full: the warning, and the prompt loaded only on "Show prompt and reply" |
 | ![Content](41-request-logging/04-detail-content.png) | The stored prompt (key scrubbed), the image described by type and size, and the reply |
 | ![Metadata](41-request-logging/05-settings-metadata.png) | Back to Metadata: the warning is gone |
+
+## 42 · Configuration import sandbox (SEC-017)
+
+Captured 2026-11-20 on a scratch install: a hostile configuration file (a planted provider key and
+mail password, a `../` identifier, a `command` field, an unknown permission
+and a `backupPath`) loaded in Settings → Import and export.
+
+| Screenshot | Shows |
+| --- | --- |
+| ![Refused](42-configuration-security/01-import-refused.png) | The import refused as a whole: every problem listed, nothing changed, the secrets not repeated |

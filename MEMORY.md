@@ -14,8 +14,33 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 
 ### Important
 
+- **IMPORTANT** · 2026-11-20 · Security phase 5: configuration classification (SEC-016) and import sandbox (SEC-017)
+  Built on `claude/charming-rubin-4jel67`, **waits for the owner's review** (not merged). No migration.
+  **SEC-016** `packages/shared/src/classification.ts` classifies every environment variable,
+  setting (`SETTING_CLASSIFICATION`, typed: a new setting fails the typecheck until classified)
+  and configuration-document field (by path, longest prefix wins) as PUBLIC / SENSITIVE / SECRET
+  / SECURITY_CRITICAL. Decision made here (keep unless the owner says otherwise): SECRET = one
+  credential (provider keys, mail password, TOTP secrets); SECURITY_CRITICAL = the secret key(s),
+  the setup token and the TLS private key; settings are never protected.
+  `tests/security/configuration/classification.test.ts` starts a **real server** with planted
+  values and checks every console GET route, every MCP tool, error paths, the export, all log
+  records from startup and the audit table; a new `CLAWROUTER_*` variable in config.ts,
+  apps/server/src or scripts fails it until classified. `ciphertext` is now a redacted key name.
+  **SEC-017** `packages/configuration/src/sandbox.ts` (`parseDocument`, `DOCUMENT_SCHEMA`):
+  unknown fields are **refused, not ignored** (a new export field must be added to the schema
+  *and* the classification, or exports stop importing: the round-trip test catches it);
+  protected fields get "secrets are never imported"; state checks (endpoints vs the outbound
+  policy, alias targets, provider names taken here, email-only sign-in without mail) are
+  `stateIssues` in the service's `plan`. `plan`/`apply` now take `unknown` and parse themselves.
+  Fixed on the way: imports skipped the provider form's priority/timeout ranges; changing an
+  existing role failed half-way when the importer lacked a permission the role already had (now
+  in `missingPermissions`); `mail.update` received the whole imported object (a `password` field
+  would have been stored); `...doc.routing` could override `version`. Plain-http endpoints are
+  still only refused when applied (DNS lookup). Console lists the problems
+  (`ConfigurationTransfer.tsx`), checked in Chromium. Next: security phase 6 (SEC-018 to 020).
+
 - **IMPORTANT** · 2026-11-20 · Security phase 4: regression suite (SEC-012), authorization matrix (SEC-014), WebSocket (SEC-015)
-  Built on `claude/nice-maxwell-ckflzs`, **waits for the owner's review** (not merged). No migration.
+  Merged into `main` (pull request 3, from `claude/nice-maxwell-ckflzs`). No migration.
   **SEC-012** `tests/security/` is one folder per roadmap category (the five earlier files were
   moved, paths in docs updated); `suite.test.ts` fails if a category is empty or a test sits at
   the top level; shared setup in `tests/security/support.ts`; `bun run test:security`.
@@ -746,7 +771,7 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 ### Messages
 
 - **MESSAGE** · 2026-11-19 · Everything merged after the native Gemini adapter and OpenRouter
-  Security phase 4 waits for review (see Important). Old branches to delete on GitHub (the session cannot): every merged
+  Security phase 5 waits for review (see Important). Old branches to delete on GitHub (the session cannot): every merged
   `claude/*` branch (now including `claude/beautiful-euler-7nicga`, `claude/clawrouter-security-hardening-fm633m`, `claude/focused-mendel-0rcfij`, `claude/gemini-native`, `claude/openrouter-provider`, `claude/anthropic-messages`, `claude/license-agpl-1.0`, `claude/hopeful-maxwell-3xrz6m`, `claude/captures-live-groq`, `claude/client-notices`,
   `claude/announcement-emoji` and `claude/eui-shared-components`), the superseded `claude/mcp-server`
   and the stale `claude/groq-provider`; never merge those two (duplicate migration 0020 / older

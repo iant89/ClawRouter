@@ -40,6 +40,21 @@ const columns: TableColumn<ImportChange>[] = [
 ];
 
 const message = (err: unknown) => (err instanceof ApiClientError && err.issues.length ? err.issues.map((i) => `${i.path} ${i.message}`).join('; ') : err instanceof Error ? err.message : 'Something went wrong.');
+/** SEC-017: a refused import lists every problem (up to 100); show them one per line. */
+const SHOWN_ISSUES = 20;
+function ImportProblems({ error }: { error: unknown }) {
+  if (!(error instanceof ApiClientError) || error.issues.length < 2) return <>{typeof error === 'string' ? error : message(error)}</>;
+  const rest = error.issues.length - SHOWN_ISSUES;
+  return (
+    <>
+      {error.issues.length} problems; nothing was changed. Fix them in the file and load it again:
+      <ul style={{ margin: 'var(--eui-space-1, 0.25rem) 0 0', paddingInlineStart: '1.25rem' }}>
+        {error.issues.slice(0, SHOWN_ISSUES).map((i) => <li key={`${i.path}:${i.message}`}><span className="claw-mono">{i.path}</span> {i.message}</li>)}
+        {rest > 0 && <li>and {rest} more</li>}
+      </ul>
+    </>
+  );
+}
 
 /**
  * Settings → Configuration (phase 17): download this server's configuration, or
@@ -51,7 +66,7 @@ export function ConfigurationTransfer({ canImport }: { canImport: boolean }) {
   const [exporting, setExporting] = useState(false);
   const [doc, setDoc] = useState<{ name: string; value: unknown } | null>(null);
   const [plan, setPlan] = useState<ImportPlan | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<unknown>(null);
   const [showUnchanged, setShowUnchanged] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [applying, setApplying] = useState(false);
@@ -88,7 +103,7 @@ export function ConfigurationTransfer({ canImport }: { canImport: boolean }) {
       setPlan(await previewImport(value));
       setDoc({ name: file.name, value });
     } catch (err) {
-      setError(message(err));
+      setError(err);
       throw err;
     }
   };
@@ -102,7 +117,7 @@ export function ConfigurationTransfer({ canImport }: { canImport: boolean }) {
       setResult(done);
       setPlan(null);
     } catch (err) {
-      setError(message(err));
+      setError(err);
     } finally {
       setApplying(false);
     }
@@ -119,7 +134,7 @@ export function ConfigurationTransfer({ canImport }: { canImport: boolean }) {
         {canImport && (
           <>
             <FileUploader label="Import a configuration file" accept={['.json', 'application/json']} multiple={false} maxFileSize={20 * 1024 * 1024} upload={(file) => load(file)} />
-            {error && <MessageStrip tone="error" title="Cannot import this file" announce="assertive">{error}</MessageStrip>}
+            {error !== null && <MessageStrip tone="error" title="Cannot import this file" announce="assertive"><ImportProblems error={error} /></MessageStrip>}
             {plan && doc && (
               <>
                 <Text as="p">

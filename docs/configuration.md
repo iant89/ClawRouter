@@ -91,6 +91,12 @@ server or to keep it under version control.
 
 - **No secrets.** Provider API keys and the mail password are never exported. After
   an import, the result lists what still needs a key.
+- **Checked as a whole first (SEC-017).** An imported file is untrusted input. Every field
+  is checked (known fields only, types, ranges, URLs against the outbound policy,
+  permissions, duplicates, alias targets) before anything is applied; a file with any
+  problem is refused with every problem listed (400), and nothing changes. A field that
+  holds a secret (`apiKey`, `password`) is refused: secrets are entered in the console.
+  Files from older versions (rate limits before windows, no cost or request limits) are accepted.
 - **Preview first.** `POST /api/configuration/import/preview` (`settings.write`)
   returns each change (create, update, unchanged, skipped) without applying it.
 - **Merge, never delete.** Items are matched by identifier (provider identifier,
@@ -105,3 +111,14 @@ server or to keep it under version control.
   records of each item); exports are audited too.
 - Users, API keys, sessions, request history and audit records are not part of it:
   that is what backups are for.
+
+## Security classes (SEC-016)
+
+Every environment variable above, every setting and every field of the configuration
+export has a class (`packages/shared/src/classification.ts`): **PUBLIC**, **SENSITIVE**
+(only for roles with the read permission), **SECRET** (one credential: provider API keys,
+the mail password, authenticator secrets) or **SECURITY_CRITICAL** (protects everything:
+`CLAWROUTER_SECRET_KEY`, `CLAWROUTER_NEW_SECRET_KEY`, `CLAWROUTER_SETUP_TOKEN`, the TLS
+private key). SECRET and SECURITY_CRITICAL values are never logged, returned by the API
+or MCP, put in error messages, exported or imported. A new environment variable,
+setting or export field must be classified there, or the security tests fail.
