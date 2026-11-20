@@ -20,7 +20,7 @@
 
 import { describe, expect, test } from 'bun:test';
 import { PERMISSIONS, type ApiSuccess, type ConfigurationDocument, type ImportResult } from '@clawrouter/shared';
-import { createHarness } from '../support/harness.ts';
+import { createHarness } from '../../support/harness.ts';
 
 const data = async <T>(res: Response) => ((await res.json()) as ApiSuccess<T>).data;
 const actor = { id: 'u1', username: 'admin' };

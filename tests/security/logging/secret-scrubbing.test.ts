@@ -24,8 +24,8 @@ import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
 import { createLogger, isSensitiveKey, redact, REDACTED, scrubSecrets, type LogRecord } from '@clawrouter/core';
 import { ProviderCallError } from '@clawrouter/providers';
 import type { ApiSuccess, CreatedApiKey } from '@clawrouter/shared';
-import { createHarness } from '../support/harness.ts';
-import { startMockProviders, type MockProviders } from '../support/mock-providers.ts';
+import { createHarness } from '../../support/harness.ts';
+import { startMockProviders, type MockProviders } from '../../support/mock-providers.ts';
 
 /** Deterministic random-looking text of `n` characters from `alphabet`. */
 function material(seed: number, n: number, alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'): string {
