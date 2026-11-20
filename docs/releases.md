@@ -13,7 +13,7 @@ weekly (new advisories appear without a push). The policy is
 | Check | Fails when |
 |---|---|
 | `lockfile` | a `bun.lock` package comes from anywhere but the npm registry, a workspace or a committed tarball (git, URLs, links, other registries); a registry package has no sha512 hash; a committed tarball (`vendor/enterprise-ui-react.tgz`) does not match its hash in `bun.lock`; a direct dependency is a range or a tag instead of an exact version; `trustedDependencies` lets a package run install scripts |
-| `licenses` | a package's license is not in `licenses.allowed` (permissive licenses compatible with AGPL-3.0-or-later), or it has none. A package without a license field is read from its LICENSE file; one that cannot be read is set by hand in `licenses.packages`, with the reason |
+| `licenses` | a package's license is not in `licenses.allowed` (permissive licenses, and the GNU licenses that can be combined with AGPL-3.0-or-later: GPL-3.0, GPL-2.0-or-later, LGPL-2.1 and later, AGPL-3.0; **not** GPL-2.0-only or LGPL-2.0-only, which cannot), or it has none. A package without a license field is read from its LICENSE file; one that cannot be read is set by hand in `licenses.packages`, with the reason |
 | `audit` | `bun audit` reports a **high** or **critical** advisory (`audit.failOn`) not covered by an unexpired exception, or cannot reach the advisory database (fail closed). Moderate and low advisories are printed, not failed |
 
 `bun install --frozen-lockfile` (CI and the Docker build) refuses a lockfile that does

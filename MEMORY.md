@@ -23,7 +23,9 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
   wording; before, any level failed); an unreachable advisory database fails; exceptions need a
   reason and an `expires` date. Lockfile: npm registry + sha512 only, the vendored tarball must
   match its `bun.lock` hash, exact versions for direct deps, no `trustedDependencies`. Licenses
-  allowed: permissive + AGPL-3.0-or-later (GPL not listed: ask the owner first). Signing is
+  allowed: permissive + the AGPL-compatible GNU licenses (owner, 2026-11-20: "Yes, as long as the
+  licenses allow it": GPL-3.0, GPL-2.0-or-later, LGPL-2.1+, AGPL-3.0; GPL-2.0-only and LGPL-2.0-only
+  stay refused; `canonicalLicense` reads `GPL-2.0+` as or-later and a bare `GPL-3.0` as only). Signing is
   **cosign keyless** (Sigstore, identity = `release.yml` for the tag); no key to manage. The release
   tarball and SBOMs are reproducible (checked: two clean builds, same SHA-256), SBOMs pass
   `pyspdxtools` and the CycloneDX 1.6 strict schema. `release:package` refuses a Bun other than the

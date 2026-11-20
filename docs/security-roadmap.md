@@ -437,8 +437,8 @@ See [releases and the supply chain](releases.md). Policy: `supply-chain.json`; c
     `--frozen-lockfile` in CI and the Docker build.
   - [x] Automated updates: Dependabot (npm via Bun, GitHub Actions, the Docker base
     image), weekly, reviewed pull requests.
-  - [x] License scanning: every package's license must be allowed (permissive and
-    AGPL-compatible); missing licenses read from LICENSE files or set by hand.
+  - [x] License scanning: every package's license must be allowed (permissive, or a
+    GNU license compatible with AGPL-3.0; GPL-2.0-only is refused); missing licenses read from LICENSE files or set by hand.
   - [x] High and critical advisories fail CI. Decision: moderate and low are printed, not
     failed (before this, plain `bun audit` failed on any level).
 - **SEC-019** ✅ `bun run sbom`: SPDX 2.3 and CycloneDX 1.6 JSON, in every release.

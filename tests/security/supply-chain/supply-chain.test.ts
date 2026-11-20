@@ -116,6 +116,8 @@ describe('license scanning (SEC-018)', () => {
   test.each([
     ['MIT', true], ['(MIT OR Apache-2.0)', true], ['MIT OR GPL-2.0-only', true], ['MIT AND ISC', true],
     ['Apache-2.0 WITH LLVM-exception', true], ['GPL-2.0-only', false], ['SSPL-1.0', false], ['BUSL-1.1', false],
+    ['GPL-3.0-only', true], ['GPL-3.0-or-later', true], ['GPL-3.0', true], ['GPL-2.0-or-later', true], ['GPL-2.0+', true],
+    ['GPL-2.0', false], ['LGPL-2.1', true], ['LGPL-3.0-or-later', true], ['AGPL-3.0-only', true], ['LGPL-2.0-only', false],
     ['UNLICENSED', false], ['MIT AND SSPL-1.0', false], ['SEE LICENSE IN LICENSE.txt', false], ['', false], ['(MIT', false],
   ] as const)('%s allowed: %p', (expression, ok) => {
     expect(licenseAllowed(expression, allowed)).toBe(ok);

@@ -93,6 +93,16 @@ export function checkLockfile(root: string, lock: Lockfile, policy: SupplyChainP
   return { problems, notes };
 }
 
+/**
+ * Old-style GNU identifiers in their current form: "GPL-2.0+" is GPL-2.0-or-later, a bare
+ * "GPL-3.0" (deprecated) is GPL-3.0-only. Other identifiers are unchanged ("+" dropped).
+ */
+export function canonicalLicense(id: string): string {
+  const gnu = /^(A?GPL|LGPL)-(\d\.\d)(-only|-or-later)?(\+)?$/.exec(id);
+  if (!gnu) return id.replace(/\+$/, '');
+  return `${gnu[1]}-${gnu[2]}${gnu[4] ? '-or-later' : gnu[3] ?? '-only'}`;
+}
+
 /** Whether an SPDX license expression is allowed: one allowed alternative of an OR, every part of an AND. */
 export function licenseAllowed(expression: string, allowed: string[]): boolean {
   const tokens = expression.replace(/[()]/g, ' $& ').replace(/\s+/g, ' ').trim().split(' ').filter(Boolean);
@@ -123,7 +133,7 @@ export function licenseAllowed(expression: string, allowed: string[]): boolean {
       return v;
     }
     if (tokens[i]?.toUpperCase() === 'WITH') i += 2;
-    return allowed.includes(t.replace(/\+$/, ''));
+    return allowed.includes(canonicalLicense(t));
   };
   try {
     const v = or();
