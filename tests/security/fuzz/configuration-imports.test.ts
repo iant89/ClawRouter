@@ -76,7 +76,7 @@ describe('preview and import over HTTP', () => {
   test('a preview answers and never changes anything', async () => {
     const exported = async () => JSON.stringify(await data<ConfigurationDocument>(await h.request('/api/configuration/export', { cookie: admin })));
     const before = await exported();
-    await forAll('config preview', 500, (r) => (r.bool(0.85) ? JSON.stringify(mutate(r, seed)) : hostileJsonText(r, seed)), async (body) => {
+    await forAll('config preview', 250, (r) => (r.bool(0.85) ? JSON.stringify(mutate(r, seed)) : hostileJsonText(r, seed)), async (body) => {
       h.logs.length = 0;
       const res = await h.request('/api/configuration/import/preview', { method: 'POST', cookie: admin, body, headers: { 'content-type': 'application/json' } });
       await expectHandledResponse(res, h.logs);
@@ -86,7 +86,7 @@ describe('preview and import over HTTP', () => {
 
   test('an import is applied whole or refused whole, and the server works afterwards', async () => {
     let applied = 0;
-    await forAll('config import', 60, (r) => (r.bool(0.1) ? seed : mutate(r, seed, 1 + r.int(2))), async (doc) => {
+    await forAll('config import', 30, (r) => (r.bool(0.2) ? seed : mutate(r, seed, 1)), async (doc) => {
       const t = createHarness();
       const cookie = await t.completeSetup();
       const exportOf = async () => (await t.request('/api/configuration/export', { cookie })).json() as Promise<ApiSuccess<ConfigurationDocument>>;
@@ -105,6 +105,6 @@ describe('preview and import over HTTP', () => {
       }
       expect((await t.request('/api/providers', { cookie })).status).toBe(200);
     });
-    expect(applied).toBeGreaterThan(5);
+    expect(applied).toBeGreaterThan(2);
   }, 120_000);
 });

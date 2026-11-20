@@ -32,7 +32,7 @@ tracking copy with status, findings and decisions.
 | SEC-018 | Dependency security | Medium | ⬜ |
 | SEC-019 | Software bill of materials | Medium | ⬜ |
 | SEC-020 | Signed releases | Medium | ⬜ |
-| SEC-021 | Fuzz testing | Medium | ⬜ |
+| SEC-021 | Fuzz testing | Medium | ✅ |
 | SEC-022 | CSP tightening (`style-src 'unsafe-inline'`) | Low | ⬜ |
 | SEC-023 | Filesystem hardening | Medium | ⬜ |
 | SEC-024 | systemd hardening | High | ⬜ |
@@ -75,7 +75,7 @@ controls.
 A release may be called "security hardened" only when all of these are done:
 SEC-001 to SEC-012, SEC-014, SEC-015, SEC-017 to SEC-021, SEC-024 to SEC-029,
 SEC-032, SEC-033, SEC-035 to SEC-043, and SEC-047 to SEC-051. (Not in the gate:
-SEC-013, 016, 022, 023, 030, 031, 034, 044 to 046.) Status: 15 of 41.
+SEC-013, 016, 022, 023, 030, 031, 034, 044 to 046.) Status: 16 of 41.
 
 ## Phase 1: Network security boundary
 
@@ -435,9 +435,47 @@ Checked in Chromium: the console stays live through a minute of pings with the s
 
 ## Phase 7: Advanced security
 
-- **SEC-021** ⬜ Fuzz JSON parsing, request validation, provider responses, MCP
-  messages, configuration imports, backups, routing configuration, model
-  metadata and streams.
+- **SEC-021** ✅ `tests/security/fuzz/` (`bun run test:fuzz`; part of `bun test`): a
+  seeded fuzzer without dependencies (`fuzz.ts`: hostile JSON, text and byte damage,
+  and mutations of valid inputs, which find most bugs). Every test has a fixed seed, so
+  CI runs the same cases; `FUZZ_SEED=<n>` explores others and `FUZZ_RUNS=<factor>` runs
+  more (`FUZZ_RUNS=20 FUZZ_SEED=$RANDOM bun run test:fuzz`). A failure names the seed,
+  the case and the input; a case that takes over 5 s fails as a hang.
+  - [x] JSON parsing: hostile bodies (deep, wide, broken, duplicate and prototype keys,
+    lone surrogates, odd content types, bytes that are not UTF-8) on every route that
+    reads one; the depth counter agrees with the parser. Query strings on every GET route.
+  - [x] Request validation: Chat Completions, Responses, Messages (with count_tokens) and
+    embeddings parsers, directly (refused with a 400 or accepted with every field of the
+    expected type) and through the whole pipeline.
+  - [x] Provider responses, streaming responses and model metadata: every adapter kind
+    against changed answers, streams cut at any byte, embeddings and model lists, odd
+    statuses and Retry-After values; the SSE parser gives the same events however the
+    bytes are split; a hostile provider behind every front end; discovery, import and
+    the connection test with hostile lists.
+  - [x] MCP messages: envelopes and every tool with arguments from its own schema, changed.
+  - [x] Configuration imports: sandbox, preview (changes nothing), import (whole or not at all).
+  - [x] Backup files: damaged manifests and databases, also resealed so the damage reaches
+    SQLite; a refused restore leaves the database untouched.
+  - [x] Routing configuration: saved or refused, and whatever was saved routes.
+  - Found and fixed (each kept as its smallest input in `findings.test.ts`):
+    - A stream stalled forever when a provider piece gave the client no event (an empty
+      tool call piece on streamed `/v1/responses`): past the stream time limit, and
+      holding its concurrency slot. `pull()` in `packages/gateway/src/service.ts` now reads
+      on until it sends something.
+    - Error messages quoting a client value with `String()` threw (500) for an object
+      carrying a `toString` key; `shown()` in `packages/core/src/validation.ts`.
+    - Adapters crashed on bodies and stream events that are not objects, and passed on
+      values of the wrong type: numbers as text, negative or text token counts (usage feeds
+      quotas and spending limits), non-numeric embeddings, infinite or empty-text prices
+      (empty text read as free). Provider JSON is now read through
+      `packages/providers/src/untrusted.ts`; `readJson` refuses anything but an object.
+    - An imported alias without its optional fields passed the sandbox and failed in the
+      preview (500); the sandbox fills the routing API's defaults.
+    - Audit search text with a NUL character was a 500 (FTS5 refuses it), in the console
+      and through MCP's `search_audit`; NUL characters are dropped.
+  - Not covered: the HTTP parser itself (Bun's, SEC-031), WebSocket frames (SEC-015
+    tests them), the SMTP client, and coverage-guided fuzzing (the cases are random, not
+    steered by which code they reach).
 - **SEC-022** ⬜ Investigate removing `style-src 'unsafe-inline'` (ENTERPRISE-UI
   compatibility, fewer inline styles, CSP regression tests).
 - **SEC-023** ⬜ Owner, group, permissions and umask of `data/`, the database,
@@ -519,7 +557,10 @@ Checked in Chromium: the console stays live through a minute of pings with the s
   shared mutable provider state.
 - **SEC-036** ⬜ Provider responses are untrusted input: content type, JSON
   structure, maximum size and depth, expected fields, string lengths, numeric
-  ranges and stream events are validated.
+  ranges and stream events are validated. (Started by SEC-021: answers and stream
+  events must be JSON objects, fields are read by type through
+  `packages/providers/src/untrusted.ts`, token counts must be finite and >= 0. Not yet:
+  content type, maximum size and depth, string lengths.)
 - **SEC-037** ⬜ Separate limits for DNS, TCP connect, TLS handshake, request
   headers and body, first response byte, streaming and total duration. (DNS has
   a 5 s timeout since SEC-001; calls have one total timeout.)

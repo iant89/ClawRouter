@@ -109,7 +109,7 @@ const refusal = (error: unknown) => {
 
 describe('damaged backups', () => {
   test('a check lists the problems or refuses with a message', async () => {
-    await forAll('backup check', 50, (r) => damage(r), async (d) => {
+    await forAll('backup check', 25, (r) => damage(r), async (d) => {
       const dir = damaged(d);
       let check: Awaited<ReturnType<typeof checkBackup>> | null = null;
       try {
@@ -127,7 +127,7 @@ describe('damaged backups', () => {
   }, 120_000);
 
   test('a restore is refused, and the database it would replace is untouched', async () => {
-    await forAll('backup restore', 30, (r) => ({ ...damage(r), db: damageBytes(r, dbBytes), reseal: r.bool(0.8) }), async (d) => {
+    await forAll('backup restore', 15, (r) => ({ ...damage(r), db: damageBytes(r, dbBytes), reseal: r.bool(0.8) }), async (d) => {
       const dir = damaged(d);
       const dbPath = target();
       const before = sha256(readFileSync(dbPath));

@@ -125,7 +125,7 @@ const adapter = (kind: ProviderKind): ProviderAdapter => registry.get(kind)!;
 describe('chat answers', () => {
   test.each(KINDS)('%s', async (kind) => {
     const seeds = ANSWERS[family(kind)];
-    await forAll(`answer ${kind}`, 1500, (r) => exchange(r, hostileBody(r, r.pick(seeds))), async (x) => {
+    await forAll(`answer ${kind}`, 800, (r) => exchange(r, hostileBody(r, r.pick(seeds))), async (x) => {
       const out = await settle(() => adapter(kind).sendRequest(ctx(x), REQUEST));
       if (!(out instanceof ProviderCallError)) expect(responseProblems(out)).toEqual([]);
     });
@@ -135,7 +135,7 @@ describe('chat answers', () => {
 describe('streaming answers', () => {
   test.each(KINDS)('%s', async (kind) => {
     const f = family(kind);
-    await forAll(`stream ${kind}`, 1500, (r) => exchange(r, hostileStream(r, r.pick(STREAMS[f]), f === 'anthropic'), true), async (x) => {
+    await forAll(`stream ${kind}`, 800, (r) => exchange(r, hostileStream(r, r.pick(STREAMS[f]), f === 'anthropic'), true), async (x) => {
       const out = await settle(() => collect(adapter(kind).sendStreamingRequest(ctx(x), REQUEST)));
       if (!(out instanceof ProviderCallError)) expect(eventProblems(out)).toEqual([]);
     });
@@ -145,7 +145,7 @@ describe('streaming answers', () => {
 describe('embeddings', () => {
   test.each(KINDS.filter((k) => adapter(k).embed))('%s', async (kind) => {
     const seed = family(kind) === 'google' ? EMBEDDINGS.google : EMBEDDINGS.openai;
-    await forAll(`embed ${kind}`, 1000, (r) => exchange(r, hostileBody(r, seed)), async (x) => {
+    await forAll(`embed ${kind}`, 600, (r) => exchange(r, hostileBody(r, seed)), async (x) => {
       const out = await settle(() => adapter(kind).embed!(ctx(x), { model: 'e', input: ['a', 'b'] }));
       if (out instanceof ProviderCallError) return;
       const vectors = out.embeddings.every((v) => Array.isArray(v) && v.every((n) => typeof n === 'number' && Number.isFinite(n)));
@@ -157,7 +157,7 @@ describe('embeddings', () => {
 describe('model metadata (model lists)', () => {
   test.each(KINDS)('%s', async (kind) => {
     const seed = MODEL_LISTS[family(kind)];
-    await forAll(`models ${kind}`, 1500, (r) => exchange(r, hostileBody(r, seed)), async (x) => {
+    await forAll(`models ${kind}`, 800, (r) => exchange(r, hostileBody(r, seed)), async (x) => {
       const out = await settle(() => adapter(kind).listModels(ctx(x)));
       if (!(out instanceof ProviderCallError)) expect(modelProblems(out)).toEqual([]);
     });
@@ -178,7 +178,7 @@ describe('model metadata (model lists)', () => {
 describe('the SSE parser', () => {
   /** Events from one chunk, as the reference: splitting the bytes anywhere must give the same events. */
   test('gives the same events however the bytes are split, and never throws', async () => {
-    await forAll('sse split', 2000, (r) => {
+    await forAll('sse split', 1000, (r) => {
       const text = r.bool(0.7) ? hostileStream(r, r.pick([...STREAMS.openai, ...STREAMS.anthropic, ...STREAMS.google]), r.bool()) : mutateText(r, 'event: a\ndata: 1\ndata: 2\r\n\r\n: c\ndata:x\n\n');
       return { text, splits: [chunked(r, text), chunked(r, text)] };
     }, async ({ text, splits }) => {

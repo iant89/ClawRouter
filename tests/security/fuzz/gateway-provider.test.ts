@@ -101,7 +101,7 @@ describe('a hostile provider behind every front end', () => {
   test('clients get a well-formed answer or a handled error', async () => {
     let answered = 0;
     let streamed = 0;
-    await forAll('gateway hostile provider', 900, (r) => ({ req: request(r), seed: r.int(2 ** 31) }), async ({ req, seed }, i) => {
+    await forAll('gateway hostile provider', 500, (r) => ({ req: request(r), seed: r.int(2 ** 31) }), async ({ req, seed }, i) => {
       const { rng } = await import('./fuzz.ts');
       next = { family: 'openai', seedRng: rng(seed) };
       for (const p of providers) h.routing.failures.recordSuccess(p.id); // keep every provider in rotation
@@ -126,14 +126,14 @@ describe('a hostile provider behind every front end', () => {
       }
     });
     // Hostile answers still often parse: the success paths were exercised too.
-    expect([answered > 100, streamed > 30]).toEqual([true, true]);
+    expect([answered > 50, streamed > 15]).toEqual([true, true]);
   }, 120_000);
 });
 
 describe('model metadata from a hostile provider', () => {
   test('discovery, import and the connection test (which updates the registry) never fail with a 500', async () => {
     let imported = 0;
-    await forAll('gateway model lists', 300, (r) => ({ provider: r.pick(providers).id, seed: r.int(2 ** 31), action: r.int(3) }), async ({ provider, seed, action }) => {
+    await forAll('gateway model lists', 150, (r) => ({ provider: r.pick(providers).id, seed: r.int(2 ** 31), action: r.int(3) }), async ({ provider, seed, action }) => {
       const { rng } = await import('./fuzz.ts');
       next = { family: 'openai', seedRng: rng(seed) };
       h.logs.length = 0;

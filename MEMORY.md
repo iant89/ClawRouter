@@ -14,8 +14,30 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 
 ### Important
 
+- **IMPORTANT** · 2026-11-20 · Security phase 7 started: fuzz testing (SEC-021)
+  Built on `claude/loving-einstein-tksnqs`, **waits for the owner's review** (not merged). The
+  owner asked for "phase 7 (SEC-021, fuzz testing)"; phase 6 (SEC-018 to 020) and SEC-022/023 are
+  not started. No migration. `tests/security/fuzz/` is a new suite category: `fuzz.ts` is a seeded
+  fuzzer without dependencies (decision: no fast-check, spec §47); fixed seeds per test so CI is
+  stable, `FUZZ_SEED`/`FUZZ_RUNS` explore more (`bun run test:fuzz`); a case over 5 s fails as a
+  hang. It adds ~8 s to `bun test`. Every finding is kept as its smallest input in
+  `findings.test.ts` (13 of its 17 tests fail without the fixes; checked). Fixed:
+  **(1)** a streamed answer stalled forever when a provider piece gave the client no event
+  (`pull()` in `packages/gateway/src/service.ts` returned without enqueueing; confirmed on the old
+  code that it outlived the stream time limit and held its concurrency slot): keep the "send
+  something or close" loop if touching it; **(2)** `String(value)` in parser messages threw for
+  `{"toString":1}` (500): quote client values with `shown()` (core); **(3)** adapters crashed on
+  non-object bodies/events and passed wrong types on (text as numbers, negative or text token
+  counts, non-numeric embeddings, infinite or empty-text prices read as free): provider JSON is read
+  through `packages/providers/src/untrusted.ts`, providers' `readJson` now returns an object or
+  throws `invalid_response` (not generic any more); **(4)** an imported alias without optional fields
+  was a 500 in the preview (sandbox fills the routing API defaults); **(5)** audit search text with a
+  NUL was a 500 (FTS5), console and MCP. A new parser, front end or adapter needs a seed in the
+  matching fuzz test (`hostile-provider.ts` for adapters). Not covered: Bun's HTTP parser, SMTP,
+  coverage-guided fuzzing. No console change, so no browser check. Next: phase 6 or the rest of 7.
+
 - **IMPORTANT** · 2026-11-20 · Security phase 5: configuration classification (SEC-016) and import sandbox (SEC-017)
-  Built on `claude/charming-rubin-4jel67`, **waits for the owner's review** (not merged). No migration.
+  Merged into `main` (pull request 4, from `claude/charming-rubin-4jel67`). No migration.
   **SEC-016** `packages/shared/src/classification.ts` classifies every environment variable,
   setting (`SETTING_CLASSIFICATION`, typed: a new setting fails the typecheck until classified)
   and configuration-document field (by path, longest prefix wins) as PUBLIC / SENSITIVE / SECRET
@@ -771,7 +793,7 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 ### Messages
 
 - **MESSAGE** · 2026-11-19 · Everything merged after the native Gemini adapter and OpenRouter
-  Security phase 5 waits for review (see Important). Old branches to delete on GitHub (the session cannot): every merged
+  Security phase 7 (SEC-021) waits for review (see Important). Old branches to delete on GitHub (the session cannot): every merged
   `claude/*` branch (now including `claude/beautiful-euler-7nicga`, `claude/clawrouter-security-hardening-fm633m`, `claude/focused-mendel-0rcfij`, `claude/gemini-native`, `claude/openrouter-provider`, `claude/anthropic-messages`, `claude/license-agpl-1.0`, `claude/hopeful-maxwell-3xrz6m`, `claude/captures-live-groq`, `claude/client-notices`,
   `claude/announcement-emoji` and `claude/eui-shared-components`), the superseded `claude/mcp-server`
   and the stale `claude/groq-provider`; never merge those two (duplicate migration 0020 / older
