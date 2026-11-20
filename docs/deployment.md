@@ -68,6 +68,37 @@ Maintenance commands then run as the service user with its environment, for exam
 cd /opt/clawrouter/dist && sudo -u clawrouter env $(grep -v '^#' /etc/clawrouter/clawrouter.env | xargs) bun cli/doctor.js
 ```
 
+### systemd hardening
+
+The unit runs ClawRouter in a sandbox (SEC-024). `systemd-analyze security clawrouter.service`
+rates it **1.1 OK** (the unit without these directives: 7.7 EXPOSED). Every directive was run
+with the production build under systemd 255 (setup, sign-in, providers by host name, chat,
+streams, the live channel, health checks, backups, HTTPS with a root-owned key, `doctor`,
+a SIGTERM drain), and the server's `/proc` status showed no capabilities, no-new-privileges
+and a seccomp filter.
+
+| What | Directives | Effect |
+|---|---|---|
+| Writable files | `StateDirectory=clawrouter` (0700), `ProtectSystem=strict`, `ProtectHome`, `PrivateTmp`, `PrivateDevices`, `UMask=0077` | Only `/var/lib/clawrouter` (database, backups, setup token) can be written; `/opt`, `/etc` and `/usr` are read-only, home directories hidden, `/tmp` and `/dev` private |
+| Kernel | `ProtectKernelTunables`, `ProtectKernelModules`, `ProtectKernelLogs`, `ProtectControlGroups`, `ProtectClock`, `ProtectHostname` | No sysctl, module, kernel log, clock, hostname or cgroup changes |
+| Other processes | `ProtectProc=invisible`, `ProcSubset=pid`, `PrivateIPC`, `RemoveIPC` | It sees only its own processes |
+| Privileges | `NoNewPrivileges`, `CapabilityBoundingSet=` (empty), `AmbientCapabilities=`, `PrivateUsers`, `RestrictSUIDSGID`, `LockPersonality`, `RestrictRealtime`, `RestrictNamespaces` | Nothing to gain or keep; only the service account and an unprivileged root exist in its user namespace |
+| Network and system calls | `RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX`, `SystemCallArchitectures=native`, `SystemCallFilter=@system-service ~@privileged @resources` | No raw, packet or netlink sockets; system calls outside a network service's set fail with EPERM |
+
+Left off on purpose: `MemoryDenyWriteExecute=true` takes away the JavaScript engine's
+just-in-time compiler (Bun still starts, but ran a test loop 2.7 times slower);
+`PrivateNetwork` and `IPAddressDeny` would cut ClawRouter off from its providers (the
+[outbound policy](security.md#outbound-network-policy) decides where they may be).
+
+Changes go in a drop-in (`sudo systemctl edit clawrouter`), not in the unit:
+
+- **A database or backup directory outside `/var/lib/clawrouter`**: `ReadWritePaths=/that/directory`.
+- **Listening on 80 or 443 directly** (without a reverse proxy):
+  `AmbientCapabilities=CAP_NET_BIND_SERVICE`, `CapabilityBoundingSet=CAP_NET_BIND_SERVICE` and
+  `PrivateUsers=false`. Inside the user namespace the capability does not reach the host's
+  ports (checked: with `PrivateUsers=true` port 443 is refused even with the capability).
+- **A TLS key** readable by the service: `root:clawrouter` and mode 0640 works with the sandbox.
+
 ## Docker
 
 The [`Dockerfile`](../Dockerfile) builds the bundle and runs it as the `bun` user
@@ -257,6 +288,7 @@ bun cli/doctor.js --json                   # for monitoring; exits 1 when someth
 bun cli/doctor.js --fix                    # also repair what it safely can (asks first)
 bun cli/doctor.js --fix --yes              # the same without asking, e.g. from cron
 bun cli/doctor.js --fix --clear-unreadable # also forget values the key cannot open
+bun cli/doctor.js --security               # the security check (below)
 ```
 
 Without `--fix` it changes nothing. It checks the environment, the secret key (and
@@ -283,6 +315,56 @@ never changed. Every repair, done or failed, is recorded in the audit log as
 `DOCTOR_REPAIR` (by "command line", with the repair and its outcome), and backups and
 cleared values also write their own records, as when
 done by hand. With `--json`, `--fix --yes` prints `{ before, repairs, after }`.
+
+### The security check
+
+`doctor --security` (SEC-025) reviews the deployment's security instead, as `[PASS]`,
+`[INFO]`, `[WARN]` and `[FAIL]` lines; it exits 1 when anything fails. It changes nothing;
+`--security --fix` applies the same safe repairs (key and file permissions), and `--json`
+works as above. Run it as the service account, like `doctor`.
+
+```text
+CLAWROUTER SECURITY CHECK
+
+[PASS] https: HTTPS configured at the reverse proxy; ClawRouter listens on 127.0.0.1 only
+[PASS] cookies: secure cookies enabled (Secure, HttpOnly, SameSite=Strict)
+[PASS] trusted proxies: trusted proxy configuration valid: 127.0.0.1
+[PASS] secret key: secret key permissions: 0600
+[PASS] database: database permissions: 0600
+[PASS] api keys: API keys hashed (1 key(s), SHA-256 only; session tokens too)
+[PASS] credentials: provider credentials encrypted (1 value(s), AES-256-GCM)
+[PASS] mcp: MCP disabled
+[PASS] process: server running non-root (the server (process 1042): uid 997)
+[PASS] process: the server (process 1042): no capabilities, no-new-privileges, system calls filtered (seccomp)
+[PASS] csrf: CSRF protection enabled: http://127.0.0.1:8080 refused a cross-site request
+[PASS] cors: no wildcard CORS: http://127.0.0.1:8080 sent no CORS headers to a cross-site origin
+[WARN] two-factor: two-factor sign-in is not required; 1 of 1 administrator(s) sign in with a password alone
+       → Require it for administrators at least: Administration → Settings → Sign-in and sessions → Two-factor sign-in.
+```
+
+| Area | FAIL | WARN |
+|---|---|---|
+| https | Production, plain HTTP on a public interface with no reverse proxy; an expired certificate | Behind a proxy but listening on every interface (the proxy can be bypassed); no `Strict-Transport-Security` on an https `--url` |
+| cookies | Session cookies without `Secure` in production or on a public interface | |
+| trusted proxies | A catch-all range (`0.0.0.0/0`): any client picks its own address | A wide range (shorter than /16, IPv6 /48) |
+| secret key | The key file readable by others | The key in the data or backup directory (SEC-011); `CLAWROUTER_SECRET_KEY` in the environment is INFO |
+| database, files, backups | The database or a private file readable by others | A backup or the data directory open to others; backups with the secret key beside ordinary ones |
+| api keys, credentials | A key or session token not stored as a SHA-256 hash, a full API key anywhere it is looked for, a credential not encrypted | Encrypted values the configured key cannot open |
+| providers | | Plain http to another machine; a catch-all outbound allowlist |
+| mcp, request logging, captures | | The MCP server on; request logging Full (prompt content); provider captures on |
+| two-factor, setup token | | Not required while an administrator has none; a setup token left after setup; setup not done on a public interface |
+| process | The server (or, in a container, the command) runs as root | Capabilities kept; no-new-privileges off |
+| csrf, cors | The running server accepted a cross-site POST; a CORS header allowing any origin with credentials | Other CORS headers |
+
+When the server is running (its process-ID file names a live process), the check also
+reads the server's `/proc` status and asks it over loopback: a cross-site `POST` must be
+refused, and neither a CORS preflight nor a cross-site `GET` may get an
+`Access-Control-Allow-Origin` back. `--url https://clawrouter.example.com` asks the
+public address instead, through the reverse proxy, which is where wrong CORS or lost
+`Origin` headers come from; it also wants `Strict-Transport-Security` there. A
+self-signed certificate does not stop the probe (the certificate is checked from its
+file). Not checked: firewall rules, the reverse proxy's own TLS settings, and anything on
+other machines.
 
 ## File permissions
 

@@ -39,6 +39,7 @@ bun run start          # run the production bundle
 bun run migrate        # back up, then apply migrations (--status to list)
 bun run backup         # consistent backup while running (--list, --include-secret-key); restore: bun run restore <dir> --yes
 bun run doctor         # check a deployment (config, key, database, backups, HTTPS); --fix repairs what it safely can
+bun run doctor --security      # security check: PASS / WARN / FAIL (SEC-025); --url <public address> asks through the proxy
 bun run clear-credentials      # lost secret key: forget the values it cannot open (--yes)
 bun run reset-password <user>  # lost password: prints a temporary one (--enable re-enables, --reset-2fa removes two-factor)
 bun run rotate-secret-key      # new encryption key for every stored secret (CLAWROUTER_NEW_SECRET_KEY)

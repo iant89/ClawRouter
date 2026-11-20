@@ -94,7 +94,7 @@ export function privatePaths(config: Config): PrivatePath[] {
 }
 
 /** The private paths that allow more than they should. */
-const tooOpen = (config: Config) => privatePaths(config).map((p) => ({ ...p, access: pathAccess(p.path, p.allowed) })).filter((p) => p.access.extra && !p.access.symlink);
+export const tooOpen = (config: Config) => privatePaths(config).map((p) => ({ ...p, access: pathAccess(p.path, p.allowed) })).filter((p) => p.access.extra && !p.access.symlink);
 const DAY = 86_400_000;
 
 /**
