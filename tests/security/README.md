@@ -24,7 +24,7 @@ bun run security:matrix    # regenerate the authorization matrix after a reviewe
 | `logging/` | secret scrubbing everywhere (SEC-010) |
 | `websocket/` | the live channel over a real socket (SEC-015) |
 | `provider/` | provider keys write-only, never sent to a new host; provider answers untrusted |
-| `configuration/` | hostile configuration imports |
+| `configuration/` | hostile configuration imports (SEC-017), configuration classification and planted secrets (SEC-016) |
 
 Rules:
 

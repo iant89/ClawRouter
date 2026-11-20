@@ -22,7 +22,7 @@ export const REDACTED = '[REDACTED]';
  * keys, signatures of signed URLs, recovery codes, connection strings. `pass` must
  * end the word ("pass", "smtpPass", "password"; not "passage").
  */
-const SENSITIVE_KEY = /pass(word|wd|phrase)?(?![a-z])|secret|token|authori[sz]ation|^auth$|cookie|session|api[-_]?key|credential|private[-_]?key|jwt|bearer|csrf|recovery[-_]?codes?|connection[-_]?string|^dsn$|^sig(nature)?$|^x-goog-api-key$/i;
+const SENSITIVE_KEY = /pass(word|wd|phrase)?(?![a-z])|ciphertext|secret|token|authori[sz]ation|^auth$|cookie|session|api[-_]?key|credential|private[-_]?key|jwt|bearer|csrf|recovery[-_]?codes?|connection[-_]?string|^dsn$|^sig(nature)?$|^x-goog-api-key$/i;
 /** Names that look sensitive but hold counts or settings (token counts, limits): left out before the test above. */
 const NOT_SENSITIVE = /secure_?cookies?|tokens|(token|session)[a-z_]*?(count|limit|usage|estimate|seconds|minutes|hours|days|timeout|lifetime|enabled)s?|sessions|bypass/gi;
 

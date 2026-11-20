@@ -33,7 +33,7 @@ export function configurationController(configuration: ConfigurationService) {
     res.headers.set('cache-control', 'no-store');
     return res;
   };
-  const preview: Handler = async (ctx) => ok<ImportPlan>(configuration.plan(actor(ctx), configuration.parse(await readJsonValue(ctx, IMPORT_BODY_LIMIT))));
-  const apply: Handler = async (ctx) => ok<ImportResult>(await configuration.apply(actor(ctx), configuration.parse(await readJsonValue(ctx, IMPORT_BODY_LIMIT)), client(ctx)));
+  const preview: Handler = async (ctx) => ok<ImportPlan>(configuration.plan(actor(ctx), await readJsonValue(ctx, IMPORT_BODY_LIMIT)));
+  const apply: Handler = async (ctx) => ok<ImportResult>(await configuration.apply(actor(ctx), await readJsonValue(ctx, IMPORT_BODY_LIMIT), client(ctx)));
   return { export: exportHandler, preview, apply };
 }
