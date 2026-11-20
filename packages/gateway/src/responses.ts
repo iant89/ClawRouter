@@ -14,7 +14,7 @@
  * in the LICENSE file for more details.
  */
 
-import { AppError } from '@clawrouter/core';
+import { AppError, shown } from '@clawrouter/core';
 import type { ChatResponse, FinishReason, Usage } from '@clawrouter/providers';
 import type { ChatFormatter, ToolCallPiece } from './formats.ts';
 import { invalid, parseChatRequest, type ParsedChatRequest } from './openai.ts';
@@ -61,7 +61,7 @@ function chatPart(part: unknown, param: string): Record<string, unknown> {
     case 'input_audio':
       return { type: 'input_audio', input_audio: part.input_audio };
     default:
-      throw invalid(`Unknown content part type '${String(part.type)}'.`, param);
+      throw invalid(`Unknown content part type '${shown(part.type)}'.`, param);
   }
 }
 
@@ -88,7 +88,7 @@ export function parseResponsesRequest(body: unknown): { req: ParsedChatRequest; 
   if (body.conversation !== undefined && body.conversation !== null) throw invalid("ClawRouter does not store conversations: send the whole conversation in 'input'.", 'conversation');
   if (body.background === true) throw invalid("Background responses are not supported.", 'background');
   const text = body.text;
-  if (isObject(text) && isObject(text.format) && text.format.type !== 'text') throw invalid(`'text.format' type '${String(text.format.type)}' is not supported yet.`, 'text.format');
+  if (isObject(text) && isObject(text.format) && text.format.type !== 'text') throw invalid(`'text.format' type '${shown(text.format.type)}' is not supported yet.`, 'text.format');
   if (body.instructions !== undefined && body.instructions !== null && typeof body.instructions !== 'string') throw invalid("'instructions' must be text.", 'instructions');
 
   // The conversation, as Chat Completions messages; `source` maps each message back to its input item.
@@ -135,7 +135,7 @@ export function parseResponsesRequest(body: unknown): { req: ParsedChatRequest; 
       // Reasoning items come back from earlier responses; the model they came from keeps nothing to resume, so they are skipped.
       if (type === 'reasoning') return;
       if (type === 'item_reference') throw invalid("ClawRouter does not store items: send the item itself instead of a reference.", param);
-      throw invalid(`Input items of type '${String(type)}' are not supported.`, `${param}.type`);
+      throw invalid(`Input items of type '${shown(type)}' are not supported.`, `${param}.type`);
     });
   } else {
     throw invalid("'input' must be text or a non-empty list of items.", 'input');
@@ -147,14 +147,14 @@ export function parseResponsesRequest(body: unknown): { req: ParsedChatRequest; 
     if (!Array.isArray(body.tools)) throw invalid("'tools' must be a list.", 'tools');
     tools = body.tools.map((t, i) => {
       if (!isObject(t)) throw invalid('Each tool must be an object.', `tools[${i}]`);
-      if (t.type !== 'function') throw invalid(`Hosted tool '${String(t.type)}' is not available through ClawRouter: only function tools.`, `tools[${i}].type`);
+      if (t.type !== 'function') throw invalid(`Hosted tool '${shown(t.type)}' is not available through ClawRouter: only function tools.`, `tools[${i}].type`);
       return { type: 'function', function: { name: t.name, description: t.description, parameters: t.parameters, ...(typeof t.strict === 'boolean' ? { strict: t.strict } : {}) } };
     });
     if (!tools.length) tools = undefined;
   }
   let toolChoice: unknown = body.tool_choice;
   if (isObject(toolChoice)) {
-    if (toolChoice.type !== 'function') throw invalid(`'tool_choice' type '${String(toolChoice.type)}' is not supported: use auto, none, required or a function.`, 'tool_choice');
+    if (toolChoice.type !== 'function') throw invalid(`'tool_choice' type '${shown(toolChoice.type)}' is not supported: use auto, none, required or a function.`, 'tool_choice');
     toolChoice = { type: 'function', function: { name: toolChoice.name } };
   }
 

@@ -28,6 +28,14 @@ Each provider kind is an **adapter** implementing `ProviderAdapter`
 | `openrouter` | Chat Completions, `https://openrouter.ai/api/v1` | `Authorization: Bearer` (`sk-or-…` keys) | Hundreds of models from many providers behind one key; free ones end in `:free`. The model list gives names, context window, output limit, image input (Vision), tool support (Tool use) and prices; models that the chat API does not serve (the half-price `:batch` variants, batch API only), image-generation models and expired models (`expiration_date`) are not chat models. Each answer's exact cost (`usage.cost`) is recorded instead of the estimate. Calls name ClawRouter as the app (`HTTP-Referer`, `X-Title`). Images and PDFs (read for any model, which OpenRouter may charge for). No embeddings. Tested live 2026-11-19 (see below) |
 | `openai_compatible` | Chat Completions at any URL | optional Bearer | Ollama, vLLM, LM Studio, llama.cpp, LiteLLM… Endpoint required. Also Google's compatible endpoint `https://generativelanguage.googleapis.com/v1beta/openai` (Bearer = the Gemini API key): `models/` is dropped from ids, `display_name` is read, Gemini 3 thought signatures travel in tool call ids and go back in `extra_content`, and a stream that ends tool calls with "stop" is reported as `tool_calls`. Tested live 2026-11-16 |
 
+**Provider answers are untrusted input** (SEC-021, SEC-036). `readJson` refuses any
+answer that is not a JSON object, `parseChunk` any stream event that is not one, and
+every field is read through `packages/providers/src/untrusted.ts` (`obj`, `list`,
+`objects`, `text`, `tokens`, `vector`): a value of the wrong type is "absent", a token
+count that is not a finite number ≥ 0 is "not reported" (usage feeds quotas and
+spending limits), and a price that is empty text or overflows is unknown. A new adapter
+reads its answers the same way and gets a seed in `tests/security/fuzz/hostile-provider.ts`.
+
 ### Google (native API), tested live
 
 Live on 2026-11-19 against Google's Gemini API (key in `x-goog-api-key`):

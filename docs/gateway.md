@@ -273,7 +273,11 @@ list, typed errors) and with Claude Code 2.1.328 (see its guide).
 
 - Server-sent events, OpenAI `chat.completion.chunk` format, ending with
   `data: [DONE]`. With `include_usage`, a final chunk carries `usage`.
-- No buffering: the response stream pulls one provider event at a time.
+- No buffering: the response stream pulls one provider event at a time. Each pull
+  sends something or ends the stream: events that give the client nothing (an empty
+  tool call piece, in the Responses format) are skipped, because a pull that enqueues
+  nothing is never called again and the client would wait forever (found by fuzzing,
+  SEC-021).
 - **Failover only before the first token.** The gateway waits for the provider's
   first event before answering, so a provider that fails up front is retried or
   replaced transparently. Once output has started, a provider failure ends the

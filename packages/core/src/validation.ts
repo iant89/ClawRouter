@@ -101,3 +101,15 @@ export function parse<T>(validator: Validator<T>, value: unknown): T {
   }
   return result;
 }
+
+/**
+ * An untrusted value, safe to quote in an error message. `String(value)` and template
+ * literals call the value's own `toString`/`valueOf`, and a JSON object can carry those
+ * keys as plain data (`{"type":{"toString":1}}`), which throws a TypeError: a 500 instead
+ * of a 400. Objects are named by their tag, never asked; text is cut at `max` characters.
+ */
+export function shown(value: unknown, max = 100): string {
+  if (typeof value === 'string') return value.length > max ? `${value.slice(0, max)}…` : value;
+  if (value === null || typeof value === 'number' || typeof value === 'boolean' || typeof value === 'undefined' || typeof value === 'bigint') return String(value);
+  return Object.prototype.toString.call(value);
+}

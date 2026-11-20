@@ -44,6 +44,7 @@ bun run reset-password <user>  # lost password: prints a temporary one (--enable
 bun run rotate-secret-key      # new encryption key for every stored secret (CLAWROUTER_NEW_SECRET_KEY)
 bun run scan-secrets           # no credential-shaped strings committed (CI runs it, plus bun audit)
 bun run test:security          # the security regression suite only (tests/security/, see its README)
+bun run test:fuzz              # the fuzz tests (tests/security/fuzz/); FUZZ_RUNS=20 FUZZ_SEED=$RANDOM for more cases
 bun run security:matrix        # regenerate the authorization matrix after a reviewed access change
 bun run bench:db               # database benchmark on a large seeded database (docs/performance.md)
 bun run bench:gateway          # time ClawRouter adds per /v1 request, throughput, heap

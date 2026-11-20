@@ -434,15 +434,20 @@ export function createGatewayService(options: {
         else if (abort.signal.aborted) run.fail(cancelled(), undefined, partial);
         else run.fail(null, { status: 'FAILED', httpStatus: 200, code: 'STREAM_INTERRUPTED', message: 'The model provider failed while streaming the response.' }, partial);
       };
-      const send = (controller: ReadableStreamDefaultController<Uint8Array>, events: string[]) => {
+      const send = (controller: ReadableStreamDefaultController<Uint8Array>, events: string[]): number => {
         for (const e of events) controller.enqueue(encoder.encode(e));
         if (run.capture) for (const e of events) run.capture.clientResponse(200, e);
+        return events.length;
       };
 
       let pending: IteratorResult<StreamEvent> | null = o.value.first;
       let started = false;
       const stream = new ReadableStream<Uint8Array>({
         // pull() is called only when the client is ready for more: nothing is buffered beyond one event.
+        // It must enqueue something or close before it returns: a pull that enqueues nothing is never
+        // called again, and the client would wait forever (found by fuzzing, SEC-021: a provider's empty
+        // tool call piece, which the Responses format answers with no event). So events that give the
+        // client nothing are skipped until one does.
         async pull(controller) {
           try {
             if (!started) {
@@ -451,38 +456,41 @@ export function createGatewayService(options: {
               if (notices.prefix) send(controller, format.text(notices.prefix));
               return;
             }
-            const next = pending ?? (await o.value.it.next());
-            pending = null;
-            if (abort.signal.aborted) throw cancelled();
-            if (next.done) {
-              send(controller, format.end());
+            for (;;) {
+              const next = pending ?? (await o.value.it.next());
+              pending = null;
+              if (abort.signal.aborted) throw cancelled();
+              if (next.done) {
+                send(controller, format.end());
+                controller.close();
+                finishStream({ ok: true, usage: { inputTokens: null, outputTokens: null, source: 'none' } });
+                return;
+              }
+              const event = next.value;
+              if (event.type === 'delta') {
+                outputChars += event.text.length;
+                run.content?.delta(event.text);
+                if (send(controller, format.text(event.text))) return;
+                continue;
+              }
+              if (event.type === 'reasoning') {
+                outputChars += event.text.length;
+                run.content?.reasoning(event.text);
+                if (send(controller, format.reasoning(event.text))) return;
+                continue;
+              }
+              if (event.type === 'tool_call') {
+                outputChars += (event.name?.length ?? 0) + (event.arguments?.length ?? 0);
+                run.content?.toolCall(event);
+                if (send(controller, format.toolCall(event))) return;
+                continue;
+              }
+              run.content?.finished(event.finishReason);
+              send(controller, format.finish(event.finishReason, event.usage));
               controller.close();
-              finishStream({ ok: true, usage: { inputTokens: null, outputTokens: null, source: 'none' } });
+              finishStream({ ok: true, usage: event.usage });
               return;
             }
-            const event = next.value;
-            if (event.type === 'delta') {
-              outputChars += event.text.length;
-              run.content?.delta(event.text);
-              send(controller, format.text(event.text));
-              return;
-            }
-            if (event.type === 'reasoning') {
-              outputChars += event.text.length;
-              run.content?.reasoning(event.text);
-              send(controller, format.reasoning(event.text));
-              return;
-            }
-            if (event.type === 'tool_call') {
-              outputChars += (event.name?.length ?? 0) + (event.arguments?.length ?? 0);
-              run.content?.toolCall(event);
-              send(controller, format.toolCall(event));
-              return;
-            }
-            run.content?.finished(event.finishReason);
-            send(controller, format.finish(event.finishReason, event.usage));
-            controller.close();
-            finishStream({ ok: true, usage: event.usage });
           } catch (error) {
             if (!abort.signal.aborted) routing.failures.recordFailure(o.candidate.providerId);
             run.capture?.streamFailed(error);

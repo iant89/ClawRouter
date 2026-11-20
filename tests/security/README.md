@@ -7,6 +7,7 @@ package; a test belongs here when it says "this attack must keep failing".
 ```bash
 bun run test:security      # this folder only (also part of bun test / bun run check)
 bun run security:matrix    # regenerate the authorization matrix after a reviewed access change
+bun run test:fuzz          # the fuzz tests only; FUZZ_RUNS=20 FUZZ_SEED=$RANDOM explores more cases
 ```
 
 | Folder | What it guards |
@@ -25,6 +26,7 @@ bun run security:matrix    # regenerate the authorization matrix after a reviewe
 | `websocket/` | the live channel over a real socket (SEC-015) |
 | `provider/` | provider keys write-only, never sent to a new host; provider answers untrusted |
 | `configuration/` | hostile configuration imports (SEC-017), configuration classification and planted secrets (SEC-016) |
+| `fuzz/` | seeded fuzzing (SEC-021) of bodies, query strings, the chat parsers, provider answers, streams, model lists, MCP, configuration imports, routing and backups; `findings.test.ts` keeps what it found |
 
 Rules:
 
@@ -34,3 +36,10 @@ Rules:
 - Tests never reach the internet: use the harness and the mock providers
   (`tests/support/`), as everywhere else.
 - Shared setup is in `support.ts`.
+
+Fuzzing (`fuzz/`): every test has a fixed seed, so CI always runs the same cases.
+Before a release, or after changing a parser, an adapter or a stream, run more:
+`FUZZ_RUNS=20 FUZZ_SEED=$RANDOM bun run test:fuzz`. A failure names the seed, the case
+and the input; fix the bug, then add the smallest input that shows it to
+`fuzz/findings.test.ts`. A new parser, front end or adapter gets a seed (a valid input
+that uses most of it) in the matching fuzz test.

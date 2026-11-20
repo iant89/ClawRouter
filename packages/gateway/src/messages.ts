@@ -14,7 +14,7 @@
  * in the LICENSE file for more details.
  */
 
-import { AppError } from '@clawrouter/core';
+import { AppError, shown } from '@clawrouter/core';
 import type { ChatResponse, FinishReason, Usage } from '@clawrouter/providers';
 import type { ChatFormatter, ToolCallPiece } from './formats.ts';
 import { invalid, parseChatRequest, type ParsedChatRequest } from './openai.ts';
@@ -86,7 +86,7 @@ function toolResultContent(block: Record<string, unknown>, param: string): { tex
         return '';
       }
       if (b.type === 'document') return documentParts(b, `${param}.content[${i}]`).map((p) => (p.type === 'text' ? String(p.text) : '')).join('');
-      throw invalid(`Tool result content of type '${String(b.type)}' is not supported.`, `${param}.content[${i}].type`);
+      throw invalid(`Tool result content of type '${shown(b.type)}' is not supported.`, `${param}.content[${i}].type`);
     }).join('\n');
   } else throw invalid("A tool result's 'content' must be text or a list of blocks.", `${param}.content`);
   return { text: block.is_error === true ? `Error: ${text}` : text, images };
@@ -166,7 +166,7 @@ export function parseMessagesRequest(body: unknown, options: { countOnly?: boole
           calls.push({ id: b.id, type: 'function', function: { name: b.name, arguments: args } });
         } else if (b.type === 'thinking' || b.type === 'redacted_thinking') {
           // Earlier reasoning, signed by the model that wrote it: no other model can use it.
-        } else throw invalid(`Assistant content of type '${String(b.type)}' is not supported through ClawRouter.`, `${p}.type`);
+        } else throw invalid(`Assistant content of type '${shown(b.type)}' is not supported through ClawRouter.`, `${p}.type`);
       });
       chars += text.length;
       push({ role: 'assistant', content: calls.length && !text ? null : text, ...(calls.length ? { tool_calls: calls } : {}) }, param);
@@ -206,7 +206,7 @@ export function parseMessagesRequest(body: unknown, options: { countOnly?: boole
           return;
         }
         default:
-          throw invalid(`Content blocks of type '${String(b.type)}' are not supported through ClawRouter.`, `${p}.type`);
+          throw invalid(`Content blocks of type '${shown(b.type)}' are not supported through ClawRouter.`, `${p}.type`);
       }
     });
     // Images a tool returned (a screenshot, a file read as an image) follow the results as user content.
@@ -223,7 +223,7 @@ export function parseMessagesRequest(body: unknown, options: { countOnly?: boole
     tools = body.tools.map((t, i) => {
       if (!isObject(t)) throw invalid('Each tool must be an object.', `tools[${i}]`);
       if (t.type !== undefined && t.type !== null && t.type !== 'custom') {
-        throw invalid(`The server tool '${String(t.type)}' runs on Anthropic's servers and is not available through ClawRouter: only tools with an 'input_schema'.`, `tools[${i}].type`);
+        throw invalid(`The server tool '${shown(t.type)}' runs on Anthropic's servers and is not available through ClawRouter: only tools with an 'input_schema'.`, `tools[${i}].type`);
       }
       chars += JSON.stringify(t).length;
       return {

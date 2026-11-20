@@ -14,7 +14,7 @@
  * in the LICENSE file for more details.
  */
 
-import { AppError } from '@clawrouter/core';
+import { AppError, shown } from '@clawrouter/core';
 import type { ChatMessage, FinishReason, MessagePart, ToolCall, ToolChoice, ToolDefinition, Usage } from '@clawrouter/providers';
 
 /**
@@ -120,7 +120,7 @@ function mediaPart(part: Record<string, unknown>, param: string): MessagePart {
     const filename = typeof f.filename === 'string' && f.filename.trim() ? f.filename.trim().slice(0, 255) : null;
     return { type: 'pdf', filename, data };
   }
-  throw invalid(`Unknown content part type '${String(part.type)}'.`, param);
+  throw invalid(`Unknown content part type '${shown(part.type)}'.`, param);
 }
 
 /**
@@ -219,7 +219,7 @@ export function parseChatRequest(body: unknown): ParsedChatRequest {
   if (body.parallel_tool_calls !== undefined && body.parallel_tool_calls !== null && typeof body.parallel_tool_calls !== 'boolean') throw invalid("'parallel_tool_calls' must be a boolean.", 'parallel_tool_calls');
   if (body.n !== undefined && body.n !== null && body.n !== 1) throw invalid("Only 'n': 1 is supported.", 'n');
   const format = body.response_format;
-  if (isObject(format) && format.type !== 'text') throw invalid(`'response_format' type '${String(format.type)}' is not supported yet.`, 'response_format');
+  if (isObject(format) && format.type !== 'text') throw invalid(`'response_format' type '${shown(format.type)}' is not supported yet.`, 'response_format');
 
   const callIds = new Set<string>();
   const messages: ChatMessage[] = body.messages.map((raw, i) => {

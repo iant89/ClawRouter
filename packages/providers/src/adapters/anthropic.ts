@@ -15,7 +15,8 @@
  */
 
 import type { ProviderKindInfo } from '@clawrouter/shared';
-import { invalidResponse, joinUrl, ProviderCallError, providerFetch, readJson } from '../http.ts';
+import { invalidResponse, joinUrl, parseChunk, ProviderCallError, providerFetch, readJson } from '../http.ts';
+import { obj, objects, text, tokens, type Json } from '../untrusted.ts';
 import { parseSse } from '../sse.ts';
 import type { ChatMessage, ChatRequest, MessagePart, ToolChoice, ChatResponse, FinishReason, ProviderAdapter, ProviderCallContext, StreamEvent, Usage } from '../types.ts';
 import { baseValidation, connectionChecks, splitSystem } from './common.ts';
@@ -24,7 +25,7 @@ const API_VERSION = '2023-06-01';
 /** The Messages API requires max_tokens; used when the client sets none. */
 export const ANTHROPIC_DEFAULT_MAX_TOKENS = 4096;
 
-const finish = (reason: string | null | undefined): FinishReason =>
+const finish = (reason: unknown): FinishReason =>
   reason === 'end_turn' || reason === 'stop_sequence' ? 'stop' : reason === 'max_tokens' ? 'length' : reason === 'tool_use' ? 'tool_use' : reason === 'refusal' ? 'content_filter' : 'other';
 
 const usage = (input: number | null, output: number | null): Usage => ({
@@ -131,12 +132,18 @@ function body(req: ChatRequest, stream: boolean) {
 
 async function listModels(ctx: ProviderCallContext) {
   const res = await providerFetch(ctx, joinUrl(ctx.endpoint, '/v1/models?limit=100'), { method: 'GET', headers: headers(ctx) });
-  const json = await readJson<{ data?: { id?: unknown; display_name?: unknown }[] }>(res, ctx.apiKey);
+  const json = await readJson(res, ctx.apiKey);
   if (!Array.isArray(json.data)) throw invalidResponse('model list has no "data" array');
-  return json.data
-    .filter((m): m is { id: string; display_name?: unknown } => typeof m.id === 'string')
-    .map((m) => ({ id: m.id, displayName: typeof m.display_name === 'string' ? m.display_name : null, kind: 'chat' as const }));
+  return objects(json.data)
+    .filter((m): m is Json & { id: string } => typeof m.id === 'string' && m.id !== '')
+    .map((m) => ({ id: m.id, displayName: text(m.display_name) ?? null, kind: 'chat' as const }));
 }
+
+/** Anthropic's usage block: `input_tokens`, `output_tokens` (counts of the wrong type are "not reported"). */
+const usageBlock = (value: unknown) => {
+  const u = obj(value);
+  return { input: tokens(u?.input_tokens), output: tokens(u?.output_tokens) };
+};
 
 export const anthropicAdapter: ProviderAdapter = {
   info,
@@ -147,15 +154,16 @@ export const anthropicAdapter: ProviderAdapter = {
 
   async sendRequest(ctx, req): Promise<ChatResponse> {
     const res = await providerFetch(ctx, joinUrl(ctx.endpoint, '/v1/messages'), { method: 'POST', headers: headers(ctx), body: JSON.stringify(body(req, false)) });
-    const json = await readJson<{ model?: string; content?: { type?: string; text?: string; thinking?: string; id?: string; name?: string; input?: unknown }[]; stop_reason?: string; usage?: { input_tokens?: number; output_tokens?: number } }>(res, ctx.apiKey);
+    const json = await readJson(res, ctx.apiKey);
     if (!Array.isArray(json.content)) throw invalidResponse('no content in response');
-    const text = json.content.filter((b) => b.type === 'text' && typeof b.text === 'string').map((b) => b.text).join('');
-    const toolCalls = json.content.filter((b) => b.type === 'tool_use' && typeof b.id === 'string' && typeof b.name === 'string')
-      .map((b) => ({ id: b.id!, name: b.name!, arguments: JSON.stringify(b.input ?? {}) }));
-    // Thinking blocks (when thinking is on): the model's reasoning, passed on apart from the answer.
-    const reasoning = json.content.filter((b) => b.type === 'thinking' && typeof b.thinking === 'string').map((b) => b.thinking).join('\n\n');
+    const blocks = objects(json.content);
+    const content = blocks.filter((b) => b.type === 'text').map((b) => text(b.text) ?? '').join('');
+    const toolCalls = blocks.filter((b) => b.type === 'tool_use' && text(b.id) && typeof b.name === 'string')
+      .map((b) => ({ id: b.id as string, name: b.name as string, arguments: JSON.stringify(b.input ?? {}) }));
+    const reasoning = blocks.filter((b) => b.type === 'thinking' && typeof b.thinking === 'string').map((b) => b.thinking as string).join('\n\n');
+    const used = usageBlock(json.usage);
     return {
-      model: json.model ?? req.model, content: text, finishReason: finish(json.stop_reason), usage: usage(json.usage?.input_tokens ?? null, json.usage?.output_tokens ?? null),
+      model: text(json.model) || req.model, content, finishReason: finish(json.stop_reason), usage: usage(used.input, used.output),
       ...(reasoning ? { reasoning } : {}),
       ...(toolCalls.length ? { toolCalls } : {}),
     };
@@ -169,51 +177,50 @@ export const anthropicAdapter: ProviderAdapter = {
     let model = req.model;
     let input: number | null = null;
     let output: number | null = null;
-    // Content block index -> tool call index (tool calls are numbered from 0 in the order they start).
     const toolIndex = new Map<number, number>();
     let reason: FinishReason = 'other';
     for await (const event of parseSse(res.body, ctx.signal)) {
-      let data: {
-        type?: string;
-        index?: number;
-        content_block?: { type?: string; id?: string; name?: string };
-        message?: { model?: string; usage?: { input_tokens?: number; output_tokens?: number } };
-        delta?: { type?: string; text?: string; thinking?: string; stop_reason?: string; partial_json?: string };
-        usage?: { output_tokens?: number; input_tokens?: number };
-        error?: { message?: string };
-      };
-      try {
-        data = JSON.parse(event.data);
-      } catch {
-        throw invalidResponse('malformed stream event');
-      }
+      const data = parseChunk(event.data, 'malformed stream event');
+      const index = typeof data.index === 'number' && Number.isInteger(data.index) ? data.index : null;
+      const delta = obj(data.delta);
       switch (data.type) {
-        case 'message_start':
-          model = data.message?.model ?? model;
-          input = data.message?.usage?.input_tokens ?? input;
-          output = data.message?.usage?.output_tokens ?? output;
+        case 'message_start': {
+          const message = obj(data.message);
+          const used = usageBlock(message?.usage);
+          model = text(message?.model) || model;
+          input = used.input ?? input;
+          output = used.output ?? output;
           break;
-        case 'content_block_start':
-          if (data.content_block?.type === 'tool_use' && typeof data.index === 'number') {
+        }
+        case 'content_block_start': {
+          const block = obj(data.content_block);
+          if (block?.type === 'tool_use' && index !== null) {
             const i = toolIndex.size;
-            toolIndex.set(data.index, i);
-            yield { type: 'tool_call', index: i, id: data.content_block.id ?? `call_${i}`, name: data.content_block.name ?? '' };
+            toolIndex.set(index, i);
+            yield { type: 'tool_call', index: i, id: text(block.id) || `call_${i}`, name: text(block.name) ?? '' };
           }
           break;
-        case 'content_block_delta':
-          if (data.delta?.type === 'text_delta' && data.delta.text) yield { type: 'delta', text: data.delta.text };
-          if (data.delta?.type === 'thinking_delta' && data.delta.thinking) yield { type: 'reasoning', text: data.delta.thinking };
-          if (data.delta?.type === 'input_json_delta' && data.delta.partial_json && typeof data.index === 'number' && toolIndex.has(data.index)) {
-            yield { type: 'tool_call', index: toolIndex.get(data.index)!, arguments: data.delta.partial_json };
+        }
+        case 'content_block_delta': {
+          const piece = text(delta?.text);
+          const thinking = text(delta?.thinking);
+          const json = text(delta?.partial_json);
+          if (delta?.type === 'text_delta' && piece) yield { type: 'delta', text: piece };
+          if (delta?.type === 'thinking_delta' && thinking) yield { type: 'reasoning', text: thinking };
+          if (delta?.type === 'input_json_delta' && json && index !== null && toolIndex.has(index)) {
+            yield { type: 'tool_call', index: toolIndex.get(index)!, arguments: json };
           }
           break;
-        case 'message_delta':
-          if (data.delta?.stop_reason) reason = finish(data.delta.stop_reason);
-          output = data.usage?.output_tokens ?? output;
-          input = data.usage?.input_tokens ?? input;
+        }
+        case 'message_delta': {
+          if (delta?.stop_reason) reason = finish(delta.stop_reason);
+          const used = usageBlock(data.usage);
+          output = used.output ?? output;
+          input = used.input ?? input;
           break;
+        }
         case 'error':
-          throw new ProviderCallError('server_error', `The provider reported a stream error: ${(data.error?.message ?? 'unknown').slice(0, 200)}`);
+          throw new ProviderCallError('server_error', `The provider reported a stream error: ${(text(obj(data.error)?.message) ?? 'unknown').slice(0, 200)}`);
         default:
           break; // ping, content_block_stop, message_stop
       }
