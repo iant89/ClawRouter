@@ -24,6 +24,9 @@
  *   bun run doctor --fix --yes              without asking (scripts, cron)
  *   bun run doctor --fix --clear-unreadable also forget encrypted values the key cannot
  *                                           open (after a backup; they must be entered again)
+ *   bun run doctor --security               the security check (SEC-025): PASS / WARN / FAIL / INFO
+ *   bun run doctor --security --url <url>   ask the public address too (through the reverse proxy)
+ *   bun run doctor --security --fix         apply its safe repairs (file and key permissions)
  *
  * Repairs: remove a stale process-ID file, make the key file owner-only, take a
  * backup when there is none or it is overdue, apply pending migrations (server
@@ -36,6 +39,7 @@ import { createInterface } from 'node:readline/promises';
 import { restrictUmask, AppError, createLogger, loadConfig, type Config, type SecretBox } from '@clawrouter/core';
 import { applyRepairs, plannedRepairs, runDoctor, type DoctorCheck, type RepairResult } from '../apps/server/src/doctor.ts';
 import { loadSecretBox } from '../apps/server/src/secret-key.ts';
+import { runSecurityChecks } from '../apps/server/src/security-check.ts';
 import { VERSION } from '../apps/server/src/version.ts';
 
 // SEC-023: whatever this process creates is private to its account (files 0600, directories 0700).
@@ -46,6 +50,13 @@ const json = args.has('--json');
 const fix = args.has('--fix');
 const yes = args.has('--yes');
 const includeDestructive = args.has('--clear-unreadable');
+const security = args.has('--security');
+const urlAt = process.argv.indexOf('--url');
+const url = urlAt > 0 ? process.argv[urlAt + 1] : undefined;
+if (urlAt > 0 && (!url || !/^https?:\/\//.test(url) || !security)) {
+  console.error('✖ --url needs --security and an http:// or https:// address');
+  process.exit(2);
+}
 
 let config: Config;
 try {
@@ -69,7 +80,20 @@ function loadKey(): { box: SecretBox | null; keyError: string | null } {
 }
 
 const mark = { ok: '✔', warn: '!', error: '✖', info: '·' } as const;
+const tag = { ok: '[PASS]', warn: '[WARN]', error: '[FAIL]', info: '[INFO]' } as const;
+/** The security check: passes first, then information, warnings and failures (the roadmap's layout). */
+function printSecurity(checks: DoctorCheck[]) {
+  console.log('CLAWROUTER SECURITY CHECK\n');
+  const order = { ok: 0, info: 1, warn: 2, error: 3 } as const;
+  for (const c of [...checks].sort((a, b) => order[a.level] - order[b.level])) {
+    console.log(`${tag[c.level]} ${c.area}: ${c.message}`);
+    if (c.fix && c.level !== 'ok') console.log(`       → ${c.fix}`);
+  }
+  const count = (level: DoctorCheck['level']) => checks.filter((c) => c.level === level).length;
+  console.log(`\n${count('ok')} passed, ${count('warn')} warning(s), ${count('error')} failed.`);
+}
 function print(checks: DoctorCheck[]) {
+  if (security) return printSecurity(checks);
   for (const c of checks) {
     console.log(`${mark[c.level]} ${c.area}: ${c.message}`);
     if (c.fix) console.log(`    → ${c.fix}`);
@@ -80,14 +104,15 @@ function print(checks: DoctorCheck[]) {
 }
 
 const { box, keyError } = loadKey();
-const before = await runDoctor(config, box, keyError);
+const check = (b: SecretBox | null, e: string | null) => (security ? runSecurityChecks(config, b, e, url ? { url } : {}) : runDoctor(config, b, e));
+const before = await check(box, keyError);
 
 if (!fix) {
   if (json) console.log(JSON.stringify(before, null, 2));
   else {
     print(before);
     const n = plannedRepairs(before, { includeDestructive: true }).length;
-    if (n) console.log(`${n} of these can be repaired: run "bun run doctor --fix".`);
+    if (n) console.log(`${n} of these can be repaired: run "bun run doctor${security ? " --security" : ""} --fix".`);
   }
   process.exit(before.some((c) => c.level === 'error') ? 1 : 0);
 }
@@ -122,7 +147,7 @@ if (plan.length) {
 
 // Check again after repairs so the summary reflects the state now.
 const reloaded = results.length ? loadKey() : null;
-const after = reloaded ? await runDoctor(config, reloaded.box, reloaded.keyError) : before;
+const after = reloaded ? await check(reloaded.box, reloaded.keyError) : before;
 if (json) console.log(JSON.stringify({ before, repairs: results, after }, null, 2));
 else if (results.length) {
   console.log('\nAfter the repairs:');

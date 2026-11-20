@@ -27,6 +27,7 @@ bun run test:fuzz          # the fuzz tests only; FUZZ_RUNS=20 FUZZ_SEED=$RANDOM
 | `provider/` | provider keys write-only, never sent to a new host; provider answers untrusted |
 | `configuration/` | hostile configuration imports (SEC-017), configuration classification and planted secrets (SEC-016) |
 | `filesystem/` | file and directory permissions (SEC-023): created private under a wide umask, tightened at start, `doctor` reports and repairs, links never followed |
+| `host/` | phase 8: the hardened systemd unit (SEC-024, rated by `systemd-analyze security` where it is installed) and `doctor --security` (SEC-025): a safe deployment passes, each unsafe setting, file, stored value, process privilege and proxy answer is named |
 | `supply-chain/` | phase 6: the lockfile, license and audit checks (SEC-018), the SBOMs (SEC-019), release verification and the workflows (SEC-020) |
 | `fuzz/` | seeded fuzzing (SEC-021) of bodies, query strings, the chat parsers, provider answers, streams, model lists, MCP, configuration imports, routing and backups; `findings.test.ts` keeps what it found |
 

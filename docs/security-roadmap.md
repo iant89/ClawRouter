@@ -35,8 +35,8 @@ tracking copy with status, findings and decisions.
 | SEC-021 | Fuzz testing | Medium | ✅ |
 | SEC-022 | CSP tightening (`style-src 'unsafe-inline'`) | Low | ⬜ |
 | SEC-023 | Filesystem hardening | Medium | ✅ |
-| SEC-024 | systemd hardening | High | ⬜ |
-| SEC-025 | Security health check (`doctor --security`) | Medium | ⬜ |
+| SEC-024 | systemd hardening | High | ✅ |
+| SEC-025 | Security health check (`doctor --security`) | Medium | ✅ |
 | SEC-026 | Security CI pipeline | High | ⬜ |
 | SEC-027 | Security regression corpus (`tests/security/cases/`) | High | ⬜ |
 | SEC-028 | Security event model | Medium | ⬜ |
@@ -75,7 +75,7 @@ controls.
 A release may be called "security hardened" only when all of these are done:
 SEC-001 to SEC-012, SEC-014, SEC-015, SEC-017 to SEC-021, SEC-024 to SEC-029,
 SEC-032, SEC-033, SEC-035 to SEC-043, and SEC-047 to SEC-051. (Not in the gate:
-SEC-013, 016, 022, 023, 030, 031, 034, 044 to 046.) Status: 19 of 41.
+SEC-013, 016, 022, 023, 030, 031, 034, 044 to 046.) Status: 21 of 41.
 
 ## Phase 1: Network security boundary
 
@@ -524,16 +524,52 @@ See [releases and the supply chain](releases.md). Policy: `supply-chain.json`; c
 
 ## Phase 8: Host / systemd hardening
 
-- **SEC-024** ⬜ Evaluate `NoNewPrivileges`, `PrivateTmp`, `ProtectSystem=strict`,
-  `ProtectHome`, `ProtectKernelTunables`, `ProtectKernelModules`,
-  `ProtectControlGroups`, `RestrictSUIDSGID`, `LockPersonality`,
-  `RestrictRealtime`, `RestrictNamespaces`; allow only the directories ClawRouter
-  needs.
-- **SEC-025** ⬜ `bun run doctor --security`: HTTPS, secure cookies, CSRF,
-  trusted proxies, hashed keys, encrypted credentials, key and database
-  permissions, MCP off, no insecure provider URLs, no wildcard CORS, non-root
-  container; warnings for broad backup permissions and prompt logging. (Doctor
-  already reports refused provider endpoints and a catch-all outbound allowlist.)
+- **SEC-024** ✅ [`deploy/clawrouter.service`](../deploy/clawrouter.service), explained in
+  [systemd hardening](deployment.md#systemd-hardening). `systemd-analyze security` rates it
+  1.1 OK (before: 7.7 EXPOSED).
+  - [x] `NoNewPrivileges`, `PrivateTmp`, `ProtectSystem=strict`, `ProtectHome`,
+    `ProtectKernelTunables`, `ProtectKernelModules`, `ProtectControlGroups`,
+    `RestrictSUIDSGID`, `LockPersonality`, `RestrictRealtime`, `RestrictNamespaces`: all on.
+  - [x] Also on: `PrivateDevices`, `ProtectKernelLogs`, `ProtectClock`, `ProtectHostname`,
+    `ProtectProc=invisible`, `ProcSubset=pid`, `PrivateUsers`, `PrivateIPC`, `RemoveIPC`, an
+    empty capability set, `RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX`,
+    `SystemCallArchitectures=native`, `SystemCallFilter=@system-service ~@privileged @resources`.
+  - [x] Only `/var/lib/clawrouter` is writable (`StateDirectory=clawrouter`, 0700); other
+    directories through a drop-in (`ReadWritePaths=`).
+  - [x] Evaluated and left off: `MemoryDenyWriteExecute` (no JIT: a test loop ran 2.7 times
+    slower), `PrivateNetwork` and `IPAddressDeny` (providers are on the network).
+  - [x] **Run, not only analysed:** systemd 255 booted in a container, the production
+    build installed as the deployment guide says. Setup, sign-in, a provider by host name
+    (DNS through `getaddrinfo` without netlink), a connection test, model import, chat,
+    streaming, the WebSocket, a health check, backups (as a one-shot unit with the same
+    sandbox), `doctor`, HTTPS with a `root:clawrouter` 0640 key and a SIGTERM drain all
+    worked; `/proc` showed CapEff 0, NoNewPrivs 1, Seccomp 2; writes to `/opt`, `/etc` and
+    `/usr` failed with EROFS. Found there: with `PrivateUsers=true`, `CAP_NET_BIND_SERVICE`
+    does not open ports below 1024 (the guide says to turn it off for that).
+  - Tests: `tests/security/host/systemd-unit.test.ts` (every directive; the analyzer's
+    score at most 2.0 where `systemd-analyze` is installed, as on CI's Ubuntu).
+  - Not covered: other systemd versions (directives unknown to an older systemd are
+    ignored with a warning), SELinux/AppArmor profiles.
+- **SEC-025** ✅ `bun run doctor --security` (`apps/server/src/security-check.ts`;
+  [the security check](deployment.md#the-security-check)): `[PASS]` / `[INFO]` / `[WARN]` /
+  `[FAIL]`, exit 1 on a failure, `--json`, `--fix` for the safe repairs.
+  - [x] HTTPS (served, at a trusted proxy, or bypassable), secure cookies, trusted proxies
+    (catch-all fails, wide ranges warn), the secret key's mode and place (not beside the
+    database or backups), database and file modes, backups' modes.
+  - [x] Read from the database: API keys and session tokens stored only as SHA-256 hashes,
+    no full API key in stored text, every credential encrypted, MCP off, request logging
+    not Full, captures off, no plain-http provider on another machine, two-factor for
+    administrators, setup token gone after setup.
+  - [x] The server's process: not root (FAIL), no capabilities, no-new-privileges, seccomp;
+    the command's own process in a container.
+  - [x] CSRF and CORS **asked of the running server**: a cross-site POST must be refused, no
+    `Access-Control-Allow-Origin` may come back; `--url` asks through the reverse proxy
+    (and wants HSTS on https).
+  - Run against the hardened systemd unit above: 14 passed, 2 warnings (a test provider on
+    plain http, no two-factor), 0 failed.
+  - Tests: `tests/security/host/security-check.test.ts` (a real server passes; each unsafe
+    case fails or warns; repairs; a fake proxy with wildcard CORS or a lost Origin; the command).
+  - Not covered: firewall rules, the reverse proxy's TLS settings, other machines.
 
 ## Phase 9: Continuous security
 

@@ -14,8 +14,35 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 
 ### Important
 
+- **IMPORTANT** · 2026-11-20 · Security phase 8: systemd hardening (SEC-024) and `doctor --security` (SEC-025)
+  Built on `claude/nifty-carson-rdwfcu`, **waits for the owner's review**. No migration, no new
+  dependency, no route (authorization matrix unchanged). Owner asked to "start the next security
+  phase"; SEC-022 (CSP, phase 7) is still not started. New test category `tests/security/host/`.
+  **SEC-024** `deploy/clawrouter.service` is sandboxed (`systemd-analyze security`: 7.7 → 1.1) and
+  was **run under real systemd 255** with the production build (see the NOTE on how). Decisions
+  made here (keep unless the owner says otherwise): `StateDirectory=clawrouter` replaces
+  `ReadWritePaths` (only /var/lib/clawrouter writable); `PrivateUsers=true`, empty capability
+  set, `SystemCallFilter=@system-service ~@privileged @resources`, `RestrictAddressFamilies=AF_INET
+  AF_INET6 AF_UNIX` (no netlink: DNS by name still worked); **`MemoryDenyWriteExecute` stays off**
+  (Bun starts but loses its JIT: 2.7× slower, measured). Found by running it: with
+  `PrivateUsers=true`, `CAP_NET_BIND_SERVICE` does not open ports < 1024 (docs say to set
+  `PrivateUsers=false` for that). The test pins every directive and asks `systemd-analyze` for a
+  score ≤ 2.0 where installed; a new directive that weakens it fails.
+  **SEC-025** `apps/server/src/security-check.ts` (`runSecurityChecks`, reusing doctor's
+  `DoctorCheck`, `tooOpen` and repairs; CLI `--security`, `--url`, `--json`, `--fix`). Decisions:
+  FAIL (exit 1) for plain HTTP on a public interface in production, non-Secure cookies there, a
+  catch-all trusted proxy, readable key/database/private file, unhashed key or session, a full
+  API key in stored text, an unencrypted credential, a root server process, a server that
+  accepts a cross-site POST, wildcard CORS with credentials. WARN for MCP on, request logging
+  Full, captures on, wide backups, plain http to another machine, no two-factor for admins, the
+  key in the data/backup dir. When the server runs it **probes it over loopback** (POST
+  `/api/auth/logout` with a foreign Origin must answer "Cross-site request rejected", no
+  `Access-Control-Allow-Origin`), certificate not verified for that probe only. Keep the CSRF
+  message text if touching `csrfProtection`, or the probe reports FAIL. A new encrypted value
+  is covered through `sealedSecretStores`; a new setting that stores user text should get a WARN here.
+
 - **IMPORTANT** · 2026-11-20 · Security phase 6: dependency checks (SEC-018), SBOM (SEC-019), signed releases (SEC-020)
-  Built on `claude/clever-fermi-tyfev2` after SEC-023, **waits for the owner's review**. No migration,
+  Merged into `main` (pull request 6, from `claude/clever-fermi-tyfev2`), after SEC-023. No migration,
   no new dependency. Policy `supply-chain.json`; code `scripts/supply-chain/` (entries `deps.ts`,
   `sbom.ts`, `release.ts`); guide `docs/releases.md`; tests `tests/security/supply-chain/`.
   Decisions made here (keep unless the owner says otherwise): CI's plain `bun audit` became
@@ -36,7 +63,7 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
   has not opened a pull request yet. The Docker image is not signed. Next: SEC-022 (CSP), then phase 8.
 
 - **IMPORTANT** · 2026-11-20 · Security SEC-023: filesystem hardening
-  Built on `claude/clever-fermi-tyfev2`, **waits for the owner's review**. No migration.
+  Merged into `main` (pull request 6, from `claude/clever-fermi-tyfev2`). No migration.
   Decisions made here (keep unless the owner says otherwise): ClawRouter's files are 0600 and
   directories 0700 (`packages/core/src/filesystem.ts`); `openSqlite` **creates the database 0600
   before SQLite opens it** (SQLite gives -wal/-shm the database's mode) and **removes group/other
@@ -51,7 +78,7 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
   here: Docker's daemon was not started). Tests: `tests/security/filesystem/` (new category).
 
 - **IMPORTANT** · 2026-11-20 · Security phase 7 started: fuzz testing (SEC-021)
-  Built on `claude/loving-einstein-tksnqs`, **waits for the owner's review** (not merged). The
+  Merged into `main` (pull request 5, from `claude/loving-einstein-tksnqs`). The
   owner asked for "phase 7 (SEC-021, fuzz testing)"; phase 6 (SEC-018 to 020) and SEC-022/023 are
   not started. No migration. `tests/security/fuzz/` is a new suite category: `fuzz.ts` is a seeded
   fuzzer without dependencies (decision: no fast-check, spec §47); fixed seeds per test so CI is
@@ -535,7 +562,8 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
   buckets live in memory per process, like the counters.
 
 - **WARNING** · 2026-11-14 · Phase 17 parts not verified
-  The systemd unit (`deploy/clawrouter.service`) was never run (no systemd in the
+  The systemd unit was run on 2026-11-20 (SEC-024: systemd 255 booted in Docker, see the phase 8
+  entry); before that it never ran (no systemd in the
   development container). Docker, Compose, nginx and Caddy were run and checked.
   `CLAWROUTER_REUSE_PORT` was checked by hand on Linux (two processes on one port,
   the second kept answering when the first stopped); no automated test, and not tried on macOS or Windows.
@@ -602,6 +630,18 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
     reaches the others within 5 seconds.
 
 ### Notes
+
+- **NOTE** · 2026-11-20 · Running the systemd unit in a cloud session
+  `systemd-analyze security --offline=true deploy/clawrouter.service` works without a running
+  systemd. To really run the unit: start `dockerd`, build `ubuntu:24.04` with `systemd
+  systemd-sysv curl`, `CMD ["/sbin/init"]`, and run it with `--privileged --cgroupns=host -v
+  /sys/fs/cgroup:/sys/fs/cgroup:rw --tmpfs /run --tmpfs /run/lock` (the host has cgroup v1;
+  systemd 255 still boots on it). `docker cp` the bun binary to /usr/local/bin and `dist/` to
+  /opt/clawrouter, follow docs/deployment.md#systemd. Docker sets
+  `net.ipv4.ip_unprivileged_port_start=0` in containers: write 1024 to it before testing ports
+  below 1024, or every account can bind them. Name resolution: add a name to /etc/hosts (the
+  container has no DNS). For a CLI under the same sandbox, copy the unit with another
+  `ExecStart` and `Type=oneshot`.
 
 - **NOTE** · 2026-11-19 · Discovery dialog: prices, Free only, sorting, visible-only import
   Owner asked for it ("FREE ONLY" switch and price sorting). Sorting is done in
@@ -829,7 +869,7 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 ### Messages
 
 - **MESSAGE** · 2026-11-19 · Everything merged after the native Gemini adapter and OpenRouter
-  Security phase 7 (SEC-021) waits for review (see Important). Old branches to delete on GitHub (the session cannot): every merged
+  Security phase 8 (SEC-024, SEC-025) waits for review (see Important). Old branches to delete on GitHub (the session cannot): every merged
   `claude/*` branch (now including `claude/beautiful-euler-7nicga`, `claude/clawrouter-security-hardening-fm633m`, `claude/focused-mendel-0rcfij`, `claude/gemini-native`, `claude/openrouter-provider`, `claude/anthropic-messages`, `claude/license-agpl-1.0`, `claude/hopeful-maxwell-3xrz6m`, `claude/captures-live-groq`, `claude/client-notices`,
   `claude/announcement-emoji` and `claude/eui-shared-components`), the superseded `claude/mcp-server`
   and the stale `claude/groq-provider`; never merge those two (duplicate migration 0020 / older
