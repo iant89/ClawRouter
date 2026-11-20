@@ -17,7 +17,7 @@ guarded by tests, and the risks that remain. Area details live in
 | 4 | API keys | A key kept working after the user who created it was disabled. | Such keys are **Suspended** (401) and work again if the user is re-enabled. |
 | 5 | Credentials | Changing the encryption key meant re-entering every provider key. | `bun run rotate-secret-key` re-encrypts all stored credentials, all or nothing, safe to repeat, audited by key fingerprint. |
 | 6 | Audit privacy | A failed sign-in stored whatever was typed as the username. A password typed into that field ended up in the audit log and a notification. | The typed name is recorded only if it is an existing account; otherwise `unknownUser: true`. |
-| 7 | Secrets in git | No automated check. | `bun run scan-secrets` (tree, and `--history` for every commit) and `bun audit` run in CI. The tree and full history are clean; no known-vulnerable dependencies. |
+| 7 | Secrets in git | No automated check. | `bun run scan-secrets` (tree, and `--history` for every commit) and `bun run deps:check` ([supply chain](supply-chain.md)) run in CI. The tree and full history are clean; no known-vulnerable dependencies. |
 
 ## Outbound network policy
 
@@ -104,7 +104,7 @@ often local, and the host is set by administrators only.
 | **Input validation** | Every body is validated on the server; unknown fields are refused; bodies are size-capped while streamed; malformed or deeply nested JSON is a 400. A garbage sweep sends 12 hostile values to every route, raw and wrapped in every field name: never a 500. Search values are parameters, never SQL (LIKE wildcards escaped). |
 | **Output validation** | Errors are normalized: 5xx answers carry a generic message and a request id; the cause is only in the server log. A user's shape (`UserSummary`) never includes the hash. The `/v1` API speaks the OpenAI error format. |
 | **Secrets in logs** | Field-name redaction plus secret-shape scrubbing (phase 13). The canary sweep below proves it end to end. |
-| **Dependencies** | 3 runtime packages (React, React DOM, ENTERPRISE-UI from a committed tarball) and 4 dev packages, all pinned exactly; `bun install --frozen-lockfile` in CI; `bun audit` clean. CI actions are pinned by commit. |
+| **Dependencies** | 3 runtime packages (React, React DOM, ENTERPRISE-UI from a committed tarball) and 4 dev packages, all pinned exactly; `bun install --frozen-lockfile` and `bun run deps:check` (lockfile, licenses, high/critical advisories) in CI; Dependabot updates; SBOMs and signed releases ([supply chain](supply-chain.md)). CI actions are pinned by commit. |
 
 ## Security tests
 
@@ -136,7 +136,7 @@ often local, and the host is set by administrators only.
    Leave `CLAWROUTER_OUTBOUND_ALLOWLIST` empty unless a local model server needs it, and then list only that host or range. In Docker, keep the hardening in `deploy/compose.yaml` ([deployment](deployment.md#container-hardening)).
 5. Rotate the secret key with `bun run rotate-secret-key` if it may have been exposed (it re-encrypts provider keys, the mail password and authenticator-app secrets). Recover lost passwords with `bun run reset-password`, a lost key with `bun run clear-credentials` (see [deployment](deployment.md#recovery)).
 6. Back up regularly and copy backups off the machine. Backups leave the secret key out unless `--include-secret-key` is given: whoever holds both can read every provider key. Run `bun run doctor` after changes.
-7. Run `bun run scan-secrets` and `bun audit` before releases (CI does both).
+7. Run `bun run scan-secrets` and `bun run deps:check` before releases (CI and the release workflow do both).
 
 ## Screenshots
 

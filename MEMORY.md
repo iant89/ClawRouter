@@ -14,8 +14,31 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 
 ### Important
 
+- **IMPORTANT** · 2026-11-20 · Security phase 6: dependency check (SEC-018), SBOMs (SEC-019), signed releases (SEC-020)
+  Built on `claude/festive-davinci-blq0wk`, **waits for the owner's review** (not merged). No migration.
+  Code in `scripts/supply-chain/` (policy in `policy.ts`), commands `deps:check`, `sbom`, `release`,
+  `release:verify`, `release:keygen`; docs `docs/supply-chain.md`, `docs/security/release-verification.md`;
+  tests `tests/security/supply-chain/` (new category). Decisions made here (keep unless the owner says
+  otherwise): **high and critical** advisories fail, low/moderate only warn (plain `bun audit` used to fail
+  CI on any severity; `bun audit --json` exits 0 always, so the script judges); audit exceptions need a
+  reason and an expiry date; licenses: permissive allowlist only (no copyleft, even compatible ones, without
+  review); exact versions required; Bun pinned in five places (three workflows, Dockerfile, @types/bun) and
+  `deps:check` fails until they agree, so Dependabot's Docker/Bun bumps need the others updated by hand.
+  **Signing is Ed25519 with our own script** (Bun's node:crypto), signature of `SHA256SUMS` (64 raw bytes,
+  OpenSSL 3 verifies it), not Sigstore/cosign: downloading cosign to test it was refused in this session, and
+  a keyless signature could not be tested here. Switching to Sigstore later is possible. The archive is
+  written by our own ustar writer (reproducible: same bytes from two checkout paths, checked). CI builds,
+  signs with a throwaway key and verifies a full release on every push. **Owner action needed before the
+  first release:** `bun run release:keygen <file outside the repo>`, commit
+  `docs/security/release-signing-key.pub`, add the private key as secret `CLAWROUTER_RELEASE_SIGNING_KEY`
+  of a GitHub environment `release`, then push a tag `v<package.json version>`. Never run:
+  `release.yml`, `dependencies.yml`, Dependabot (its support for bun.lock v2 is unverified). New env
+  variables `CLAWROUTER_RELEASE_SIGNING_KEY(_FILE)` were classified (SEC-016 test caught it) and
+  `signing_key` names are now redacted. SBOMs validated with pyspdxtools and cyclonedx-python-lib.
+  Next: security phase 7 (SEC-021 fuzz testing).
+
 - **IMPORTANT** · 2026-11-20 · Security phase 5: configuration classification (SEC-016) and import sandbox (SEC-017)
-  Built on `claude/charming-rubin-4jel67`, **waits for the owner's review** (not merged). No migration.
+  Merged into `main` (pull request 4, from `claude/charming-rubin-4jel67`). No migration.
   **SEC-016** `packages/shared/src/classification.ts` classifies every environment variable,
   setting (`SETTING_CLASSIFICATION`, typed: a new setting fails the typecheck until classified)
   and configuration-document field (by path, longest prefix wins) as PUBLIC / SENSITIVE / SECRET
@@ -771,7 +794,7 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 ### Messages
 
 - **MESSAGE** · 2026-11-19 · Everything merged after the native Gemini adapter and OpenRouter
-  Security phase 5 waits for review (see Important). Old branches to delete on GitHub (the session cannot): every merged
+  Security phase 6 waits for review (see Important); phase 5 is merged (pull request 4). Old branches to delete on GitHub (the session cannot): every merged
   `claude/*` branch (now including `claude/beautiful-euler-7nicga`, `claude/clawrouter-security-hardening-fm633m`, `claude/focused-mendel-0rcfij`, `claude/gemini-native`, `claude/openrouter-provider`, `claude/anthropic-messages`, `claude/license-agpl-1.0`, `claude/hopeful-maxwell-3xrz6m`, `claude/captures-live-groq`, `claude/client-notices`,
   `claude/announcement-emoji` and `claude/eui-shared-components`), the superseded `claude/mcp-server`
   and the stale `claude/groq-provider`; never merge those two (duplicate migration 0020 / older

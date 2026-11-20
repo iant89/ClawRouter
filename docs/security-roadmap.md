@@ -29,9 +29,9 @@ tracking copy with status, findings and decisions.
 | SEC-015 | WebSocket security | High | ✅ |
 | SEC-016 | Configuration security classification | Medium | ✅ |
 | SEC-017 | Configuration import sandbox | High | ✅ |
-| SEC-018 | Dependency security | Medium | ⬜ |
-| SEC-019 | Software bill of materials | Medium | ⬜ |
-| SEC-020 | Signed releases | Medium | ⬜ |
+| SEC-018 | Dependency security | Medium | ✅ |
+| SEC-019 | Software bill of materials | Medium | ✅ |
+| SEC-020 | Signed releases | Medium | 🟡 (signing key and first release pending) |
 | SEC-021 | Fuzz testing | Medium | ⬜ |
 | SEC-022 | CSP tightening (`style-src 'unsafe-inline'`) | Low | ⬜ |
 | SEC-023 | Filesystem hardening | Medium | ⬜ |
@@ -425,13 +425,40 @@ Checked in Chromium: the console stays live through a minute of pings with the s
 
 ## Phase 6: Supply chain security
 
-- **SEC-018** ⬜ Automated auditing, lockfile verification, automated updates,
-  license scanning, CI failure on high and critical vulnerabilities. (Today:
-  `bun audit` and `--frozen-lockfile` in CI.)
-- **SEC-019** ⬜ An SPDX and CycloneDX SBOM per release (version, dependencies
-  and versions, runtime dependencies).
-- **SEC-020** ⬜ Signed release artifacts, published SHA-256 checksums, a
-  documented verification process, verification in CI.
+Details: [supply chain](supply-chain.md); users: [release verification](security/release-verification.md).
+Tests: `tests/security/supply-chain/`.
+
+- **SEC-018** ✅ `bun run deps:check` (`scripts/dependencies.ts`, policy in
+  `scripts/supply-chain/policy.ts`), in CI on every change and weekly
+  (`dependencies.yml`).
+  - [x] Automated dependency auditing: `bun audit --json`, judged by the script
+    (bun's `--json` exits 0 whatever it finds); an unreadable answer fails.
+  - [x] Lockfile verification: sha512 integrity for every package, npm registry or
+    `vendor/` only (git, URLs and other registries refused), the vendored tarball's
+    hash, `package.json` agreeing with `bun.lock`, exact versions, no
+    `trustedDependencies`, no registry override; plus the Bun version pins agreeing.
+  - [x] Automated dependency updates: Dependabot for Bun, GitHub Actions and Docker,
+    weekly, 7-day cooldown. Not yet seen running (Dependabot's support for Bun's
+    lockfile version 2 is unverified).
+  - [x] License scanning: SPDX expressions against an allowlist of permissive licenses
+    compatible with AGPL-3.0-or-later; missing licenses fail unless overridden with a reason.
+  - [x] High-severity vulnerability CI failure, and
+  - [x] Critical-severity: both fail; low and moderate warn; exceptions need a reason and expire.
+- **SEC-019** ✅ `scripts/supply-chain/sbom.ts`, in every release and `bun run sbom`.
+  - [x] SPDX 2.3 and [x] CycloneDX 1.6 JSON, checked with the reference validators.
+  - [x] Application version, [x] dependencies, [x] their versions (with SHA-512 and
+    licenses), [x] runtime dependencies (runtime vs development scope, Bun and SQLite).
+    Deterministic for a commit.
+- **SEC-020** 🟡 Built and tested end to end with throwaway keys; the project signing key
+  does not exist yet and no tagged release has run (`release.yml` never ran).
+  - [x] Sign release artifacts: Ed25519 signature of `SHA256SUMS` (covers every file);
+    reproducible archive.
+  - [x] Publish checksums: `SHA256SUMS` in the release and its notes.
+  - [x] Document verification process: OpenSSL + `sha256sum`, or `bun run release:verify`.
+  - [x] Verify release artifacts in CI: every push builds, signs (throwaway key) and
+    verifies a release; the tag workflow verifies before and after publishing.
+  - [ ] The owner creates the key (`bun run release:keygen`), commits the public key and
+    adds the `CLAWROUTER_RELEASE_SIGNING_KEY` secret; then the first tagged release.
 
 ## Phase 7: Advanced security
 

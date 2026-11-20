@@ -42,7 +42,10 @@ bun run doctor         # check a deployment (config, key, database, backups, HTT
 bun run clear-credentials      # lost secret key: forget the values it cannot open (--yes)
 bun run reset-password <user>  # lost password: prints a temporary one (--enable re-enables, --reset-2fa removes two-factor)
 bun run rotate-secret-key      # new encryption key for every stored secret (CLAWROUTER_NEW_SECRET_KEY)
-bun run scan-secrets           # no credential-shaped strings committed (CI runs it, plus bun audit)
+bun run scan-secrets           # no credential-shaped strings committed (CI runs it)
+bun run deps:check             # lockfile, licenses, Bun pins, high/critical advisories (CI and weekly; --offline skips the audit)
+bun run sbom                   # SPDX and CycloneDX SBOMs in sbom/
+bun run release                # release/: reproducible archive, SBOMs, SHA256SUMS (--sign, --ephemeral-key); bun run release:verify <dir>
 bun run test:security          # the security regression suite only (tests/security/, see its README)
 bun run security:matrix        # regenerate the authorization matrix after a reviewed access change
 bun run bench:db               # database benchmark on a large seeded database (docs/performance.md)
@@ -71,7 +74,7 @@ vendor/             ENTERPRISE-UI tarball (committed)
 
 Area docs: [architecture](docs/architecture.md) · [authentication](docs/authentication.md) ·
 [authorization](docs/authorization.md) · [console shell](docs/console-shell.md) ·
-[providers](docs/providers.md) · [models](docs/models.md) · [routing](docs/routing.md) · [gateway](docs/gateway.md) · [rate limits](docs/rate-limits.md) · [requests and usage](docs/requests-usage.md) · [real-time](docs/realtime.md) · [health and operations](docs/health-operations.md) · [logging and audit](docs/logging-audit.md) · [administration](docs/administration.md) · [security](docs/security.md) · [security roadmap](docs/security-roadmap.md) ([full text](docs/security-roadmap-full.md)) · [self-service keys](docs/self-service-keys.md) · [two-factor sign-in](docs/two-factor.md) · [onboarding](docs/onboarding.md) · [MCP server](docs/mcp.md) · [provider captures](docs/captures.md) · [client notices](docs/notices.md) · [playground and chat apps](docs/playground.md) · [performance](docs/performance.md) · [configuration](docs/configuration.md) · [deployment](docs/deployment.md) · [screenshots](docs/screenshots/README.md)
+[providers](docs/providers.md) · [models](docs/models.md) · [routing](docs/routing.md) · [gateway](docs/gateway.md) · [rate limits](docs/rate-limits.md) · [requests and usage](docs/requests-usage.md) · [real-time](docs/realtime.md) · [health and operations](docs/health-operations.md) · [logging and audit](docs/logging-audit.md) · [administration](docs/administration.md) · [security](docs/security.md) · [security roadmap](docs/security-roadmap.md) ([full text](docs/security-roadmap-full.md)) · [self-service keys](docs/self-service-keys.md) · [two-factor sign-in](docs/two-factor.md) · [onboarding](docs/onboarding.md) · [MCP server](docs/mcp.md) · [provider captures](docs/captures.md) · [client notices](docs/notices.md) · [playground and chat apps](docs/playground.md) · [supply chain and releases](docs/supply-chain.md) · [performance](docs/performance.md) · [configuration](docs/configuration.md) · [deployment](docs/deployment.md) · [screenshots](docs/screenshots/README.md)
 
 ## Rules
 
