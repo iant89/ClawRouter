@@ -19,11 +19,14 @@
  *   bun run migrate            back up (CLAWROUTER_BACKUP_BEFORE_MIGRATE), then apply pending migrations
  *   bun run migrate --status   show status only
  */
-import { createLogger, loadConfig } from '@clawrouter/core';
+import { restrictUmask, createLogger, loadConfig } from '@clawrouter/core';
 import { migrationStatus, migrations, openSqlite, runMigrations } from '@clawrouter/database';
 import { createBackup, pruneBackups } from '../apps/server/src/backup.ts';
 import { loadSecretBox } from '../apps/server/src/secret-key.ts';
 import { VERSION } from '../apps/server/src/version.ts';
+
+// SEC-023: whatever this process creates is private to its account (files 0600, directories 0700).
+restrictUmask();
 
 const config = loadConfig();
 const log = createLogger({ level: 'info', format: 'pretty' });

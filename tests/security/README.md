@@ -26,6 +26,7 @@ bun run test:fuzz          # the fuzz tests only; FUZZ_RUNS=20 FUZZ_SEED=$RANDOM
 | `websocket/` | the live channel over a real socket (SEC-015) |
 | `provider/` | provider keys write-only, never sent to a new host; provider answers untrusted |
 | `configuration/` | hostile configuration imports (SEC-017), configuration classification and planted secrets (SEC-016) |
+| `filesystem/` | file and directory permissions (SEC-023): created private under a wide umask, tightened at start, `doctor` reports and repairs, links never followed |
 | `fuzz/` | seeded fuzzing (SEC-021) of bodies, query strings, the chat parsers, provider answers, streams, model lists, MCP, configuration imports, routing and backups; `findings.test.ts` keeps what it found |
 
 Rules:

@@ -27,3 +27,4 @@ export * from './client-address.ts';
 export * from './rolling-sum.ts';
 export * from './sealed-secrets.ts';
 export * from './zoned-time.ts';
+export * from './filesystem.ts';

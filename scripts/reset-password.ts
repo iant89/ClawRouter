@@ -25,9 +25,12 @@
  *
  * Uses the same configuration as the server (CLAWROUTER_DATABASE_PATH etc.).
  */
-import { AppError, createLogger, loadConfig } from '@clawrouter/core';
+import { restrictUmask, AppError, createLogger, loadConfig } from '@clawrouter/core';
 import { migrationStatus, migrations, openSqlite } from '@clawrouter/database';
 import { recoverPassword } from '../apps/server/src/recover.ts';
+
+// SEC-023: whatever this process creates is private to its account (files 0600, directories 0700).
+restrictUmask();
 
 const args = process.argv.slice(2);
 const username = args.find((a) => !a.startsWith('--'));

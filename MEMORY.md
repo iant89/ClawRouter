@@ -14,6 +14,21 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 
 ### Important
 
+- **IMPORTANT** · 2026-11-20 · Security SEC-023: filesystem hardening
+  Built on `claude/clever-fermi-tyfev2`, **waits for the owner's review**. No migration.
+  Decisions made here (keep unless the owner says otherwise): ClawRouter's files are 0600 and
+  directories 0700 (`packages/core/src/filesystem.ts`); `openSqlite` **creates the database 0600
+  before SQLite opens it** (SQLite gives -wal/-shm the database's mode) and **removes group/other
+  bits from an existing database at every start** (logged; this changes upgraded installs, and a
+  deployment that wanted a group to read the live database loses that: the docs say to back up into
+  a directory that group owns). An existing data directory or `CLAWROUTER_SECRET_KEY_FILE` is the
+  operator's: only reported. Readonly opens change nothing. The server and every CLI entry point call
+  `restrictUmask()` (0077) first: a **new CLI tool in `build:cli` must too** (the test checks).
+  `doctor` has a `files` check (`privatePaths`: data dir, db, -wal/-shm, pid, setup token,
+  generated key, backups, TLS key allowed 0640) and the repair `file-permissions`; a new file
+  ClawRouter writes belongs in `privatePaths`. Docker image's `/data` is now 0700 (not rebuilt
+  here: Docker's daemon was not started). Tests: `tests/security/filesystem/` (new category).
+
 - **IMPORTANT** · 2026-11-20 · Security phase 7 started: fuzz testing (SEC-021)
   Built on `claude/loving-einstein-tksnqs`, **waits for the owner's review** (not merged). The
   owner asked for "phase 7 (SEC-021, fuzz testing)"; phase 6 (SEC-018 to 020) and SEC-022/023 are

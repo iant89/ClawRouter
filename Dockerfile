@@ -36,7 +36,7 @@ FROM oven/bun:1.4.4-slim
 WORKDIR /app/dist
 COPY --from=build /src/dist ./
 # Data (database, backups, the setup token) lives on a volume, owned by the unprivileged bun user.
-RUN mkdir -p /data && chown bun:bun /data
+RUN mkdir -p /data && chown bun:bun /data && chmod 700 /data
 USER bun
 ENV CLAWROUTER_ENV=production \
     BUN_RUNTIME_TRANSPILER_CACHE_PATH=0 \

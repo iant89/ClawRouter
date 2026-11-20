@@ -54,6 +54,7 @@ sudo useradd --system --home /var/lib/clawrouter --shell /usr/sbin/nologin clawr
 sudo install -d -o clawrouter -g clawrouter -m 700 /var/lib/clawrouter
 sudo install -d -m 755 /etc/clawrouter
 sudo cp deploy/clawrouter.env.example /etc/clawrouter/clawrouter.env   # edit it
+sudo chmod 600 /etc/clawrouter/clawrouter.env   # systemd reads it as root; it may hold the setup token
 sudo chown clawrouter /etc/clawrouter/secret.key
 sudo cp -r dist /opt/clawrouter/
 sudo cp deploy/clawrouter.service /etc/systemd/system/
@@ -259,7 +260,7 @@ bun cli/doctor.js --fix --clear-unreadable # also forget values the key cannot o
 ```
 
 Without `--fix` it changes nothing. It checks the environment, the secret key (and
-its file permissions), the database's integrity, pending or unknown migrations,
+its file permissions), the [permissions and owners](#file-permissions) of ClawRouter's files, the database's integrity, pending or unknown migrations,
 whether every encrypted value opens with the key, whether the server runs, HTTPS
 (certificate expiry), cookies, the age of the newest backup, and free disk space.
 
@@ -271,6 +272,7 @@ then checks everything again and prints the result:
 |---|---|
 | A process-ID file left by a crash | Removes it |
 | The key file is readable by other users | `chmod 600` |
+| ClawRouter's files or directories allow group or other users ([file permissions](#file-permissions)) | Removes those permissions (0600 / 0700; the TLS key keeps 0640). Symbolic links are never followed |
 | No backup, or the newest is overdue | Takes a backup now (a manual one; older manual backups are kept) |
 | Pending migrations, server stopped | Backs up (`pre-migrate`), then applies them. Never while the server runs: stop it first |
 | Encrypted values the key cannot open | Only with `--clear-unreadable`: backs up (`pre-repair`), then forgets those values, which must be entered again (see [Recovery](#recovery)) |
@@ -281,6 +283,36 @@ never changed. Every repair, done or failed, is recorded in the audit log as
 `DOCTOR_REPAIR` (by "command line", with the repair and its outcome), and backups and
 cleared values also write their own records, as when
 done by hand. With `--json`, `--fix --yes` prints `{ before, repairs, after }`.
+
+## File permissions
+
+ClawRouter's files are private to the account it runs as (SEC-023): files **0600**,
+directories **0700**, owned by that account.
+
+| Path | Mode | Who makes it private |
+|---|---|---|
+| The data directory (beside the database) | 0700 | ClawRouter when it creates it; an existing one is the operator's (`doctor` reports it) |
+| The database and its `-wal` and `-shm` files | 0600 | ClawRouter: created 0600, and made 0600 at every start if wider (logged) |
+| `<database>.pid`, `setup-token` | 0600 | ClawRouter |
+| `secret.key` generated in development | 0600 | ClawRouter: created 0600, made 0600 at start if wider |
+| `CLAWROUTER_SECRET_KEY_FILE` | 0600 | The operator (`doctor` reports it; `--fix` repairs it) |
+| The backup directory, every backup, `credentials/` | 0700, files 0600 | ClawRouter |
+| `CLAWROUTER_TLS_KEY_FILE` | 0640 at most (its group may read it, e.g. `ssl-cert`) | The operator |
+| The environment file (`/etc/clawrouter/clawrouter.env`) | 0600 | The operator |
+
+- The server and every command-line tool set the **umask to 0077** before they
+  start, so whatever they create without an explicit mode (SQLite's temporary files)
+  is private too. The systemd unit also sets `UMask=0077`, and the Docker image
+  creates `/data` as 0700.
+- ClawRouter writes **no log files**: logs go to stdout (journald or Docker keep
+  them). Request content (`CLAWROUTER_REQUEST_LOGGING=full`) and provider captures
+  are in the database, so they share its mode.
+- Run maintenance commands **as the service account** (`sudo -u clawrouter …`), not
+  as root: a backup or a migrated database written by root cannot be read by the
+  server. `doctor` names files whose owner is not the data directory's owner.
+- A deployment that needs a group to read the data (a separate backup account) can
+  give that access to a copy (`bun run backup` into a directory it owns), not to the
+  live files: ClawRouter removes group permissions from the database at every start.
 
 ## Health probes
 

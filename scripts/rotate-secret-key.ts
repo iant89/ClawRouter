@@ -27,10 +27,13 @@
  * and both keys before, and make a new backup after.
  */
 import { readFileSync } from 'node:fs';
-import { AppError, createLogger, createSecretBox, loadConfig, parseSecretKey } from '@clawrouter/core';
+import { restrictUmask, AppError, createLogger, createSecretBox, loadConfig, parseSecretKey } from '@clawrouter/core';
 import { migrationStatus, migrations, openSqlite } from '@clawrouter/database';
 import { rotateSecretKey } from '../apps/server/src/rotate-key.ts';
 import { loadSecretBox } from '../apps/server/src/secret-key.ts';
+
+// SEC-023: whatever this process creates is private to its account (files 0600, directories 0700).
+restrictUmask();
 
 const args = process.argv.slice(2);
 const fileFlag = args.indexOf('--new-key-file');

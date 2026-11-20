@@ -34,7 +34,7 @@ tracking copy with status, findings and decisions.
 | SEC-020 | Signed releases | Medium | ⬜ |
 | SEC-021 | Fuzz testing | Medium | ✅ |
 | SEC-022 | CSP tightening (`style-src 'unsafe-inline'`) | Low | ⬜ |
-| SEC-023 | Filesystem hardening | Medium | ⬜ |
+| SEC-023 | Filesystem hardening | Medium | ✅ |
 | SEC-024 | systemd hardening | High | ⬜ |
 | SEC-025 | Security health check (`doctor --security`) | Medium | ⬜ |
 | SEC-026 | Security CI pipeline | High | ⬜ |
@@ -478,10 +478,26 @@ Checked in Chromium: the console stays live through a minute of pings with the s
     steered by which code they reach).
 - **SEC-022** ⬜ Investigate removing `style-src 'unsafe-inline'` (ENTERPRISE-UI
   compatibility, fewer inline styles, CSP regression tests).
-- **SEC-023** ⬜ Owner, group, permissions and umask of `data/`, the database,
-  `secret.key`, `setup-token`, `backups/` and logs. Baseline: files 0600,
-  `backups/` 0700. (Seen 2026-11-19: in the container the database is created
-  0644.)
+- **SEC-023** ✅ Files 0600, directories 0700, owned by the account ClawRouter runs as
+  ([file permissions](deployment.md#file-permissions)). Helpers in
+  `packages/core/src/filesystem.ts`.
+  - [x] `data/`: created 0700; an existing one is reported by `doctor`, not changed.
+  - [x] Database: created 0600 before SQLite opens it (its `-wal` and `-shm` take the
+    database's mode), and made 0600 at every start when wider (logged). This fixes the
+    0644 database seen on 2026-11-19.
+  - [x] `secret.key` (generated) and `setup-token`: 0600; a wider generated key is
+    tightened at start. An operator's `CLAWROUTER_SECRET_KEY_FILE` is reported.
+  - [x] `backups/`: 0700, every backup 0700 and its files 0600 (credential backups
+    already were, SEC-011); a restored database is 0600.
+  - [x] Logs: ClawRouter writes none (stdout); nothing to check.
+  - [x] Owner and group: `doctor` names files not owned by the data directory's owner
+    (a backup run as root), and files or directories any group or other user can use;
+    `doctor --fix` removes those permissions (new repair `file-permissions`; the TLS
+    key keeps 0640; links are never followed).
+  - [x] umask: the server and every command-line tool set 0077 first; the systemd unit
+    has `UMask=0077`; the Docker image's `/data` is 0700.
+  - Tests: `tests/security/filesystem/` (run under umask 0022).
+  - Not covered: Windows (modes are skipped there); the environment file (operator's).
 
 ## Phase 8: Host / systemd hardening
 

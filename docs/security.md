@@ -135,8 +135,9 @@ often local, and the host is set by administrators only.
 4. Keep `CLAWROUTER_HOST` on a private interface unless the proxy needs otherwise.
    Leave `CLAWROUTER_OUTBOUND_ALLOWLIST` empty unless a local model server needs it, and then list only that host or range. In Docker, keep the hardening in `deploy/compose.yaml` ([deployment](deployment.md#container-hardening)).
 5. Rotate the secret key with `bun run rotate-secret-key` if it may have been exposed (it re-encrypts provider keys, the mail password and authenticator-app secrets). Recover lost passwords with `bun run reset-password`, a lost key with `bun run clear-credentials` (see [deployment](deployment.md#recovery)).
-6. Back up regularly and copy backups off the machine. Backups leave the secret key out unless `--include-secret-key` is given: whoever holds both can read every provider key. Run `bun run doctor` after changes.
-7. Run `bun run scan-secrets` and `bun audit` before releases (CI does both).
+6. Keep ClawRouter's files private to its account (files 0600, directories 0700; [file permissions](deployment.md#file-permissions)) and run maintenance commands as that account.
+7. Back up regularly and copy backups off the machine. Backups leave the secret key out unless `--include-secret-key` is given: whoever holds both can read every provider key. Run `bun run doctor` after changes.
+8. Run `bun run scan-secrets` and `bun audit` before releases (CI does both).
 
 ## Screenshots
 

@@ -102,7 +102,10 @@ export interface ClawRouter {
  * passed down explicitly; no module-level singletons.
  */
 export async function startClawRouter({ config, log, logBuffer, version, consoleHtml, consoleDir, hasher = createArgon2Hasher(), providerFetch }: ClawRouterOptions): Promise<ClawRouter> {
-  const db = openSqlite({ path: config.database.path });
+  const db = openSqlite({
+    path: config.database.path,
+    onTightened: (files) => log.warn('database files were readable by other accounts; made private (0600)', { component: 'database', files }),
+  });
   const secrets = loadSecretBox(config, log);
   try {
     const status = migrationStatus(db, migrations);
@@ -125,7 +128,7 @@ export async function startClawRouter({ config, log, logBuffer, version, console
   }
   // Tells `bun run restore` (and people) that this database is in use. Removed on stop.
   const pidFile = config.database.path === ':memory:' ? null : `${resolve(config.database.path)}.pid`;
-  if (pidFile) writeFileSync(pidFile, `${process.pid}\n`);
+  if (pidFile) writeFileSync(pidFile, `${process.pid}\n`, { mode: 0o600 });
 
   const events = createEventBus(log);
   const audit = createAuditService(createSqliteAuditRepository(db), log);

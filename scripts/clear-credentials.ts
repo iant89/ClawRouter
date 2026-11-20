@@ -24,10 +24,13 @@
  *
  * If the old key still exists somewhere, configure it instead: nothing is lost then.
  */
-import { AppError, createLogger, loadConfig } from '@clawrouter/core';
+import { restrictUmask, AppError, createLogger, loadConfig } from '@clawrouter/core';
 import { openSqlite } from '@clawrouter/database';
 import { clearUnreadable, findUnreadable } from '../apps/server/src/clear-credentials.ts';
 import { loadSecretBox } from '../apps/server/src/secret-key.ts';
+
+// SEC-023: whatever this process creates is private to its account (files 0600, directories 0700).
+restrictUmask();
 
 const config = loadConfig();
 const log = createLogger({ level: 'warn', format: 'pretty' });

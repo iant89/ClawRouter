@@ -164,11 +164,13 @@ describe('doctor --fix', () => {
     const box = loadSecretBox(config, silentLogger);
 
     const before = await runDoctor(config, box, null);
-    expect(repairIds(before)).toEqual(['stale-pid', 'key-permissions', 'backup', 'migrate']);
+    // The directory (0755) and the process-ID file (0644) were made by hand with a wide umask (SEC-023).
+    expect(repairIds(before)).toEqual(['stale-pid', 'key-permissions', 'file-permissions', 'backup', 'migrate']);
 
     const results = await applyRepairs(config, box, plannedRepairs(before), { version: 't' });
-    expect(results.map((r) => [r.id, r.ok])).toEqual([['stale-pid', true], ['key-permissions', true], ['backup', true], ['migrate', true]]);
+    expect(results.map((r) => [r.id, r.ok])).toEqual([['stale-pid', true], ['key-permissions', true], ['file-permissions', true], ['backup', true], ['migrate', true]]);
     expect(existsSync(`${dbPath}.pid`)).toBe(false);
+    expect(statSync(dir).mode & 0o777).toBe(0o700);
     expect(statSync(keyFile).mode & 0o777).toBe(0o600);
     expect(listBackups(config.database.backupDir).map((b) => b.manifest?.label).sort()).toEqual(['manual', 'pre-migrate']);
 
@@ -177,7 +179,7 @@ describe('doctor --fix', () => {
     expect(after.find((c) => c.area === 'migrations')).toMatchObject({ level: 'ok' });
     expect(after.filter((c) => c.level === 'error')).toEqual([]);
     // Each repair is in the audit log, in order, as the command line.
-    expect(repairAudit(dbPath).map((r) => [r.resourceId, r.result]).sort()).toEqual([["backup", "SUCCESS"], ["key-permissions", "SUCCESS"], ["migrate", "SUCCESS"], ["stale-pid", "SUCCESS"]]);
+    expect(repairAudit(dbPath).map((r) => [r.resourceId, r.result]).sort()).toEqual([["backup", "SUCCESS"], ["file-permissions", "SUCCESS"], ["key-permissions", "SUCCESS"], ["migrate", "SUCCESS"], ["stale-pid", "SUCCESS"]]);
   });
 
   test('does not migrate under a running server, and refuses if one started meanwhile', async () => {

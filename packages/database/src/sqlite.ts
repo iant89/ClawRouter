@@ -15,15 +15,19 @@
  */
 
 import { Database as BunSqlite } from 'bun:sqlite';
-import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
-import { AppError } from '@clawrouter/core';
+import { AppError, createPrivateFile, makePrivateDir, tightenMode } from '@clawrouter/core';
 import type { Database, RunResult, SqlParams } from './types.ts';
 
 export interface SqliteOptions {
   /** File path or `:memory:`. Parent directories are created. */
   path: string;
   readonly?: boolean;
+  /**
+   * Called with the files whose group/other permissions were removed on open (SEC-023):
+   * a database left readable by other users, e.g. one created by an older version.
+   */
+  onTightened?: (files: string[]) => void;
 }
 
 function bind(params: SqlParams | undefined): never[] {
@@ -44,7 +48,16 @@ function wrap<T>(fn: () => T): T {
 }
 
 export function openSqlite(options: SqliteOptions): Database {
-  if (options.path !== ':memory:') mkdirSync(dirname(options.path), { recursive: true });
+  if (options.path !== ':memory:' && !options.readonly) {
+    // SEC-023: the database (and so its -wal and -shm files, which SQLite creates with the
+    // database's mode) is private to this account. A new directory is 0700; an existing one is
+    // the operator's choice (`bun run doctor` reports it).
+    makePrivateDir(dirname(options.path));
+    if (!createPrivateFile(options.path)) {
+      const tightened = ['', '-wal', '-shm'].map((ext) => options.path + ext).filter((file) => tightenMode(file));
+      if (tightened.length) options.onTightened?.(tightened);
+    }
+  }
   const raw = new BunSqlite(options.path, { create: !options.readonly, readonly: options.readonly ?? false, strict: true });
 
   raw.exec('PRAGMA foreign_keys = ON');
