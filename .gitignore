@@ -9,3 +9,6 @@ data/
 secret.key
 setup-token
 *.db.pid
+release/
+release-ephemeral.pub
+sbom/

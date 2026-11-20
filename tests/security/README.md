@@ -25,6 +25,7 @@ bun run security:matrix    # regenerate the authorization matrix after a reviewe
 | `websocket/` | the live channel over a real socket (SEC-015) |
 | `provider/` | provider keys write-only, never sent to a new host; provider answers untrusted |
 | `configuration/` | hostile configuration imports (SEC-017), configuration classification and planted secrets (SEC-016) |
+| `supply-chain/` | dependency check (SEC-018): tampered lockfiles, disallowed licenses, high and critical advisories; SBOMs (SEC-019); tampered, unsigned or hostile releases (SEC-020) |
 
 Rules:
 

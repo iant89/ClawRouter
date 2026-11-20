@@ -22,7 +22,7 @@ export const REDACTED = '[REDACTED]';
  * keys, signatures of signed URLs, recovery codes, connection strings. `pass` must
  * end the word ("pass", "smtpPass", "password"; not "passage").
  */
-const SENSITIVE_KEY = /pass(word|wd|phrase)?(?![a-z])|ciphertext|secret|token|authori[sz]ation|^auth$|cookie|session|api[-_]?key|credential|private[-_]?key|jwt|bearer|csrf|recovery[-_]?codes?|connection[-_]?string|^dsn$|^sig(nature)?$|^x-goog-api-key$/i;
+const SENSITIVE_KEY = /pass(word|wd|phrase)?(?![a-z])|ciphertext|secret|token|authori[sz]ation|^auth$|cookie|session|api[-_]?key|credential|private[-_]?key|signing[-_]?key|jwt|bearer|csrf|recovery[-_]?codes?|connection[-_]?string|^dsn$|^sig(nature)?$|^x-goog-api-key$/i;
 /** Names that look sensitive but hold counts or settings (token counts, limits): left out before the test above. */
 const NOT_SENSITIVE = /secure_?cookies?|tokens|(token|session)[a-z_]*?(count|limit|usage|estimate|seconds|minutes|hours|days|timeout|lifetime|enabled)s?|sessions|bypass/gi;
 
@@ -35,7 +35,7 @@ export function isSensitiveKey(key: string): boolean {
 /** Header names whose values are credentials, in header-like text ("Cookie: a=b"). Authorization is handled below. */
 const CREDENTIAL_HEADERS = 'cookie|set-cookie|x-api-key|x-goog-api-key|api-key|x-auth-token|x-access-token|x-csrf-token|x-clawrouter-csrf|x-setup-token|x-amz-security-token';
 /** Key names that, as `name=value` or `"name": "value"` in text, carry a secret. */
-const TEXT_KEYS = 'pass(?:word|wd|phrase)?|secret|client[-_]?secret|[a-z_]*token|api[-_]?key|access[-_]?key|private[-_]?key|credentials?|authorization|cookie|session(?:[-_]?id)?|clawrouter_session|sid|connect\\.sid|jwt';
+const TEXT_KEYS = 'pass(?:word|wd|phrase)?|secret|client[-_]?secret|[a-z_]*token|api[-_]?key|access[-_]?key|private[-_]?key|signing[-_]?key|credentials?|authorization|cookie|session(?:[-_]?id)?|clawrouter_session|sid|connect\\.sid|jwt';
 /** Authorization schemes: the scheme stays readable, the credential after it does not. */
 const SCHEMES = 'Bearer|Basic|Token|Bot|Digest|ApiKey|Api-Key|SSWS|Splunk|GenieKey';
 

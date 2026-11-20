@@ -32,9 +32,14 @@ jobs:
           bun-version: 1.4.4
       # ENTERPRISE-UI comes from the committed tarball in vendor/.
       - run: bun install --frozen-lockfile
-      # Spec §37: no committed credentials, no known-vulnerable dependencies.
+      # Spec §37: no committed credentials. SEC-018: lockfile, licenses, Bun pins, and no high or
+      # critical advisories (lower ones are warnings).
       - run: bun run scan-secrets
-      - run: bun audit
+      - run: bun run deps:check
       - run: bun run typecheck
       - run: bun test
-      - run: bun run build
+      # SEC-019, SEC-020: the whole release pipeline on every change, signed with a throwaway key,
+      # then verified the way a user would (signature, checksums, archive, SBOMs; OpenSSL too).
+      - run: bun run release --ephemeral-key
+      - run: bun run release:verify release --public-key release-ephemeral.pub
+      - run: cd release && sha256sum -c SHA256SUMS && openssl pkeyutl -verify -pubin -inkey ../release-ephemeral.pub -rawin -in SHA256SUMS -sigfile SHA256SUMS.sig

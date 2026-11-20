@@ -1,0 +1,91 @@
+# ClawRouter - Self-hosted AI gateway and control platform
+# https://github.com/iant89/ClawRouter
+#
+# Copyright (C) 2026 Ian Thomas
+# SPDX-License-Identifier: AGPL-3.0-or-later
+#
+# This program is free software: you can redistribute it and/or modify it under
+# the terms of the GNU Affero General Public License as published by the Free
+# Software Foundation, either version 3 of the License, or (at your option) any
+# later version. This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+# or FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License
+# in the LICENSE file for more details.
+
+# SEC-020: source -> build -> artifact -> SHA-256 -> signature -> GitHub release, on a version
+# tag (v1.2.3, equal to package.json). The signing key is the CLAWROUTER_RELEASE_SIGNING_KEY
+# secret of the "release" environment and is only given to the step that signs. After
+# publishing, a second job downloads the release and verifies it as a user would.
+# See docs/security/release-verification.md.
+
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.4.4
+      - name: The tag names the package.json version
+        run: test "$GITHUB_REF_NAME" = "v$(bun -e 'console.log(require("./package.json").version)')"
+      - run: bun install --frozen-lockfile
+      - run: bun run scan-secrets
+      - run: bun run deps:check
+      - run: bun run typecheck
+      - run: bun test
+      - run: bun run build
+      # Only this step sees the key; it runs ClawRouter's own packaging script, no dependency code.
+      - name: Package, checksum and sign
+        env:
+          CLAWROUTER_RELEASE_SIGNING_KEY: ${{ secrets.CLAWROUTER_RELEASE_SIGNING_KEY }}
+        run: bun run release --skip-build --sign
+      - run: bun run release:verify release --version "$GITHUB_REF_NAME"
+      - run: cd release && sha256sum -c SHA256SUMS && openssl pkeyutl -verify -pubin -inkey ../docs/security/release-signing-key.pub -rawin -in SHA256SUMS -sigfile SHA256SUMS.sig
+      - name: Publish the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          {
+            echo "ClawRouter $GITHUB_REF_NAME. Verify a download before installing it:"
+            echo "[docs/security/release-verification.md](https://github.com/$GITHUB_REPOSITORY/blob/$GITHUB_REF_NAME/docs/security/release-verification.md)."
+            echo
+            echo '```'
+            cat release/SHA256SUMS
+            echo '```'
+          } > "$RUNNER_TEMP/notes.md"
+          gh release create "$GITHUB_REF_NAME" release/* --repo "$GITHUB_REPOSITORY" --verify-tag --title "ClawRouter $GITHUB_REF_NAME" --notes-file "$RUNNER_TEMP/notes.md"
+
+  verify-published:
+    needs: release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.4.4
+      - name: Download the published release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release download "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --dir "$RUNNER_TEMP/downloaded"
+      - run: bun run release:verify "$RUNNER_TEMP/downloaded" --version "$GITHUB_REF_NAME"
+      - run: cd "$RUNNER_TEMP/downloaded" && sha256sum -c SHA256SUMS && openssl pkeyutl -verify -pubin -inkey "$GITHUB_WORKSPACE/docs/security/release-signing-key.pub" -rawin -in SHA256SUMS -sigfile SHA256SUMS.sig

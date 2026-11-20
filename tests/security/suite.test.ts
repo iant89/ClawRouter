@@ -23,7 +23,7 @@ import { join } from 'node:path';
 
 export const CATEGORIES = [
   'authentication', 'authorization', 'sessions', 'csrf', 'api-keys', 'rate-limits', 'mcp',
-  'ssrf', 'backup', 'restore', 'logging', 'websocket', 'provider', 'configuration',
+  'ssrf', 'backup', 'restore', 'logging', 'websocket', 'provider', 'configuration', 'supply-chain',
 ] as const;
 
 describe('security regression suite layout (SEC-012)', () => {

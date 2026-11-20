@@ -199,7 +199,7 @@ describe('what is not a secret is left alone (SEC-010)', () => {
   });
 
   test('sensitive names are recognised in every spelling', () => {
-    for (const key of ['password', 'Password', 'pass', 'smtpPass', 'passwd', 'newPassword', 'secret', 'clientSecret', 'client_secret', 'token', 'accessToken', 'refresh_token', 'setupToken', 'authorization', 'Proxy-Authorization', 'auth', 'cookie', 'Set-Cookie', 'sessionId', 'session_token', 'clawrouter_session', 'apiKey', 'api_key', 'x-api-key', 'X-Goog-Api-Key', 'credential', 'credentials', 'privateKey', 'private_key', 'jwt', 'recoveryCodes', 'connectionString', 'dsn']) {
+    for (const key of ['password', 'Password', 'pass', 'smtpPass', 'passwd', 'newPassword', 'secret', 'clientSecret', 'client_secret', 'token', 'accessToken', 'refresh_token', 'setupToken', 'authorization', 'Proxy-Authorization', 'auth', 'cookie', 'Set-Cookie', 'sessionId', 'session_token', 'clawrouter_session', 'apiKey', 'api_key', 'x-api-key', 'X-Goog-Api-Key', 'credential', 'credentials', 'privateKey', 'private_key', 'signingKey', 'CLAWROUTER_RELEASE_SIGNING_KEY', 'jwt', 'recoveryCodes', 'connectionString', 'dsn']) {
       expect(isSensitiveKey(key)).toBe(true);
     }
   });
