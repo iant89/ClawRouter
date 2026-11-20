@@ -175,9 +175,27 @@ fingerprint). Directories are created with mode 0700, files 0600.
 - **Automatic**: before migrations and before a configuration import.
 - **Manual**: `bun cli/backup.js` (`--dir`, `--keep N`, `--list`).
 
-The **secret key is not in a backup** unless you add `--include-secret-key`: whoever
-holds both can read every provider API key. Keep the key separately, and copy
-backups off the machine (they sit on the same disk as the database by default).
+A **normal backup** is the database: the whole configuration (providers, models, routing,
+limits, roles, settings) and the operational data (users, API keys as hashes, audit, usage,
+request history). Stored credentials (provider keys, the mail password, authenticator secrets)
+are in it **only encrypted**; the **secret key is not**. Whoever holds both can read every
+provider API key, so keep the key separately, and copy backups off the machine (they sit on
+the same disk as the database by default). Environment variables are not in a backup.
+
+A **credential backup** (SEC-011) also holds the secret key, so it opens everything on its own:
+
+```bash
+bun cli/backup.js --include-secret-key           # warns, then asks you to type "include the secret key"
+bun cli/backup.js --include-secret-key --yes     # without a terminal (scripts): --yes is the confirmation
+bun cli/backup.js --list --credentials           # lists them (never the key; only its fingerprint)
+```
+
+It is written to `<backup dir>/credentials/` (directory 0700, re-applied if it was wider; files
+0600) as `clawrouter-<time>-credentials`, audited as `CREDENTIAL_BACKUP_CREATED`, and never
+shown by `--list`, pruned by `--keep` or scheduled backups, or deleted automatically: delete
+it yourself when it is no longer needed. It restores like any other backup. `doctor` warns
+about backups with the key among normal ones (made before this separation: move them) and
+about a credentials directory other users can read.
 
 **Restore** (ClawRouter stopped):
 

@@ -45,7 +45,7 @@ import {
   createDatabaseCheck, createGatewayCheck, createHealthHistoryService, createHealthService, createSqliteHealthHistoryRepository,
   type HealthHistoryService, type HealthService,
 } from '@clawrouter/health';
-import { CSRF_HEADER } from '@clawrouter/shared';
+import { CSRF_HEADER, requestLoggingMode } from '@clawrouter/shared';
 import { createConfigurationService } from '@clawrouter/configuration';
 
 /** Low-cost argon2id so tests stay fast. Never use these parameters in production. */
@@ -141,7 +141,7 @@ export function createHarness(options: { idleMinutes?: number; maxHours?: number
   const audit = createAuditService(createSqliteAuditRepository(db), log, clock.now);
   const settings = createSettingsService({
     repo: createSqliteSettingsRepository(db, clock.now), audit, events, log,
-    defaults: { sessionIdleMinutes: options.idleMinutes ?? 60, sessionMaxHours: options.maxHours ?? 12, signInMaxFailures: 10, requestRetentionDays: 30, usageRetentionDays: 400, healthHistoryDays: 7, keyMaxLifetimeDays: 30, quotasEnabled: 1, mcpEnabled: 0, playgroundEnabled: 1, noticeHeaderEnabled: 1, noticeReplyEnabled: 1, noticeCleanupEnabled: 1, noticeIntervalMinutes: 30, capturesEnabled: 0, capturesMaxCount: 500 },
+    defaults: { sessionIdleMinutes: options.idleMinutes ?? 60, sessionMaxHours: options.maxHours ?? 12, signInMaxFailures: 10, requestLogging: 1, requestRetentionDays: 30, usageRetentionDays: 400, healthHistoryDays: 7, keyMaxLifetimeDays: 30, quotasEnabled: 1, mcpEnabled: 0, playgroundEnabled: 1, noticeHeaderEnabled: 1, noticeReplyEnabled: 1, noticeCleanupEnabled: 1, noticeIntervalMinutes: 30, capturesEnabled: 0, capturesMaxCount: 500 },
   });
   const auth = createAuthService({
     users,
@@ -199,6 +199,8 @@ export function createHarness(options: { idleMinutes?: number; maxHours?: number
   const requests = createRequestLogService({
     repo: createSqliteRequestRepository(db), models, log, now: clock.now,
     retention: { get requestDays() { return settings.get('requestRetentionDays'); }, get usageDays() { return settings.get('usageRetentionDays'); } },
+    // SEC-009: NONE, METADATA (default) or FULL, read when each request begins.
+    mode: () => requestLoggingMode(settings.get('requestLogging')),
   });
   const quotas = createQuotaService({
     store: createSqliteQuotaStore(db), usage: (userId, since) => requests.userUsageSince(userId, since), audit, events, log,

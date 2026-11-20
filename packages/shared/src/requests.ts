@@ -15,8 +15,9 @@
  */
 
 /**
- * Gateway request history and usage (spec §22, §23). Prompts and completions are
- * never stored: a request record holds only metadata, counts and outcomes.
+ * Gateway request history and usage (spec §22, §23). A request record holds only
+ * metadata, counts and outcomes; prompts and replies are stored only when request
+ * logging is set to Full (SEC-009), apart from the record (`RequestContent`).
  */
 export const REQUEST_STATUSES = ['EXECUTING', 'STREAMING', 'COMPLETED', 'FAILED', 'CANCELLED', 'TIMEOUT'] as const;
 export type RequestStatus = (typeof REQUEST_STATUSES)[number];
@@ -70,6 +71,55 @@ export interface RequestRecord {
 /** GET /api/requests/:id */
 export interface RequestDetail extends RequestRecord {
   attemptLog: RequestAttempt[];
+  /** True when the prompt and reply were stored (request logging set to Full): GET /api/requests/:id/content. */
+  hasContent: boolean;
+}
+
+/** What is known of an attachment; the file itself is never stored. */
+export interface RequestAttachment {
+  type: 'image' | 'audio' | 'pdf';
+  /** "image/png", "audio/wav", "application/pdf"; null for an image given by URL. */
+  mediaType: string | null;
+  /** Size of the decoded data; null for an image given by URL. */
+  bytes: number | null;
+  /** A PDF's file name, or the host of an image URL. */
+  name: string | null;
+}
+
+export interface RequestToolCall {
+  id: string;
+  name: string;
+  arguments: string;
+}
+
+/** One message as ClawRouter passed it on (ClawRouter's notice lines already removed). */
+export interface RequestContentMessage {
+  role: string;
+  content: string;
+  toolCalls?: RequestToolCall[];
+  toolCallId?: string;
+  attachments?: RequestAttachment[];
+  /** True when the text was cut to fit the size limit. */
+  truncated?: boolean;
+}
+
+/**
+ * GET /api/requests/:id/content (requests.content): the prompt and reply of a
+ * request made while request logging was Full. Secret-shaped text is removed
+ * before storing; at most 1 MB is kept per request.
+ */
+export interface RequestContent {
+  requestId: string;
+  storedAt: string;
+  messages: RequestContentMessage[];
+  /** Embedding requests: the texts embedded. */
+  input?: string[];
+  /** Names of the tools the client offered. */
+  tools: string[];
+  /** The answer; null when the request failed before one. For a stream that ended early, what was sent. */
+  response: { content: string; reasoning: string | null; toolCalls: RequestToolCall[]; finishReason: string | null; embeddings?: number } | null;
+  /** True when anything was cut or left out to fit the size limit. */
+  truncated: boolean;
 }
 
 /** GET /api/requests filters. */

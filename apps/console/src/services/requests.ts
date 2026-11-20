@@ -14,7 +14,7 @@
  * in the LICENSE file for more details.
  */
 
-import type { RequestDetail, RequestQuery, RequestRecord, UsageGroup, UsageReport } from '@clawrouter/shared';
+import type { RequestContent, RequestDetail, RequestQuery, RequestRecord, UsageGroup, UsageReport } from '@clawrouter/shared';
 import { apiGet, apiGetPage } from './api-client.ts';
 
 export function fetchRequests(q: RequestQuery, signal?: AbortSignal) {
@@ -32,6 +32,9 @@ export function fetchRequests(q: RequestQuery, signal?: AbortSignal) {
 }
 
 export const fetchRequest = (id: string, signal?: AbortSignal) => apiGet<RequestDetail>(`/api/requests/${encodeURIComponent(id)}`, { signal });
+
+/** The stored prompt and reply (request logging Full; requests.content). */
+export const fetchRequestContent = (id: string, signal?: AbortSignal) => apiGet<RequestContent>(`/api/requests/${encodeURIComponent(id)}/content`, { signal });
 
 export function fetchUsage(q: { from?: string; to?: string; bucket?: 'hour' | 'day'; groupBy?: UsageGroup }, signal?: AbortSignal) {
   const p = new URLSearchParams();

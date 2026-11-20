@@ -14,6 +14,30 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 
 ### Important
 
+- **IMPORTANT** · 2026-11-20 · Security phase 3: request logging modes (SEC-009), scrubbing (SEC-010), credential backups (SEC-011)
+  Built on `claude/beautiful-euler-7nicga`, **waits for the owner's review** (not merged). Decisions
+  made here (keep unless the owner says otherwise):
+  **SEC-009** the `requestLogging` setting (a new `kind: 'choice'` setting with `options`; 0 None,
+  1 Metadata = default, 2 Full; env `CLAWROUTER_REQUEST_LOGGING`), read when a request begins.
+  None writes no `requests` row but **still writes `usage_records`** (quotas and cost limits read
+  them). Full stores the prompt/reply/tool calls/attachment details in `request_content`
+  (migration 0028, `ON DELETE CASCADE` from `requests`), built by `ContentRecorder`
+  (`packages/gateway/src/content.ts`), scrubbed, ≤ 1 MB; attachment data and vectors never kept.
+  Readable only with the new permission **`requests.content`** (Administrators; Operators and
+  Viewers do not get it; never through MCP). Switching back does not delete stored content: the
+  request history retention does. A new chat endpoint going through `runChat` is covered; one
+  that does not must feed `run.content` too.
+  **SEC-010** `redact.ts` grew many patterns (JWT, PEM, OAuth, URL passwords, credential headers,
+  JSON-in-text, `key=`/`code=`/`sig=` parameters) and stopped redacting counts and settings
+  (`NOT_SENSITIVE`: `inputTokens`, `sessionIdleMinutes`, `secureCookies`). Add a new kind of
+  secret to `tests/security/secret-scrubbing.test.ts`. Note `code=` and `key=` in text are now
+  always redacted (OAuth codes, Google keys), including harmless ones.
+  **SEC-011** a backup with the secret key is a credential backup: `confirmSecretKey: true`
+  required in `createBackup`, written to `<dir>/credentials/` (0700 enforced), manifest
+  `kind: 'credentials'`, audit `CREDENTIAL_BACKUP_CREATED`, never listed/pruned with normal
+  ones. The interactive confirmation (`prompt()` on a terminal) was not exercised in a real
+  terminal; the `--yes` and refusal paths are tested. Next: security phase 4 (SEC-012, 014, 015).
+
 - **IMPORTANT** · 2026-11-20 · Security phase 2: cost limits (SEC-005) and request limits (SEC-006)
   Merged into `main` on 2026-11-20 (from `claude/focused-mendel-0rcfij`). Both live in the rate-limit document
   as `costLimits` and `requestLimits` (no new table; `PUT /api/rate-limits` keeps the current ones when
@@ -703,7 +727,7 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 ### Messages
 
 - **MESSAGE** · 2026-11-19 · Everything merged after the native Gemini adapter and OpenRouter
-  Nothing in ClawRouter waits for review. Old branches to delete on GitHub (the session cannot): every merged
+  Security phase 3 waits for review (see Important). Old branches to delete on GitHub (the session cannot): every merged
   `claude/*` branch (now including `claude/clawrouter-security-hardening-fm633m`, `claude/focused-mendel-0rcfij`, `claude/gemini-native`, `claude/openrouter-provider`, `claude/anthropic-messages`, `claude/license-agpl-1.0`, `claude/hopeful-maxwell-3xrz6m`, `claude/captures-live-groq`, `claude/client-notices`,
   `claude/announcement-emoji` and `claude/eui-shared-components`), the superseded `claude/mcp-server`
   and the stale `claude/groq-provider`; never merge those two (duplicate migration 0020 / older

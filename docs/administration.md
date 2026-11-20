@@ -114,7 +114,7 @@ link can open it directly:
 | Sign-in and sessions (`security`, the default) | Session lifetimes, failed sign-ins before blocking, the [two-factor policy](two-factor.md) |
 | API keys and quotas (`api-keys`) | Maximum key lifetime, with the keys that would outlast a lowered limit; **Enforce user quotas** |
 | Mail server (`mail`) | SMTP server for emailed sign-in codes |
-| Data retention (`retention`) | Request history, usage records, health history |
+| Data retention (`retention`) | Request logging (None / Metadata / Full, [SEC-009](requests-usage.md#request-logging-modes-sec-009)), request history, usage records, health history, provider captures |
 | Import and export (`configuration`) | [Configuration export and import](configuration.md#configuration-export-and-import) |
 
 Each tab saves only its own changes. Hidden tabs keep their unsaved edits, and a

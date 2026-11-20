@@ -22,16 +22,20 @@ import { formatDuration, formatUsd } from '../../services/format.ts';
 import { describeAttempts, describeTokens, outcomeLabel, STATUS } from './request-format.ts';
 import { useRouter } from '../../app/router.tsx';
 import { usePermissions } from '../auth/AuthContext.tsx';
+import { RequestContentPanel } from './RequestContentPanel.tsx';
 
 const when = (iso: string | null) => (iso ? new Date(iso).toLocaleString() : '—');
 
 /**
  * One request: who sent it, what it asked for, how it was routed attempt by
- * attempt, and how it ended. Metadata only: prompts and answers are never stored.
+ * attempt, and how it ended. The prompt and reply only when request logging was
+ * Full (SEC-009), and only for holders of requests.content.
  */
 export function RequestDetailDialog({ id, onClose }: { id: string | null; onClose: () => void }) {
   const { navigate } = useRouter();
-  const canLogs = usePermissions().can('logs.read');
+  const { can } = usePermissions();
+  const canLogs = can('logs.read');
+  const canContent = can('requests.content');
   const [request, setRequest] = useState<RequestDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -100,7 +104,9 @@ export function RequestDetailDialog({ id, onClose }: { id: string | null; onClos
               getRowLabel={(a) => `Attempt ${a.n}, ${a.modelRef}`}
             />
           )}
-          <Text size="sm" tone="secondary">Prompts and answers are never stored; only these details are kept.</Text>
+          {r.hasContent && canContent && <RequestContentPanel key={r.id} requestId={r.id} />}
+          {r.hasContent && !canContent && <Text size="sm" tone="secondary">The prompt and reply of this request were stored (request logging: Full). Reading them needs the requests.content permission.</Text>}
+          {!r.hasContent && <Text size="sm" tone="secondary">The prompt and reply of this request were not stored; only these details are kept.</Text>}
         </>
       )}
     </Dialog>

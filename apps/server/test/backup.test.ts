@@ -58,8 +58,8 @@ describe('backups (phase 17)', () => {
     copy.close();
     expect(h.audit.list({ action: 'BACKUP_CREATED' })[0]!.metadata).toMatchObject({ label: 'manual', keyIncluded: false });
 
-    const withKey = await createBackup(h.db, { dir, box: h.secrets, version: '1.2.3', includeSecretKey: 'the-key-text', now: new Date('2026-11-14T15:30:00Z') });
-    expect(withKey.path).not.toBe(path); // same second: a new name
+    const withKey = await createBackup(h.db, { dir, box: h.secrets, version: '1.2.3', includeSecretKey: 'the-key-text', confirmSecretKey: true, now: new Date('2026-11-14T15:30:00Z') });
+    expect(withKey.path).toBe(join(dir, 'credentials', 'clawrouter-20261114-153000-credentials')); // kept apart (SEC-011)
     expect(readFileSync(join(withKey.path, 'secret.key'), 'utf8')).toBe('the-key-text\n');
     expect(statSync(join(withKey.path, 'secret.key')).mode & 0o777).toBe(0o600);
     expect(withKey.manifest.secretKey.included).toBe(true);

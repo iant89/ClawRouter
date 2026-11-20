@@ -8,15 +8,32 @@ Operational and security traceability (spec §27, §28): what the server did
 Everything written to a log record, an audit record's metadata, or the Logs page
 passes through `redact` (`packages/core/src/redact.ts`):
 
-1. **By field name:** values of fields named like secrets (`password`, `secret`,
-   `token`, `authorization`, `cookie`, `apiKey`, `credential`, `privateKey`…)
-   become `[REDACTED]`.
+1. **By field name:** values of fields named like secrets (`password`, `pass`, `secret`,
+   `token`, `authorization`, `auth`, `cookie`, `session…`, `csrf`, `apiKey`, `credential`,
+   `privateKey`, `jwt`, `recoveryCodes`, `connectionString`, `signature`…) become
+   `[REDACTED]`. Counts and settings that only look like it (`inputTokens`, `max_tokens`,
+   `sessionIdleMinutes`, `secureCookies`) are left alone.
 2. **By shape** (phase 13): secret-shaped strings are scrubbed wherever they
    appear, including inside error messages, stack traces and log messages:
    - ClawRouter API keys keep their public prefix: `crk_3f9a1c2b_[REDACTED]`;
    - OpenAI and Anthropic style keys (`sk-…`, `sk-ant-…`, `sk-proj-…`) become `sk-[REDACTED]`;
    - Google keys (`AIza…`) become `AIza[REDACTED]`;
-   - `Bearer` and `Basic` credentials become `Bearer [REDACTED]`.
+   - Groq (`gsk_…`), Google OAuth (`ya29.…`), GitHub (`ghp_…`, `github_pat_…`), Slack (`xox…-`) tokens and AWS key ids;
+   - JSON Web Tokens become `[REDACTED JWT]`; PEM private key blocks keep only their BEGIN/END lines;
+   - credentials after `Bearer`, `Basic`, `Token`, `Bot`, `ApiKey`… and after `Authorization:` keep the scheme only;
+   - credential headers in text (`Cookie:`, `Set-Cookie:`, `x-api-key:`, `x-goog-api-key:`, the CSRF header…);
+   - passwords in URLs (`smtp://user:[REDACTED]@host`), and `password=`, `token=`, `key=`, `code=`,
+     `sig=`, `X-Amz-Signature=`… in URLs, form bodies, cookies and messages;
+   - `"password": "…"` and similar inside JSON text, also JSON inside a JSON string (tool arguments);
+   - SMTP `AUTH PLAIN …` lines.
+
+**SEC-010:** `tests/security/secret-scrubbing.test.ts` puts 19 kinds of secret (ClawRouter,
+OpenAI, Anthropic, OpenRouter, Groq and Google keys, bearer tokens, cookies, passwords, provider
+and SMTP credentials, session ids, setup tokens, OAuth tokens, private keys, JWTs, MCP
+credentials) into JSON, nested JSON, arrays, URLs, query parameters, headers, exceptions, stack
+traces, tool arguments and provider errors, and checks none comes out; it also checks that
+ordinary text and token counts come out unchanged, and runs the real logger, audit log and a
+provider error that echoes an unshaped key. A new kind of secret gets a row there.
 
 The second layer catches keys that reach a message rather than a field, for
 example a provider error that echoes the key it was sent. A test runs real flows

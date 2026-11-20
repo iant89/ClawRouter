@@ -35,6 +35,7 @@ import { chatCompletionsFormat, type ChatFormatter } from './formats.ts';
 import { parseResponsesRequest, renamed, responsesFormat } from './responses.ts';
 import { messagesFormat, messagesRenamed, parseMessagesRequest } from './messages.ts';
 import { RequestCapture } from './capture.ts';
+import { ContentRecorder } from './content.ts';
 import { enforceChatLimits, enforceEmbeddingLimits, estimateChatInput, estimateRequestCost, limitError } from './request-limits.ts';
 import { headerValue, replyPrefix, stripNotices } from '@clawrouter/notices';
 import type { ExchangeTap } from '@clawrouter/providers';
@@ -102,7 +103,7 @@ export function createGatewayService(options: {
   const encoder = new TextEncoder();
   const unlimited: Admission = { headers: {}, charge: async () => {}, release: async () => {} };
   const checkModel = limits ? (c: RouteCandidate) => limits.useModel(c.modelRef, c.providerId) : undefined;
-  const noRecord: RequestHandle = { streaming: () => {}, finish: () => null };
+  const noRecord: RequestHandle = { keepsContent: false, streaming: () => {}, finish: () => null };
   const requestLimits = (): RequestLimits => limits?.requestLimits() ?? DEFAULT_REQUEST_LIMITS;
 
   /**
@@ -227,6 +228,8 @@ export function createGatewayService(options: {
     let started = false;
     let ended = false;
     const elapsed = () => Math.round(performance.now() - t0);
+    // Full request logging (SEC-009): the prompt and reply are collected only when they will be stored.
+    const content = record.keepsContent ? new ContentRecorder() : null;
     // Provider captures: recorded only while captures are on; kept only when something went wrong (or a manual capture claims it).
     const capture = options.captures?.recording()
       ? new RequestCapture(options.captures, { requestId: ctx.requestId, endpoint, stream, requestedModel, clientBody: body }, (id) => {
@@ -249,6 +252,7 @@ export function createGatewayService(options: {
     return {
       trace,
       capture,
+      content,
 
       /** One provider attempt, through a capture tap when recording. */
       call<T>(c: RouteCandidate, fn: (tap: ExchangeTap | undefined) => Promise<T>): Promise<T> {
@@ -287,6 +291,7 @@ export function createGatewayService(options: {
         const costUsd = record.finish({
           status: 'COMPLETED', httpStatus: 200, durationMs, modelRef: o.candidate.modelRef, providerId: o.candidate.providerId,
           attempts: c.attempts, retries: c.retries, failovers: c.failovers, attemptLog: trace, errorCode: null, errorMessage: null, usage,
+          content: content?.build(),
         });
         limits?.chargeCost({ keyId: key.id, ownerId: key.ownerId, modelRef: o.candidate.modelRef, providerId: o.candidate.providerId }, costUsd);
         capture?.end({ status: 'COMPLETED', httpStatus: 200, errorCode: null, errorMessage: null }, trace);
@@ -318,6 +323,7 @@ export function createGatewayService(options: {
         const costUsd = record.finish({
           status: outcome.status, httpStatus: outcome.httpStatus, durationMs, modelRef: c.last?.modelRef ?? null, providerId: c.last?.providerId ?? null,
           attempts: c.attempts, retries: c.retries, failovers: c.failovers, attemptLog: trace, errorCode: outcome.code, errorMessage: outcome.message, usage,
+          content: content?.build(),
         });
         // A stream that ended early still used the provider: its estimated usage counts against token and cost limits.
         if (partial && c.last) {
@@ -361,6 +367,7 @@ export function createGatewayService(options: {
       const cleaned = { ...prepared.req, messages: withoutNotices(prepared.req.messages) };
       // Request resource limits (SEC-006); the output limit may lower max_tokens.
       const req = enforceChatLimits(cleaned, requestLimits());
+      run.content?.chat(req.messages, req.tools);
       const route = plan(key, req.model, 'CHAT', mediaOf(req.messages), req.usesTools, costExclusion(estimateChatInput(req), req.maxTokens));
       await run.admit();
       const promptChars = req.messages.reduce((n, m) => n + m.content.length, 0);
@@ -378,6 +385,7 @@ export function createGatewayService(options: {
         const notices = noticesFor(key, o, !req.usesTools && !o.value.toolCalls?.length);
         const answer = format.complete(notices.prefix ? { ...o.value, content: notices.prefix + o.value.content } : o.value, o.candidate.modelRef);
         run.capture?.clientResponse(200, JSON.stringify(answer, null, 2));
+        run.content?.answer(o.value);
         run.succeed(o, withEstimate(o.value.usage, promptChars, o.value.content.length + (o.value.reasoning?.length ?? 0)));
         return { kind: 'json', status: 200, headers: { ...routeHeaders(o), ...notices.headers }, body: answer };
       }
@@ -455,19 +463,23 @@ export function createGatewayService(options: {
             const event = next.value;
             if (event.type === 'delta') {
               outputChars += event.text.length;
+              run.content?.delta(event.text);
               send(controller, format.text(event.text));
               return;
             }
             if (event.type === 'reasoning') {
               outputChars += event.text.length;
+              run.content?.reasoning(event.text);
               send(controller, format.reasoning(event.text));
               return;
             }
             if (event.type === 'tool_call') {
               outputChars += (event.name?.length ?? 0) + (event.arguments?.length ?? 0);
+              run.content?.toolCall(event);
               send(controller, format.toolCall(event));
               return;
             }
+            run.content?.finished(event.finishReason);
             send(controller, format.finish(event.finishReason, event.usage));
             controller.close();
             finishStream({ ok: true, usage: event.usage });
@@ -565,6 +577,7 @@ export function createGatewayService(options: {
       return recorded(run, async () => {
         const req = parseEmbeddingRequest(body);
         enforceEmbeddingLimits(req, requestLimits());
+        run.content?.embeddings(req.input);
         const route = plan(key, req.model, 'EMBEDDINGS');
         await run.admit();
         const o = await runAttempts(route, {
@@ -579,6 +592,7 @@ export function createGatewayService(options: {
           ...(prompt !== null ? { usage: { prompt_tokens: prompt, total_tokens: prompt } } : {}),
         };
         run.capture?.clientResponse(200, JSON.stringify(answer));
+        run.content?.embedded(o.value.embeddings.length);
         run.succeed(o, withEstimate({ inputTokens: o.value.usage.inputTokens, outputTokens: 0, source: o.value.usage.source }, inputChars, 0));
         return { kind: 'json', status: 200, headers: { ...routeHeaders(o), ...noticesFor(key, o, false).headers }, body: answer };
       });

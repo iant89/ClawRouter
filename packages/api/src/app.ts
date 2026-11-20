@@ -297,6 +297,8 @@ export function createApiApp(deps: ApiDependencies): ApiApp {
   // Request history and usage (spec §22, §23). Metadata only: prompts and completions are never stored.
   router.get('/api/requests', 'requests.read', rq.list);
   router.get('/api/requests/:id', 'requests.read', rq.get);
+  // Full request logging (SEC-009): users' own words, behind their own permission.
+  router.get('/api/requests/:id/content', 'requests.content', rq.content);
   router.get('/api/usage', 'usage.read', rq.usage);
 
   // External AI API (spec §7, §32): API keys only, OpenAI-compatible.

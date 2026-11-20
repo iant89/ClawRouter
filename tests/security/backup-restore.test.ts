@@ -202,8 +202,9 @@ describe('backup creation', () => {
     const h = createHarness();
     await h.completeSetup();
     const dir = fresh();
-    const { path } = await createBackup(h.db, { dir, box: h.secrets, version: 't', includeSecretKey: 'k'.repeat(44) });
+    const { path } = await createBackup(h.db, { dir, box: h.secrets, version: 't', includeSecretKey: 'k'.repeat(44), confirmSecretKey: true });
     expect(statSync(dir).mode & 0o777).toBe(0o700);
+    expect(statSync(join(dir, 'credentials')).mode & 0o777).toBe(0o700);
     expect(statSync(path).mode & 0o777).toBe(0o700);
     for (const f of readdirSync(path)) expect(statSync(join(path, f)).mode & 0o777).toBe(0o600);
   });

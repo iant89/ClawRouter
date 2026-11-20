@@ -20,9 +20,9 @@ tracking copy with status, findings and decisions.
 | SEC-006 | Request resource limits | High | ✅ |
 | SEC-007 | Provider TLS enforcement | High | ✅ |
 | SEC-008 | DNS rebinding protection | High | ✅ |
-| SEC-009 | Request-data minimization (NONE / METADATA / FULL) | High | ⬜ |
-| SEC-010 | Secret scrubbing test suite | High | ⬜ |
-| SEC-011 | Backup credential separation | High | ⬜ |
+| SEC-009 | Request-data minimization (NONE / METADATA / FULL) | High | ✅ |
+| SEC-010 | Secret scrubbing test suite | High | ✅ |
+| SEC-011 | Backup credential separation | High | ✅ |
 | SEC-012 | Security regression suite (`tests/security/`) | High | ⬜ |
 | SEC-013 | Authentication attack testing | Medium | ⬜ |
 | SEC-014 | Authorization matrix testing | High | ⬜ |
@@ -75,7 +75,7 @@ controls.
 A release may be called "security hardened" only when all of these are done:
 SEC-001 to SEC-012, SEC-014, SEC-015, SEC-017 to SEC-021, SEC-024 to SEC-029,
 SEC-032, SEC-033, SEC-035 to SEC-043, and SEC-047 to SEC-051. (Not in the gate:
-SEC-013, 016, 022, 023, 030, 031, 034, 044 to 046.) Status: 8 of 41.
+SEC-013, 016, 022, 023, 030, 031, 034, 044 to 046.) Status: 11 of 41.
 
 ## Phase 1: Network security boundary
 
@@ -252,18 +252,54 @@ Responses, Messages, embeddings; verified to fail with the checks disabled).
 
 ## Phase 3: Data protection
 
-- **SEC-009** ⬜ Logging modes NONE / METADATA (default) / FULL. FULL stores
-  prompts, responses, tool calls and attachment metadata, behind a clear privacy
-  warning. (Today: metadata only, plus opt-in [captures](captures.md).)
-- **SEC-010** ⬜ Redaction tests for API keys, bearer tokens, cookies, passwords,
-  provider and SMTP credentials, session ids, setup tokens, OAuth tokens, private
-  keys, JWTs and MCP credentials, embedded in JSON, nested JSON, arrays, URLs,
-  query parameters, headers, exceptions, stack traces, tool arguments and
-  provider errors.
-- **SEC-011** ⬜ Normal backups (database, configuration, operational data) apart
-  from credential backups (plus the secret key): explicit confirmation and a
-  warning, never listed in normal listings, restrictive permissions. (Today:
-  `--include-secret-key`.)
+Built 2026-11-20.
+
+### SEC-009 Request-data minimization ✅
+
+The `requestLogging` setting (Settings → Data retention → Request data;
+`CLAWROUTER_REQUEST_LOGGING`). See [request logging modes](requests-usage.md#request-logging-modes-sec-009).
+
+- [x] NONE / METADATA / FULL, METADATA by default (read when each request begins)
+- [x] Metadata: request id, timestamp, API key and user, model, provider, HTTP status, latency, token counts, cost
+- [x] FULL also stores the prompt, the response, tool calls and attachment metadata (`request_content`, migration 0028; at most 1 MB per request, secret-shaped text scrubbed, attachment data never kept)
+- [x] FULL displays a clear privacy warning (Settings, when chosen; the request dialog, before the content is loaded; a server log warning at startup)
+
+Decisions made here (keep unless the owner says otherwise): NONE still writes the hourly
+**usage records** (quotas, cost limits and Usage need them; they hold no per-request data);
+FULL content is readable only with the new **`requests.content`** permission (Administrators;
+not Operators or Viewers, even though they read request history) and never through MCP; it is
+deleted with its request by the request history retention, not when switching back.
+Tests: `packages/api/test/request-logging-api.test.ts` (7 of 10 fail with the mode ignored).
+
+### SEC-010 Secret scrubbing test suite ✅
+
+`tests/security/secret-scrubbing.test.ts` (143 tests; 91 failed on the previous
+redaction). See [redaction](logging-audit.md#redaction).
+
+- [x] API keys, bearer tokens, cookies, passwords, provider credentials, SMTP credentials, session ids, setup tokens, OAuth tokens, private keys, JWTs, MCP credentials
+- [x] Embedded in JSON, nested JSON, arrays, URLs, query parameters, headers, exceptions, stack traces, tool arguments, provider errors
+
+Found and fixed (`packages/core/src/redact.ts`): JWTs, PEM private keys, OAuth tokens,
+passwords in URLs, signed-URL signatures, `Cookie:`/`x-api-key:` headers in text, SMTP
+`AUTH PLAIN` lines, secret-named fields inside JSON text (and JSON inside a JSON string, as
+tool arguments are), and the field names `session…`, `csrf`, `auth`, `jwt`, `pass` all
+went through unredacted. In the other direction, `inputTokens`, `max_tokens`,
+`sessionIdleMinutes` and `secureCookies` were redacted although they are not secrets (audit
+records of settings changes showed `[REDACTED]`).
+
+### SEC-011 Backup credential separation ✅
+
+See [backups](deployment.md#backups).
+
+- [x] Normal backup: the database, which holds the configuration and the operational data (credentials only encrypted)
+- [x] Credential backup: the same plus the encryption secret key
+- [x] Explicit confirmation before including the secret key (typed, or `--yes` without a terminal; `confirmSecretKey` in code)
+- [x] Warning that credential backups are sensitive (before and after)
+- [x] Never in normal backup listings (`credentials/` subdirectory; `--list --credentials`); never pruned
+- [x] Restrictive permissions (0700 directories, re-applied when wider; 0600 files); doctor warns otherwise
+
+Tests: `tests/security/credential-backups.test.ts`, the SEC-011 doctor case in
+`apps/server/test/recovery.test.ts`.
 
 ## Phase 4: Security testing
 

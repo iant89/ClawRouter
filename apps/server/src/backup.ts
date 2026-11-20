@@ -31,12 +31,20 @@ import { sealedSecretStores } from './secret-stores.ts';
  *   clawrouter-20261114-153000[-label]/
  *     clawrouter.db     consistent copy (VACUUM INTO), taken while the server runs
  *     manifest.json     written last: checksum, schema version, key fingerprint
- *     secret.key        only with includeSecretKey (then the backup alone decrypts everything)
  *
- * The secret key is NOT included by default: whoever holds database and key can
+ * A **normal backup** holds the database, which is the whole configuration
+ * (providers, models, routing, limits, roles, settings) and the operational data
+ * (users, keys as hashes, audit, usage). Stored credentials are in it only
+ * encrypted, and the secret key is NOT in it: whoever holds database and key can
  * read every provider API key. Store the key separately (see docs/deployment.md);
  * the manifest records its fingerprint so a restore can tell whether the right
  * key is configured.
+ *
+ * A **credential backup** (SEC-011) adds `secret.key`, so the backup alone opens
+ * every stored credential. It needs explicit confirmation (`confirmSecretKey`),
+ * and it is written apart, under `<dir>/credentials/` (0700, re-applied on every
+ * write), named `…-credentials`: normal listings, pruning and `doctor`'s backup
+ * counts never see it, and it is never deleted automatically.
  */
 export interface BackupManifest {
   format: 'clawrouter-backup';
@@ -49,6 +57,8 @@ export interface BackupManifest {
   /** Migrations applied in the copy: a restore refuses a backup from a newer version. */
   migrations: string[];
   secretKey: { fingerprint: string; included: boolean };
+  /** "credentials" when the secret key is in the backup (missing in backups made before SEC-011: read `secretKey.included`). */
+  kind?: 'normal' | 'credentials';
   /** Values in the copy that are encrypted with that key. */
   encryptedValues: number;
 }
@@ -57,6 +67,19 @@ const DB_FILE = 'clawrouter.db';
 const MANIFEST = 'manifest.json';
 const KEY_FILE = 'secret.key';
 const NAME = /^clawrouter-\d{8}-\d{6}(-[a-z0-9-]+)?$/;
+/** Credential backups live in this subdirectory of the backup directory, never beside normal ones. */
+export const CREDENTIALS_DIR = 'credentials';
+
+/** Where the credential backups of a backup directory are kept. */
+export const credentialBackupDir = (dir: string) => join(dir, CREDENTIALS_DIR);
+
+/** A directory that must stay private: created 0700, and tightened to 0700 if it already existed with a wider mode. */
+function privateDir(path: string) {
+  mkdirSync(path, { recursive: true, mode: 0o700 });
+  const st = lstatSync(path);
+  if (st.isSymbolicLink() || !st.isDirectory()) throw new AppError('VALIDATION_ERROR', `${path} is not a directory (a symbolic link?); refusing to write a backup there.`);
+  if ((st.mode & 0o077) !== 0) chmodSync(path, 0o700);
+}
 
 const sha256File = (path: string) => new Bun.CryptoHasher('sha256').update(readFileSync(path)).digest('hex');
 const stamp = (d: Date) => d.toISOString().replace(/[-:]/g, '').replace('T', '-').slice(0, 15);
@@ -79,8 +102,10 @@ export interface CreateBackupOptions {
   box: SecretBox;
   version: string;
   label?: string;
-  /** The key text to copy into the backup (opt-in). */
+  /** The key text to copy into the backup: makes it a credential backup (opt-in). */
   includeSecretKey?: string | null;
+  /** Must be true with `includeSecretKey`: the operator confirmed that the backup will contain the key. */
+  confirmSecretKey?: boolean;
   now?: Date;
   log?: Logger;
 }
@@ -88,12 +113,19 @@ export interface CreateBackupOptions {
 /** Copies the live database into a new backup directory and verifies the copy. */
 export async function createBackup(db: Database, o: CreateBackupOptions): Promise<{ path: string; manifest: BackupManifest }> {
   const now = o.now ?? new Date();
-  const label = o.label ?? 'manual';
+  const credentials = !!o.includeSecretKey;
+  const label = o.label ?? (credentials ? 'credentials' : 'manual');
   // The label becomes part of a path: only the internal ones, never anything with a separator.
   if (!/^[a-z0-9][a-z0-9-]{0,31}$/.test(label)) throw new AppError('VALIDATION_ERROR', `Invalid backup label "${label}".`);
+  if (credentials && o.confirmSecretKey !== true) {
+    throw new AppError('VALIDATION_ERROR', 'A backup with the secret key needs explicit confirmation: it opens every stored credential on its own.');
+  }
   mkdirSync(o.dir, { recursive: true, mode: 0o700 });
-  let path = join(o.dir, `clawrouter-${stamp(now)}${label === 'manual' ? '' : `-${label}`}`);
-  for (let n = 2; existsSync(path); n++) path = join(o.dir, `clawrouter-${stamp(now)}-${label}-${n}`);
+  const parent = credentials ? credentialBackupDir(o.dir) : o.dir;
+  if (credentials) privateDir(parent);
+  const suffix = credentials ? (label === 'credentials' ? '-credentials' : `-${label}-credentials`) : label === 'manual' ? '' : `-${label}`;
+  let path = join(parent, `clawrouter-${stamp(now)}${suffix}`);
+  for (let n = 2; existsSync(path); n++) path = join(parent, `clawrouter-${stamp(now)}${suffix}-${n}`);
   mkdirSync(path, { mode: 0o700 });
   const file = join(path, DB_FILE);
   try {
@@ -107,12 +139,12 @@ export async function createBackup(db: Database, o: CreateBackupOptions): Promis
     const manifest: BackupManifest = {
       format: 'clawrouter-backup', formatVersion: 1, createdAt: now.toISOString(), clawrouterVersion: o.version, label,
       database: { file: DB_FILE, bytes: statSync(file).size, sha256: sha256File(file) },
-      migrations: applied, secretKey: { fingerprint: o.box.fingerprint, included: !!o.includeSecretKey }, encryptedValues,
+      migrations: applied, secretKey: { fingerprint: o.box.fingerprint, included: credentials }, kind: credentials ? 'credentials' : 'normal', encryptedValues,
     };
     // Written last: a directory without a manifest is an incomplete backup.
     writeFileSync(join(path, MANIFEST), `${JSON.stringify(manifest, null, 2)}\n`, { mode: 0o600 });
     createAuditService(createSqliteAuditRepository(db), o.log).record({
-      action: 'BACKUP_CREATED', result: 'SUCCESS', resource: 'system', resourceId: basename(path),
+      action: credentials ? 'CREDENTIAL_BACKUP_CREATED' : 'BACKUP_CREATED', result: 'SUCCESS', resource: 'system', resourceId: basename(path),
       actor: { id: null, name: label === 'manual' ? 'command line' : 'system' }, ip: null, requestId: null,
       metadata: { label, bytes: manifest.database.bytes, keyIncluded: manifest.secretKey.included },
     });
@@ -129,7 +161,15 @@ export interface BackupInfo {
   manifest: BackupManifest | null;
 }
 
-/** Backups in `dir`, newest first. Directories without a manifest are incomplete. */
+/** True when a backup holds the secret key (a credential backup, or one made with the key before SEC-011). */
+export const holdsSecretKey = (m: BackupManifest | null) => !!m && (m.kind === 'credentials' || m.secretKey.included);
+
+/**
+ * Normal backups in `dir`, newest first. Directories without a manifest are
+ * incomplete. Credential backups are in `credentials/` and not listed here
+ * (`listCredentialBackups`); one made with the key before they were separated
+ * still shows up, and `holdsSecretKey` tells.
+ */
 export function listBackups(dir: string): BackupInfo[] {
   if (!existsSync(dir)) return [];
   return readdirSync(dir)
@@ -147,9 +187,17 @@ export function listBackups(dir: string): BackupInfo[] {
     });
 }
 
+/** Credential backups (with the secret key) of a backup directory, newest first. Never pruned automatically. */
+export function listCredentialBackups(dir: string): BackupInfo[] {
+  const sub = credentialBackupDir(dir);
+  if (!existsSync(sub) || !lstatSync(sub).isDirectory()) return [];
+  return listBackups(sub);
+}
+
 /** Keeps the newest `keep` complete backups with this label; removes older ones. Returns the removed paths. */
 export function pruneBackups(dir: string, label: string, keep: number): string[] {
-  const mine = listBackups(dir).filter((b) => b.manifest?.label === label);
+  // Backups with the secret key are never removed automatically (SEC-011).
+  const mine = listBackups(dir).filter((b) => b.manifest?.label === label && !holdsSecretKey(b.manifest));
   const removed = mine.slice(keep).map((b) => b.path);
   for (const path of removed) rmSync(path, { recursive: true, force: true });
   return removed;
@@ -180,6 +228,7 @@ function parseManifest(text: string, dir: string): BackupManifest {
     && typeof o.database.sha256 === 'string' && /^[0-9a-f]{64}$/.test(o.database.sha256)
     && Array.isArray(o.migrations) && o.migrations.every((id) => typeof id === 'string')
     && !!o.secretKey && typeof o.secretKey.fingerprint === 'string' && typeof o.secretKey.included === 'boolean'
+    && (o.kind === undefined || o.kind === 'normal' || o.kind === 'credentials')
     && Number.isSafeInteger(o.encryptedValues);
   if (!valid) throw new AppError('VALIDATION_ERROR', `${dir} has a damaged ${MANIFEST}.`);
   return o as BackupManifest;

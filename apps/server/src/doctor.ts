@@ -20,7 +20,7 @@ import { dirname, resolve } from 'node:path';
 import { createAuditService, createSqliteAuditRepository } from '@clawrouter/audit';
 import { checkSealedSecrets, silentLogger, type Config, type Logger, type SecretBox } from '@clawrouter/core';
 import { migrations, migrationStatus, openSqlite, runMigrations } from '@clawrouter/database';
-import { createBackup, listBackups, pruneBackups, runningServer } from './backup.ts';
+import { createBackup, credentialBackupDir, holdsSecretKey, listBackups, listCredentialBackups, pruneBackups, runningServer } from './backup.ts';
 import { clearUnreadable } from './clear-credentials.ts';
 import { sealedSecretStores } from './secret-stores.ts';
 import { createOutboundGuard, createOutboundPolicy, OutboundBlockedError, systemResolver } from '@clawrouter/security';
@@ -174,6 +174,16 @@ export async function runDoctor(config: Config, box: SecretBox | null, keyError:
       if (box && latest.secretKey.fingerprint !== box.fingerprint) add('warn', 'backups', `the newest backup was made with another key (${latest.secretKey.fingerprint})`, 'Keep that key until a backup made with the current key exists.');
     }
     if (config.env === 'production' && config.database.backupIntervalHours === 0) add('info', 'backups', 'no scheduled backups in ClawRouter (CLAWROUTER_BACKUP_INTERVAL_HOURS=0)', 'Fine if backups are scheduled elsewhere; copy them off this machine either way.');
+    // SEC-011: the secret key belongs only in credential backups, kept apart and private.
+    const withKey = backups.filter((b) => holdsSecretKey(b.manifest)).length;
+    if (withKey) add('warn', 'backups', `${withKey} backup(s) in ${config.database.backupDir} contain the secret key`, `Move them to ${credentialBackupDir(config.database.backupDir)} or somewhere safer: whoever reads them can open every stored credential.`);
+    const credentials = listCredentialBackups(config.database.backupDir);
+    if (credentials.length) {
+      const sub = credentialBackupDir(config.database.backupDir);
+      const open = (statSync(sub).mode & 0o077) !== 0;
+      add(open ? 'warn' : 'info', 'backups', `${credentials.length} credential backup(s) with the secret key in ${sub}${open ? ', readable by other users' : ''}`,
+        open ? `Run: chmod 700 ${sub}` : 'Keep them offline or in a secrets store, and delete those no longer needed.');
+    }
     if (resolve(config.database.backupDir).startsWith(dirname(resolve(dbPath)))) add('info', 'backups', 'backups are on the same disk as the database', 'Copy them to another machine or storage as well.');
   }
 

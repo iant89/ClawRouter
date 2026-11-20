@@ -22,7 +22,7 @@ export const PERMISSIONS = [
   'providers.read', 'providers.write',
   'models.read', 'models.write',
   'routing.read', 'routing.write',
-  'requests.read',
+  'requests.read', 'requests.content',
   'usage.read',
   'api_keys.read', 'api_keys.write', 'api_keys.own',
   'playground.use',
@@ -47,6 +47,7 @@ export const PERMISSION_DESCRIPTIONS: Record<Permission, string> = {
   'routing.read': 'View routing rules and aliases',
   'routing.write': 'Change routing rules and aliases',
   'requests.read': 'View gateway request history',
+  'requests.content': "View the prompts and replies kept when request logging is set to Full (users' own words)",
   'usage.read': 'View token usage and cost',
   'api_keys.read': 'View API keys (never their secret values)',
   'api_keys.write': 'Create and revoke API keys for anyone, change their limits, and approve key requests',
@@ -112,7 +113,7 @@ export const ADMIN_ROLE_ID = 'ADMIN';
 
 /** Permissions grouped by area, for the role editor (every permission appears once). */
 export const PERMISSION_GROUPS: { area: string; permissions: Permission[] }[] = [
-  { area: 'Gateway', permissions: ['requests.read', 'usage.read', 'api_keys.read', 'api_keys.write', 'api_keys.own', 'playground.use', 'rate_limits.read', 'rate_limits.write'] },
+  { area: 'Gateway', permissions: ['requests.read', 'requests.content', 'usage.read', 'api_keys.read', 'api_keys.write', 'api_keys.own', 'playground.use', 'rate_limits.read', 'rate_limits.write'] },
   { area: 'AI infrastructure', permissions: ['providers.read', 'providers.write', 'models.read', 'models.write', 'routing.read', 'routing.write'] },
   { area: 'System', permissions: ['health.read', 'logs.read', 'audit.read', 'captures.manage'] },
   { area: 'Administration', permissions: ['announcements.manage', 'users.read', 'users.write', 'roles.read', 'roles.write', 'roles.assign', 'sessions.read', 'sessions.revoke', 'settings.read', 'settings.write'] },
