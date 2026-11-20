@@ -24,9 +24,12 @@
  * The current database is kept next to it as <db>.before-restore-<time>.
  */
 import { dirname, resolve } from 'node:path';
-import { AppError, createLogger, loadConfig } from '@clawrouter/core';
+import { restrictUmask, AppError, createLogger, loadConfig } from '@clawrouter/core';
 import { checkBackup, restoreBackup, runningServer } from '../apps/server/src/backup.ts';
 import { loadSecretBox } from '../apps/server/src/secret-key.ts';
+
+// SEC-023: whatever this process creates is private to its account (files 0600, directories 0700).
+restrictUmask();
 
 const args = process.argv.slice(2);
 const backup = args.find((a) => !a.startsWith('--'));

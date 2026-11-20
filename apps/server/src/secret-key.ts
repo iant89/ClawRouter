@@ -16,7 +16,7 @@
 
 import { chmodSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
-import { createSecretBox, generateSecretKey, parseSecretKey, type Config, type Logger, type SecretBox } from '@clawrouter/core';
+import { createSecretBox, generateSecretKey, parseSecretKey, tightenMode, type Config, type Logger, type SecretBox } from '@clawrouter/core';
 
 /**
  * Loads the key that encrypts stored credentials (spec §29: external to the
@@ -39,6 +39,9 @@ export function loadSecretBox(config: Config, log: Logger): SecretBox {
       writeFileSync(file, `${generateSecretKey()}\n`, { mode: 0o600 });
       chmodSync(file, 0o600);
       log.warn('generated a development secret key; back it up, or credentials cannot be decrypted. Set CLAWROUTER_SECRET_KEY in production', { component: 'secrets', file });
+    } else if (tightenMode(file)) {
+      // SEC-023: the generated key is ClawRouter's own file; an operator's CLAWROUTER_SECRET_KEY_FILE is only reported (doctor).
+      log.warn('the secret key file was readable by other accounts; made private (0600)', { component: 'secrets', file });
     }
     text = readFileSync(file, 'utf8');
   }

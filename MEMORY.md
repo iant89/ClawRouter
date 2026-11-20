@@ -14,6 +14,42 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 
 ### Important
 
+- **IMPORTANT** · 2026-11-20 · Security phase 6: dependency checks (SEC-018), SBOM (SEC-019), signed releases (SEC-020)
+  Built on `claude/clever-fermi-tyfev2` after SEC-023, **waits for the owner's review**. No migration,
+  no new dependency. Policy `supply-chain.json`; code `scripts/supply-chain/` (entries `deps.ts`,
+  `sbom.ts`, `release.ts`); guide `docs/releases.md`; tests `tests/security/supply-chain/`.
+  Decisions made here (keep unless the owner says otherwise): CI's plain `bun audit` became
+  `bun run deps:check`: **high/critical fail, moderate/low are only printed** (the roadmap's
+  wording; before, any level failed); an unreachable advisory database fails; exceptions need a
+  reason and an `expires` date. Lockfile: npm registry + sha512 only, the vendored tarball must
+  match its `bun.lock` hash, exact versions for direct deps, no `trustedDependencies`. Licenses
+  allowed: permissive + the AGPL-compatible GNU licenses (owner, 2026-11-20: "Yes, as long as the
+  licenses allow it": GPL-3.0, GPL-2.0-or-later, LGPL-2.1+, AGPL-3.0; GPL-2.0-only and LGPL-2.0-only
+  stay refused; `canonicalLicense` reads `GPL-2.0+` as or-later and a bare `GPL-3.0` as only). Signing is
+  **cosign keyless** (Sigstore, identity = `release.yml` for the tag); no key to manage. The release
+  tarball and SBOMs are reproducible (checked: two clean builds, same SHA-256), SBOMs pass
+  `pyspdxtools` and the CycloneDX 1.6 strict schema. `release:package` refuses a Bun other than the
+  Dockerfile's; a test pins every workflow action to a SHA and every `bun-version` to the Dockerfile.
+  **Not verified:** the release workflow never ran (no tag pushed; pushing one publishes a real
+  release, so ask first), and cosign could not be run here (running a downloaded binary was refused),
+  so the sign/verify commands follow cosign v3.1.4's documented flags. Dependabot's `bun` ecosystem
+  has not opened a pull request yet. The Docker image is not signed. Next: SEC-022 (CSP), then phase 8.
+
+- **IMPORTANT** · 2026-11-20 · Security SEC-023: filesystem hardening
+  Built on `claude/clever-fermi-tyfev2`, **waits for the owner's review**. No migration.
+  Decisions made here (keep unless the owner says otherwise): ClawRouter's files are 0600 and
+  directories 0700 (`packages/core/src/filesystem.ts`); `openSqlite` **creates the database 0600
+  before SQLite opens it** (SQLite gives -wal/-shm the database's mode) and **removes group/other
+  bits from an existing database at every start** (logged; this changes upgraded installs, and a
+  deployment that wanted a group to read the live database loses that: the docs say to back up into
+  a directory that group owns). An existing data directory or `CLAWROUTER_SECRET_KEY_FILE` is the
+  operator's: only reported. Readonly opens change nothing. The server and every CLI entry point call
+  `restrictUmask()` (0077) first: a **new CLI tool in `build:cli` must too** (the test checks).
+  `doctor` has a `files` check (`privatePaths`: data dir, db, -wal/-shm, pid, setup token,
+  generated key, backups, TLS key allowed 0640) and the repair `file-permissions`; a new file
+  ClawRouter writes belongs in `privatePaths`. Docker image's `/data` is now 0700 (not rebuilt
+  here: Docker's daemon was not started). Tests: `tests/security/filesystem/` (new category).
+
 - **IMPORTANT** · 2026-11-20 · Security phase 7 started: fuzz testing (SEC-021)
   Built on `claude/loving-einstein-tksnqs`, **waits for the owner's review** (not merged). The
   owner asked for "phase 7 (SEC-021, fuzz testing)"; phase 6 (SEC-018 to 020) and SEC-022/023 are

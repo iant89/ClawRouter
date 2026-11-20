@@ -15,10 +15,10 @@
  */
 
 import { X509Certificate } from 'node:crypto';
-import { chmodSync, existsSync, readFileSync, rmSync, statfsSync, statSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
+import { chmodSync, existsSync, lstatSync, readdirSync, readFileSync, rmSync, statfsSync, statSync } from 'node:fs';
+import { dirname, join, resolve } from 'node:path';
 import { createAuditService, createSqliteAuditRepository } from '@clawrouter/audit';
-import { checkSealedSecrets, silentLogger, type Config, type Logger, type SecretBox } from '@clawrouter/core';
+import { checkSealedSecrets, describeExtraAccess, octal, pathAccess, silentLogger, tightenMode, type Config, type Logger, type SecretBox } from '@clawrouter/core';
 import { migrations, migrationStatus, openSqlite, runMigrations } from '@clawrouter/database';
 import { createBackup, credentialBackupDir, holdsSecretKey, listBackups, listCredentialBackups, pruneBackups, runningServer } from './backup.ts';
 import { clearUnreadable } from './clear-credentials.ts';
@@ -28,7 +28,7 @@ import { createOutboundGuard, createOutboundPolicy, OutboundBlockedError, system
 export type CheckLevel = 'ok' | 'warn' | 'error' | 'info';
 
 /** Problems `doctor --fix` can repair. */
-export type RepairId = 'stale-pid' | 'key-permissions' | 'backup' | 'migrate' | 'clear-credentials';
+export type RepairId = 'stale-pid' | 'key-permissions' | 'file-permissions' | 'backup' | 'migrate' | 'clear-credentials';
 export interface DoctorRepair {
   id: RepairId;
   /** What the repair will do, in a sentence. */
@@ -51,6 +51,50 @@ export interface DoctorCheck {
 export const pidFile = (dbPath: string) => `${resolve(dbPath)}.pid`;
 
 const LOOPBACK = ['127.0.0.1', 'localhost', '::1'];
+
+/** A path ClawRouter keeps private (SEC-023), with the most it may allow. */
+export interface PrivatePath {
+  path: string;
+  what: string;
+  /** The widest mode accepted: 0o600 for files and 0o700 for directories unless stated. */
+  allowed?: number;
+}
+
+/**
+ * Every file and directory ClawRouter writes or reads secrets from (SEC-023), that exists:
+ * the data directory, the database and its -wal/-shm files, the process-ID file, the setup
+ * token, the generated secret key, the TLS private key (its group may read it: 0640), the
+ * backup directory and every backup in it (credential backups included). An operator's
+ * CLAWROUTER_SECRET_KEY_FILE has its own check. ClawRouter writes no log files (logs go to
+ * stdout), so there are none to check.
+ */
+export function privatePaths(config: Config): PrivatePath[] {
+  const out: PrivatePath[] = [];
+  const add = (path: string, what: string, allowed?: number) => {
+    if (existsSync(path)) out.push({ path, what, ...(allowed === undefined ? {} : { allowed }) });
+  };
+  const dbPath = config.database.path;
+  if (dbPath !== ':memory:') {
+    const dataDir = dirname(resolve(dbPath));
+    add(dataDir, 'data directory');
+    for (const ext of ['', '-wal', '-shm']) add(`${dbPath}${ext}`, 'database');
+    add(pidFile(dbPath), 'process-ID file');
+    add(join(dataDir, 'setup-token'), 'setup token');
+    if (!config.secrets.key && !config.secrets.keyFile) add(join(dataDir, 'secret.key'), 'secret key');
+    const root = config.database.backupDir;
+    add(root, 'backup directory');
+    add(credentialBackupDir(root), 'credential backup directory');
+    for (const b of [...listBackups(root), ...listCredentialBackups(root)]) {
+      add(b.path, 'backup');
+      for (const name of readdirSync(b.path)) if (lstatSync(join(b.path, name)).isFile()) add(join(b.path, name), 'backup');
+    }
+  }
+  if (config.server.tls) add(config.server.tls.keyFile, 'TLS private key', 0o640);
+  return out;
+}
+
+/** The private paths that allow more than they should. */
+const tooOpen = (config: Config) => privatePaths(config).map((p) => ({ ...p, access: pathAccess(p.path, p.allowed) })).filter((p) => p.access.extra && !p.access.symlink);
 const DAY = 86_400_000;
 
 /**
@@ -187,6 +231,25 @@ export async function runDoctor(config: Config, box: SecretBox | null, keyError:
     if (resolve(config.database.backupDir).startsWith(dirname(resolve(dbPath)))) add('info', 'backups', 'backups are on the same disk as the database', 'Copy them to another machine or storage as well.');
   }
 
+  // File permissions and owners (SEC-023)
+  const paths = privatePaths(config);
+  const open = tooOpen(config);
+  if (open.length) {
+    const shown = open.slice(0, 8).map((p) => `${p.path} (${p.what}, ${octal(p.access.mode)}: ${describeExtraAccess(p.access.extra)})`);
+    add('warn', 'files', `${open.length} of ClawRouter's files and directories can be used by other accounts: ${shown.join('; ')}${open.length > 8 ? `; and ${open.length - 8} more` : ''}`,
+      'Files should be 0600 and directories 0700 (chmod 600 / chmod 700), or run "doctor --fix".',
+      { id: 'file-permissions', action: `Remove group and other permissions from ${open.length} file(s) and directory(ies).` });
+  } else if (paths.length) add('ok', 'files', `${paths.length} file(s) and directory(ies) private to their owner`);
+  if (dbPath !== ':memory:' && existsSync(dirname(resolve(dbPath)))) {
+    // A file another account owns (often root, from a command run with sudo) cannot be written by the server.
+    const owner = statSync(dirname(resolve(dbPath))).uid;
+    const foreign = paths.filter((p) => p.what !== 'TLS private key').filter((p) => lstatSync(p.path).uid !== owner);
+    if (foreign.length) {
+      add('warn', 'files', `${foreign.length} file(s) are not owned by the data directory's owner (uid ${owner}): ${foreign.slice(0, 8).map((p) => `${p.path} (uid ${lstatSync(p.path).uid})`).join('; ')}`,
+        `Give them to the account ClawRouter runs as: chown <user>:<group> <file> (run commands such as backup and migrate as that account, not with sudo alone).`);
+    }
+  }
+
   // Disk space
   try {
     const target = dbPath === ':memory:' ? '.' : existsSync(dirname(resolve(dbPath))) ? dirname(resolve(dbPath)) : '.';
@@ -201,7 +264,7 @@ export async function runDoctor(config: Config, box: SecretBox | null, keyError:
 
 /** The repairs a set of checks offers, in the order they are applied. */
 export function plannedRepairs(checks: DoctorCheck[], { includeDestructive = false } = {}): DoctorRepair[] {
-  const order: RepairId[] = ['stale-pid', 'key-permissions', 'backup', 'migrate', 'clear-credentials'];
+  const order: RepairId[] = ['stale-pid', 'key-permissions', 'file-permissions', 'backup', 'migrate', 'clear-credentials'];
   const seen = new Set<RepairId>();
   return checks
     .map((c) => c.repair)
@@ -265,6 +328,13 @@ export async function applyRepairs(config: Config, box: SecretBox | null, repair
         case 'key-permissions': {
           chmodSync(config.secrets.keyFile!, 0o600);
           results.push({ id: r.id, ok: true, message: `${config.secrets.keyFile} is now readable by its owner only.` });
+          break;
+        }
+        case 'file-permissions': {
+          const open = tooOpen(config);
+          const failed = open.filter((p) => !tightenMode(p.path, p.allowed));
+          if (failed.length) throw new Error(`Could not change ${failed.map((p) => p.path).join(', ')} (owned by another account?).`);
+          results.push({ id: r.id, ok: true, message: `Made ${open.length} file(s) and directory(ies) private to their owner.` });
           break;
         }
         case 'backup': {

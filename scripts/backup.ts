@@ -32,11 +32,14 @@
  */
 import { readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
-import { AppError, createLogger, loadConfig } from '@clawrouter/core';
+import { restrictUmask, AppError, createLogger, loadConfig } from '@clawrouter/core';
 import { migrationStatus, migrations, openSqlite } from '@clawrouter/database';
 import { createBackup, credentialBackupDir, holdsSecretKey, listBackups, listCredentialBackups, pruneBackups, type BackupInfo } from '../apps/server/src/backup.ts';
 import { loadSecretBox } from '../apps/server/src/secret-key.ts';
 import { VERSION } from '../apps/server/src/version.ts';
+
+// SEC-023: whatever this process creates is private to its account (files 0600, directories 0700).
+restrictUmask();
 
 const args = process.argv.slice(2);
 const value = (flag: string) => (args.includes(flag) ? args[args.indexOf(flag) + 1] : undefined);

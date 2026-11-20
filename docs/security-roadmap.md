@@ -29,12 +29,12 @@ tracking copy with status, findings and decisions.
 | SEC-015 | WebSocket security | High | ✅ |
 | SEC-016 | Configuration security classification | Medium | ✅ |
 | SEC-017 | Configuration import sandbox | High | ✅ |
-| SEC-018 | Dependency security | Medium | ⬜ |
-| SEC-019 | Software bill of materials | Medium | ⬜ |
-| SEC-020 | Signed releases | Medium | ⬜ |
+| SEC-018 | Dependency security | Medium | ✅ |
+| SEC-019 | Software bill of materials | Medium | ✅ |
+| SEC-020 | Signed releases | Medium | ✅ (first release not yet run) |
 | SEC-021 | Fuzz testing | Medium | ✅ |
 | SEC-022 | CSP tightening (`style-src 'unsafe-inline'`) | Low | ⬜ |
-| SEC-023 | Filesystem hardening | Medium | ⬜ |
+| SEC-023 | Filesystem hardening | Medium | ✅ |
 | SEC-024 | systemd hardening | High | ⬜ |
 | SEC-025 | Security health check (`doctor --security`) | Medium | ⬜ |
 | SEC-026 | Security CI pipeline | High | ⬜ |
@@ -75,7 +75,7 @@ controls.
 A release may be called "security hardened" only when all of these are done:
 SEC-001 to SEC-012, SEC-014, SEC-015, SEC-017 to SEC-021, SEC-024 to SEC-029,
 SEC-032, SEC-033, SEC-035 to SEC-043, and SEC-047 to SEC-051. (Not in the gate:
-SEC-013, 016, 022, 023, 030, 031, 034, 044 to 046.) Status: 16 of 41.
+SEC-013, 016, 022, 023, 030, 031, 034, 044 to 046.) Status: 19 of 41.
 
 ## Phase 1: Network security boundary
 
@@ -425,13 +425,36 @@ Checked in Chromium: the console stays live through a minute of pings with the s
 
 ## Phase 6: Supply chain security
 
-- **SEC-018** ⬜ Automated auditing, lockfile verification, automated updates,
-  license scanning, CI failure on high and critical vulnerabilities. (Today:
-  `bun audit` and `--frozen-lockfile` in CI.)
-- **SEC-019** ⬜ An SPDX and CycloneDX SBOM per release (version, dependencies
-  and versions, runtime dependencies).
-- **SEC-020** ⬜ Signed release artifacts, published SHA-256 checksums, a
-  documented verification process, verification in CI.
+See [releases and the supply chain](releases.md). Policy: `supply-chain.json`; code:
+`scripts/supply-chain/`; tests: `tests/security/supply-chain/`.
+
+- **SEC-018** ✅ `bun run deps:check` (CI, on every change and weekly).
+  - [x] Automated auditing: `bun audit` through the policy; fails closed when the
+    advisory database cannot be reached; exceptions need a reason and an end date.
+  - [x] Lockfile verification: registry packages only from the npm registry with sha512
+    hashes, the committed tarball checked against its hash, no git/URL/link sources,
+    exact versions for direct dependencies, no install scripts (`trustedDependencies`);
+    `--frozen-lockfile` in CI and the Docker build.
+  - [x] Automated updates: Dependabot (npm via Bun, GitHub Actions, the Docker base
+    image), weekly, reviewed pull requests.
+  - [x] License scanning: every package's license must be allowed (permissive, or a
+    GNU license compatible with AGPL-3.0; GPL-2.0-only is refused); missing licenses read from LICENSE files or set by hand.
+  - [x] High and critical advisories fail CI. Decision: moderate and low are printed, not
+    failed (before this, plain `bun audit` failed on any level).
+- **SEC-019** ✅ `bun run sbom`: SPDX 2.3 and CycloneDX 1.6 JSON, in every release.
+  - [x] Application version (and commit), [x] dependencies with versions, hashes,
+    licenses and the dependency graph, runtime vs development scope, [x] runtime
+    dependencies (Bun, its SQLite). Deterministic. Checked with `pyspdxtools` and the
+    CycloneDX schema (strict).
+- **SEC-020** ✅ `.github/workflows/release.yml` on a version tag.
+  - [x] Signed artifacts: cosign keyless (Sigstore, the workflow's identity, Rekor).
+  - [x] Checksums: `SHA256SUMS` (signed too), published with the release.
+  - [x] Verification process documented ([releases](releases.md#verifying-a-release-you-downloaded)).
+  - [x] Verified in CI: before publishing, after publishing (the download), and the
+    unsigned artifacts on every CI run. The release tarball is reproducible.
+  - Not run yet: no tag has been pushed, so signing and the published-release check
+    have not run; the cosign commands follow its documentation (could not be run here).
+    The Docker image is not signed.
 
 ## Phase 7: Advanced security
 
@@ -478,10 +501,26 @@ Checked in Chromium: the console stays live through a minute of pings with the s
     steered by which code they reach).
 - **SEC-022** ⬜ Investigate removing `style-src 'unsafe-inline'` (ENTERPRISE-UI
   compatibility, fewer inline styles, CSP regression tests).
-- **SEC-023** ⬜ Owner, group, permissions and umask of `data/`, the database,
-  `secret.key`, `setup-token`, `backups/` and logs. Baseline: files 0600,
-  `backups/` 0700. (Seen 2026-11-19: in the container the database is created
-  0644.)
+- **SEC-023** ✅ Files 0600, directories 0700, owned by the account ClawRouter runs as
+  ([file permissions](deployment.md#file-permissions)). Helpers in
+  `packages/core/src/filesystem.ts`.
+  - [x] `data/`: created 0700; an existing one is reported by `doctor`, not changed.
+  - [x] Database: created 0600 before SQLite opens it (its `-wal` and `-shm` take the
+    database's mode), and made 0600 at every start when wider (logged). This fixes the
+    0644 database seen on 2026-11-19.
+  - [x] `secret.key` (generated) and `setup-token`: 0600; a wider generated key is
+    tightened at start. An operator's `CLAWROUTER_SECRET_KEY_FILE` is reported.
+  - [x] `backups/`: 0700, every backup 0700 and its files 0600 (credential backups
+    already were, SEC-011); a restored database is 0600.
+  - [x] Logs: ClawRouter writes none (stdout); nothing to check.
+  - [x] Owner and group: `doctor` names files not owned by the data directory's owner
+    (a backup run as root), and files or directories any group or other user can use;
+    `doctor --fix` removes those permissions (new repair `file-permissions`; the TLS
+    key keeps 0640; links are never followed).
+  - [x] umask: the server and every command-line tool set 0077 first; the systemd unit
+    has `UMask=0077`; the Docker image's `/data` is 0700.
+  - Tests: `tests/security/filesystem/` (run under umask 0022).
+  - Not covered: Windows (modes are skipped there); the environment file (operator's).
 
 ## Phase 8: Host / systemd hardening
 

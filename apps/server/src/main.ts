@@ -14,10 +14,13 @@
  * in the LICENSE file for more details.
  */
 
-import { createLogger, loadConfig, AppError, LogBuffer } from '@clawrouter/core';
+import { restrictUmask, createLogger, loadConfig, AppError, LogBuffer } from '@clawrouter/core';
 import consoleHtml from '@clawrouter/console/index.html';
 import { startClawRouter } from './server.ts';
 import { VERSION } from './version.ts';
+
+// SEC-023: whatever this process creates is private to its account (files 0600, directories 0700).
+restrictUmask();
 
 let config;
 try {
