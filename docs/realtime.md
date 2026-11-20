@@ -15,7 +15,7 @@ things change instead of polling every few seconds.
   token is never sent.
 - The console sends `{"type":"ping"}` every 25 s and gets `{"type":"pong"}`. Bun
   also pings idle connections. Client messages are limited to 1 KB; anything other
-  than a ping is ignored.
+  than a ping closes the connection (see Security).
 
 ## What is sent
 
@@ -75,7 +75,25 @@ and sends one `activity` message per second, only while there is traffic.
 | 4401 | session ended | sign in again; no reconnect |
 | 4408 | too slow | reconnect and resync |
 | 4429 | too many connections | reconnect later |
+| 4410 | silent too long (no ping for 75 s) | reconnect |
+| 1003, 1008, 1009 | binary, unknown or flooding messages; too large | reconnect (the console never sends these) |
 | 4503 | server stopping | reconnect |
+
+## Security
+
+SEC-015 (checked in `tests/security/websocket/`):
+
+- **Client messages:** the protocol has one, `{"type":"ping"}`. Anything else closes the
+  connection: binary frames (1003), text over 1 KB (1009; Bun refuses frames over 4 KB
+  before the hub sees them), anything but that exact JSON object (1008).
+- **Floods:** more than 20 messages in 10 s close the connection (1008). The console sends
+  one ping per 25 s.
+- **Sessions:** every ping re-checks the session (without counting as activity), on top of
+  the 30-second check and the immediate close on revocation.
+- **Idle:** a connection that sends nothing for 75 s (three heartbeats) is closed with
+  **4410**; the console reconnects.
+- **Reconnection storms:** at most 30 upgrades per user per minute, then 429 with
+  `Retry-After`.
 
 ## Console
 

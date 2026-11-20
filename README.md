@@ -13,7 +13,7 @@ usage tracking and an administration console built on
 > `CLAWROUTER_*`.
 
 - **Spec:** [`docs/design-specification.md`](docs/design-specification.md)
-- **Security hardening:** [`docs/security-roadmap.md`](docs/security-roadmap.md) (in progress: the outbound network policy against SSRF and DNS rebinding, and container hardening, are done; phase 2, cost limits and request resource limits, and phase 3, request logging modes, secret scrubbing tests and credential backups, too).
+- **Security hardening:** [`docs/security-roadmap.md`](docs/security-roadmap.md) (in progress: the outbound network policy against SSRF and DNS rebinding, and container hardening, are done; phase 2, cost limits and request resource limits, phase 3, request logging modes, secret scrubbing tests and credential backups, and phase 4, the security regression suite in `tests/security/`, the authorization matrix and WebSocket hardening, too).
 - **Roadmap and status:** [`docs/roadmap.md`](docs/roadmap.md). Done so far: the
   first working milestone (Bun server, SQLite with migrations, `/api/health`,
   console shell), phase 2 **authentication** (server-side sessions, initial

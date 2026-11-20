@@ -27,7 +27,7 @@ passes through `redact` (`packages/core/src/redact.ts`):
    - `"password": "…"` and similar inside JSON text, also JSON inside a JSON string (tool arguments);
    - SMTP `AUTH PLAIN …` lines.
 
-**SEC-010:** `tests/security/secret-scrubbing.test.ts` puts 19 kinds of secret (ClawRouter,
+**SEC-010:** `tests/security/logging/secret-scrubbing.test.ts` puts 19 kinds of secret (ClawRouter,
 OpenAI, Anthropic, OpenRouter, Groq and Google keys, bearer tokens, cookies, passwords, provider
 and SMTP credentials, session ids, setup tokens, OAuth tokens, private keys, JWTs, MCP
 credentials) into JSON, nested JSON, arrays, URLs, query parameters, headers, exceptions, stack

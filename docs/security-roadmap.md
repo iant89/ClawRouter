@@ -23,10 +23,10 @@ tracking copy with status, findings and decisions.
 | SEC-009 | Request-data minimization (NONE / METADATA / FULL) | High | ✅ |
 | SEC-010 | Secret scrubbing test suite | High | ✅ |
 | SEC-011 | Backup credential separation | High | ✅ |
-| SEC-012 | Security regression suite (`tests/security/`) | High | ⬜ |
+| SEC-012 | Security regression suite (`tests/security/`) | High | ✅ |
 | SEC-013 | Authentication attack testing | Medium | ⬜ |
-| SEC-014 | Authorization matrix testing | High | ⬜ |
-| SEC-015 | WebSocket security | High | ⬜ |
+| SEC-014 | Authorization matrix testing | High | ✅ |
+| SEC-015 | WebSocket security | High | ✅ |
 | SEC-016 | Configuration security classification | Medium | ⬜ |
 | SEC-017 | Configuration import sandbox | High | ⬜ |
 | SEC-018 | Dependency security | Medium | ⬜ |
@@ -75,7 +75,7 @@ controls.
 A release may be called "security hardened" only when all of these are done:
 SEC-001 to SEC-012, SEC-014, SEC-015, SEC-017 to SEC-021, SEC-024 to SEC-029,
 SEC-032, SEC-033, SEC-035 to SEC-043, and SEC-047 to SEC-051. (Not in the gate:
-SEC-013, 016, 022, 023, 030, 031, 034, 044 to 046.) Status: 11 of 41.
+SEC-013, 016, 022, 023, 030, 031, 034, 044 to 046.) Status: 14 of 41.
 
 ## Phase 1: Network security boundary
 
@@ -136,7 +136,7 @@ Checked and fine:
 - [x] Concurrent requests: each answer carries its own id and the right caller's tools
 - [x] Malicious clients: deep nesting, huge ids, non-string methods, `__proto__` / `constructor` names, array arguments, oversized bodies, cross-site origins
 
-Tests: `tests/security/mcp.test.ts` (the size and id cases were verified to fail
+Tests: `tests/security/mcp/mcp.test.ts` (the size and id cases were verified to fail
 without the fixes) and `packages/api/test/mcp-api.test.ts`.
 
 ### SEC-003 Backup / restore security audit ✅
@@ -176,7 +176,7 @@ through an import is refused), and imported roles get the no-escalation checks.
 - [x] Malicious configuration (outbound policy, role rules; SEC-017 goes further)
 - [x] Secret-key exposure
 
-Tests: `tests/security/backup-restore.test.ts`, `tests/security/configuration-import.test.ts`
+Tests: `tests/security/restore/backup-restore.test.ts`, `tests/security/configuration/configuration-import.test.ts`
 (the schema cases were verified to fail with the check removed).
 
 ### SEC-004 Container hardening ✅
@@ -273,7 +273,7 @@ Tests: `packages/api/test/request-logging-api.test.ts` (7 of 10 fail with the mo
 
 ### SEC-010 Secret scrubbing test suite ✅
 
-`tests/security/secret-scrubbing.test.ts` (143 tests; 91 failed on the previous
+`tests/security/logging/secret-scrubbing.test.ts` (143 tests; 91 failed on the previous
 redaction). See [redaction](logging-audit.md#redaction).
 
 - [x] API keys, bearer tokens, cookies, passwords, provider credentials, SMTP credentials, session ids, setup tokens, OAuth tokens, private keys, JWTs, MCP credentials
@@ -298,26 +298,80 @@ See [backups](deployment.md#backups).
 - [x] Never in normal backup listings (`credentials/` subdirectory; `--list --credentials`); never pruned
 - [x] Restrictive permissions (0700 directories, re-applied when wider; 0600 files); doctor warns otherwise
 
-Tests: `tests/security/credential-backups.test.ts`, the SEC-011 doctor case in
+Tests: `tests/security/backup/credential-backups.test.ts`, the SEC-011 doctor case in
 `apps/server/test/recovery.test.ts`.
 
 ## Phase 4: Security testing
 
-- **SEC-012** ⬜ `tests/security/` with authentication, authorization, sessions,
-  csrf, api-keys, rate-limits, mcp, ssrf, backup, restore, logging, websocket,
-  provider and configuration.
+### SEC-012 Security regression suite ✅
+
+`tests/security/`, one folder per category (see its [README](../tests/security/README.md));
+`bun run test:security` runs it alone, `bun test` and CI run it with everything else.
+`suite.test.ts` fails when a category has no tests or a test sits outside a category.
+
+- [x] authentication/ (no username enumeration, lockout across addresses, disabled accounts, setup-token replay, passwords never stored or logged)
+- [x] authorization/ (the SEC-014 matrix)
+- [x] sessions/ (cookie attributes, fixation, replay after sign-out, idle and absolute expiry, revocation by the user, a password change and an administrator)
+- [x] csrf/ (cross-site, `null`, look-alike and other-port origins, `Sec-Fetch-Site`, the CSRF header, form encodings, no CORS preflights)
+- [x] api-keys/ (shown once, hashed, the prefix alone is useless; near-miss, revoked, expired and suspended keys; never a console credential; never in the URL)
+- [x] rate-limits/ (key guessing per address, one limit whatever header carries the key, `X-Forwarded-For` spoofing, sign-in throttling across addresses)
+- [x] mcp/ (moved from phase 1), ssrf/ (37 hostile URLs, rebinding, redirects, allowlisted metadata), backup/ and restore/ (moved), logging/ (moved), configuration/ (moved)
+- [x] websocket/ (SEC-015), provider/ (keys write-only and not sent to a new host; provider error text, auth failures and garbage not passed on)
+
+No vulnerabilities were found while writing these; every test passed against the existing code
+except where SEC-015 changed the behaviour.
 - **SEC-013** ⬜ Credential stuffing, brute force, username enumeration, session
   fixation and replay, expired and revoked sessions, disabled accounts,
   concurrent sessions, setup-token replay and brute force, password-reset abuse,
   two-factor bypass, recovery-code replay.
-- **SEC-014** ⬜ A machine-readable authorization matrix (routes × Administrator,
-  Operator, Viewer, API key, anonymous), tested automatically. (Today: the
-  authorization sweep in `packages/api/test/authorization-api.test.ts`.)
-- **SEC-015** ⬜ WebSocket: authentication, session expiry and revocation,
-  origin, message validation and size, connection limits, idle timeout,
-  reconnection storms, subscription authorization; tested with valid, expired,
-  revoked and invalid sessions, cross-origin, oversized and malformed frames,
-  rapid reconnects.
+### SEC-014 Authorization matrix testing ✅
+
+The matrix is `tests/security/authorization/matrix.json` (machine-readable) and
+[security/authorization-matrix.md](security/authorization-matrix.md) (readable): 127 routes ×
+anonymous, API key, API key with MCP access, Administrator, Operator, Viewer and signed in
+without a role. Both are generated from the router and the built-in roles by
+`bun run security:matrix`; committing them makes every change of who may call what a reviewed
+diff.
+
+- [x] Every route has an explicit policy (the router requires it; the test checks each is known, and pins the list of 9 public routes)
+- [x] Every role is tested, plus a user without a role (`matrix.test.ts` calls all 127 routes as all 7 principals over HTTP: refused cells must be refused by the access check with the right status, 401 or 403; allowed cells must pass it)
+- [x] Anonymous access is tested
+- [x] API-key access is tested (keys never reach `/api`, sessions never reach `/v1`, MCP only with MCP access, and `/v1/mcp` is a 404 for everyone while MCP is off)
+- [x] Regression tests run automatically (`bun test`, CI); the test fails when the committed matrix differs from the code
+
+Custom roles are not in the matrix: they get exactly the permissions they are given (tested in
+`packages/api/test/roles-api.test.ts`). The older sweep in
+`packages/api/test/authorization-api.test.ts` stays.
+### SEC-015 WebSocket security ✅
+
+See [real-time](realtime.md#security). Tests: `tests/security/websocket/websocket.test.ts`
+(a real Bun server, real frames and a raw TCP socket) and `packages/api/test/realtime.test.ts`.
+
+Audit:
+
+- [x] Authentication (a console session cookie only: API keys, forged and missing cookies are 401; the token is never sent back)
+- [x] Session expiration (re-checked every 30 s **and now at every client message**, so an expired session is closed at its next ping)
+- [x] Session revocation (sign-out, revocation, password change and a disabled user close the connection at once, 4401)
+- [x] Origin validation (exact host match; another site, `null`, missing, look-alike and other-port origins are 403)
+- [x] Message validation (**new**: the only client message is `{"type":"ping"}`; anything else closes with 1008, binary frames with 1003; before, unknown messages were ignored)
+- [x] Message-size limits (Bun refuses frames over 4 KB, 1009; the hub closes text over 1 KB, now counted in bytes, not characters)
+- [x] Connection limits (20 per user, 2,000 in total, 429), plus **new**: 20 messages per 10 s per connection (1008)
+- [x] Idle timeout (Bun pings after 120 s; **new**: a connection silent for three console heartbeats, 75 s, is closed with 4410)
+- [x] Reconnection storms (**new**: 30 upgrades per user per minute, then 429 with `Retry-After`; the console's backoff with jitter already spreads reconnects)
+- [x] Subscription authorization (clients cannot subscribe to anything; every event is filtered by the receiving user's permissions, re-read on role changes)
+
+Test:
+
+- [x] Valid session
+- [x] Expired session
+- [x] Revoked session
+- [x] Invalid session
+- [x] Cross-origin request
+- [x] Oversized message
+- [x] Malformed frame (unmasked, reserved bits, unknown opcode: the connection ends without an answer)
+- [x] Rapid reconnect
+
+Checked in Chromium: the console stays live through a minute of pings with the stricter protocol.
 
 ## Phase 5: Configuration security
 
