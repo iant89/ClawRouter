@@ -14,6 +14,26 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 
 ### Important
 
+- **IMPORTANT** · 2026-11-20 · Security phase 2: cost limits (SEC-005) and request limits (SEC-006)
+  Built on `claude/focused-mendel-0rcfij`, waiting for review. Both live in the rate-limit document
+  as `costLimits` and `requestLimits` (no new table; `PUT /api/rate-limits` keeps the current ones when
+  a client or an older export file leaves them out: keep that). Decisions made here (keep unless the
+  owner says otherwise): spending per **UTC calendar** hour/day/month read from `usage_records`
+  (cached 5 s, local charges added at once; migration 0027 adds the indexes); key/user/gateway over
+  budget → 429 `cost_limit_exceeded` with `Retry-After` to the reset; model/provider over budget →
+  skipped like a rate-limited model; `maxEstimatedCostPerRequest` leaves out models (400 when none is
+  left); **unpriced models cost nothing**; per-key cost limits are one value for every key (no
+  per-key override yet). Request limits answer 400 `request_limit` with `error.limit` naming it
+  (the Responses error renamer keeps that; a new front end must too); `maxOutputTokens` and
+  `maxTokensPerRequest` **lower** `max_tokens` rather than refuse; image dimensions are read from the
+  header and unreadable images refused; JSON depth is counted on the text before parsing; streams
+  end at `maxStreamSeconds` (default 3,600) as `STREAM_TIME_LIMIT`. Also fixed: streams that ended
+  early recorded no usage (a way around token limits, quotas and spending); they now record an
+  estimate (`fail(..., partial)` in `packages/gateway/src/service.ts`). `RequestHandle.finish` now
+  returns the cost. A new chat endpoint must go through `runChat` (or call `enforceChatLimits` and
+  `costExclusion`). Tests: `packages/api/test/cost-limits-api.test.ts`, `request-limits-api.test.ts`,
+  `packages/gateway/test/request-limits.test.ts`. Next: security phase 3 (SEC-009 to SEC-011).
+
 - **IMPORTANT** · 2026-11-19 · Owner's security roadmap; outbound network policy (SSRF) built
   The owner pasted a 51-item security hardening roadmap (SEC-001…SEC-051, in two messages; phases
   1–17 in order, then a final gate); it is tracked in `docs/security-roadmap.md`. Phase 1 built on
@@ -35,8 +55,8 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
   anything that changes the schema outside migrations would make every backup unrestorable. Security
   tests live in `tests/security/` (SEC-012/027). SEC-002: MCP audited; tool answers capped at 1 MB
   (`MCP_RESULT_LIMIT`), ids at 200 chars. Policy refusals are the `blocked` failure kind (never
-  retried). Full roadmap text: `docs/security-roadmap-full.md`. Phase 1 merged; next is phase 2 (SEC-005 cost limits,
-  SEC-006 request resource limits).
+  retried). Full roadmap text: `docs/security-roadmap-full.md`. Phase 1 merged; phase 2 (SEC-005 cost limits,
+  SEC-006 request resource limits) built 2026-11-20, see the entry above.
 
 - **IMPORTANT** · 2026-11-19 · Owner request: the playground can be turned off, and is a permission
   "Let's do both, that way it can be disabled entirely as well as limit who can use it." The
@@ -682,8 +702,15 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 
 ### Messages
 
+- **MESSAGE** · 2026-11-20 · Security phase 2 waits for review
+  `claude/focused-mendel-0rcfij`: cost limits and request resource limits (SEC-005, SEC-006),
+  migration 0027 (indexes only), Gateway → Rate Limits gets two cards, two dialogs and a spending
+  table. Upgrade note for the owner: structural request limits are **on by default** (25 MB body,
+  depth 64, 2,000 messages, 50 images, 8,192 px, one-hour streams); the token, concurrency and cost
+  limits are off until set. On "merge", fast-forward `main` to the branch.
+
 - **MESSAGE** · 2026-11-19 · Everything merged after the native Gemini adapter and OpenRouter
-  Nothing in ClawRouter waits for review. Old branches to delete on GitHub (the session cannot): every merged
+  Nothing else waits for review. Old branches to delete on GitHub (the session cannot): every merged
   `claude/*` branch (now including `claude/clawrouter-security-hardening-fm633m`, `claude/gemini-native`, `claude/openrouter-provider`, `claude/anthropic-messages`, `claude/license-agpl-1.0`, `claude/hopeful-maxwell-3xrz6m`, `claude/captures-live-groq`, `claude/client-notices`,
   `claude/announcement-emoji` and `claude/eui-shared-components`), the superseded `claude/mcp-server`
   and the stale `claude/groq-provider`; never merge those two (duplicate migration 0020 / older

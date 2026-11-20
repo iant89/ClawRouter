@@ -18,7 +18,7 @@ import { useState } from 'react';
 import {
   Button, Card, DescriptionList, MessageStrip, Page, RefreshControl, StatusIndicator, Table, Text, useToast, type TableColumn,
 } from '@enterprise-ui/react';
-import type { FieldIssue, RateLimitScope, RateLimitSettings, RateLimitUsageEntry } from '@clawrouter/shared';
+import type { CostLimit, CostSpendEntry, FieldIssue, RateLimitScope, RateLimitSettings, RateLimitUsageEntry, RequestLimits } from '@clawrouter/shared';
 import { usePolling } from '../../hooks/usePolling.ts';
 import { useResource } from '../../hooks/useResource.ts';
 import { useActivity, useLive, useRealtimeEvent } from '../realtime/RealtimeContext.tsx';
@@ -29,6 +29,26 @@ import { formatTokens } from '../../services/format.ts';
 import { usePermissions } from '../auth/AuthContext.tsx';
 import { describeLimit, usageLevel, usageRatio, windowShort, type UsageLevel } from './rate-limit-format.ts';
 import { RateLimitsDialog } from './RateLimitsDialog.tsx';
+import { CostLimitsDialog } from './CostLimitsDialog.tsx';
+import { REQUEST_LIMIT_GROUPS, RequestLimitsDialog } from './RequestLimitsDialog.tsx';
+
+type Editing = 'rates' | 'costs' | 'requests' | null;
+const SAVED: Record<Exclude<Editing, null>, string> = { rates: 'Rate limits saved', costs: 'Cost limits saved', requests: 'Request limits saved' };
+
+/** "$5.00 / h · $25.00 / day", or "No limit". */
+export function describeCost(c: CostLimit): string {
+  const parts = ([['hour', 'h'], ['day', 'day'], ['month', 'month']] as const).filter(([p]) => c[p] !== null).map(([p, w]) => `${usd(c[p]!)} / ${w}`);
+  return parts.length ? parts.join(' · ') : 'No limit';
+}
+const usd = (n: number) => `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: n < 1 && n > 0 ? 4 : 2 })}`;
+
+/** "12,000", "1 MB", "No limit". */
+function describeRequestLimit(key: keyof RequestLimits, v: number | null, unit?: string): string {
+  if (v === null) return 'No limit';
+  if (unit === 'bytes') return v >= 1024 * 1024 ? `${Math.round((v / 1024 / 1024) * 100) / 100} MB` : `${Math.round((v / 1024) * 100) / 100} KB`;
+  if (key === 'maxStreamSeconds') return v % 60 === 0 ? `${v / 60} min` : `${v} s`;
+  return `${v.toLocaleString('en-US')}${unit && unit !== 'levels' ? ` ${unit}` : ''}`;
+}
 
 export const USAGE_POLL_MS = 5_000;
 
@@ -54,7 +74,7 @@ export function RateLimitsPage() {
   useActivity(() => void usage.refresh(), 2000);
   useRealtimeEvent('ratelimits.changed', reload, 500);
   const { data: models } = useResource(async (signal) => (canModels ? (await fetchModels({ page: 1, pageSize: 200 }, signal)).items : []));
-  const [editing, setEditing] = useState(false);
+  const [editing, setEditing] = useState<Editing>(null);
   const [saving, setSaving] = useState(false);
   const [serverIssues, setServerIssues] = useState<FieldIssue[]>([]);
   const [serverError, setServerError] = useState<string | null>(null);
@@ -64,15 +84,15 @@ export function RateLimitsPage() {
     setSaving(true);
     try {
       await saveRateLimits({ ...settings, version: config.version });
-      toast.show({ tone: 'success', title: 'Rate limits saved', description: 'They apply to the next request.' });
-      setEditing(false);
+      toast.show({ tone: 'success', title: SAVED[editing ?? 'rates'], description: 'They apply to the next request.' });
+      setEditing(null);
       setServerIssues([]);
       setServerError(null);
       reload();
     } catch (err) {
       if (err instanceof ApiClientError && err.status === 409) {
         toast.show({ tone: 'warning', duration: 10_000, title: 'The rate limits were changed by someone else', description: 'The latest version has been loaded. Apply your change again.' });
-        setEditing(false);
+        setEditing(null);
         reload();
       } else if (err instanceof ApiClientError && err.issues.length) {
         setServerIssues(err.issues);
@@ -84,6 +104,28 @@ export function RateLimitsPage() {
       setSaving(false);
     }
   };
+  const open = (which: Exclude<Editing, null>) => {
+    setServerIssues([]);
+    setServerError(null);
+    setEditing(which);
+  };
+
+  const spendColumns: TableColumn<CostSpendEntry>[] = [
+    { id: 'scope', header: 'Applies to', accessor: (e) => SCOPE_LABEL[e.scope] },
+    { id: 'label', header: 'Name', rowHeader: true, wrap: true, accessor: 'label', cell: (e) => <span className={e.scope === 'global' ? undefined : 'claw-mono'}>{e.label}</span> },
+    ...(['hour', 'day', 'month'] as const).map((p): TableColumn<CostSpendEntry> => ({
+      id: p, header: p === 'hour' ? 'This hour' : p === 'day' ? 'Today' : 'This month', align: 'end', accessor: (e) => e.spent[p],
+      cell: (e) => <span className="claw-mono">{usd(e.spent[p])}{e.limit[p] !== null ? ` / ${usd(e.limit[p]!)}` : ''}</span>,
+    })),
+    {
+      id: 'status', header: 'Status', accessor: (e) => Math.max(...(['hour', 'day', 'month'] as const).map((p) => (e.limit[p] ? e.spent[p] / e.limit[p]! : -1))),
+      cell: (e) => {
+        const ratios = (['hour', 'day', 'month'] as const).filter((p) => e.limit[p] !== null).map((p) => e.spent[p] / e.limit[p]!);
+        const level = LEVEL[ratios.length ? usageLevel(Math.max(...ratios)) : 'unlimited'];
+        return <StatusIndicator tone={level.tone} size="sm">{level.label}</StatusIndicator>;
+      },
+    },
+  ];
 
   const columns: TableColumn<RateLimitUsageEntry>[] = [
     { id: 'scope', header: 'Applies to', accessor: (e) => SCOPE_LABEL[e.scope] },
@@ -124,7 +166,7 @@ export function RateLimitsPage() {
       actions={
         <>
           <RefreshControl onRefresh={() => { reload(); void usage.refresh(); }} refreshing={loading} lastUpdated={usage.lastUpdated ?? lastUpdated} intervals={[]} />
-          {canWrite && <Button variant="primary" icon="edit" disabled={!config} onClick={() => { setServerIssues([]); setServerError(null); setEditing(true); }}>Edit limits</Button>}
+          {canWrite && <Button variant="primary" icon="edit" disabled={!config} onClick={() => open('rates')}>Edit rate limits</Button>}
         </>
       }
     >
@@ -149,6 +191,39 @@ export function RateLimitsPage() {
         />
       </Card>
 
+      <Card title="Cost limits" subtitle="Spending per UTC hour, day and month" headingLevel={2}
+        headerActions={canWrite ? <Button size="sm" variant="secondary" icon="edit" disabled={!config} onClick={() => open('costs')}>Edit cost limits</Button> : undefined}>
+        <DescriptionList
+          columns={3}
+          items={config ? [
+            { term: 'Per API key', description: describeCost(config.costLimits.perKey) },
+            { term: 'Per user (all their keys)', description: describeCost(config.costLimits.perUser) },
+            { term: 'Whole gateway', description: describeCost(config.costLimits.global) },
+            { term: 'Per model', description: config.costLimits.perModel.length ? config.costLimits.perModel.map((m) => `${m.model}: ${describeCost(m)}`).join('; ') : 'None' },
+            { term: 'Per provider', description: config.costLimits.perProvider.length ? config.costLimits.perProvider.map((p) => `${p.provider}: ${describeCost(p)}`).join('; ') : 'None' },
+            { term: 'Estimated cost per request', description: config.costLimits.maxEstimatedCostPerRequest !== null ? `At most ${usd(config.costLimits.maxEstimatedCostPerRequest)}` : 'No limit' },
+          ] : []}
+        />
+      </Card>
+
+      {u && u.spending.length > 0 && (
+        <Table
+          caption="Spending (UTC periods, from the usage records)"
+          columns={spendColumns}
+          data={u.spending}
+          getRowId={(e) => `${e.scope}:${e.label}`}
+          getRowLabel={(e) => `${SCOPE_LABEL[e.scope]} ${e.label}`}
+        />
+      )}
+
+      <Card title="Request limits" subtitle="Size, structure, tokens and streams of each /v1 request" headingLevel={2}
+        headerActions={canWrite ? <Button size="sm" variant="secondary" icon="edit" disabled={!config} onClick={() => open('requests')}>Edit request limits</Button> : undefined}>
+        <DescriptionList
+          columns={3}
+          items={config ? REQUEST_LIMIT_GROUPS.flatMap((g) => g.fields).map((f) => ({ term: f.label, description: describeRequestLimit(f.key, config.requestLimits[f.key], f.unit) })) : []}
+        />
+      </Card>
+
       <Table
         caption={u ? `Current usage · ${u.rejectedLastMinute} refused in the last minute, ${u.rejectedTotal} since the server started` : 'Current usage'}
         columns={columns}
@@ -161,8 +236,12 @@ export function RateLimitsPage() {
       {usage.error && <MessageStrip tone="error" title="Cannot load current usage">{usage.error.message}</MessageStrip>}
       <Text size="sm" tone="secondary">Counters are kept in memory and start again from zero when the server restarts. {live ? 'Updates live.' : 'Refreshes every 5 seconds.'}</Text>
 
-      <RateLimitsDialog open={editing} value={config ? settingsOf(config) : null} models={models ?? []} onClose={() => setEditing(false)} onSave={save}
+      <RateLimitsDialog open={editing === 'rates'} value={config ? settingsOf(config) : null} models={models ?? []} onClose={() => setEditing(null)} onSave={save}
         saving={saving} serverIssues={serverIssues} serverError={serverError} />
+      <CostLimitsDialog open={editing === 'costs'} value={config?.costLimits ?? null} models={models ?? []} onClose={() => setEditing(null)}
+        onSave={(costLimits) => config && void save({ ...settingsOf(config), costLimits })} saving={saving} serverIssues={serverIssues} serverError={serverError} />
+      <RequestLimitsDialog open={editing === 'requests'} value={config?.requestLimits ?? null} onClose={() => setEditing(null)}
+        onSave={(requestLimits) => config && void save({ ...settingsOf(config), requestLimits })} saving={saving} serverIssues={serverIssues} serverError={serverError} />
     </Page>
   );
 }

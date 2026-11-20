@@ -147,15 +147,87 @@ OpenAI SDKs retry 429s automatically, honouring `Retry-After`. A refused request
 does not count against any limit, and is not counted as a gateway request or
 error; it shows in the dashboard's **Refused by rate limits** tile.
 
+## Cost limits (SEC-005)
+
+Spending limits in US dollars, per **calendar hour, day and month in UTC**, on
+the Rate Limits page (**Edit cost limits**) and in the `costLimits` section of
+the rate-limit document:
+
+| Scope | Applies to | When reached |
+| --- | --- | --- |
+| `perKey` | every API key on its own | 429 `cost_limit_exceeded` until the period resets |
+| `perUser` | all keys of one user together | 429, same |
+| `global` | the whole gateway | 429, same |
+| `perModel` | one model reference | the model is skipped (fail over); 429 when no model is left |
+| `perProvider` | all models of one provider identifier | the provider's models are skipped; 429 when none is left |
+| `maxEstimatedCostPerRequest` | one request | a model on which it could cost more is left out; 400 `request_limit` when none is left |
+
+- **Spend** is read from the stored hourly usage records (`usage_records.cost_usd`:
+  the provider's reported cost, or the model's prices × tokens), so it survives
+  restarts and every node sharing the database sees it. Totals are cached for 5 s;
+  what a process charges is added to its cache at once. Migration
+  `0027_cost_limit_indexes` adds the indexes these sums use.
+- **Unpriced models cost nothing** here: give models prices (or use a provider
+  that reports cost) for cost limits to mean anything.
+- **Estimated cost per request** = the prompt (about four characters per token,
+  tool definitions included) at the input price, plus `max_tokens` (after the
+  request limits below; the model's maximum output when there is none) at the
+  output price. It bounds how far one request can go past a period limit.
+- Like quotas and token limits, a request is charged **when it ends**: requests
+  running at the same moment can together pass a limit.
+- A stream that ends early (client gone, provider broke, time limit) is charged
+  its **estimated** usage, so cancelling a stream is not a way around token or
+  cost limits.
+- The 429 says what was reached and when it resets, e.g. *"Spending limit reached
+  for this API key: $5.02 of $5.00 this hour (UTC). It resets at
+  2026-11-19T11:00:00.000Z."*, with `Retry-After` until then and
+  `error.code: "cost_limit_exceeded"`. The `ratelimit.exceeded` event has
+  `kind: "cost"`.
+- `GET /api/rate-limits/usage` adds `spending`: the gateway's spend this hour, day
+  and month, and each model and provider with a cost limit (shown on the page).
+- Not yet: cost limits on one particular key (only the default for every key),
+  and spending of each key and user in the console (the Usage page has it).
+
+## Request limits (SEC-006)
+
+Checked on the normalized request, so Chat Completions, Responses, Messages
+(and `count_tokens`) are limited the same way, before anything reaches a
+provider. Every refusal is a **400** with `error.code: "request_limit"` and the
+limit's name in `error.limit` (the Messages API carries the sentence only).
+**Edit request limits** on the Rate Limits page; `requestLimits` in the document.
+
+| Limit | Default | What happens |
+| --- | --- | --- |
+| `maxRequestBytes` | 25 MB | body refused while it is received (never read in full) |
+| `maxJsonDepth` | 64 | counted on the text before parsing |
+| `maxMessages` | 2,000 | |
+| `maxContentParts` | 10,000 | text, image, audio, file parts; a plain message counts as one |
+| `maxToolDefinitions` | 128 | |
+| `maxToolSchemaBytes` | 1 MB | all tool definitions as JSON |
+| `maxImages` | 50 | inline images and image links |
+| `maxImageBytes` | 15 MB | each inline image, decoded |
+| `maxImageDimension` | 8,192 px | read from the PNG/JPEG/GIF/WebP header; an unreadable header is refused |
+| `maxInputTokens` | none | estimated input; embeddings too |
+| `maxOutputTokens` | none | a larger `max_tokens` is **lowered**, a missing one **set** (nothing refused) |
+| `maxTokensPerRequest` | none | `max_tokens` lowered to what the input leaves; refused when the input alone fills it |
+| `maxConcurrentPerKey` | none | 429 while that many requests (streams until they end) are in progress |
+| `maxConcurrentPerUser` | none | the same for all keys of a user |
+| `maxStreamSeconds` | 3,600 | the stream ends with the format's error event, the provider call is aborted, the request is recorded `STREAM_TIME_LIMIT` |
+
+Image links are not downloaded by ClawRouter, so only their number is limited.
+Hard ceilings in the parsers stay (e.g. 128 tools, 50 media items, 10,000 messages).
+
 ## Order of checks
 
 1. Address blocked for invalid keys? (before the key is looked up)
-2. Concurrency slot (gateway).
-3. The key owner's usage quota.
-4. Token budgets (key, user, gateway), then request limits, then burst buckets (key, user, gateway).
+2. Request limits: size and depth while reading the body, structure and tokens after parsing.
+3. Routing plan: models the key may not use, or on which the request could cost more than `maxEstimatedCostPerRequest`, are left out.
+4. The key owner's usage quota.
+5. Cost limits (key, user, gateway), then concurrency slots (key, user, gateway).
+6. Token budgets (key, user, gateway), then request limits, then burst buckets (key, user, gateway).
    The request is counted in every scope only when all of them allow it.
-5. Routing; then, per attempt, the model's limits.
-6. After the response: tokens charged to key, user, gateway and model.
+7. Per attempt: the model's and its provider's cost limits, then the model's rate limits (skipped, not refused).
+8. After the response: tokens charged to key, user, gateway and model; cost to every cost scope.
 
 ## Algorithm and storage
 
@@ -177,7 +249,7 @@ error; it shows in the dashboard's **Refused by rate limits** tile.
 
 ## Administration
 
-- **Gateway → Rate Limits**: the limits, an **Edit limits** dialog, and live usage
+- **Gateway → Rate Limits**: the limits, an **Edit rate limits** dialog, **Edit cost limits** and **Edit request limits**, current spending, and live usage
   per gateway, key, user, model and address (refreshes every 5 s), with "Within
   limit / Near limit (80%) / At limit / Blocked".
 - API: `GET /api/rate-limits`, `PUT /api/rate-limits` (whole document with the
@@ -195,4 +267,4 @@ error; it shows in the dashboard's **Refused by rate limits** tile.
 
 - Counters and buckets are per process (fine for one node); a shared store is future work.
 - No notification when a limit is hit repeatedly (events exist; alerts are a later phase).
-- Per-provider limits: use per-model limits on that provider's models.
+- Per-provider request and token limits: use per-model limits on that provider's models (per-provider **cost** limits exist).

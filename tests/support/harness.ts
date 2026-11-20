@@ -194,6 +194,7 @@ export function createHarness(options: { idleMinutes?: number; maxHours?: number
     store: createSqliteRateLimitConfigStore(db), counters: new MemoryCounterStore(() => clock.now().getTime()), audit, events, log, now: clock.now,
     knownModels: () => models.listAll().map((m) => m.ref), directory: apiKeys,
     spend: (scope, subject, fromHour) => requests.spendSince(scope, subject, fromHour),
+    providerIdOf: (identifier) => providers.list().find((p) => p.identifier.toLowerCase() === identifier.toLowerCase())?.id ?? null,
   });
   const requests = createRequestLogService({
     repo: createSqliteRequestRepository(db), models, log, now: clock.now,

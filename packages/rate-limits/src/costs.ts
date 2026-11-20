@@ -151,6 +151,11 @@ export function createCostLimiter(options: {
       }
     },
 
+    /** Spending in the current period, for the console (cached like the checks). */
+    spentNow(scope: SpendScope, subject: string, period: CostPeriod): number {
+      return spent(scope, subject, period, options.now().getTime());
+    },
+
     /** Forgets cached totals (tests, and after the limits change). */
     reset() {
       cache.clear();

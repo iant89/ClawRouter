@@ -19,12 +19,12 @@ import type { AuditService } from '@clawrouter/audit';
 import {
   NO_RATE_LIMIT, RATE_WINDOW_MS,
   type PutRateLimitsRequest, type RateLimit, type RateLimitConfig, type RateLimitConfigView, type RateLimitScope, type RateLimitUsage,
-  type RateLimitUsageEntry, type RateWindow, type RequestLimits, type TokenBucket,
+  type CostSpendEntry, type RateLimitUsageEntry, type RateWindow, type RequestLimits, type TokenBucket,
 } from '@clawrouter/shared';
 import type { RateLimitConfigStore } from './config-store.ts';
 import { diffSettings, normalizeSettings, upgradeSettings, validateRateLimits } from './config.ts';
 import type { BucketSpec, CounterStore } from './counters.ts';
-import { createCostLimiter, describeCostDenial, type CostDenial, type SpendSource, type SpendTarget } from './costs.ts';
+import { createCostLimiter, describeCostDenial, type CostDenial, type SpendScope, type SpendSource, type SpendTarget } from './costs.ts';
 
 /** The invalid-key limit per address is always per minute. */
 const IP_WINDOW_MS = 60_000;
@@ -121,6 +121,8 @@ export function createRateLimitService(options: {
   directory?: SubjectDirectory;
   /** Recorded spending, for cost limits. Without it no cost limit refuses anything. */
   spend?: SpendSource;
+  /** Provider id for an identifier (the spending view of provider cost limits). */
+  providerIdOf?: (identifier: string) => string | null;
   events?: EventBus;
   log?: Logger;
   now?: () => Date;
@@ -424,7 +426,21 @@ export function createRateLimitService(options: {
         .filter((e) => e.scope === 'global' || e.requests > 0 || e.tokens > 0 || (e.bucketAvailable !== undefined && e.bucketAvailable < e.limit.bucket!.capacity))
         .sort((a, b) => order.indexOf(a.scope) - order.indexOf(b.scope) || b.requests - a.requests);
       const r = this.rejections();
-      return { entries: list, rejectedLastMinute: r.lastMinute, rejectedTotal: r.total };
+      // Spending (SEC-005): the whole gateway, and each model and provider with a cost limit.
+      const spending: CostSpendEntry[] = [];
+      if (costs) {
+        const periods = (scope: SpendScope, subject: string) => ({
+          hour: costs.spentNow(scope, subject, 'hour'), day: costs.spentNow(scope, subject, 'day'), month: costs.spentNow(scope, subject, 'month'),
+        });
+        const cl = c.costLimits;
+        spending.push({ scope: 'global', label: 'All requests', spent: periods('global', 'global'), limit: cl.global });
+        for (const m of cl.perModel) spending.push({ scope: 'model', label: m.model, spent: periods('model', m.model), limit: { hour: m.hour, day: m.day, month: m.month } });
+        for (const p of cl.perProvider) {
+          const id = options.providerIdOf?.(p.provider) ?? null;
+          spending.push({ scope: 'provider', label: p.provider, spent: id ? periods('provider', id) : { hour: 0, day: 0, month: 0 }, limit: { hour: p.hour, day: p.day, month: p.month } });
+        }
+      }
+      return { entries: list, rejectedLastMinute: r.lastMinute, rejectedTotal: r.total, spending };
     },
   };
 }

@@ -15,7 +15,7 @@
  */
 
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from 'bun:test';
-import type { ApiSuccess, CostLimits, CreatedApiKey, PutRateLimitsRequest, RateLimitConfigView, RequestLimits } from '@clawrouter/shared';
+import type { ApiSuccess, CostLimits, CreatedApiKey, PutRateLimitsRequest, RateLimitConfigView, RateLimitUsage, RequestLimits } from '@clawrouter/shared';
 import { DEFAULT_COST_LIMITS } from '@clawrouter/shared';
 import { createHarness, type Harness } from '../../../tests/support/harness.ts';
 import { startMockProviders, type MockProviders } from '../../../tests/support/mock-providers.ts';
@@ -187,6 +187,12 @@ describe('spending limits per model and provider', () => {
     const refused = await chat(h, key.secret, priced);
     expect(refused.status).toBe(429);
     expect((await json<OpenAiError>(refused)).error.message).toContain('this provider: $1.10 of $1.00 today');
+    // The usage view shows what was spent against each cost limit.
+    const usage = await data<RateLimitUsage>(await h.request('/api/rate-limits/usage', { cookie: admin }));
+    expect(usage.spending).toEqual([
+      { scope: 'global', label: 'All requests', spent: { hour: 1.1, day: 1.1, month: 1.1 }, limit: { hour: null, day: null, month: null } },
+      { scope: 'provider', label: 'openai', spent: { hour: 1.1, day: 1.1, month: 1.1 }, limit: { hour: null, day: 1, month: null } },
+    ]);
   });
 });
 

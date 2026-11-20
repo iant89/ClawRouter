@@ -264,5 +264,16 @@ export interface RateLimitUsage {
   /** Requests refused with 429 in the last minute and since the server started. */
   rejectedLastMinute: number;
   rejectedTotal: number;
+  /** The whole gateway, and each model and provider with a cost limit. Empty without recorded usage. */
+  spending: CostSpendEntry[];
 }
 
+
+/** Money spent in the current UTC hour, day and month against a cost limit (GET /api/rate-limits/usage). */
+export interface CostSpendEntry {
+  scope: 'model' | 'provider' | 'global';
+  /** Model reference, provider identifier, or "All requests". */
+  label: string;
+  spent: { hour: number; day: number; month: number };
+  limit: CostLimit;
+}

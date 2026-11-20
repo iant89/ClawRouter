@@ -16,8 +16,8 @@ tracking copy with status, findings and decisions.
 | SEC-002 | MCP security audit | Critical | ✅ |
 | SEC-003 | Backup / restore security audit | Critical | ✅ |
 | SEC-004 | Container hardening | Critical | ✅ |
-| SEC-005 | Cost-based rate limiting | High | ⬜ |
-| SEC-006 | Request resource limits | High | ⬜ |
+| SEC-005 | Cost-based rate limiting | High | ✅ (not per individual key) |
+| SEC-006 | Request resource limits | High | ✅ |
 | SEC-007 | Provider TLS enforcement | High | ✅ |
 | SEC-008 | DNS rebinding protection | High | ✅ |
 | SEC-009 | Request-data minimization (NONE / METADATA / FULL) | High | ⬜ |
@@ -75,7 +75,7 @@ controls.
 A release may be called "security hardened" only when all of these are done:
 SEC-001 to SEC-012, SEC-014, SEC-015, SEC-017 to SEC-021, SEC-024 to SEC-029,
 SEC-032, SEC-033, SEC-035 to SEC-043, and SEC-047 to SEC-051. (Not in the gate:
-SEC-013, 016, 022, 023, 030, 031, 034, 044 to 046.) Status: 6 of 41.
+SEC-013, 016, 022, 023, 030, 031, 034, 044 to 046.) Status: 8 of 41.
 
 ## Phase 1: Network security boundary
 
@@ -196,19 +196,45 @@ Tests: `tests/security/backup-restore.test.ts`, `tests/security/configuration-im
 
 ## Phase 2: AI gateway abuse protection
 
-### SEC-005 Cost-based rate limiting ⬜
+### SEC-005 Cost-based rate limiting ✅
 
-Cost limits per API key, user, model and provider; per hour, day and month:
-`maxTokensPerRequest`, `maxEstimatedCostPerRequest`, `maxHourlyCost`,
-`maxDailyCost`, `maxMonthlyCost`, `maxConcurrentRequests`, `maxStreamingDuration`.
-(Request and token windows and user quotas exist: [rate limits](rate-limits.md).)
+Built 2026-11-20; see [cost limits](rate-limits.md#cost-limits-sec-005). Stored in
+the rate-limit document (`costLimits`, `requestLimits`), edited on Gateway → Rate
+Limits, exported and imported with the configuration, audited as
+`RATE_LIMITS_UPDATED`.
 
-### SEC-006 Request resource limits ⬜
+- [x] Per API key, per user, per model, per provider (and the whole gateway)
+- [x] Per hour, per day, per month (UTC calendar periods, from the stored usage records)
+- [x] `maxHourlyCost`, `maxDailyCost`, `maxMonthlyCost` (`hour`, `day`, `month` of each scope)
+- [x] `maxEstimatedCostPerRequest` (models on which a request could cost more are not used)
+- [x] `maxTokensPerRequest` (input estimate + output; `max_tokens` lowered to fit)
+- [x] `maxConcurrentRequests` per key and per user (the gateway-wide one already existed)
+- [x] `maxStreamingDuration` (`maxStreamSeconds`, shared with SEC-006)
+- [ ] Limits for one particular key (the per-key values apply to every key; a key's own request-rate limit exists)
 
-Beyond the byte limit: JSON depth, messages, content parts, tool definitions,
-tool schema bytes, images, image bytes and dimensions, input and output tokens,
-stream duration.
+Found while building it and fixed: a stream that ended early (client cancelled,
+provider broke) recorded **no usage**, so cancelling a stream after reading the
+answer bypassed token limits, quotas and spending. It is now charged its
+estimated usage.
 
+Tests: `packages/api/test/cost-limits-api.test.ts` (verified to fail with the
+check disabled), `packages/gateway/test/request-limits.test.ts`.
+
+### SEC-006 Request resource limits ✅
+
+Built 2026-11-20; see [request limits](rate-limits.md#request-limits-sec-006).
+Every refusal is a 400 with `error.code: "request_limit"` and `error.limit`.
+
+- [x] `maxRequestBytes` (configurable; the body is refused while it streams in)
+- [x] `maxJSONDepth` (`maxJsonDepth`, counted on the text before parsing)
+- [x] `maxMessages`, `maxContentParts`
+- [x] `maxToolDefinitions`, `maxToolSchemaBytes`
+- [x] `maxImages`, `maxImageBytes`, `maxImageDimensions` (`maxImageDimension`, read from the image header; unreadable headers refused)
+- [x] `maxInputTokens` (estimated), `maxOutputTokens` (lowers or sets `max_tokens`)
+- [x] `maxStreamDuration` (`maxStreamSeconds`, default one hour)
+
+Tests: `packages/api/test/request-limits-api.test.ts` (Chat Completions,
+Responses, Messages, embeddings; verified to fail with the checks disabled).
 ### SEC-007 Provider TLS enforcement ✅
 
 - [x] HTTPS required by default; plain HTTP provider URLs rejected by default

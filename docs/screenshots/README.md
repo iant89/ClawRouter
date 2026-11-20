@@ -607,3 +607,16 @@ Captured 2026-11-19. The "Support" custom role was created on the previous versi
 | ![Setting](39-playground-switch/01-setting.png) | Settings → API keys and quotas → Playground |
 | ![Permission](39-playground-switch/02-permission.png) | `playground.use` in the permission matrix, for every role including the custom one |
 | ![Off](39-playground-switch/03-off.png) | Switched off: no Playground in the menu; `/playground` opened directly says it has been disabled |
+
+## 40 · Cost limits and request limits (SEC-005, SEC-006)
+
+Captured 2026-11-20 on a scratch install. The spending figures come from usage records inserted by a
+script (no providers were configured), and the "anthropic" provider row shows $0.00 because no
+provider with that identifier existed.
+
+| Screenshot | Shows |
+| --- | --- |
+| ![Page](40-cost-request-limits/01-rate-limits-page.png) | Gateway → Rate Limits with the Cost limits card, current spending, and the Request limits card |
+| ![Cost limits](40-cost-request-limits/02-edit-cost-limits.png) | Edit cost limits: per key, user, gateway, per request, per model and provider |
+| ![Request limits](40-cost-request-limits/03-edit-request-limits.png) | Edit request limits, every field with its range and an "i" tip |
+| ![Phone](40-cost-request-limits/04-phone.png) | The page at phone width (no sideways scrolling) |
