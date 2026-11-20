@@ -26,7 +26,7 @@ Partly built items in later phases are marked "(groundwork: …)".
 | 15 Security hardening | ✅ |
 | 16 Performance | ✅ |
 | 17 Production | ✅ |
-| Security hardening ([security roadmap](security-roadmap.md), SEC-001…051) | 🟡 phases 1–4 done (SEC-001 to 012, 014, 015); next: phase 5 (SEC-016, 017) |
+| Security hardening ([security roadmap](security-roadmap.md), SEC-001…051) | 🟡 phases 1–5 done (SEC-001 to 012, 014 to 017); next: phase 6 (SEC-018 to 020) |
 
 ---
 

@@ -27,8 +27,8 @@ tracking copy with status, findings and decisions.
 | SEC-013 | Authentication attack testing | Medium | ⬜ |
 | SEC-014 | Authorization matrix testing | High | ✅ |
 | SEC-015 | WebSocket security | High | ✅ |
-| SEC-016 | Configuration security classification | Medium | ⬜ |
-| SEC-017 | Configuration import sandbox | High | ⬜ |
+| SEC-016 | Configuration security classification | Medium | ✅ |
+| SEC-017 | Configuration import sandbox | High | ✅ |
 | SEC-018 | Dependency security | Medium | ⬜ |
 | SEC-019 | Software bill of materials | Medium | ⬜ |
 | SEC-020 | Signed releases | Medium | ⬜ |
@@ -75,7 +75,7 @@ controls.
 A release may be called "security hardened" only when all of these are done:
 SEC-001 to SEC-012, SEC-014, SEC-015, SEC-017 to SEC-021, SEC-024 to SEC-029,
 SEC-032, SEC-033, SEC-035 to SEC-043, and SEC-047 to SEC-051. (Not in the gate:
-SEC-013, 016, 022, 023, 030, 031, 034, 044 to 046.) Status: 14 of 41.
+SEC-013, 016, 022, 023, 030, 031, 034, 044 to 046.) Status: 15 of 41.
 
 ## Phase 1: Network security boundary
 
@@ -375,14 +375,53 @@ Checked in Chromium: the console stays live through a minute of pings with the s
 
 ## Phase 5: Configuration security
 
-- **SEC-016** ⬜ Classify configuration values PUBLIC / SENSITIVE / SECRET /
-  SECURITY_CRITICAL; the last two never logged, never in the normal API, MCP,
-  errors or exports.
-- **SEC-017** ⬜ Imported configuration as untrusted input: schema, types,
-  ranges, URLs, paths, providers, rate limits, roles, permissions; reject
-  malformed input and unknown security-sensitive fields; no privilege
-  escalation, traversal or command execution. (Provider endpoints in imports
-  already pass the outbound policy, through the provider service.)
+- **SEC-016** ✅ Every configuration value has a class, in
+  `packages/shared/src/classification.ts`: environment variables
+  (`ENVIRONMENT_CLASSIFICATION`), console settings (`SETTING_CLASSIFICATION`, typed
+  so a new setting cannot be left out, and never SECRET), every field of the
+  configuration document (`CONFIGURATION_FIELD_CLASSIFICATION`, by path, longest
+  prefix wins) and stored values. SECRET = one credential (provider API keys, the
+  mail password, authenticator secrets); SECURITY_CRITICAL = protects everything
+  (the secret key, the setup token, the TLS private key). Both are never logged,
+  returned, sent through MCP, put in errors, exported or imported.
+  - [x] Never logged: every protected name is redacted by the logger (the test
+    checks it; `ciphertext` was added to the redacted names), and a real server
+    started with planted values never logs them, from startup on.
+  - [x] Never exposed through the normal API: every console `GET` route, called as
+    an Administrator on a server holding planted values, answers without them.
+  - [x] Never exposed through MCP: every tool, called with an MCP key.
+  - [x] Never in errors: invalid environment values, an unreadable secret key, a
+    refused provider key, mail password or import.
+  - [x] Never in exports: every field of an export must be classified and not
+    protected; the audit trail holds none either.
+  - Tests: `tests/security/configuration/classification.test.ts` (a new environment
+    variable, setting or export field fails it until classified).
+- **SEC-017** ✅ `packages/configuration/src/sandbox.ts`: an import is checked
+  as a whole before anything is applied, and refused as a whole (400 listing up to
+  100 problems) when anything is wrong. Before, the document's shape was barely
+  checked and each service validated its own part while applying, so a bad rate
+  limit could fail after the providers were already created.
+  - [x] Schema: every object has only known fields (unknown ones are **refused**,
+    not ignored); fields that hold secrets anywhere (`apiKey`, `password`) get
+    their own message; `__proto__` / `constructor` / `prototype` keys are refused.
+  - [x] Types, ranges, control characters, list sizes (1,000 providers, 100,000
+    models, 500 roles), duplicates within the file.
+  - [x] URLs: every provider endpoint against the URL rules and the outbound policy
+    (credentials, query strings, `file:` and metadata addresses refused up front).
+  - [x] Filesystem paths and commands: no field of the document is either, nothing
+    in an import is read, written or run; such fields are unknown and refused;
+    identifiers cannot carry `../`.
+  - [x] Providers (kind, identifier, priority 0–10,000 and timeout 1–600 s, which
+    imports previously skipped), models, rate limits (the service's validators),
+    routing (alias targets must exist here or in the file), settings, mail,
+    sign-in policy.
+  - [x] Roles and permissions: known permissions only, never all of them; changing
+    an existing role now also needs the permissions it holds today (the import used
+    to fail half-way at that point); built-in roles are never changed.
+  - The service's `plan` and `apply` run the sandbox themselves, so a caller that
+    skips the API gets it too. Mail is applied from its six fields only.
+  - Tests: `tests/security/configuration/configuration-import.test.ts`. The console
+    lists the problems (screenshot `docs/screenshots/42-configuration-security/`).
 
 ## Phase 6: Supply chain security
 
