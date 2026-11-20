@@ -15,7 +15,7 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 ### Important
 
 - **IMPORTANT** · 2026-11-20 · Security phase 2: cost limits (SEC-005) and request limits (SEC-006)
-  Built on `claude/focused-mendel-0rcfij`, waiting for review. Both live in the rate-limit document
+  Merged into `main` on 2026-11-20 (from `claude/focused-mendel-0rcfij`). Both live in the rate-limit document
   as `costLimits` and `requestLimits` (no new table; `PUT /api/rate-limits` keeps the current ones when
   a client or an older export file leaves them out: keep that). Decisions made here (keep unless the
   owner says otherwise): spending per **UTC calendar** hour/day/month read from `usage_records`
@@ -702,16 +702,9 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 
 ### Messages
 
-- **MESSAGE** · 2026-11-20 · Security phase 2 waits for review
-  `claude/focused-mendel-0rcfij`: cost limits and request resource limits (SEC-005, SEC-006),
-  migration 0027 (indexes only), Gateway → Rate Limits gets two cards, two dialogs and a spending
-  table. Upgrade note for the owner: structural request limits are **on by default** (25 MB body,
-  depth 64, 2,000 messages, 50 images, 8,192 px, one-hour streams); the token, concurrency and cost
-  limits are off until set. On "merge", fast-forward `main` to the branch.
-
 - **MESSAGE** · 2026-11-19 · Everything merged after the native Gemini adapter and OpenRouter
-  Nothing else waits for review. Old branches to delete on GitHub (the session cannot): every merged
-  `claude/*` branch (now including `claude/clawrouter-security-hardening-fm633m`, `claude/gemini-native`, `claude/openrouter-provider`, `claude/anthropic-messages`, `claude/license-agpl-1.0`, `claude/hopeful-maxwell-3xrz6m`, `claude/captures-live-groq`, `claude/client-notices`,
+  Nothing in ClawRouter waits for review. Old branches to delete on GitHub (the session cannot): every merged
+  `claude/*` branch (now including `claude/clawrouter-security-hardening-fm633m`, `claude/focused-mendel-0rcfij`, `claude/gemini-native`, `claude/openrouter-provider`, `claude/anthropic-messages`, `claude/license-agpl-1.0`, `claude/hopeful-maxwell-3xrz6m`, `claude/captures-live-groq`, `claude/client-notices`,
   `claude/announcement-emoji` and `claude/eui-shared-components`), the superseded `claude/mcp-server`
   and the stale `claude/groq-provider`; never merge those two (duplicate migration 0020 / older
   Groq code). Still open: OpenAI and Anthropic live; multi-node shared state.
@@ -719,6 +712,11 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 ---
 
 ## Resolved
+
+- **MESSAGE** · 2026-11-20 · Security phase 2 waits for review. Resolved 2026-11-20: the owner said
+  "Merge"; `main` was fast-forwarded to `claude/focused-mendel-0rcfij` (this commit): cost limits and
+  request resource limits (SEC-005, SEC-006), migration 0027 (indexes only). Structural request
+  limits are on by default after the upgrade; token, concurrency and cost limits are off until set.
 
 - **MESSAGE** · 2026-11-19 · Security hardening phase 1 waits for review. Resolved 2026-11-19: the
   owner said "Review and merge phase 1" and asked for the entire roadmap in docs. The review found
