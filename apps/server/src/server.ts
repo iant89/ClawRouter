@@ -17,7 +17,7 @@
 import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import type { HTMLBundle, Server } from 'bun';
-import { createApiApp, createRealtimeHub, type ApiApp, type RealtimeHub, type SocketData } from '@clawrouter/api';
+import { createApiApp, createRealtimeHub, REALTIME_SOCKET_OPTIONS, type ApiApp, type RealtimeHub, type SocketData } from '@clawrouter/api';
 import { createAuditService, createSqliteAuditRepository, type AuditService } from '@clawrouter/audit';
 import {
   createArgon2Hasher, createAuthService, createOnboardingService, createPreferencesService, createSetupService, createSqliteSessionRepository, createSqliteUserRepository, createTwoFactorService, createUserAdminService,
@@ -365,9 +365,8 @@ export async function startClawRouter({ config, log, logBuffer, version, console
       open: (ws) => realtime.open(ws),
       message: (ws, message) => realtime.message(ws, message),
       close: (ws) => realtime.close(ws),
-      // Bun pings idle connections, so dead peers are noticed; clients also send pings.
-      idleTimeout: 120,
-      maxPayloadLength: 4096,
+      // SEC-015: Bun pings idle connections, so dead peers are noticed; frames over 4 KB are refused.
+      ...REALTIME_SOCKET_OPTIONS,
     },
     error(error) {
       log.error('unhandled server error', { component: 'server', error });

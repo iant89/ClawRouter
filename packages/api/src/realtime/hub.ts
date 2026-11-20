@@ -30,6 +30,11 @@ export interface SocketData {
   sessionId: string;
   token: string;
   permissions: Set<string>;
+  /** When the client last sent anything (ms); connections silent for three heartbeats are closed. */
+  lastSeen?: number;
+  /** Start of the current message-rate window (ms) and messages received in it. */
+  windowStart?: number;
+  messages?: number;
 }
 
 /** The part of Bun's ServerWebSocket the hub uses (fakes implement it in tests). */
@@ -60,12 +65,25 @@ export interface RealtimeOptions {
   sessionCheckMs?: number;
   /** How often coalesced gateway activity is sent. */
   activityMs?: number;
+  /** SEC-015: upgrades allowed per user per minute (reconnection storms). */
+  maxUpgradesPerMinute?: number;
+  /** SEC-015: client messages allowed per connection per 10 seconds (the console sends one ping per 25 s). */
+  maxMessagesPer10s?: number;
 }
+
+/**
+ * Bun's WebSocket settings for the live channel (SEC-015), used by the server and the tests:
+ * frames over 4 KB are refused by Bun before they reach the hub (close 1009), and Bun pings
+ * connections idle for 120 s and drops the ones that do not answer.
+ */
+export const REALTIME_SOCKET_OPTIONS = { idleTimeout: 120, maxPayloadLength: 4096, sendPings: true } as const;
 
 export type RealtimeHub = ReturnType<typeof createRealtimeHub>;
 
 const MAX_CLIENT_MESSAGE = 1024;
 const HEARTBEAT_MS = 25_000;
+/** Silence after which a connection is closed: three missed console pings. */
+const IDLE_MS = HEARTBEAT_MS * 3;
 /** Users with any of these see gateway activity. */
 const ACTIVITY_PERMISSIONS = ['requests.read', 'usage.read', 'rate_limits.read'];
 
@@ -88,7 +106,12 @@ export function createRealtimeHub(options: RealtimeOptions) {
   const maxPerUser = options.maxPerUser ?? 20;
   const maxTotal = options.maxTotal ?? 2000;
   const maxBuffered = options.maxBufferedBytes ?? 1024 * 1024;
+  const maxUpgrades = options.maxUpgradesPerMinute ?? 30;
+  const maxMessages = options.maxMessagesPer10s ?? 20;
   const sockets = new Set<RealtimeSocket>();
+  /** Recent upgrade times per user (ms), for the reconnection-storm limit. */
+  const upgrades = new Map<string, number[]>();
+  const ms = () => now().getTime();
   const unsubscribe: (() => void)[] = [];
   const timers: ReturnType<typeof setInterval>[] = [];
   let activity = { completed: 0, failed: 0, rateLimited: 0 };
@@ -212,6 +235,18 @@ export function createRealtimeHub(options: RealtimeOptions) {
       let mine = 0;
       for (const ws of sockets) if (ws.data.userId === resolved.user.id) mine += 1;
       if (mine >= maxPerUser || sockets.size >= maxTotal) return refuse(429, 'Too many open connections.');
+      // Reconnection storms: a client reconnecting in a loop is refused for the rest of the minute.
+      const t = ms();
+      const recent = (upgrades.get(resolved.user.id) ?? []).filter((at) => t - at < 60_000);
+      if (recent.length >= maxUpgrades) {
+        upgrades.set(resolved.user.id, recent);
+        log?.warn('realtime reconnecting too often; refused', { component: 'realtime', userId: resolved.user.id });
+        const res = refuse(429, 'Reconnecting too often. Try again in a minute.');
+        res.response.headers.set('retry-after', String(Math.max(1, Math.ceil((recent[0]! + 60_000 - t) / 1000))));
+        return res;
+      }
+      recent.push(t);
+      upgrades.set(resolved.user.id, recent);
       return {
         ok: true,
         data: {
@@ -222,20 +257,44 @@ export function createRealtimeHub(options: RealtimeOptions) {
     },
 
     open(ws: RealtimeSocket) {
+      ws.data.lastSeen = ms();
       sockets.add(ws);
       send(ws, hello(ws));
       log?.debug('realtime connection opened', { component: 'realtime', userId: ws.data.userId, connections: sockets.size });
     },
 
+    /**
+     * The protocol has one client message, `{"type":"ping"}` (SEC-015). Anything else closes the
+     * connection: binary frames (1003), more than 1 KB (1009), not that JSON (1008), or more than
+     * the allowed messages per 10 s (1008). Each message also re-checks the session, so a session
+     * that ended is noticed at the next ping rather than at the next periodic check.
+     */
     message(ws: RealtimeSocket, raw: string | Buffer) {
-      const text = typeof raw === 'string' ? raw : raw.toString('utf8');
-      if (text.length > MAX_CLIENT_MESSAGE) return close(ws, 1009, 'message too large');
-      try {
-        const msg = JSON.parse(text) as { type?: unknown };
-        if (msg.type === 'ping') send(ws, { type: 'pong' });
-      } catch {
-        // Clients only send pings; anything else is ignored.
+      if (!sockets.has(ws)) return;
+      const t = ms();
+      ws.data.lastSeen = t;
+      if (ws.data.windowStart === undefined || t - ws.data.windowStart >= 10_000) {
+        ws.data.windowStart = t;
+        ws.data.messages = 0;
       }
+      ws.data.messages = (ws.data.messages ?? 0) + 1;
+      if (ws.data.messages > maxMessages) {
+        log?.warn('realtime client sent too many messages; disconnecting', { component: 'realtime', userId: ws.data.userId });
+        return close(ws, REALTIME_CLOSE.POLICY_VIOLATION, 'too many messages');
+      }
+      if (typeof raw !== 'string') return close(ws, REALTIME_CLOSE.UNSUPPORTED_DATA, 'text messages only');
+      if (Buffer.byteLength(raw, 'utf8') > MAX_CLIENT_MESSAGE) return close(ws, REALTIME_CLOSE.TOO_LARGE, 'message too large');
+      let msg: unknown;
+      try {
+        msg = JSON.parse(raw);
+      } catch {
+        return close(ws, REALTIME_CLOSE.POLICY_VIOLATION, 'malformed message');
+      }
+      if (typeof msg !== 'object' || msg === null || Array.isArray(msg) || (msg as { type?: unknown }).type !== 'ping' || Object.keys(msg).length !== 1) {
+        return close(ws, REALTIME_CLOSE.POLICY_VIOLATION, 'unknown message');
+      }
+      if (!auth.resolve(ws.data.token, { touch: false })) return close(ws, REALTIME_CLOSE.SESSION_ENDED, 'session ended');
+      send(ws, { type: 'pong' });
     },
 
     close(ws: RealtimeSocket) {
@@ -262,9 +321,13 @@ export function createRealtimeHub(options: RealtimeOptions) {
 
     /** Closes connections whose session has ended (expired, revoked, user disabled). Not user activity. */
     checkSessions() {
+      const t = ms();
       for (const ws of [...sockets]) {
         if (!auth.resolve(ws.data.token, { touch: false })) close(ws, REALTIME_CLOSE.SESSION_ENDED, 'session ended');
+        else if (t - (ws.data.lastSeen ?? t) > IDLE_MS) close(ws, REALTIME_CLOSE.IDLE, 'idle');
       }
+      // Forget upgrade times older than the window.
+      for (const [userId, times] of upgrades) if (!times.some((at) => t - at < 60_000)) upgrades.delete(userId);
     },
 
     start() {
