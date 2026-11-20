@@ -15,7 +15,7 @@
  */
 
 import { afterAll, describe, expect, test } from 'bun:test';
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createAuditService, createSqliteAuditRepository } from '@clawrouter/audit';
@@ -25,7 +25,7 @@ import { migrations, openSqlite, runMigrations } from '@clawrouter/database';
 import type { ApiSuccess, TotpSetup, TwoFactorStatus } from '@clawrouter/shared';
 import { clearUnreadable, findUnreadable } from '../src/clear-credentials.ts';
 import { applyRepairs, plannedRepairs, runDoctor } from '../src/doctor.ts';
-import { listBackups } from '../src/backup.ts';
+import { createBackup, listBackups } from '../src/backup.ts';
 import { loadSecretBox } from '../src/secret-key.ts';
 import { startClawRouter } from '../src/server.ts';
 import { createHarness, fastHasher } from '../../../tests/support/harness.ts';
@@ -100,6 +100,28 @@ describe('doctor', () => {
     expect(closed.find((c) => c.area === 'outbound')).toMatchObject({ level: 'error', message: expect.stringContaining('local (127.0.0.1 is a loopback address'), fix: expect.stringContaining('CLAWROUTER_OUTBOUND_ALLOWLIST') });
     const open = await runDoctor(loadConfig({ CLAWROUTER_DATABASE_PATH: dbPath, CLAWROUTER_OUTBOUND_ALLOWLIST: '127.0.0.1, 0.0.0.0/0' }), newBox(), null);
     expect(open.filter((c) => c.area === 'outbound').map((c) => c.level).sort()).toEqual(['info', 'ok', 'warn']);
+  });
+
+  test('warns about the secret key among normal backups, and about an open credentials directory (SEC-011)', async () => {
+    const dir = join(root, 'credential-backups');
+    const dbPath = join(dir, 'clawrouter.db');
+    const box = newBox();
+    const db = openSqlite({ path: dbPath });
+    runMigrations(db, migrations);
+    const backupDir = join(dir, 'backups');
+    const { path } = await createBackup(db, { dir: backupDir, box, version: 't' });
+    await createBackup(db, { dir: backupDir, box, version: 't', includeSecretKey: 'k'.repeat(44), confirmSecretKey: true });
+    db.close();
+    const config = loadConfig({ CLAWROUTER_DATABASE_PATH: dbPath });
+    const backups = async () => (await runDoctor(config, box, null)).filter((c) => c.area === 'backups');
+    expect((await backups()).find((c) => c.message.includes('credential backup'))).toMatchObject({ level: 'info' });
+    chmodSync(join(backupDir, 'credentials'), 0o755);
+    expect((await backups()).find((c) => c.message.includes('credential backup'))).toMatchObject({ level: 'warn', message: expect.stringContaining('readable by other users') });
+    // A key left in a normal backup (as before SEC-011).
+    const manifestFile = join(path, 'manifest.json');
+    const manifest = JSON.parse(readFileSync(manifestFile, 'utf8'));
+    writeFileSync(manifestFile, JSON.stringify({ ...manifest, kind: undefined, secretKey: { ...manifest.secretKey, included: true } }));
+    expect((await backups()).find((c) => c.message.includes('contain the secret key'))).toMatchObject({ level: 'warn' });
   });
 
   test('a database from a newer version is an error', async () => {
