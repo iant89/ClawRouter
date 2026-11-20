@@ -17,7 +17,7 @@
 import { errors } from '@clawrouter/core';
 import type { RequestLogService } from '@clawrouter/requests';
 import {
-  REQUEST_STATUSES, USAGE_GROUPS, type RequestDetail, type RequestRecord, type RequestStatus, type UsageGroup, type UsageReport,
+  REQUEST_STATUSES, USAGE_GROUPS, type RequestContent, type RequestDetail, type RequestRecord, type RequestStatus, type UsageGroup, type UsageReport,
 } from '@clawrouter/shared';
 import type { Handler } from '../http/context.ts';
 import { ok } from '../http/responses.ts';
@@ -75,6 +75,11 @@ export function requestsController(requests: RequestLogService) {
     return ok<RequestDetail>(requests.get(ctx.params.id));
   };
 
+  const content: Handler = (ctx) => {
+    if (!ctx.params.id) throw errors.notFound();
+    return ok<RequestContent>(requests.content(ctx.params.id));
+  };
+
   const usage: Handler = (ctx) => {
     const url = ctx.url;
     return ok<UsageReport>(requests.usage({
@@ -85,5 +90,5 @@ export function requestsController(requests: RequestLogService) {
     }));
   };
 
-  return { list, get, usage };
+  return { list, get, content, usage };
 }

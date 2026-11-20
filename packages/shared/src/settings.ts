@@ -33,6 +33,15 @@ export const SETTING_DEFINITIONS = {
     group: 'Security', label: 'Failed sign-ins before blocking', unit: 'attempts', min: 3, max: 100, env: null,
     description: 'Failed sign-ins for one username within 15 minutes before that username is blocked for 15 minutes.',
   },
+  requestLogging: {
+    group: 'Request data', label: 'Request logging', unit: 'mode', min: 0, max: 2, env: 'CLAWROUTER_REQUEST_LOGGING', kind: 'choice',
+    options: [
+      { value: 0, label: 'None', description: 'No request history at all. Hourly usage totals are still kept: quotas, cost limits and the Usage page need them.' },
+      { value: 1, label: 'Metadata', description: 'Request id, time, API key and user, model, provider, status, latency, token counts and cost. Never what was said.' },
+      { value: 2, label: 'Full', description: 'Metadata plus the prompt, the reply, tool calls and attachment details (type and size, never the file). Stored in the database and backups.' },
+    ],
+    description: "What is kept of each gateway request (SEC-009). None: nothing per request. Metadata (the default): who, when, which model and provider, status, latency, tokens and cost. Full: also the prompt, the reply, tool calls and attachment details, readable by roles with requests.content. Full stores users' messages: tell them, and keep the request history short. Secret-shaped text (API keys, tokens) is removed before storing. Stored content is deleted with its request (request history retention), also after switching back.",
+  },
   requestRetentionDays: {
     group: 'Data retention', label: 'Request history', unit: 'days', min: 0, max: 3650, env: 'CLAWROUTER_REQUEST_RETENTION_DAYS',
     description: 'Gateway request records older than this are deleted. 0 keeps them forever.',
@@ -92,6 +101,19 @@ export const SETTING_KEYS = Object.keys(SETTING_DEFINITIONS) as SettingKey[];
 
 export const isSettingKey = (key: string): key is SettingKey => Object.hasOwn(SETTING_DEFINITIONS, key);
 
+/** One value of a choice setting. */
+export interface SettingOption {
+  value: number;
+  label: string;
+  description: string;
+}
+
+/** The request logging modes (SEC-009), by stored value. */
+export const REQUEST_LOGGING_MODES = ['NONE', 'METADATA', 'FULL'] as const;
+export type RequestLoggingMode = (typeof REQUEST_LOGGING_MODES)[number];
+/** The stored value of the requestLogging setting as a mode (unknown values read as METADATA). */
+export const requestLoggingMode = (value: number): RequestLoggingMode => REQUEST_LOGGING_MODES[value] ?? 'METADATA';
+
 /** GET /api/settings */
 export interface SettingInfo {
   key: SettingKey;
@@ -101,8 +123,10 @@ export interface SettingInfo {
   unit: string;
   min: number;
   max: number;
-  /** How the console shows it: a number, or a switch stored as 1 (on) or 0 (off). */
-  kind: 'number' | 'switch';
+  /** How the console shows it: a number, a switch stored as 1 (on) or 0 (off), or a choice among `options`. */
+  kind: 'number' | 'switch' | 'choice';
+  /** The values of a choice, in order. */
+  options?: readonly SettingOption[];
   /** Environment variable that sets the default, if any. */
   env: string | null;
   /** The value in effect. */

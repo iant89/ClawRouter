@@ -72,6 +72,8 @@ export interface Config {
     retentionDays: number;
     /** Days to keep hourly usage records (0 keeps them forever). */
     usageRetentionDays: number;
+    /** What is kept of each request (SEC-009): the default of the requestLogging setting. */
+    logging: 'none' | 'metadata' | 'full';
   };
   providers: {
     /** How often enabled providers are health-checked. 0 turns background checks off. */
@@ -189,6 +191,7 @@ export function loadConfig(env: Env = process.env): Config {
     requests: {
       retentionDays: int('CLAWROUTER_REQUEST_RETENTION_DAYS', 30, 0, 3650),
       usageRetentionDays: int('CLAWROUTER_USAGE_RETENTION_DAYS', 400, 0, 3650),
+      logging: oneOf('CLAWROUTER_REQUEST_LOGGING', ['none', 'metadata', 'full'] as const, 'metadata'),
     },
     providers: {
       healthIntervalSeconds: int('CLAWROUTER_PROVIDER_HEALTH_INTERVAL_SECONDS', 300, 0, 86_400),

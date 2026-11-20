@@ -17,7 +17,7 @@
 import { errors, type Logger } from '@clawrouter/core';
 import type { ModelService } from '@clawrouter/models';
 import type {
-  GatewayEndpoint, ModelCost, RequestAttempt, RequestDetail, RequestQuery, RequestRecord, RequestStatus, UsageBucket, UsageGroup, UsageReport,
+  GatewayEndpoint, ModelCost, RequestAttempt, RequestContent, RequestDetail, RequestLoggingMode, RequestQuery, RequestRecord, RequestStatus, UsageBucket, UsageGroup, UsageReport,
   UsageSource, UsageTotals,
 } from '@clawrouter/shared';
 import type { RequestRepository } from './repository.ts';
@@ -49,10 +49,14 @@ export interface RequestEnd {
   errorCode: string | null;
   errorMessage: string | null;
   usage: { inputTokens: number | null; outputTokens: number | null; source: UsageSource; costUsd?: number | null };
+  /** The prompt and reply: stored only when request logging is Full (the gateway collects it only then). */
+  content?: Omit<RequestContent, 'requestId' | 'storedAt'>;
 }
 
 /** A request being recorded. `finish` is idempotent: only the first call counts. */
 export interface RequestHandle {
+  /** True when this request's prompt and reply will be stored (request logging was Full when it began). */
+  readonly keepsContent: boolean;
   streaming(): void;
   /** Returns what the request cost in US dollars (reported or estimated), or null when unpriced. */
   finish(end: RequestEnd): number | null;
@@ -73,9 +77,11 @@ export type RequestLogService = ReturnType<typeof createRequestLogService>;
 
 /**
  * Request history and usage (spec §22, §23). The gateway reports each request's
- * start and end; this service stores metadata (never content), prices it with the
- * model's prices at that moment, and keeps hourly usage records that outlive the
- * request detail.
+ * start and end; this service prices it with the model's prices at that moment and
+ * keeps hourly usage records that outlive the request detail. What else is kept
+ * follows the request logging mode (SEC-009), read when each request begins:
+ * NONE keeps no request row (usage records only: quotas and cost limits need them),
+ * METADATA the row, FULL the row and the prompt and reply.
  */
 export function createRequestLogService(options: {
   repo: RequestRepository;
@@ -84,10 +90,13 @@ export function createRequestLogService(options: {
   now?: () => Date;
   /** Days to keep request rows and usage records (0 keeps forever). */
   retention?: { requestDays: number; usageDays: number };
+  /** The request logging mode, read when each request begins. METADATA when not given. */
+  mode?: () => RequestLoggingMode;
 }) {
   const { repo, models, log } = options;
   const now = options.now ?? (() => new Date());
   const retention = options.retention ?? { requestDays: 30, usageDays: 400 };
+  const mode = options.mode ?? (() => 'METADATA' as const);
 
   /** Recording must never break a gateway request: failures are logged and swallowed. */
   const safely = (what: string, fn: () => void) => {
@@ -101,11 +110,14 @@ export function createRequestLogService(options: {
   return {
     begin(start: RequestStart): RequestHandle {
       const receivedAt = now();
-      safely('insert', () => repo.insert({ ...start, receivedAt: receivedAt.toISOString(), status: 'EXECUTING' }));
+      const m = mode();
+      const keepsRow = m !== 'NONE';
+      if (keepsRow) safely('insert', () => repo.insert({ ...start, receivedAt: receivedAt.toISOString(), status: 'EXECUTING' }));
       let done = false;
       return {
+        keepsContent: m === 'FULL',
         streaming() {
-          if (!done) safely('status', () => repo.setStatus(start.id, 'STREAMING'));
+          if (!done && keepsRow) safely('status', () => repo.setStatus(start.id, 'STREAMING'));
         },
         finish(end) {
           if (done) return null;
@@ -119,7 +131,7 @@ export function createRequestLogService(options: {
           const costUsd = reportedCost ?? (counted ? estimateCost(model?.cost, input, output) : null);
           const at = now();
           safely('finish', () => {
-            repo.finish(start.id, {
+            if (keepsRow) repo.finish(start.id, {
               completedAt: at.toISOString(), status: end.status, httpStatus: end.httpStatus, modelRef: end.modelRef, providerId: end.providerId,
               durationMs: end.durationMs, attempts: end.attempts, retries: end.retries, failovers: end.failovers, attemptLog: end.attemptLog,
               errorCode: end.errorCode, errorMessage: end.errorMessage, inputTokens: end.usage.inputTokens, outputTokens: end.usage.outputTokens,
@@ -133,9 +145,22 @@ export function createRequestLogService(options: {
               costUsd: costUsd ?? 0, unpriced: counted && costUsd === null, durationMs: end.durationMs,
             });
           });
+          if (m === 'FULL' && end.content) safely('content', () => repo.storeContent(start.id, at.toISOString(), JSON.stringify(end.content)));
           return costUsd;
         },
       };
+    },
+
+    /** True when requests beginning now would have their prompt and reply stored. */
+    storesContent(): boolean {
+      return mode() === 'FULL';
+    },
+
+    /** The stored prompt and reply of a request (Full request logging). */
+    content(id: string): RequestContent {
+      const c = repo.getContent(id);
+      if (!c) throw errors.notFound('No prompt or reply is stored for this request: request logging was not Full, or it is older than the retention period.');
+      return c;
     },
 
     list(query: RequestQuery): { items: RequestRecord[]; total: number; page: number; pageSize: number } {

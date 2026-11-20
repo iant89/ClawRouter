@@ -25,7 +25,7 @@ import {
 } from '@clawrouter/authentication';
 import { createAuthorizationService, createSqliteRoleRepository, peopleDirectory, userAccessPolicy, type AuthorizationService } from '@clawrouter/authorization';
 import { AppError, clientAddress, createEventBus, parseTrustedProxies, type Config, type EventBus, type LogBuffer, type Logger } from '@clawrouter/core';
-import { REALTIME_PATH } from '@clawrouter/shared';
+import { REALTIME_PATH, requestLoggingMode } from '@clawrouter/shared';
 import { createConsoleAssets } from './console-assets.ts';
 import { createNotificationService, createSqliteNotificationRepository, type NotificationService } from '@clawrouter/notifications';
 import { createDefaultRegistry, createProviderService, createSqliteProviderRepository, type ProviderService } from '@clawrouter/providers';
@@ -155,7 +155,10 @@ export async function startClawRouter({ config, log, logBuffer, version, console
   const requests = createRequestLogService({
     repo: createSqliteRequestRepository(db), models, log,
     retention: { get requestDays() { return settings.get('requestRetentionDays'); }, get usageDays() { return settings.get('usageRetentionDays'); } },
+    // SEC-009: NONE, METADATA (default) or FULL, read when each request begins.
+    mode: () => requestLoggingMode(settings.get('requestLogging')),
   });
+  if (requests.storesContent()) log.warn("request logging is Full: prompts and replies are stored in the database (Settings → Data retention)", { component: 'requests' });
   // Requests a previous process left in progress can never finish.
   requests.recoverInterrupted();
   // Usage quotas per user, read from the stored hourly usage (they survive restarts).

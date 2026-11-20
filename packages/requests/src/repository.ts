@@ -16,7 +16,7 @@
 
 import type { Database, SqlParams } from '@clawrouter/database';
 import type {
-  GatewayEndpoint, RequestAttempt, RequestDetail, RequestQuery, RequestRecord, RequestStatus, UsageBreakdownRow, UsageGroup, UsageSource,
+  GatewayEndpoint, RequestAttempt, RequestContent, RequestDetail, RequestQuery, RequestRecord, RequestStatus, UsageBreakdownRow, UsageGroup, UsageSource,
   UsageTotals,
 } from '@clawrouter/shared';
 
@@ -81,6 +81,9 @@ export interface RequestRepository {
   setStatus(id: string, status: RequestStatus): void;
   finish(id: string, outcome: RequestOutcome): void;
   addUsage(u: UsageIncrement): void;
+  /** Full request logging (SEC-009): the prompt and reply of one request, as stored JSON. */
+  storeContent(id: string, storedAt: string, json: string): void;
+  getContent(id: string): RequestContent | undefined;
   /** One user's totals from the hour `fromHour` on (for usage quotas). */
   userUsageSince(userId: string, fromHour: string): { requests: number; tokens: number; costUsd: number };
   /** US dollars recorded from the hour `fromHour` on, for one key, user, model, provider or everything (cost limits). */
@@ -289,8 +292,23 @@ export function createSqliteRequestRepository(db: Database): RequestRepository {
     },
 
     get(id) {
-      const row = db.get<Row>(`${SELECT} WHERE r.id = ?`, [id]);
-      return row ? { ...toRecord(row), attemptLog: JSON.parse(row.attempt_log) as RequestAttempt[] } : undefined;
+      const row = db.get<Row & { has_content: number }>(
+        `${SELECT.replace('SELECT r.*,', 'SELECT r.*, EXISTS (SELECT 1 FROM request_content c WHERE c.request_id = r.id) AS has_content,')} WHERE r.id = ?`, [id]);
+      return row ? { ...toRecord(row), attemptLog: JSON.parse(row.attempt_log) as RequestAttempt[], hasContent: row.has_content === 1 } : undefined;
+    },
+
+    storeContent(id, storedAt, json) {
+      // Only for a request that has its row (none in mode NONE); replaced if written twice.
+      db.run(
+        `INSERT INTO request_content (request_id, stored_at, bytes, content) SELECT ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM requests WHERE id = ?)
+         ON CONFLICT(request_id) DO UPDATE SET stored_at = excluded.stored_at, bytes = excluded.bytes, content = excluded.content`,
+        [id, storedAt, Buffer.byteLength(json), json, id],
+      );
+    },
+
+    getContent(id) {
+      const row = db.get<{ stored_at: string; content: string }>('SELECT stored_at, content FROM request_content WHERE request_id = ?', [id]);
+      return row ? { ...(JSON.parse(row.content) as Omit<RequestContent, 'requestId' | 'storedAt'>), requestId: id, storedAt: row.stored_at } : undefined;
     },
 
     list(q) {

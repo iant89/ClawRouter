@@ -65,6 +65,7 @@ export function createSettingsService(options: {
       const d = SETTING_DEFINITIONS[key];
       return {
         key, group: d.group, label: d.label, description: d.description, unit: d.unit, min: d.min, max: d.max, env: d.env, kind: 'kind' in d ? d.kind : 'number',
+        ...('options' in d ? { options: d.options } : {}),
         value: get(key), defaultValue: defaults[key], overridden: stored.has(key), updatedAt: stored.get(key)?.updatedAt ?? null,
       };
     });
@@ -116,6 +117,8 @@ export function settingDefaults(config: Pick<Config, 'auth' | 'requests' | 'heal
     sessionIdleMinutes: config.auth.sessionIdleMinutes,
     sessionMaxHours: config.auth.sessionMaxHours,
     signInMaxFailures: 10,
+    // SEC-009: metadata only unless CLAWROUTER_REQUEST_LOGGING or the console says otherwise.
+    requestLogging: ({ none: 0, metadata: 1, full: 2 } as const)[config.requests.logging],
     requestRetentionDays: config.requests.retentionDays,
     usageRetentionDays: config.requests.usageRetentionDays,
     healthHistoryDays: config.health.historyDays,
