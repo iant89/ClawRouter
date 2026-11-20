@@ -29,6 +29,8 @@
     "reset-password": "bun scripts/reset-password.ts",
     "rotate-secret-key": "bun scripts/rotate-secret-key.ts",
     "scan-secrets": "bun scripts/scan-secrets.ts",
+    "sast": "bun scripts/sast.ts",
+    "security:ci": "bun scripts/security-ci.ts",
     "deps:check": "bun scripts/deps.ts",
     "sbom": "bun scripts/sbom.ts",
     "release:package": "bun scripts/release.ts package",

@@ -17,7 +17,7 @@ guarded by tests, and the risks that remain. Area details live in
 | 4 | API keys | A key kept working after the user who created it was disabled. | Such keys are **Suspended** (401) and work again if the user is re-enabled. |
 | 5 | Credentials | Changing the encryption key meant re-entering every provider key. | `bun run rotate-secret-key` re-encrypts all stored credentials, all or nothing, safe to repeat, audited by key fingerprint. |
 | 6 | Audit privacy | A failed sign-in stored whatever was typed as the username. A password typed into that field ended up in the audit log and a notification. | The typed name is recorded only if it is an existing account; otherwise `unknownUser: true`. |
-| 7 | Secrets in git | No automated check. | `bun run scan-secrets` (tree, and `--history` for every commit) and `bun audit` run in CI. The tree and full history are clean; no known-vulnerable dependencies. |
+| 7 | Secrets in git | No automated check. | `bun run scan-secrets` (tree, a pull request's commits with `--range`, `--history` for every commit) runs in the CI security pipeline ([security CI](security-ci.md)), with `deps:check`. The tree and full history are clean; no known-vulnerable dependencies. |
 
 ## Outbound network policy
 

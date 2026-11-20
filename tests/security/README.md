@@ -29,11 +29,14 @@ bun run test:fuzz          # the fuzz tests only; FUZZ_RUNS=20 FUZZ_SEED=$RANDOM
 | `filesystem/` | file and directory permissions (SEC-023): created private under a wide umask, tightened at start, `doctor` reports and repairs, links never followed |
 | `host/` | phase 8: the hardened systemd unit (SEC-024, rated by `systemd-analyze security` where it is installed) and `doctor --security` (SEC-025): a safe deployment passes, each unsafe setting, file, stored value, process privilege and proxy answer is named |
 | `supply-chain/` | phase 6: the lockfile, license and audit checks (SEC-018), the SBOMs (SEC-019), release verification and the workflows (SEC-020) |
+| `ci/` | phase 9 (SEC-026): the security pipeline: workflow shape and stage order, no silent skips, the summary, SAST rules, container checks, secret scanning of commits |
+| `cases/` | the regression corpus (SEC-027): one case per discovered vulnerability and per attack class, see [its README](cases/README.md) |
 | `fuzz/` | seeded fuzzing (SEC-021) of bodies, query strings, the chat parsers, provider answers, streams, model lists, MCP, configuration imports, routing and backups; `findings.test.ts` keeps what it found |
 
 Rules:
 
-- Every security fix adds a test here that fails without the fix.
+- Every security fix adds a case to `cases/` (registry and test) that fails without the fix, and is merged only with it.
+- No security test is skipped, focused or left as todo: the security CI stage fails on it (a test that needs a tool must be declared in `CONDITIONAL_SECURITY_TESTS`, and runs in CI).
 - A new category needs a folder and an entry in `CATEGORIES` (`suite.test.ts`
   fails otherwise); a new kind of secret goes into `logging/secret-scrubbing.test.ts`.
 - Tests never reach the internet: use the harness and the mock providers

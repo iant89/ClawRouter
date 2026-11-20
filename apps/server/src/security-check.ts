@@ -116,6 +116,7 @@ async function ask(url: string, init: RequestInit, timeoutMs: number): Promise<P
     // Only ClawRouter's own address (or the one the operator named) is asked; a self-signed
     // certificate must not stop the check, so the certificate is not verified here (the
     // certificate itself is checked from its file).
+    // security-waiver: tls-verification-disabled -- loopback probe of this server only; the certificate file is checked separately
     const res = await fetch(url, { ...init, redirect: 'manual', signal: AbortSignal.timeout(timeoutMs), tls: { rejectUnauthorized: false } } as RequestInit);
     return { status: res.status, headers: res.headers, body: await res.text() };
   } catch (error) {

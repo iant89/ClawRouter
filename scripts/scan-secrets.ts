@@ -21,6 +21,7 @@
  *
  *   bun run scan-secrets            tracked files
  *   bun run scan-secrets --history  all commits too
+ *   bun run scan-secrets --range <base>..<head>   the commits in a range too (CI: a pull request's commits)
  *
  * Test fixtures are allowed only when obviously fake (they contain "canary",
  * "example", "fake", "dummy" or a run of 0123456789 in the same line).
@@ -35,6 +36,8 @@ const PATTERNS: [string, RegExp][] = [
   ['Slack token', /xox[baprs]-[A-Za-z0-9-]{10,}/],
   ['Private key', /-----BEGIN [A-Z ]*PRIVATE KEY-----/],
 ];
+// A PEM header followed by an interpolation (`-----BEGIN PRIVATE KEY-----\n${pem}`) is a template, not key material.
+const TEMPLATE = /PRIVATE KEY-----(?:\\n)?\$\{/;
 const FAKE = /canary|example|fake|dummy|0123456789|1234567890|wrong|deadbeef/i;
 const FORBIDDEN_FILES = /(^|\/)(\.env|\.env\.local|secret\.key|setup-token)$|\.(pem|db|sqlite)$/;
 
@@ -50,8 +53,20 @@ for (const file of run(['ls-files']).split('\n').filter(Boolean)) {
 
 // git uses POSIX extended regular expressions: no (?:...) groups.
 const pattern = PATTERNS.map(([, re]) => re.source.replaceAll('(?:', '(')).join('|');
-const grep = process.argv.includes('--history')
-  ? run(['log', '--all', '-p', '--no-color', '-G', pattern, '--pretty=format:commit %h']).split('\n').filter((l) => l.startsWith('+') || l.startsWith('commit '))
+const argv = process.argv.slice(2);
+const range = argv.includes('--range') ? argv[argv.indexOf('--range') + 1] : undefined;
+if (argv.includes('--range') && (!range || range.startsWith('-'))) {
+  console.error('--range needs a revision range, e.g. origin/main..HEAD');
+  process.exit(2);
+}
+const commits = argv.includes('--history') ? ['--all'] : range ? [range] : undefined;
+if (range && Bun.spawnSync(['git', 'rev-list', '--quiet', range]).exitCode !== 0) {
+  // A range that git cannot read would otherwise scan nothing and pass.
+  console.error(`Cannot read the commit range "${range}" (is the history fetched? actions/checkout needs fetch-depth: 0).`);
+  process.exit(2);
+}
+const grep = commits
+  ? run(['log', ...commits, '-p', '--no-color', '-G', pattern, '--pretty=format:commit %h']).split('\n').filter((l) => l.startsWith('+') || l.startsWith('commit '))
   : run(['grep', '-nIE', pattern, '--', '.', ':!*.png', ':!bun.lock']).split('\n').filter(Boolean);
 
 let where = '';
@@ -64,7 +79,7 @@ for (const line of grep) {
     const match = re.exec(line)?.[0];
     // Judge the content only: a real key in a file called *.test.ts is still a leak.
     const content = where ? line : line.split(':').slice(2).join(':');
-    if (match && !FAKE.test(content)) findings.push(`${where ? `${where}: ` : ''}${line.split(':').slice(0, 2).join(':')}: possible ${name} (${match.slice(0, 8)}…)`);
+    if (match && !FAKE.test(content) && !(name === 'Private key' && TEMPLATE.test(content))) findings.push(`${where ? `${where}: ` : ''}${line.split(':').slice(0, 2).join(':')}: possible ${name} (${match.slice(0, 8)}…)`);
   }
 }
 
@@ -73,4 +88,4 @@ if (findings.length) {
   console.error('Remove them (and rotate the credential if it was real). Fake fixtures must look fake.');
   process.exit(1);
 }
-console.log('No secrets found.');
+console.log(`No secrets found${range ? ` in the commits ${range}` : commits ? ' in any commit' : ' in the tracked files'}.`);

@@ -29,7 +29,14 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # SEC-026: a release passes the same security pipeline as every pull request before anything is built for it.
+  security:
+    permissions:
+      contents: read
+    uses: ./.github/workflows/security-pipeline.yml
+
   release:
+    needs: security
     runs-on: ubuntu-latest
     permissions:
       contents: write # create the GitHub release
@@ -49,9 +56,6 @@ jobs:
           test "v${version}" = "$TAG" || { echo "Tag $TAG does not match package.json version $version"; exit 1; }
           echo "VERSION=${version}" >> "$GITHUB_ENV"
       - run: bun install --frozen-lockfile
-      - run: bun run scan-secrets
-      - run: bun run deps:check
-      - run: bun run check
       # Build, then the tarball, both SBOMs and SHA256SUMS in release/ (reproducible: same commit, same bytes).
       - run: bun run release:package --out release
       - uses: sigstore/cosign-installer@756fe2d284c7292c4e9b62c8a28f1e5629c59532 # v4.1.3 (cosign v3.1.4)

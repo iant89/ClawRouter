@@ -1,0 +1,105 @@
+# ClawRouter - Self-hosted AI gateway and control platform
+# https://github.com/iant89/ClawRouter
+#
+# Copyright (C) 2026 Ian Thomas
+# SPDX-License-Identifier: AGPL-3.0-or-later
+#
+# This program is free software: you can redistribute it and/or modify it under
+# the terms of the GNU Affero General Public License as published by the Free
+# Software Foundation, either version 3 of the License, or (at your option) any
+# later version. This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+# or FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License
+# in the LICENSE file for more details.
+
+# The security pipeline (SEC-026), in the roadmap's order. Pull requests, pushes to main, the
+# weekly run (ci.yml) and every release (release.yml) call this same workflow. Each stage is a
+# step of `bun run security:ci` that writes its report to security-reports/; the stages after a
+# failure still run, so the reports are complete, and the summary step fails the job when any
+# stage failed or left no report (nothing is skipped silently). The reports are kept as an
+# artifact for 90 days. Run it locally with `bun run security:ci` (docs/security-ci.md).
+name: Security pipeline
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  pipeline:
+    name: Security pipeline
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          # Secret scanning reads the commits of a pull request (or all of them).
+          fetch-depth: 0
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.4.4
+      # ENTERPRISE-UI comes from the committed tarball in vendor/. --frozen-lockfile: bun.lock must match package.json.
+      - run: bun install --frozen-lockfile
+      - name: 1. TypeScript typecheck
+        run: bun run security:ci typecheck
+      - name: 2. Unit tests
+        if: ${{ !cancelled() }}
+        run: bun run security:ci unit
+      - name: 3. Integration tests
+        if: ${{ !cancelled() }}
+        run: bun run security:ci integration
+      - name: 4. Security tests
+        if: ${{ !cancelled() }}
+        run: bun run security:ci security
+      - name: 5. Dependency audit
+        if: ${{ !cancelled() }}
+        run: bun run security:ci dependencies
+      - name: 6. Secret scanning
+        if: ${{ !cancelled() }}
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          if [ "$EVENT" = pull_request ]; then
+            bun run security:ci secrets --range "$BASE..$HEAD"
+          else
+            bun run security:ci secrets --history
+          fi
+      - name: 7. SAST
+        if: ${{ !cancelled() }}
+        run: bun run security:ci sast
+      - name: Build the container image
+        if: ${{ !cancelled() }}
+        run: docker build --tag clawrouter:security-scan .
+      - name: Scan the container image (Trivy)
+        if: ${{ !cancelled() }}
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0 (Trivy v0.70.0)
+        with:
+          image-ref: clawrouter:security-scan
+          scanners: vuln
+          format: json
+          output: security-reports/trivy-image.json
+          # The report is judged by the next step against supply-chain.json "container".
+          exit-code: '0'
+      - name: 8. Container scanning
+        if: ${{ !cancelled() }}
+        run: bun run security:ci container --trivy security-reports/trivy-image.json
+      - name: 9. SBOM generation
+        if: ${{ !cancelled() }}
+        run: bun run security:ci sbom
+      - name: 10. Build verification
+        if: ${{ !cancelled() }}
+        run: bun run security:ci build
+      - name: Summary (fails when a stage failed or did not run)
+        if: ${{ always() }}
+        run: bun run security:ci summary
+      - name: Keep the security reports
+        if: ${{ always() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: security-reports-${{ github.run_id }}-${{ github.run_attempt }}
+          path: security-reports/
+          retention-days: 90
+          if-no-files-found: error

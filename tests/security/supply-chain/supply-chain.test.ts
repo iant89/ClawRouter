@@ -273,9 +273,11 @@ describe('workflows (SEC-018, SEC-020)', () => {
 
   test('every action is pinned to a full commit SHA, and Bun to the Dockerfile version', () => {
     for (const f of workflows) {
-      const doc = Bun.YAML.parse(text(f)) as { jobs: Record<string, { steps: { uses?: string; with?: { 'bun-version'?: string } }[] }> };
+      const doc = Bun.YAML.parse(text(f)) as { jobs: Record<string, { uses?: string; steps?: { uses?: string; with?: { 'bun-version'?: string } }[] }> };
       for (const job of Object.values(doc.jobs)) {
-        for (const step of job.steps) {
+        // A job that calls a workflow of this repository runs that file's steps, checked here too.
+        if (job.uses) expect([f, job.uses]).toEqual([f, expect.stringMatching(/^\.\/\.github\/workflows\/[\w.-]+\.yml$/)]);
+        for (const step of job.steps ?? []) {
           if (step.uses) expect([f, step.uses]).toEqual([f, expect.stringMatching(/^[\w.-]+\/[\w.-]+@[0-9a-f]{40}$/)]);
           if (step.with?.['bun-version']) expect([f, step.with['bun-version']]).toEqual([f, dockerBun]);
         }
@@ -284,15 +286,19 @@ describe('workflows (SEC-018, SEC-020)', () => {
   });
 
   test('CI runs the dependency checks and the release dry run; the release signs, verifies, then publishes', () => {
-    const ci = text('ci.yml');
-    for (const s of ['bun install --frozen-lockfile', 'bun run deps:check', 'bun run release:package', 'bun run release:verify release', 'schedule:']) expect(ci).toContain(s);
+    // CI runs the security pipeline (SEC-026), whose stages run the dependency checks and the release dry run.
+    expect(text('ci.yml')).toContain('schedule:');
+    expect(text('ci.yml')).toContain('uses: ./.github/workflows/security-pipeline.yml');
+    expect(text('security-pipeline.yml')).toContain('bun install --frozen-lockfile');
+    const stages = readFileSync(join(repo, 'scripts', 'security', 'pipeline.ts'), 'utf8');
+    for (const s of ['scripts/deps.ts', "'package', '--skip-build'", "'verify', 'release'"]) expect(stages).toContain(s);
     const rel = Bun.YAML.parse(text('release.yml')) as { permissions: unknown; jobs: Record<string, { permissions: Record<string, string>; steps: { run?: string; uses?: string }[] }> };
     expect(rel.permissions).toEqual({});
     expect(rel.jobs.release!.permissions).toEqual({ contents: 'write', 'id-token': 'write' });
     expect(rel.jobs['verify-published']!.permissions).toEqual({ contents: 'read' });
     const runs = rel.jobs.release!.steps.map((s) => s.run ?? s.uses ?? '');
     const at = (s: string) => runs.findIndex((r) => r.includes(s));
-    expect(at('deps:check')).toBeGreaterThan(-1);
+    expect((rel.jobs.release as unknown as { needs: string }).needs).toBe('security');
     expect(at('cosign sign-blob')).toBeGreaterThan(at('release:package'));
     expect(at('release:verify release --version "$VERSION" --signed')).toBeGreaterThan(at('cosign sign-blob'));
     expect(at('gh release create')).toBeGreaterThan(at('release:verify'));
