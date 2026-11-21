@@ -5,6 +5,9 @@ and upgrades, backups, the secret key, recovery, and monitoring. Every variable 
 listed in [configuration](configuration.md). Files referred to here are in
 [`deploy/`](../deploy/).
 
+**Ubuntu 24.04:** [`deploy/install.sh`](../deploy/install.sh) does everything below in one command
+(systemd service, optional Caddy HTTPS, checks): see [installing on Ubuntu](install.md).
+
 ## Requirements
 
 - Linux (macOS works for testing). Bun 1.4 to run the build; nothing else at run time.
