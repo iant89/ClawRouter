@@ -203,3 +203,53 @@ body {
   grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
   gap: var(--eui-space-3, 0.75rem);
 }
+
+/*
+ * Live connection lost (ConnectionOverlay): a see-through layer over the whole
+ * console, above dialogs and menus. The page stays visible; it is inert underneath.
+ */
+.claw-connection-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: calc(var(--eui-z-popover, 1400) + 100);
+  display: grid;
+  place-items: center;
+  padding: var(--eui-space-6, 24px);
+  font-family: var(--eui-font-family, sans-serif);
+  font-size: var(--eui-font-size-md, 0.875rem);
+  background: var(--eui-color-overlay, rgba(0, 0, 0, 0.5));
+  cursor: wait;
+  animation: claw-connection-overlay-in 200ms ease-out;
+}
+.claw-connection-overlay__body {
+  display: grid;
+  justify-items: center;
+  gap: var(--eui-space-3, 0.75rem);
+  max-width: 30rem;
+  padding: var(--eui-space-6, 24px) var(--eui-space-8, 32px);
+  text-align: center;
+  cursor: default;
+  background: var(--eui-color-surface, #1d232a);
+  border: 1px solid var(--eui-color-border, #3a4350);
+  border-radius: var(--eui-radius-lg, 8px);
+  box-shadow: var(--eui-shadow-xl, 0 16px 48px rgba(0, 0, 0, 0.4));
+}
+.claw-connection-overlay__body h2 {
+  margin: 0;
+  font-size: var(--eui-font-size-xl, 1.25rem);
+  color: var(--eui-color-text, #fff);
+}
+.claw-connection-overlay__body p {
+  margin: 0;
+  color: var(--eui-color-text-secondary, #a9b4be);
+}
+.claw-connection-overlay__icon {
+  display: inline-flex;
+  color: var(--eui-color-text-secondary, #a9b4be);
+}
+@keyframes claw-connection-overlay-in {
+  from { opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .claw-connection-overlay { animation: none; }
+}

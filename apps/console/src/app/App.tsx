@@ -28,6 +28,7 @@ import { SetupPage } from '../features/auth/SetupPage.tsx';
 import { ForcedPasswordChange } from '../features/auth/ForcedPasswordChange.tsx';
 import { ForcedTwoFactorSetup } from '../features/auth/ForcedTwoFactorSetup.tsx';
 import { PlannedFeature } from '../components/custom/PlannedFeature.tsx';
+import { ConnectionOverlay } from '../components/custom/ConnectionOverlay.tsx';
 import { NotificationsProvider } from '../features/notifications/NotificationsContext.tsx';
 import { ConsoleLayout } from '../layouts/ConsoleLayout.tsx';
 import { NotFoundPage } from '../pages/NotFoundPage.tsx';
@@ -127,6 +128,7 @@ function Console() {
             </Suspense>
           </ErrorBoundary>
         </ConsoleLayout>
+        <ConnectionOverlay />
       </NotificationsProvider>
     </HealthProvider>
     </RealtimeProvider>

@@ -18,9 +18,14 @@ import { REALTIME_CLOSE, REALTIME_PATH, type RealtimeServerMessage } from '@claw
 
 /**
  * live: connected and receiving; reconnecting: lost, retrying with backoff;
- * offline: stopped (signed out, or the session ended).
+ * disconnected: still lost after `RECONNECT_ATTEMPTS` tries (retries go on quietly
+ * every 30 s, and `retryNow` tries at once); offline: stopped (signed out, or the
+ * session ended).
  */
-export type RealtimeState = 'connecting' | 'live' | 'reconnecting' | 'offline';
+export type RealtimeState = 'connecting' | 'live' | 'reconnecting' | 'disconnected' | 'offline';
+
+/** Failed reconnect attempts (1 + 2 + 4 + 8 + 16 s of backoff, 15–31 s with jitter) before the console says it is disconnected. */
+export const RECONNECT_ATTEMPTS = 5;
 
 /** Messages delivered to listeners: the server's, plus `resync` after a reconnect (events may have been missed). */
 export type RealtimeMessage = RealtimeServerMessage | { type: 'resync' };
@@ -93,11 +98,19 @@ export class RealtimeConnection {
     this.setState('offline');
   }
 
-  /** Try now instead of waiting for the backoff (e.g. the tab became visible again). */
+  /**
+   * Try now instead of waiting for the backoff (the tab became visible again, or the
+   * user pressed Retry). While disconnected this shows as reconnecting until it fails.
+   */
   retryNow() {
-    if (this.stopped || this.state !== 'reconnecting') return;
+    if (this.stopped || (this.state !== 'reconnecting' && this.state !== 'disconnected')) return;
+    if (this.ws) {
+      // An attempt is already open: let it finish rather than start a second one.
+      this.setState('reconnecting');
+      return;
+    }
     this.clearT(this.reconnectTimer);
-    this.connect();
+    this.connect(true);
   }
 
   subscribe(listener: (m: RealtimeMessage) => void): () => void {
@@ -110,8 +123,10 @@ export class RealtimeConnection {
     return () => this.stateListeners.delete(listener);
   }
 
-  private connect() {
-    this.setState(this.everConnected ? 'reconnecting' : 'connecting');
+  /** `manual`: asked for (Retry, tab shown), so a disconnected console shows that it is trying again. */
+  private connect(manual = false) {
+    // Quiet attempts while disconnected keep the state; only the very first attempt is "connecting".
+    if (manual || this.state !== 'disconnected') this.setState(this.everConnected || this.attempt > 0 ? 'reconnecting' : 'connecting');
     const url = this.options.url ?? `${location.protocol === 'https:' ? 'wss:' : 'ws:'}//${location.host}${REALTIME_PATH}`;
     const ws = (this.options.createSocket ?? ((u) => new WebSocket(u) as unknown as SocketLike))(url);
     this.ws = ws;
@@ -146,7 +161,7 @@ export class RealtimeConnection {
         return;
       }
       if (this.stopped) return;
-      this.setState('reconnecting');
+      this.setState(this.attempt >= RECONNECT_ATTEMPTS ? 'disconnected' : 'reconnecting');
       this.reconnectTimer = this.setT(() => this.connect(), backoffMs(this.attempt++, this.options.random));
     };
     ws.onerror = () => {

@@ -15,7 +15,7 @@
  */
 
 import { describe, expect, test } from 'bun:test';
-import { backoffMs, RealtimeConnection, type RealtimeMessage, type RealtimeState } from '../src/services/realtime.ts';
+import { backoffMs, RECONNECT_ATTEMPTS, RealtimeConnection, type RealtimeMessage, type RealtimeState } from '../src/services/realtime.ts';
 
 class FakeSocket {
   readyState = 1;
@@ -155,5 +155,47 @@ describe('RealtimeConnection', () => {
     sockets[0]!.drop();
     c.retryNow();
     expect(sockets).toHaveLength(2);
+  });
+
+  test('after the quick attempts fail it is disconnected, keeps trying quietly, and recovers', () => {
+    const { c, timers, sockets, states, messages } = setup();
+    c.start();
+    sockets[0]!.receive(HELLO);
+    sockets[0]!.drop();
+    for (let i = 1; i < RECONNECT_ATTEMPTS; i += 1) {
+      timers.tick(30_000);
+      sockets[i]!.drop();
+      expect(c.state).toBe('reconnecting');
+    }
+    timers.tick(30_000);
+    sockets[RECONNECT_ATTEMPTS]!.drop();
+    expect(c.state).toBe('disconnected');
+    timers.tick(30_000); // a quiet attempt: the state does not flicker back to reconnecting
+    expect(sockets).toHaveLength(RECONNECT_ATTEMPTS + 2);
+    expect(c.state).toBe('disconnected');
+    sockets.at(-1)!.receive(HELLO);
+    expect(c.state).toBe('live');
+    expect(states).toEqual(['connecting', 'live', 'reconnecting', 'disconnected', 'live']);
+    expect(messages.filter((m) => m.type === 'resync')).toHaveLength(1);
+  });
+
+  test('Retry while disconnected tries at once, shows reconnecting, and is disconnected again if it fails', () => {
+    const { c, timers, sockets } = setup();
+    c.start();
+    sockets[0]!.receive(HELLO);
+    sockets[0]!.drop();
+    for (let i = 1; i <= RECONNECT_ATTEMPTS; i += 1) {
+      timers.tick(30_000);
+      sockets[i]!.drop();
+    }
+    expect(c.state).toBe('disconnected');
+    const before = sockets.length;
+    c.retryNow();
+    expect(sockets).toHaveLength(before + 1);
+    expect(c.state).toBe('reconnecting');
+    c.retryNow(); // pressed twice: one attempt at a time
+    expect(sockets).toHaveLength(before + 1);
+    sockets.at(-1)!.drop();
+    expect(c.state).toBe('disconnected');
   });
 });

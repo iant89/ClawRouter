@@ -14,6 +14,22 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 
 ### Important
 
+- **IMPORTANT** · 2026-11-21 · Owner request: overlay when the console loses its connection
+  "A semi transparent panel covering the page, with a spinner … or if it failed to reconnect
+  show a large disconnected icon, small description … then a retry button, but disable
+  everything else on the page, but don't hide it." `ConnectionOverlay`
+  (`apps/console/src/components/custom/`), driven by the live connection's state. New state
+  **`disconnected`** in `services/realtime.ts`: after `RECONNECT_ATTEMPTS` (5) failed attempts;
+  quiet attempts continue every 30 s without changing the state; `retryNow()` works from it and
+  shows `reconnecting` until that attempt ends. Decisions made here (keep unless the owner says
+  otherwise): the spinner appears only after 1.5 s lost (quick restarts pass unnoticed); the
+  page behind is made `inert` by walking up from the overlay and marking every sibling, so
+  dialogs, menus and toasts are blocked too. **Do not portal it to `<body>`**: ENTERPRISE-UI's
+  `ThemeProvider` applies fonts and dark tokens to its own subtree only (tried: serif text, light
+  colours). Only the WebSocket drives it; a failing REST API with a live socket shows nothing.
+  Checked in Chromium (dark, light, phone); screenshots in `docs/screenshots/43-connection-overlay/`.
+  Not merged: on branch `claude/web-console-reconnection-ui-un3oy7`, waiting for the owner.
+
 - **IMPORTANT** · 2026-11-21 · TypeScript 7 (Dependabot pull request 7, merged by the owner)
   TypeScript 7's npm package is only the native `tsc`: no JavaScript compiler API. The SAST checker
   needs one, so it imports `typescript-api` (`npm:typescript@6.0.2`, dev only); keep both until a

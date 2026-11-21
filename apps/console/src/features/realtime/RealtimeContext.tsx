@@ -69,6 +69,12 @@ export function useRealtimeState(): RealtimeState {
   return useContext(RealtimeContext)?.state ?? 'offline';
 }
 
+/** The connection state and a way to try again now (the disconnected overlay's Retry). */
+export function useRealtime(): { state: RealtimeState; retry: () => void } {
+  const value = useContext(RealtimeContext);
+  return { state: value?.state ?? 'offline', retry: () => value?.connection.retryNow() };
+}
+
 /** True while live updates arrive: pages may then poll slowly, as a fallback only. */
 export const useLive = () => useRealtimeState() === 'live';
 

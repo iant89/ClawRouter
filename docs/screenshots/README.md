@@ -642,3 +642,17 @@ and a `backupPath`) loaded in Settings → Import and export.
 | Screenshot | Shows |
 | --- | --- |
 | ![Refused](42-configuration-security/01-import-refused.png) | The import refused as a whole: every problem listed, nothing changed, the secrets not repeated |
+
+## 43 · Connection lost overlay
+
+Captured 2026-11-21 on a scratch development build, by stopping the server under an open
+console and starting it again.
+
+| Screenshot | Shows |
+| --- | --- |
+| ![Reconnecting](43-connection-overlay/reconnecting.png) | 1.5 s after the server stopped: the page stays visible but covered and inert, with a spinner |
+| ![Disconnected](43-connection-overlay/disconnected.png) | About 20–30 s later the quick attempts have failed: large icon, what happened, Retry (focused) |
+| ![Light, reconnecting](43-connection-overlay/light-reconnecting.png) | The same in the light theme |
+| ![Light, disconnected](43-connection-overlay/light-disconnected.png) | Disconnected in the light theme |
+| ![Phone](43-connection-overlay/phone-reconnecting.png) | Reconnecting at phone width |
+| ![Phone, disconnected](43-connection-overlay/phone-disconnected.png) | Disconnected at phone width |

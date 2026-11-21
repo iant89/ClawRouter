@@ -18,10 +18,11 @@ import { StatusIndicator } from '@enterprise-ui/react';
 import { useRealtimeState } from '../../features/realtime/RealtimeContext.tsx';
 import type { RealtimeState } from '../../services/realtime.ts';
 
-const STATE: Record<RealtimeState, { tone: 'success' | 'warning' | 'information' | 'neutral'; label: string; title: string }> = {
+const STATE: Record<RealtimeState, { tone: 'success' | 'warning' | 'error' | 'information' | 'neutral'; label: string; title: string }> = {
   live: { tone: 'success', label: 'Live', title: 'Pages update as things change.' },
   connecting: { tone: 'information', label: 'Connecting', title: 'Opening the live connection.' },
   reconnecting: { tone: 'warning', label: 'Reconnecting', title: 'The live connection was lost. Pages refresh periodically until it is back.' },
+  disconnected: { tone: 'error', label: 'Disconnected', title: 'The console cannot reach the server. It keeps trying every 30 seconds.' },
   offline: { tone: 'neutral', label: 'Offline', title: 'No live connection. Pages refresh periodically.' },
 };
 

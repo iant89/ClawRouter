@@ -61,6 +61,14 @@ and sends one `activity` message per second, only while there is traffic.
 - **Reconnection:** exponential backoff of 1, 2, 4 … 30 s with random jitter, so
   many consoles do not reconnect in step after a restart. The wait is skipped when
   the tab becomes visible again.
+- **Connection lost overlay** (owner request): while reconnecting, the console is covered
+  by a see-through layer with a spinner and "Reconnecting…" (after 1.5 s, so a quick
+  restart passes unnoticed). After 5 failed attempts (`RECONNECT_ATTEMPTS`, 15–31 s) the
+  state is **disconnected**: a large disconnected icon, a short explanation and **Retry**.
+  Attempts go on quietly every 30 s while disconnected and the overlay disappears when one
+  succeeds; Retry (or showing the tab again) tries at once. The page behind stays visible
+  but is `inert`: no clicks or keyboard focus, dialogs, menus and toasts included
+  (`components/custom/ConnectionOverlay.tsx`). Not shown for a 4401 close (sign-in page).
 - **Dead connections:** if nothing (not even a pong) arrives for two heartbeats,
   the console drops the connection and reconnects.
 - **Resync:** after any reconnect, every page refreshes what it shows, because
@@ -97,7 +105,7 @@ SEC-015 (checked in `tests/security/websocket/`):
 
 ## Console
 
-- Header indicator: **Live**, **Connecting**, **Reconnecting** or **Offline**
+- Header indicator: **Live**, **Connecting**, **Reconnecting**, **Disconnected** or **Offline**
   (icon and text).
 - Updates on events:
   - dashboard metrics come with each activity message; recent failures and cost
