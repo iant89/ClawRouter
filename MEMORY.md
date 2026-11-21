@@ -34,7 +34,9 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
   apt `DPkg::Lock::Timeout=600`) and every running step shows elapsed time: added after the owner
   asked "Is it stuck?". Tested on Ubuntu 24.04 + systemd 255 in Docker (docs/install.md;
   the test image needs the proxy CA and `--network host`, and sudoers files must be 0440).
-  Not tried: the raw.githubusercontent.com URL itself, Let's Encrypt, arm64.
+  Merged 2026-11-21 (pull request 10); the one-line command was then run through the real
+  raw.githubusercontent.com URL on a fresh Ubuntu 24.04 (installed, 16/16 security checks).
+  Not tried: Let's Encrypt, arm64.
 
 - **IMPORTANT** · 2026-11-20 · Security phase 9: security CI pipeline (SEC-026) and regression corpus (SEC-027)
   Merged into `main` (pull request 9, then the first-run fix fast-forwarded on 2026-11-21). No migration, no new

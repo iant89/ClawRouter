@@ -85,6 +85,7 @@ On Ubuntu 24.04 with systemd 255 (booted in a container, 2026-11-21): a fresh in
 security checks passed), an upgrade with `--domain` (data and key kept, backup made, Caddy
 redirecting to https), and a busy package manager (the wait step, then the install), and the failure paths: no terminal without `--yes`, not root, hostile
 `--domain`/`--port`/`--ref` values, and a Bun download that does not match its hash (stopped,
-nothing installed). Let's Encrypt itself was not reached (no public name), and the script was
-run from a copy, not yet through the `raw.githubusercontent.com` URL. Tests:
+nothing installed). After the merge, the one-line command itself was run on a fresh Ubuntu 24.04
+(`curl … raw.githubusercontent.com … | sudo bash`): installed commit 56b5fdb, 16 of 16 security
+checks passed. Let's Encrypt itself was not reached (no public name); arm64 was not tried. Tests:
 `tests/security/host/install-script.test.ts`.
