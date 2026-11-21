@@ -65,7 +65,7 @@ journalctl -u clawrouter -f
 Maintenance commands then run as the service user with its environment, for example:
 
 ```bash
-cd /opt/clawrouter/dist && sudo -u clawrouter env $(grep -v '^#' /etc/clawrouter/clawrouter.env | xargs) bun cli/doctor.js
+cd /opt/clawrouter/dist && sudo -u clawrouter env $(sudo grep -v '^#' /etc/clawrouter/clawrouter.env | xargs) bun cli/doctor.js
 ```
 
 ### systemd hardening
