@@ -38,8 +38,18 @@ const captureIds: Validator<string[]> = (value, path, issues) => {
   return value as string[];
 };
 
+/** Model references or aliases for a manual capture: an empty list means any model. */
+const modelList: Validator<string[]> = (value, path, issues) => {
+  if (!Array.isArray(value) || value.length > MANUAL_LIMITS.maxModels || !value.every((m) => typeof m === 'string' && m.trim().length > 0 && m.length <= 300)) {
+    issues.push({ path, message: `must be a list of up to ${MANUAL_LIMITS.maxModels} model names` });
+    return undefined;
+  }
+  return value as string[];
+};
+
 const startBody = v.object({
   providerId: v.optional(v.string({ min: 1, max: 64 })),
+  models: v.optional(modelList),
   model: v.optional(v.string({ min: 1, max: 300 })),
   count: int(1, MANUAL_LIMITS.maxCount),
   minutes: int(1, MANUAL_LIMITS.maxMinutes),
@@ -93,7 +103,7 @@ export function capturesController(captures: CaptureService) {
 
   const startManual: Handler = async (ctx) => {
     const body = await readJson(ctx, startBody);
-    return ok<ManualCaptureInfo>(captures.startManual(actor(ctx), { providerId: body.providerId ?? null, model: body.model ?? null, count: body.count, minutes: body.minutes }, client(ctx)));
+    return ok<ManualCaptureInfo>(captures.startManual(actor(ctx), { providerId: body.providerId ?? null, models: body.models ?? null, model: body.model ?? null, count: body.count, minutes: body.minutes }, client(ctx)));
   };
 
   const stopManual: Handler = (ctx) => {

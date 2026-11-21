@@ -34,3 +34,14 @@ export const discoverModels = (providerId: string, signal?: AbortSignal) =>
   apiGet<DiscoveredModelInfo[]>(`/api/providers/${encodeURIComponent(providerId)}/models/discover`, { signal });
 export const importModels = (providerId: string, providerModelIds: string[]) =>
   apiPost<ImportModelsResult>(`/api/providers/${encodeURIComponent(providerId)}/models/import`, { providerModelIds });
+
+/** Every model matching the query, page by page (at most `limit`), for pickers. */
+export async function fetchAllModels(query: Omit<ModelQuery, 'page' | 'pageSize'>, signal?: AbortSignal, limit = 2000): Promise<ModelInfo[]> {
+  const all: ModelInfo[] = [];
+  for (let page = 1; all.length < limit; page += 1) {
+    const result = await fetchModels({ ...query, page, pageSize: 200 }, signal);
+    all.push(...result.items);
+    if (all.length >= result.total || result.items.length === 0) break;
+  }
+  return all.slice(0, limit);
+}

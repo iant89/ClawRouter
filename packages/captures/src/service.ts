@@ -17,7 +17,7 @@
 import type { AuditService } from '@clawrouter/audit';
 import { AppError, errors, newId, type Logger } from '@clawrouter/core';
 import {
-  CAPTURE_EXPORT_MAX, MANUAL_CAPTURE_MAX_COUNT, MANUAL_CAPTURE_MAX_MINUTES,
+  CAPTURE_EXPORT_MAX, MANUAL_CAPTURE_MAX_COUNT, MANUAL_CAPTURE_MAX_MINUTES, MANUAL_CAPTURE_MAX_MODELS,
   type CaptureDetail, type CaptureExportFile, type CaptureSink, type CaptureState, type ManualCaptureInfo, type StartManualCaptureRequest,
 } from '@clawrouter/shared';
 import { maskCapture } from './mask.ts';
@@ -67,7 +67,7 @@ export function createCaptureService(options: {
       const m = activeManual();
       if (!m || !settings.enabled()) return false;
       if (m.providerId && !match.providerIds.includes(m.providerId)) return false;
-      if (m.model && m.model !== match.requestedModel && !match.modelRefs.includes(m.model)) return false;
+      if (m.models && !m.models.some((x) => x === match.requestedModel || match.modelRefs.includes(x))) return false;
       m.remaining -= 1;
       return true;
     },
@@ -106,11 +106,11 @@ export function createCaptureService(options: {
       if (!settings.enabled()) throw new AppError('CONFLICT', 'Provider captures are off. Turn them on in Settings → Data retention first.');
       const at = now();
       manual = {
-        providerId: input.providerId ?? null, model: input.model ?? null,
+        providerId: input.providerId ?? null, models: chosenModels(input),
         total: input.count, remaining: input.count,
         startedAt: at.toISOString(), expiresAt: new Date(at.getTime() + input.minutes * 60_000).toISOString(), startedBy: actor.username,
       };
-      record('CAPTURE_STARTED', actor, client, { providerId: manual.providerId, model: manual.model, count: input.count, minutes: input.minutes });
+      record('CAPTURE_STARTED', actor, client, { providerId: manual.providerId, models: manual.models, count: input.count, minutes: input.minutes });
       return manual;
     },
 
@@ -141,4 +141,11 @@ export function createCaptureService(options: {
 }
 
 /** Limits for POST /api/captures/manual, checked by the controller. */
-export const MANUAL_LIMITS = { maxCount: MANUAL_CAPTURE_MAX_COUNT, maxMinutes: MANUAL_CAPTURE_MAX_MINUTES };
+export const MANUAL_LIMITS = { maxCount: MANUAL_CAPTURE_MAX_COUNT, maxMinutes: MANUAL_CAPTURE_MAX_MINUTES, maxModels: MANUAL_CAPTURE_MAX_MODELS };
+
+/** The models a manual capture is limited to: `models` (or the older single `model`), without repeats; null when none: any model. */
+function chosenModels(input: StartManualCaptureRequest): string[] | null {
+  const list = input.models ?? (input.model ? [input.model] : []);
+  const unique = [...new Set(list.map((m) => m.trim()).filter(Boolean))];
+  return unique.length ? unique : null;
+}

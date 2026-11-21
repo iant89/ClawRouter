@@ -14,6 +14,18 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 
 ### Important
 
+- **IMPORTANT** · 2026-11-21 · Owner request: manual capture chooses models from a checkbox list
+  "It should drop down into a combobox that has checkboxes to select the models you want to
+  capture, it should have a 'All' entry at the top." The free-text Model field is now an
+  ENTERPRISE-UI `MultiSelect` (its listbox draws checkboxes) of the chosen provider's models
+  (every model, grouped by provider, for Any provider), "All models" first. Decisions made here
+  (keep unless the owner says otherwise): All and particular models **exclude each other**
+  (`nextModelChoice` in `features/captures/model-choice.ts`); All is sent as `models: null` and
+  covers models added later. API: `POST /api/captures/manual` takes `models` (≤ 500, model refs
+  or aliases); the older `model` is still accepted as one model. `ManualCaptureInfo.model` became
+  `models` (the console banner and the `CAPTURE_STARTED` audit metadata follow). Without
+  `models.read` the list is empty and only All can be chosen. Same branch as the overlay below.
+
 - **IMPORTANT** · 2026-11-21 · Owner request: overlay when the console loses its connection
   "A semi transparent panel covering the page, with a spinner … or if it failed to reconnect
   show a large disconnected icon, small description … then a retry button, but disable

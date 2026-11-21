@@ -22,6 +22,7 @@ import { CAPTURE_TRIGGER_LABELS, CAPTURE_TRIGGERS, type CaptureState, type Captu
 import type { PagedResult } from '../../services/api-client.ts';
 import { deleteCaptures, fetchCaptures, fetchCaptureState, stopManualCapture } from '../../services/captures.ts';
 import { fetchProviders } from '../../services/providers.ts';
+import { describeModels } from './model-choice.ts';
 import { formatRelative } from '../../services/format.ts';
 import { useRouter } from '../../app/router.tsx';
 import { usePermissions } from '../auth/AuthContext.tsx';
@@ -161,7 +162,7 @@ export function CapturesPage() {
         <MessageStrip tone="warning" title="Manual capture running">
           Capturing {manual.remaining} more of {manual.total} request{manual.total === 1 ? '' : 's'}
           {manual.providerId ? ` to ${providers.find((p) => p.id === manual.providerId)?.name ?? 'one provider'}` : ''}
-          {manual.model ? <> for <span className="claw-mono">{manual.model}</span></> : ''}, until {new Date(manual.expiresAt).toLocaleTimeString()} (started by {manual.startedBy}).
+          {manual.models ? <> for <span className="claw-mono" title={manual.models.join(', ')}>{describeModels(manual.models)}</span></> : ''}, until {new Date(manual.expiresAt).toLocaleTimeString()} (started by {manual.startedBy}).
           {' '}<Button size="sm" variant="tertiary" onClick={() => void stop()}>Stop</Button>
         </MessageStrip>
       )}

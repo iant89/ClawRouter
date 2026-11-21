@@ -656,3 +656,15 @@ console and starting it again.
 | ![Light, disconnected](43-connection-overlay/light-disconnected.png) | Disconnected in the light theme |
 | ![Phone](43-connection-overlay/phone-reconnecting.png) | Reconnecting at phone width |
 | ![Phone, disconnected](43-connection-overlay/phone-disconnected.png) | Disconnected at phone width |
+
+## 44 · Manual capture: choosing models
+
+Captured 2026-11-21 on a scratch development build with two providers and models added by
+hand (placeholder keys, so the health toast says Degraded; nothing was sent to a provider).
+
+| Screenshot | Shows |
+| --- | --- |
+| ![All](44-capture-models/01-models-all.png) | Groq chosen: its models as checkboxes, with **All models** at the top and checked |
+| ![Checked](44-capture-models/02-models-checked.png) | Two models checked: All is cleared, each shows as a token |
+| ![Dialog](44-capture-models/03-dialog.png) | The dialog with the choice made |
+| ![Banner](44-capture-models/04-banner.png) | The running capture names the provider and both models |

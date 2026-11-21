@@ -50,8 +50,12 @@ recording is:
 A cancelled call (the client went away) is not an error.
 
 **Manual capture** (System → Captures → *Capture next requests…*): the next 1–100 requests,
-optionally only those that tried one provider and/or one model (as requested or as
-routed), within 1–1,440 minutes. One at a time, held in memory by the process (a restart
+optionally only those that tried one provider and/or some of its models, within
+1–1,440 minutes. After choosing a provider, the **Models** list offers that provider's
+models as checkboxes under an **All models** entry (with *Any provider*, every model,
+grouped by provider). All and particular models exclude each other; a request matches
+when the client asked for a checked model or ClawRouter routed to one, so an alias is
+captured through the models it reaches. Up to 500 models. One at a time, held in memory by the process (a restart
 ends it). Use it for replies that look wrong but raise no error. Starting and stopping are
 audited.
 
@@ -131,7 +135,7 @@ scanned: no placeholder key, no ClawRouter key, no `gsk_` key, no bearer token;
 | `GET /api/captures/state` | switch, manual capture, count, limit |
 | `GET /api/captures?page&pageSize&trigger&providerId&requestId` | summaries, newest first |
 | `GET /api/captures/:id` | the whole capture |
-| `POST /api/captures/manual` | `{ providerId?, model?, count, minutes }` |
+| `POST /api/captures/manual` | `{ providerId?, models?, count, minutes }` (`models`: model references or aliases, empty or left out = any; the older `model` with one name is still accepted) |
 | `DELETE /api/captures/manual` | stop it |
 | `POST /api/captures/delete` | `{ ids }` or `{ all: true }` |
 | `POST /api/captures/export` | `{ ids, maskText }` → the file, as a download |

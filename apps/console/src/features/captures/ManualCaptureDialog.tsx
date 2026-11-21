@@ -14,12 +14,14 @@
  * in the LICENSE file for more details.
  */
 
-import { useEffect, useState } from 'react';
-import { Button, Dialog, FieldHelp, Input, MessageStrip, NumberInput, Select, useToast, WithFieldHelp } from '@enterprise-ui/react';
-import { MANUAL_CAPTURE_MAX_COUNT, MANUAL_CAPTURE_MAX_MINUTES, type ProviderInfo } from '@clawrouter/shared';
+import { useEffect, useMemo, useState } from 'react';
+import { Button, Dialog, MessageStrip, MultiSelect, NumberInput, Select, useToast, WithFieldHelp, type SelectOption } from '@enterprise-ui/react';
+import { MANUAL_CAPTURE_MAX_COUNT, MANUAL_CAPTURE_MAX_MINUTES, type ModelInfo, type ProviderInfo } from '@clawrouter/shared';
 import { ApiClientError } from '../../services/api-client.ts';
 import { startManualCapture } from '../../services/captures.ts';
+import { fetchAllModels } from '../../services/models.ts';
 import { fetchProviders } from '../../services/providers.ts';
+import { ALL_MODELS, modelsToSend, nextModelChoice } from './model-choice.ts';
 
 /**
  * Starts a manual capture: the next N requests that match are kept even when they
@@ -31,7 +33,8 @@ export function ManualCaptureDialog({ open, onClose, onStarted }: { open: boolea
   const toast = useToast();
   const [providers, setProviders] = useState<ProviderInfo[] | null>(null);
   const [providerId, setProviderId] = useState('any');
-  const [model, setModel] = useState('');
+  const [models, setModels] = useState<ModelInfo[] | null>(null);
+  const [modelChoice, setModelChoice] = useState<string[]>([ALL_MODELS]);
   const [count, setCount] = useState<number | null>(5);
   const [minutes, setMinutes] = useState<number | null>(60);
   const [error, setError] = useState<string | null>(null);
@@ -48,11 +51,27 @@ export function ManualCaptureDialog({ open, onClose, onStarted }: { open: boolea
     return () => controller.abort();
   }, [open]);
 
+  // The models offered: the chosen provider's, or every provider's grouped by provider. Without
+  // models.read the list is empty and only "All models" can be chosen.
+  useEffect(() => {
+    if (!open) return;
+    setModels(null);
+    setModelChoice([ALL_MODELS]);
+    const controller = new AbortController();
+    fetchAllModels(providerId === 'any' ? {} : { providerId }, controller.signal).then(setModels).catch(() => { if (!controller.signal.aborted) setModels([]); });
+    return () => controller.abort();
+  }, [open, providerId]);
+
+  const modelOptions = useMemo<SelectOption[]>(() => [
+    { value: ALL_MODELS, label: 'All models' },
+    ...(models ?? []).map((m) => ({ value: m.ref, label: m.displayName, description: m.ref, group: providerId === 'any' ? m.provider.name : undefined })),
+  ], [models, providerId]);
+
   const start = async () => {
     setSaving(true);
     setError(null);
     try {
-      await startManualCapture({ providerId: providerId === 'any' ? null : providerId, model: model.trim() || null, count: count ?? 0, minutes: minutes ?? 0 });
+      await startManualCapture({ providerId: providerId === 'any' ? null : providerId, models: modelsToSend(modelChoice), count: count ?? 0, minutes: minutes ?? 0 });
       toast.show({ tone: 'success', title: 'Manual capture started', description: `The next ${count} matching request${count === 1 ? '' : 's'} will be captured.` });
       onStarted();
       onClose();
@@ -80,9 +99,12 @@ export function ManualCaptureDialog({ open, onClose, onStarted }: { open: boolea
         <Select label="Provider" value={providerId} onChange={(v) => setProviderId(v ?? 'any')}
           options={[{ value: 'any', label: 'Any provider' }, ...(providers ?? []).map((p) => ({ value: p.id, label: p.name }))]} />
       </WithFieldHelp>
-      <Input label="Model" className="claw-mono" placeholder="Any model" value={model} onChange={(e) => setModel(e.target.value)} error={issues.model}
-        description="Empty = any model."
-        endAdornment={<FieldHelp label="Model">An alias or a provider/model reference, as the client asks for it or as ClawRouter routes it (for example gpt-4o-mini or groq/openai/gpt-oss-20b).</FieldHelp>} />
+      <WithFieldHelp label="Models" help="Only requests for the checked models are captured, whether the client asked for the model or ClawRouter routed to it (an alias reaches the models it routes to). All models: every model, including ones added later.">
+        <MultiSelect label="Models" value={modelChoice} onChange={(next) => setModelChoice((previous) => nextModelChoice(previous, next))}
+          options={modelOptions} disabled={models === null} placeholder={models === null ? 'Loading models…' : undefined}
+          emptyText="No models match" error={issues.models} maxVisibleTokens={4}
+          description={models !== null && !models.length ? (providerId === 'any' ? 'No models to choose from: every model is captured.' : 'This provider has no models: every request to it is captured.') : undefined} />
+      </WithFieldHelp>
       <NumberInput label="Requests to capture" min={1} max={MANUAL_CAPTURE_MAX_COUNT} step={1} value={count} onChange={setCount} error={issues.count}
         description={`1–${MANUAL_CAPTURE_MAX_COUNT}`} />
       <NumberInput label="Stop after" unit="minutes" min={1} max={MANUAL_CAPTURE_MAX_MINUTES} step={5} value={minutes} onChange={setMinutes} error={issues.minutes}

@@ -155,7 +155,7 @@ describe('provider captures', () => {
     const { h, admin, key, local } = await world();
     const start = await h.request('/api/captures/manual', { method: 'POST', cookie: admin, json: { providerId: local.id, count: 2, minutes: 30 } });
     expect(start.status).toBe(200);
-    expect((await data<CaptureState['manual']>(start))).toMatchObject({ providerId: local.id, model: null, total: 2, remaining: 2, startedBy: 'admin' });
+    expect((await data<CaptureState['manual']>(start))).toMatchObject({ providerId: local.id, models: null, total: 2, remaining: 2, startedBy: 'admin' });
     // Another provider: not captured.
     expect((await v1(h, key, '/chat/completions', chat('openai/gpt-4o-mini'))).status).toBe(200);
     const first = await v1(h, key, '/chat/completions', chat('local/gpt-4o-mini', { stream: true }));
@@ -185,9 +185,31 @@ describe('provider captures', () => {
     expect(await captures(h, admin)).toEqual([]);
   });
 
+  test('a manual capture can be limited to several models; the older single model still works', async () => {
+    const { h, admin, key, local } = await world();
+    h.models.create(actor, { providerId: local.id, providerModelId: 'other-model', capabilities: ['CHAT'] }, client);
+    h.models.create(actor, { providerId: local.id, providerModelId: 'third-model', capabilities: ['CHAT'] }, client);
+    const start = await h.request('/api/captures/manual', { method: 'POST', cookie: admin, json: { providerId: local.id, models: ['local/gpt-4o-mini', 'local/other-model', 'local/other-model'], count: 5, minutes: 30 } });
+    expect(start.status).toBe(200);
+    expect((await data<CaptureState['manual']>(start))?.models).toEqual(['local/gpt-4o-mini', 'local/other-model']);
+    for (const model of ['local/third-model', 'local/gpt-4o-mini', 'local/other-model']) {
+      expect((await v1(h, key, '/chat/completions', chat(model))).status).toBe(200);
+      h.clock.advance(1_000);
+    }
+    expect((await captures(h, admin)).map((c) => c.modelRef).sort()).toEqual(['local/gpt-4o-mini', 'local/other-model']);
+    expect(h.audit.list({ limit: 50 }).find((a) => a.action === 'CAPTURE_STARTED')?.metadata).toMatchObject({ models: ['local/gpt-4o-mini', 'local/other-model'] });
+
+    const legacy = await h.request('/api/captures/manual', { method: 'POST', cookie: admin, json: { model: 'local/third-model', count: 1, minutes: 5 } });
+    expect((await data<CaptureState['manual']>(legacy))?.models).toEqual(['local/third-model']);
+    const all = await h.request('/api/captures/manual', { method: 'POST', cookie: admin, json: { models: [], count: 1, minutes: 5 } });
+    expect((await data<CaptureState['manual']>(all))?.models).toBeNull();
+  });
+
   test('manual capture input is validated', async () => {
     const { h, admin } = await world();
-    for (const body of [{ count: 0, minutes: 5 }, { count: 101, minutes: 5 }, { count: 1, minutes: 1441 }, { count: 1 }, { count: 1, minutes: 5, extra: true }]) {
+    for (const body of [{ count: 0, minutes: 5 }, { count: 101, minutes: 5 }, { count: 1, minutes: 1441 }, { count: 1 }, { count: 1, minutes: 5, extra: true },
+      { count: 1, minutes: 5, models: 'local/gpt-4o-mini' }, { count: 1, minutes: 5, models: [''] }, { count: 1, minutes: 5, models: [42] },
+      { count: 1, minutes: 5, models: Array.from({ length: 501 }, (_, i) => `m${i}`) }]) {
       expect((await h.request('/api/captures/manual', { method: 'POST', cookie: admin, json: body })).status).toBe(400);
     }
   });

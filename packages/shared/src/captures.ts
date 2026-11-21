@@ -108,8 +108,8 @@ export type NewCapture = Omit<CaptureDetail, 'id' | 'createdAt' | 'sizeBytes'>;
 export interface ManualCaptureInfo {
   /** Only requests to this provider; null: any. */
   providerId: string | null;
-  /** Only requests for this model (as requested, or the model reference tried); null: any. */
-  model: string | null;
+  /** Only requests for one of these models (as requested, or a model reference tried); null: any model. */
+  models: string[] | null;
   total: number;
   remaining: number;
   startedAt: string;
@@ -120,6 +120,9 @@ export interface ManualCaptureInfo {
 /** POST /api/captures/manual */
 export interface StartManualCaptureRequest {
   providerId?: string | null;
+  /** Only requests for one of these models (model references such as `groq/openai/gpt-oss-20b`, or aliases); null or empty: any model. */
+  models?: string[] | null;
+  /** One model: the older form of `models`, still accepted. Ignored when `models` is given. */
   model?: string | null;
   /** How many matching requests to capture, 1–100. */
   count: number;
@@ -129,6 +132,8 @@ export interface StartManualCaptureRequest {
 
 export const MANUAL_CAPTURE_MAX_COUNT = 100;
 export const MANUAL_CAPTURE_MAX_MINUTES = 1440;
+/** At most this many models in one manual capture. */
+export const MANUAL_CAPTURE_MAX_MODELS = 500;
 
 /** GET /api/captures/state: the switch, the manual capture and what is stored. */
 export interface CaptureState {
