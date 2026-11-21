@@ -253,3 +253,26 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .claw-connection-overlay { animation: none; }
 }
+
+/* Logs on phones: one brief line per record (LogsPage); the fields are in the detail. */
+.claw-log-brief {
+  display: grid;
+  gap: var(--eui-space-1, 0.25rem);
+  min-width: 0;
+}
+.claw-log-brief__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--eui-space-1, 0.25rem) var(--eui-space-3, 0.75rem);
+  color: var(--eui-color-text-secondary, #a9b4be);
+  font-size: var(--eui-font-size-sm, 0.8125rem);
+}
+.claw-log-brief__msg {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}

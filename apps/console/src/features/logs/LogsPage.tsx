@@ -16,7 +16,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  Button, CopyButton, Dialog, Input, MessageStrip, Page, Select, StatusIndicator, Switch, Table, Text, type TableColumn,
+  Button, CopyButton, Dialog, Input, MessageStrip, Page, Select, StatusIndicator, Switch, Table, Text, useMediaQuery, type TableColumn,
 } from '@enterprise-ui/react';
 import { LOG_LEVEL_NAMES, type LogEntry, type LogLevelName, type LogPage } from '@clawrouter/shared';
 import { useRouter } from '../../app/router.tsx';
@@ -31,6 +31,8 @@ const LEVEL: Record<LogLevelName, { tone: 'neutral' | 'information' | 'warning' 
 };
 const FOLLOW_MS = 2000;
 const PAGE = 200;
+/** Below this width a record shows only a brief line (the table's columns do not fit). */
+const PHONE = '(max-width: 640px)';
 
 const time = (iso: string) => {
   const d = new Date(iso);
@@ -134,6 +136,23 @@ export function LogsPage() {
     setPage((old) => (old ? { ...old, hasOlder: p.hasOlder } : p));
   };
 
+  // Phones (owner request): one compact column, the message cut to two lines without its fields;
+  // everything is in the record's detail, opened by tapping it.
+  const phone = useMediaQuery(PHONE);
+  const phoneColumns: TableColumn<LogEntry>[] = [{
+    id: 'record', header: 'Record', rowHeader: true, wrap: true, accessor: 'seq',
+    cell: (e) => (
+      <div className="claw-log-brief">
+        <div className="claw-log-brief__meta">
+          <StatusIndicator tone={LEVEL[e.level].tone} size="sm">{LEVEL[e.level].label}</StatusIndicator>
+          <span className="claw-mono">{time(e.time)}</span>
+          {e.component && <span className="claw-mono">{e.component}</span>}
+        </div>
+        <span className="claw-log-brief__msg">{e.msg}</span>
+      </div>
+    ),
+  }];
+
   const columns: TableColumn<LogEntry>[] = [
     { id: 'time', header: 'Time', accessor: 'seq', cell: (e) => <span className="claw-mono" title={new Date(e.time).toLocaleString()}>{time(e.time)}</span> },
     { id: 'level', header: 'Level', accessor: (e) => e.level, cell: (e) => <StatusIndicator tone={LEVEL[e.level].tone} size="sm">{LEVEL[e.level].label}</StatusIndicator> },
@@ -174,7 +193,7 @@ export function LogsPage() {
 
       <Table
         caption={`Log records (${items.length}${page?.hasOlder ? '+' : ''})`}
-        columns={columns}
+        columns={phone ? phoneColumns : columns}
         data={items}
         getRowId={(e) => String(e.seq)}
         getRowLabel={(e) => `${LEVEL[e.level].label} ${e.msg}`}
@@ -189,7 +208,12 @@ export function LogsPage() {
         For longer history, collect the server's output. Secrets are removed before records are stored.
       </Text>
 
-      <Dialog open={selected !== null} onClose={() => setSelected(null)} size="lg" title="Log record" footer={<Button variant="primary" onClick={() => setSelected(null)}>Close</Button>}>
+      <Dialog open={selected !== null} onClose={() => setSelected(null)} size="lg" title="Log record" footer={<>
+        {selected?.requestId && filters.requestId !== selected.requestId && (
+          <Button variant="secondary" onClick={() => { apply({ ...filters, requestId: selected.requestId! }); setSelected(null); }}>Show this request's records</Button>
+        )}
+        <Button variant="primary" onClick={() => setSelected(null)}>Close</Button>
+      </>}>
         {selected && (
           <>
             <div style={{ display: 'flex', gap: 'var(--eui-space-2, 0.5rem)', alignItems: 'center', flexWrap: 'wrap' }}>

@@ -668,3 +668,13 @@ hand (placeholder keys, so the health toast says Degraded; nothing was sent to a
 | ![Checked](44-capture-models/02-models-checked.png) | Two models checked: All is cleared, each shows as a token |
 | ![Dialog](44-capture-models/03-dialog.png) | The dialog with the choice made |
 | ![Banner](44-capture-models/04-banner.png) | The running capture names the provider and both models |
+
+## 45 · Logs on a phone
+
+Captured 2026-11-21 on a scratch development build, emulating an iPhone 13.
+
+| Screenshot | Shows |
+| --- | --- |
+| ![Page](45-logs-phone/phone.png) | The Logs page at phone width: filters first |
+| ![List](45-logs-phone/phone-list.png) | One brief entry per record: level, time, component, and the message (at most two lines) without its fields |
+| ![Detail](45-logs-phone/phone-detail.png) | Tapping a record: every field, Copy as JSON, and Show this request's records |

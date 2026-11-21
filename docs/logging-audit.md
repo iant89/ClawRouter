@@ -59,6 +59,10 @@ Nothing in the console can turn redaction off.
     records, `after=<seq>` fetches only newer ones (follow);
   - the response also says how many records the buffer holds, since when, and
     which components appear.
+- **On phones** (640 px wide or less, owner request) each record is one brief entry: level,
+  time and component, then the message cut to two lines, without its fields. Tapping it
+  opens the full record; its detail also has **Show this request's records** (on every
+  screen size), since the Request column is not shown on phones.
 
 **Request correlation:** every API and gateway response has an `x-request-id`, and
 log records about a request carry it. The Requests detail and the Audit detail

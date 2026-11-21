@@ -14,6 +14,13 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 
 ### Important
 
+- **IMPORTANT** · 2026-11-21 · Owner request: Logs on phones show a brief entry per record
+  "On mobile phones each entry … should only show a brief message not the full message with
+  the data included." At `(max-width: 640px)` (`PHONE` in `features/logs/LogsPage.tsx`) the
+  table has one column: level, time, component, then the message clamped to two lines
+  (`.claw-log-brief`), no fields and no Request column. The detail dialog gained "Show this
+  request's records" (every screen size) to replace that column's filter button. Same branch.
+
 - **IMPORTANT** · 2026-11-21 · Owner request: manual capture chooses models from a checkbox list
   "It should drop down into a combobox that has checkboxes to select the models you want to
   capture, it should have a 'All' entry at the top." The free-text Model field is now an
