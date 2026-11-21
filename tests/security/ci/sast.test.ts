@@ -34,6 +34,8 @@ describe('SAST rules (SEC-026)', () => {
     ['tls-verification-disabled', 'fetch(url, { tls: { rejectUnauthorized: false } });'],
     ['tls-verification-disabled', 'process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";'],
     ['tls-verification-disabled', 'connect({ checkServerIdentity: () => undefined });'],
+    ['tls-verification-disabled', "process.env['NODE_TLS_REJECT_UNAUTHORIZED'] = '0';"],
+    ['tls-verification-disabled', "Bun.spawn(['bun', 'x.ts'], { env: { NODE_TLS_REJECT_UNAUTHORIZED: '0' } });"],
     ['shell-command', "import { exec } from 'node:child_process';"],
     ['shell-command', "Bun.spawn(['sh', '-c', `tar ${name}`]);"],
     ['shell-command', "Bun.spawnSync(['/bin/bash', '-c', cmd]);"],
@@ -76,6 +78,7 @@ describe('SAST rules (SEC-026)', () => {
       'const text = "eval(x) and Math.random() in a string";',
       '// eval(x); Math.random(); debugger;',
       'obj.eval(x);',
+      "if (process.env.NODE_TLS_REJECT_UNAUTHORIZED === '0') warn('NODE_TLS_REJECT_UNAUTHORIZED is set');",
     ]) expect([source, rules('packages/demo/src/x.ts', source)]).toEqual([source, []]);
   });
 

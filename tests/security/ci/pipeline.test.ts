@@ -300,7 +300,9 @@ describe('secret scanning reads commits (SEC-026)', () => {
   test('a PEM header in a template is not key material', () => {
     const dir = mkdtempSync(join(tmpdir(), 'clawrouter-secrets-'));
     git(dir, 'init', '-q', '-b', 'main');
-    writeFileSync(join(dir, 'a.ts'), 'const t = `-----BEGIN PRIVATE KEY-----\\n${pem}`;\n');
+    // Built at run time, so this file holds no PEM header itself.
+    const header = ['-----BEGIN', 'PRIVATE KEY-----'].join(' ');
+    writeFileSync(join(dir, 'a.ts'), `const t = \`${header}\\n\${pem}\`;\n`);
     git(dir, 'add', '.');
     git(dir, 'commit', '-qm', 'x');
     expect(scan(dir, '--history').exitCode).toBe(0);

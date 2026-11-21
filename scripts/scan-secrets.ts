@@ -37,7 +37,7 @@ const PATTERNS: [string, RegExp][] = [
   ['Private key', /-----BEGIN [A-Z ]*PRIVATE KEY-----/],
 ];
 // A PEM header followed by an interpolation (`-----BEGIN PRIVATE KEY-----\n${pem}`) is a template, not key material.
-const TEMPLATE = /PRIVATE KEY-----(?:\\n)?\$\{/;
+const TEMPLATE = /PRIVATE KEY-----(?:\\+n)?\$\{/;
 const FAKE = /canary|example|fake|dummy|0123456789|1234567890|wrong|deadbeef/i;
 const FORBIDDEN_FILES = /(^|\/)(\.env|\.env\.local|secret\.key|setup-token)$|\.(pem|db|sqlite)$/;
 
@@ -67,7 +67,8 @@ if (range && Bun.spawnSync(['git', 'rev-list', '--quiet', range]).exitCode !== 0
 }
 const grep = commits
   ? run(['log', ...commits, '-p', '--no-color', '-G', pattern, '--pretty=format:commit %h']).split('\n').filter((l) => l.startsWith('+') || l.startsWith('commit '))
-  : run(['grep', '-nIE', pattern, '--', '.', ':!*.png', ':!bun.lock']).split('\n').filter(Boolean);
+  : // --untracked: new files too, so a local run finds what CI will once they are committed.
+  run(['grep', '--untracked', '-nIE', pattern, '--', '.', ':!*.png', ':!bun.lock']).split('\n').filter(Boolean);
 
 let where = '';
 for (const line of grep) {
@@ -88,4 +89,4 @@ if (findings.length) {
   console.error('Remove them (and rotate the credential if it was real). Fake fixtures must look fake.');
   process.exit(1);
 }
-console.log(`No secrets found${range ? ` in the commits ${range}` : commits ? ' in any commit' : ' in the tracked files'}.`);
+console.log(`No secrets found${range ? ` in the commits ${range}` : commits ? ' in any commit' : ' in the working tree (tracked and new files)'}.`);

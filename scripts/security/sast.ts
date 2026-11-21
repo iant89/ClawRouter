@@ -56,6 +56,7 @@ export interface SastRule {
   check: (node: ts.Node, report: (node: ts.Node, message: string) => void) => void;
 }
 
+const TLS_ENV = 'NODE_TLS_REJECT_UNAUTHORIZED';
 const SHELLS = new Set(['sh', 'bash', 'zsh', 'dash', 'cmd', 'cmd.exe', 'powershell', 'pwsh']);
 const HTML_SINKS = new Set(['innerHTML', 'outerHTML']);
 const HTML_CALLS = new Set(['insertAdjacentHTML', 'write', 'writeln']);
@@ -101,7 +102,10 @@ export const RULES: SastRule[] = [
     check(node, report) {
       if (ts.isPropertyAssignment(node) && propertyName(node) === 'rejectUnauthorized' && node.initializer.kind === ts.SyntaxKind.FalseKeyword) report(node, 'rejectUnauthorized: false turns off certificate verification.');
       if (ts.isPropertyAssignment(node) && propertyName(node) === 'checkServerIdentity' && (ts.isArrowFunction(node.initializer) || ts.isFunctionExpression(node.initializer))) report(node, 'A custom checkServerIdentity can accept any certificate.');
-      if ((ts.isStringLiteral(node) || ts.isIdentifier(node)) && node.text === 'NODE_TLS_REJECT_UNAUTHORIZED') report(node, 'NODE_TLS_REJECT_UNAUTHORIZED turns off certificate verification for the whole process.');
+      // Setting it (process.env.X = …, env['X'] = …, or { X: … } in a child's environment), not naming it.
+      const named = (n: ts.Node) => (ts.isPropertyAccessExpression(n) && n.name.text === TLS_ENV) || (ts.isElementAccessExpression(n) && text(n.argumentExpression) === TLS_ENV);
+      if (ts.isBinaryExpression(node) && node.operatorToken.kind === ts.SyntaxKind.EqualsToken && named(node.left)) report(node, `${TLS_ENV} turns off certificate verification for the whole process.`);
+      if (ts.isPropertyAssignment(node) && propertyName(node) === TLS_ENV) report(node, `${TLS_ENV} turns off certificate verification for the process it is given to.`);
     },
   },
   {
@@ -220,8 +224,9 @@ export function scanSource(file: string, source: string, rules: SastRule[] = RUL
 
 /** Shipped source: apps, packages and scripts, without tests. */
 export function sastFiles(root: string): string[] {
-  const p = Bun.spawnSync(['git', 'ls-files', '--', 'apps', 'packages', 'scripts'], { cwd: root, stdout: 'pipe' });
-  return p.stdout.toString().split('\n').filter((f) => /\.tsx?$/.test(f) && !f.endsWith('.d.ts') && !/(^|\/)tests?\//.test(f) && !/\.test\.tsx?$/.test(f));
+  // Tracked and new (untracked, not ignored) files, so a local run sees what CI will.
+  const p = Bun.spawnSync(['git', 'ls-files', '--cached', '--others', '--exclude-standard', '--', 'apps', 'packages', 'scripts'], { cwd: root, stdout: 'pipe' });
+  return [...new Set(p.stdout.toString().split('\n'))].filter((f) => /\.tsx?$/.test(f) && !f.endsWith('.d.ts') && !/(^|\/)tests?\//.test(f) && !/\.test\.tsx?$/.test(f));
 }
 
 export interface SastReport {
