@@ -33,6 +33,7 @@ DOMAIN=""
 PORT="8080"
 ASSUME_YES=0
 FORCE=0
+ASCII=0
 SKIP_PACKAGES=0
 
 # Bun must match the Dockerfile (tests/security/host/install-script.test.ts checks).
@@ -67,6 +68,24 @@ fi
 STEP=0
 CURRENT=""
 
+# Symbols: Unicode on a UTF-8 terminal, plain ASCII elsewhere. Remote consoles (a provider's web
+# console, IPMI or serial), the Linux text console and non-UTF-8 locales show Unicode as garbage.
+utf8_terminal() {
+  case "${TERM:-}" in linux | dumb | vt100 | vt102 | vt220 | ansi) return 1 ;; esac
+  [[ "$(locale charmap 2>/dev/null)" == "UTF-8" ]]
+}
+choose_symbols() {
+  if [[ $ASCII -eq 0 ]] && utf8_terminal; then
+    SYM_OK='✔' SYM_FAIL='✖' SYM_INFO='•' SYM_WARN='!' SYM_ASK='?' SYM_SEP='·' SYM_MORE='…'
+    SPIN_FRAMES=(⠋ ⠙ ⠹ ⠸ ⠼ ⠴ ⠦ ⠧ ⠇ ⠏)
+    BOX_TL='╭' BOX_TR='╮' BOX_BL='╰' BOX_BR='╯' BOX_H='─' BOX_V='│'
+  else
+    SYM_OK='[ok]' SYM_FAIL='[!!]' SYM_INFO='-' SYM_WARN='[!]' SYM_ASK='[?]' SYM_SEP='|' SYM_MORE='...'
+    SPIN_FRAMES=('|' '/' '-' "\\")
+    BOX_TL='+' BOX_TR='+' BOX_BL='+' BOX_BR='+' BOX_H='-' BOX_V='|'
+  fi
+}
+
 banner() {
   printf '\n%s' "$CYAN$BOLD"
   cat <<'EOF'
@@ -78,7 +97,7 @@ banner() {
   \_____|_|\__,_| \_/\_/  |_|  \_\___/ \__,_|\__\___|_|
 EOF
   printf '%s\n' "$RESET"
-  printf '  %sSelf-hosted AI gateway · installer for Ubuntu 24.04%s\n\n' "$DIM" "$RESET"
+  printf '  %sSelf-hosted AI gateway %s installer for Ubuntu 24.04%s\n\n' "$DIM" "$SYM_SEP" "$RESET"
 }
 
 step() {
@@ -86,11 +105,11 @@ step() {
   printf '\n%s[%d/%d]%s %s%s%s\n' "$BLUE$BOLD" "$STEP" "$TOTAL_STEPS" "$RESET" "$BOLD" "$1" "$RESET"
   printf '\n==== [%d/%d] %s\n' "$STEP" "$TOTAL_STEPS" "$1" >>"$LOG"
 }
-ok()   { printf '  %s✔%s %s\n' "$GREEN" "$RESET" "$1"; }
-info() { printf '  %s•%s %s\n' "$DIM" "$RESET" "$1"; }
-warn() { printf '  %s!%s %s\n' "$YELLOW" "$RESET" "$1"; }
+ok()   { printf '  %s%s%s %s\n' "$GREEN" "$SYM_OK" "$RESET" "$1"; }
+info() { printf '  %s%s%s %s\n' "$DIM" "$SYM_INFO" "$RESET" "$1"; }
+warn() { printf '  %s%s%s %s\n' "$YELLOW" "$SYM_WARN" "$RESET" "$1"; }
 fail() {
-  printf '\n  %s✖ %s%s\n' "$RED$BOLD" "$1" "$RESET" >&2
+  printf '\n  %s%s %s%s\n' "$RED$BOLD" "$SYM_FAIL" "$1" "$RESET" >&2
   [[ -n "${2:-}" ]] && printf '    %s\n' "$2" >&2
   [[ -f "$LOG" ]] && printf '    Details: %s\n' "$LOG" >&2
   exit 1
@@ -108,18 +127,18 @@ run() {
   if [[ $INTERACTIVE -eq 1 ]]; then
     # The step's own failure is reported here, not by the ERR trap inside the background job.
     ( trap - ERR; "$@" ) >>"$LOG" 2>&1 &
-    local pid=$! frames='⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏' i=0
+    local pid=$! i=0
     while kill -0 "$pid" 2>/dev/null; do
       # Commands run through run_progress report a percentage: read the newest one twice a second.
       if [[ $SHOW_PROGRESS -eq 1 ]] && ((i % 5 == 0)); then progress=$(progress_since "$from"); fi
       # The time keeps moving, so a long step (a build, a slow download) never looks frozen.
-      printf '\r  %s%s%s %s%s %s%s%s\e[K' "$CYAN" "${frames:i++%${#frames}:1}" "$RESET" "$label" "${progress:+ $BOLD$progress$RESET}" "$DIM" "$(elapsed "$started")" "$RESET"
+      printf '\r  %s%s%s %s%s %s%s%s\e[K' "$CYAN" "${SPIN_FRAMES[i++ % ${#SPIN_FRAMES[@]}]}" "$RESET" "$label" "${progress:+ $BOLD$progress$RESET}" "$DIM" "$(elapsed "$started")" "$RESET"
       sleep 0.1
     done
     if wait "$pid"; then
-      printf '\r\e[2K  %s✔%s %s%s%s%s\n' "$GREEN" "$RESET" "$label" "$DIM" "$(took "$started")" "$RESET"
+      printf '\r\e[2K  %s%s%s %s%s%s%s\n' "$GREEN" "$SYM_OK" "$RESET" "$label" "$DIM" "$(took "$started")" "$RESET"
     else
-      printf '\r\e[2K  %s✖%s %s%s%s%s\n' "$RED" "$RESET" "$label" "$DIM" "$(took "$started")" "$RESET"
+      printf '\r\e[2K  %s%s%s %s%s%s%s\n' "$RED" "$SYM_FAIL" "$RESET" "$label" "$DIM" "$(took "$started")" "$RESET"
       printf '%s' "$DIM"; tail -n 15 "$LOG" | sed 's/^/      /'; printf '%s' "$RESET"
       fail "Step failed: $label"
     fi
@@ -159,7 +178,7 @@ took() {
 
 on_error() {
   local code=$?
-  printf '\n  %s✖ The installer stopped unexpectedly%s%s (exit %d).\n' "$RED$BOLD" "$RESET" "${CURRENT:+ during: $CURRENT}" "$code" >&2
+  printf '\n  %s%s The installer stopped unexpectedly%s%s (exit %d).\n' "$RED$BOLD" "$SYM_FAIL" "$RESET" "${CURRENT:+ during: $CURRENT}" "$code" >&2
   printf '    Details: %s\n' "$LOG" >&2
 }
 trap on_error ERR
@@ -169,7 +188,7 @@ confirm() {
   [[ $ASSUME_YES -eq 1 ]] && return 0
   local answer
   # No terminal (cron, CI, ssh without -t): never take silence for a yes.
-  if ! { printf '  %s?%s %s [Y/n] ' "$YELLOW" "$RESET" "$1" >/dev/tty && read -r answer </dev/tty; } 2>/dev/null; then
+  if ! { printf '  %s%s%s %s [Y/n] ' "$YELLOW" "$SYM_ASK" "$RESET" "$1" >/dev/tty && read -r answer </dev/tty; } 2>/dev/null; then
     fail "No terminal to ask for confirmation." "Run again with --yes to install without questions."
   fi
   [[ -z "$answer" || "$answer" =~ ^[Yy] ]]
@@ -187,6 +206,7 @@ Usage: sudo bash install.sh [options]
   --ref <git ref>   branch or tag to install (default: main)
   --yes, -y         do not ask for confirmation
   --force           continue on another Ubuntu version than 24.04
+  --ascii           plain ASCII symbols only (chosen by itself on consoles without UTF-8)
   --skip-packages   never run apt (no package list update, no installs): the packages must
                     already be there, or the installer stops and prints the apt command
   --help, -h        this text
@@ -203,6 +223,7 @@ while [[ $# -gt 0 ]]; do
     -y|--yes) ASSUME_YES=1; shift ;;
     --force) FORCE=1; shift ;;
     --skip-packages) SKIP_PACKAGES=1; shift ;;
+    --ascii) ASCII=1; shift ;;
     -h|--help) usage; exit 0 ;;
     *) usage >&2; printf '\nUnknown option: %s\n' "$1" >&2; exit 2 ;;
   esac
@@ -213,6 +234,7 @@ done
 [[ -z "$DOMAIN" || "$DOMAIN" =~ ^([a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,63}$ ]] || { printf 'Not a domain name: %s\n' "$DOMAIN" >&2; exit 2; }
 [[ "$REF" =~ ^[A-Za-z0-9._/-]{1,100}$ && "$REF" != -* ]] || { printf 'Not a branch or tag name: %s\n' "$REF" >&2; exit 2; }
 [[ -n "$DOMAIN" ]] && TOTAL_STEPS=9
+choose_symbols
 
 # --- Steps ------------------------------------------------------------------------------
 check_system() {
@@ -354,7 +376,7 @@ install_bun() {
   actual=$(sha256sum "$tmp/bun.zip" | awk '{print $1}')
   printf 'sha256 %s, expected %s\n' "$actual" "$expected" >>"$LOG"
   [[ "$actual" == "$expected" ]] || { rm -rf "$tmp"; fail "The Bun download does not match its SHA-256." "Expected $expected, got $actual. Nothing was installed."; }
-  ok "Checksum verified (SHA-256 ${expected:0:16}…)"
+  ok "Checksum verified (SHA-256 ${expected:0:16}${SYM_MORE})"
   run "Unpacking" unzip -q -o "$tmp/bun.zip" -d "$tmp"
   install -m 755 "$tmp/$BUN_BUILD/bun" "$BUN"
   rm -rf "$tmp"
@@ -499,17 +521,17 @@ summary() {
   url=${url:-http://127.0.0.1:$PORT}
   token=""
   [[ -f "$DATA_DIR/setup-token" ]] && token=$(<"$DATA_DIR/setup-token")
-  line=$(printf '%.0s─' $(seq 1 66))
-  printf '\n%s╭%s╮%s\n' "$GREEN" "$line" "$RESET"
-  printf '%s│%s  %-64s%s│%s\n' "$GREEN" "$RESET$BOLD" "ClawRouter ${VERSION:-} is $( [[ $MODE == upgrade ]] && echo upgraded || echo installed ) (commit $COMMIT)" "$GREEN" "$RESET"
-  printf '%s╰%s╯%s\n\n' "$GREEN" "$line" "$RESET"
+  line=$(printf "%.0s$BOX_H" $(seq 1 66))
+  printf '\n%s%s%s%s%s\n' "$GREEN" "$BOX_TL" "$line" "$BOX_TR" "$RESET"
+  printf '%s%s%s  %-64s%s%s%s\n' "$GREEN" "$BOX_V" "$RESET$BOLD" "ClawRouter ${VERSION:-} is $( [[ $MODE == upgrade ]] && echo upgraded || echo installed ) (commit $COMMIT)" "$GREEN" "$BOX_V" "$RESET"
+  printf '%s%s%s%s%s\n\n' "$GREEN" "$BOX_BL" "$line" "$BOX_BR" "$RESET"
   printf '  %sConsole%s     %s\n' "$BOLD" "$RESET" "$url"
   if [[ -n "$token" ]]; then
     printf '  %sSetup%s       open %s/setup and enter this one-time token:\n' "$BOLD" "$RESET" "$url"
     printf '              %s%s%s\n' "$CYAN$BOLD" "$token" "$RESET"
   fi
   [[ -z "$DOMAIN" ]] && printf '  %sRemote use%s  ssh -L %s:127.0.0.1:%s you@this-server, then open http://localhost:%s\n' "$BOLD" "$RESET" "$PORT" "$PORT" "$PORT"
-  printf '  %sService%s     systemctl status clawrouter · journalctl -u clawrouter -f\n' "$BOLD" "$RESET"
+  printf '  %sService%s     systemctl status clawrouter %s journalctl -u clawrouter -f\n' "$BOLD" "$RESET" "$SYM_SEP"
   printf '  %sSettings%s    %s (then: systemctl restart clawrouter)\n' "$BOLD" "$RESET" "$ENV_FILE"
   printf '  %sUpgrade%s     run this installer again\n' "$BOLD" "$RESET"
   printf '  %sLog%s         %s\n' "$BOLD" "$RESET" "$LOG"

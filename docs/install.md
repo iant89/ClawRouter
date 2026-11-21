@@ -54,6 +54,7 @@ never looks frozen; the Bun download and getting the source also show their perc
 | `--ref <branch or tag>` | what to install (default `main`) |
 | `--yes`, `-y` | no confirmation (needed without a terminal: cron, CI, `ssh` without `-t`) |
 | `--force` | continue on another Ubuntu version |
+| `--ascii` | plain ASCII symbols (`[ok]`, a `| / - \` spinner, a `+---+` box). Chosen by itself when the locale is not UTF-8 or the terminal is a plain console (`TERM=linux`, `vt100`, `dumb`): a provider's web console, IPMI or serial console |
 | `--skip-packages` | never run apt (no package list update, no installs); if a package is missing, it stops and prints the `apt-get install` command to run |
 
 ## Upgrading

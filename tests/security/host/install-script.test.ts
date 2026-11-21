@@ -101,7 +101,7 @@ describe('the Ubuntu installer', () => {
   test('--help explains the options', () => {
     const r = bash('--help');
     expect(r.exitCode).toBe(0);
-    for (const o of ['--domain', '--port', '--ref', '--yes', '--force', '--skip-packages']) expect(r.stdout.toString()).toContain(o);
+    for (const o of ['--domain', '--port', '--ref', '--yes', '--force', '--skip-packages', '--ascii']) expect(r.stdout.toString()).toContain(o);
   });
 
   test('waits for automatic updates instead of failing on the package lock, and shows how long steps take', () => {
@@ -145,6 +145,22 @@ describe('the Ubuntu installer', () => {
     // Only what the current step wrote counts: an earlier step's 100% is before the offset.
     const earlier = 'Receiving objects: 100% (5/5)\n';
     expect(read(`${earlier}starting\n`, earlier.length)).toBe('');
+  });
+
+  test('Unicode symbols only on a UTF-8 terminal; plain ASCII on other consoles or with --ascii', () => {
+    const fns = ['utf8_terminal', 'choose_symbols'].map((n) => new RegExp(`^${n}\\(\\) \\{[\\s\\S]*?^\\}\\n`, 'm').exec(script)![0]).join('');
+    const symbols = (env: Record<string, string>, ascii = 0) =>
+      Bun.spawnSync(['bash', '-c', `ASCII=${ascii}; ${fns}choose_symbols; echo "\$SYM_OK \${SPIN_FRAMES[0]} \$BOX_TL"`], { env: { PATH: process.env.PATH ?? '/usr/bin:/bin', ...env }, stdout: 'pipe' }).stdout.toString().trim();
+    const utf8 = Bun.spawnSync(['locale', '-a'], { stdout: 'pipe' }).stdout.toString().split('\n').find((l) => /utf-?8$/i.test(l)) ?? 'C.UTF-8';
+    expect(symbols({ TERM: 'xterm-256color', LANG: utf8 })).toBe('✔ ⠋ ╭');
+    for (const env of [{ TERM: 'xterm-256color' }, { TERM: 'xterm-256color', LC_ALL: 'C' }, { TERM: 'linux', LANG: utf8 }, { TERM: 'vt100', LANG: utf8 }, { TERM: 'dumb', LANG: utf8 }]) {
+      expect([env, symbols(env)]).toEqual([env, '[ok] | +']);
+    }
+    expect(symbols({ TERM: 'xterm-256color', LANG: utf8 }, 1)).toBe('[ok] | +');
+    // Every other line the installer prints is ASCII: its symbols come from choose_symbols.
+    const unicodeBranch = /^choose_symbols\(\) \{[\s\S]*?^  else$/m.exec(script)![0];
+    const outside = code.replace(unicodeBranch, '').split('\n').filter((l) => /[^\x00-\x7F]/.test(l));
+    expect(outside).toEqual([]);
   });
 
   test('asks on the terminal, and a missing terminal is never a yes', () => {

@@ -38,7 +38,9 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
   freshness by the lists directory / update-success-stamp, never the files. Owner asked for a
   percentage on the clone: `run_progress` (git --progress, curl --progress-bar) shows the newest
   "NN%" the step wrote (`progress_since`, read twice a second); only use it for commands whose
-  output percentages mean progress. Tested on Ubuntu 24.04 + systemd 255 in Docker (docs/install.md;
+  output percentages mean progress. Owner saw garbage instead of the spinner on a headless console:
+  every symbol comes from `choose_symbols` (Unicode only when `locale charmap` is UTF-8 and TERM is
+  not linux/vt*/dumb/ansi, else ASCII; `--ascii` forces it); a test refuses Unicode anywhere else. Tested on Ubuntu 24.04 + systemd 255 in Docker (docs/install.md;
   the test image needs the proxy CA and `--network host`, and sudoers files must be 0440).
   Merged 2026-11-21 (pull request 10); the one-line command was then run through the real
   raw.githubusercontent.com URL on a fresh Ubuntu 24.04 (installed, 16/16 security checks).
