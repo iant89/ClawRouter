@@ -103,14 +103,17 @@ run() {
   shift
   CURRENT="$label"
   printf '$ %s\n' "$*" >>"$LOG"
-  local started=$SECONDS
+  local started=$SECONDS from progress=""
+  from=$(stat -c %s "$LOG")
   if [[ $INTERACTIVE -eq 1 ]]; then
     # The step's own failure is reported here, not by the ERR trap inside the background job.
     ( trap - ERR; "$@" ) >>"$LOG" 2>&1 &
     local pid=$! frames='⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏' i=0
     while kill -0 "$pid" 2>/dev/null; do
+      # Commands run through run_progress report a percentage: read the newest one twice a second.
+      if [[ $SHOW_PROGRESS -eq 1 ]] && ((i % 5 == 0)); then progress=$(progress_since "$from"); fi
       # The time keeps moving, so a long step (a build, a slow download) never looks frozen.
-      printf '\r  %s%s%s %s %s%s%s\e[K' "$CYAN" "${frames:i++%${#frames}:1}" "$RESET" "$label" "$DIM" "$(elapsed "$started")" "$RESET"
+      printf '\r  %s%s%s %s%s %s%s%s\e[K' "$CYAN" "${frames:i++%${#frames}:1}" "$RESET" "$label" "${progress:+ $BOLD$progress$RESET}" "$DIM" "$(elapsed "$started")" "$RESET"
       sleep 0.1
     done
     if wait "$pid"; then
@@ -124,6 +127,23 @@ run() {
     if ( trap - ERR; "$@" ) >>"$LOG" 2>&1; then ok "$label$(took "$started")"; else tail -n 15 "$LOG" | sed 's/^/      /'; fail "Step failed: $label"; fi
   fi
   CURRENT=""
+}
+
+# run_progress: run, showing the percentage the command writes as it goes (git --progress,
+# curl --progress-bar). Only for such commands: other output may hold numbers with "%" too.
+SHOW_PROGRESS=0
+run_progress() {
+  SHOW_PROGRESS=1
+  run "$@"
+  SHOW_PROGRESS=0
+}
+
+# The newest progress the log holds after byte $1: "Receiving objects 45%" (git, which counts
+# objects, then deltas) or "45%" (curl). Progress lines end in \r, so they are split there.
+progress_since() {
+  tail -c +"$(($1 + 1))" "$LOG" 2>/dev/null | tr '\r' '\n' \
+    | grep -oE '(Counting objects|Compressing objects|Receiving objects|Resolving deltas): +[0-9]{1,3}%|[0-9]{1,3}(\.[0-9])?%$' \
+    | tail -n 1 | sed -E 's/: +/ /; s/\.[0-9]%$/%/' || true
 }
 
 # "0:42" / "12:05" since $1 (a value of $SECONDS).
@@ -330,7 +350,7 @@ install_bun() {
   tmp=$(mktemp -d)
   url="https://github.com/oven-sh/bun/releases/download/bun-v$BUN_VERSION/$BUN_BUILD.zip"
   expected="${BUN_SHA256[$BUN_BUILD]}"
-  run "Downloading $BUN_BUILD.zip" curl -fsSL --retry 3 -o "$tmp/bun.zip" "$url"
+  run_progress "Downloading $BUN_BUILD.zip" curl -fSL --progress-bar --retry 3 -o "$tmp/bun.zip" "$url"
   actual=$(sha256sum "$tmp/bun.zip" | awk '{print $1}')
   printf 'sha256 %s, expected %s\n' "$actual" "$expected" >>"$LOG"
   [[ "$actual" == "$expected" ]] || { rm -rf "$tmp"; fail "The Bun download does not match its SHA-256." "Expected $expected, got $actual. Nothing was installed."; }
@@ -345,10 +365,10 @@ fetch_source() {
   step "Getting ClawRouter ($REF)"
   install -d -m 755 "$PREFIX"
   if [[ -d "$SRC_DIR/.git" ]]; then
-    run "Fetching $REF" git -C "$SRC_DIR" fetch --depth 1 origin "$REF"
+    run_progress "Fetching $REF" git -C "$SRC_DIR" fetch --progress --depth 1 origin "$REF"
     run "Checking out $REF" git -C "$SRC_DIR" reset --hard FETCH_HEAD
   else
-    run "Cloning $REPO_URL" git clone --quiet --depth 1 --branch "$REF" "$REPO_URL" "$SRC_DIR"
+    run_progress "Cloning $REPO_URL" git clone --progress --depth 1 --branch "$REF" "$REPO_URL" "$SRC_DIR"
   fi
   COMMIT=$(git -C "$SRC_DIR" rev-parse --short HEAD)
   VERSION=$(sed -n 's/^  "version": "\(.*\)",$/\1/p' "$SRC_DIR/package.json" | head -n 1)

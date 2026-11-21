@@ -21,7 +21,8 @@
 // (fresh install, upgrade with --domain, the failure paths; docs/install.md).
 
 import { describe, expect, test } from 'bun:test';
-import { readFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 const repo = join(import.meta.dir, '..', '..', '..');
@@ -58,7 +59,7 @@ describe('the Ubuntu installer', () => {
     const commands = code.split('\n').filter((l) => !/printf|fail |usage/.test(l)).join('\n');
     expect(commands).not.toMatch(/(curl|wget)[^\n]*\|\s*(sudo\s+)?(ba|z|da)?sh\b/);
     expect(commands).not.toMatch(/\b(bash|sh)\s+<\(\s*(curl|wget)/);
-    expect(commands).toMatch(/curl -fsSL --retry 3 -o "\$tmp\/bun\.zip"/);
+    expect(commands).toMatch(/curl -fSL --progress-bar --retry 3 -o "\$tmp\/bun\.zip"/);
     const pkg = JSON.parse(readFileSync(join(repo, 'package.json'), 'utf8')) as { repository: { url: string } };
     expect(pkg.repository.url).toContain(/REPO_URL="https:\/\/github\.com\/([^"]+)"/.exec(script)![1]!);
   });
@@ -125,6 +126,25 @@ describe('the Ubuntu installer', () => {
     expect(recent).toContain('/var/lib/apt/periodic/update-success-stamp /var/lib/apt/lists -maxdepth 0');
     expect(recent).not.toContain("-name '*_Packages*' -mmin");
     expect(bash('--help').stdout.toString()).toContain('--skip-packages');
+  });
+
+  test('the clone and the Bun download show their percentage while they run', () => {
+    expect(code).toMatch(/run_progress "Cloning \$REPO_URL" git clone --progress /);
+    expect(code).toMatch(/run_progress "Fetching \$REF" git -C "\$SRC_DIR" fetch --progress /);
+    expect(code).toMatch(/run_progress "Downloading \$BUN_BUILD\.zip" curl -fSL --progress-bar /);
+    // The newest figure in the step's output, the way git and curl write it (\r between updates).
+    const dir = mkdtempSync(join(tmpdir(), 'clawrouter-progress-'));
+    const fn = /^progress_since\(\) \{[\s\S]*?^\}\n/m.exec(script)![0];
+    const read = (log: string, from = 0) => {
+      writeFileSync(join(dir, 'log'), log);
+      return Bun.spawnSync(['bash', '-c', `${fn}progress_since ${from}`], { env: { LOG: join(dir, 'log'), PATH: process.env.PATH ?? '/usr/bin:/bin' }, stdout: 'pipe' }).stdout.toString().trim();
+    };
+    expect(read("Cloning into 'src'...\nremote: Counting objects:   1% (11/1092)\rremote: Counting objects: 100% (1092/1092), done.\nReceiving objects:  12% (130/1092)\rReceiving objects:  45% (490/1092), 1.2 MiB | 2.4 MiB/s\r")).toBe('Receiving objects 45%');
+    expect(read('Receiving objects: 100% (1092/1092)\nResolving deltas:  30% (3/10)\r')).toBe('Resolving deltas 30%');
+    expect(read('######                     12.4%\r##################          67.9%\r')).toBe('67%');
+    // Only what the current step wrote counts: an earlier step's 100% is before the offset.
+    const earlier = 'Receiving objects: 100% (5/5)\n';
+    expect(read(`${earlier}starting\n`, earlier.length)).toBe('');
   });
 
   test('asks on the terminal, and a missing terminal is never a yes', () => {

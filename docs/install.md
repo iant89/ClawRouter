@@ -41,7 +41,8 @@ reminder to copy the secret key somewhere safe (a password manager): without it,
 keys and backups cannot be read.
 
 Each running step shows a spinner and the time it has taken so far, so a long build or download
-never looks frozen; finished steps that took 2 seconds or more show their time. The screen shows only the steps; every command's output goes to
+never looks frozen; the Bun download and getting the source also show their percentage
+(`⠙ Cloning … Receiving objects 45% 0:03`, from git's and curl's own progress output); finished steps that took 2 seconds or more show their time. The screen shows only the steps; every command's output goes to
 `/var/log/clawrouter-install.log` (0600). A failed step shows the end of that log.
 
 ## Options
