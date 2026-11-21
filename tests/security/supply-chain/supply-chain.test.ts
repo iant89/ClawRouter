@@ -93,6 +93,8 @@ describe('lockfile verification (SEC-018)', () => {
     ['a changed vendored tarball', { tarball: 'a replaced tarball' }, 'does not match the integrity hash'],
     ['a version range', { deps: { lodash: '^4.17.21' } }, 'must be exact versions'],
     ['a dist-tag', { deps: { lodash: 'latest' } }, 'must be exact versions'],
+    ['an alias to a version range', { deps: { 'ts-api': 'npm:typescript@^6.0.0' } }, 'an alias must name an exact version'],
+    ['an alias to a dist-tag', { deps: { 'ts-api': 'npm:@scope/pkg@latest' } }, 'an alias must name an exact version'],
     ['an install script allowed', { trusted: ['react'] }, 'to run install scripts'],
     ['a workspace that does not exist', { packages: { '@p/x': ['@p/x@workspace:packages/x'] } }, 'which is not a workspace'],
   ] as const)('refuses %s', (_name, o, message) => {

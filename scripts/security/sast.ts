@@ -30,7 +30,9 @@
  *
  * Waived findings stay in the report, so every exception remains visible.
  */
-import ts from 'typescript';
+// TypeScript 7 (the compiler the project builds with) has no JavaScript API; the syntax tree comes
+// from TypeScript 6's, installed as typescript-api (a development dependency).
+import ts from 'typescript-api';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 

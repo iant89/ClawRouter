@@ -75,6 +75,7 @@ export const SECURITY_DIR = 'tests/security/';
  * conditional security test fails the stage.
  */
 export const CONDITIONAL_SECURITY_TESTS: { file: string; test: string; reason: string }[] = [
+  { file: 'tests/security/host/install-script.test.ts', test: 'passes shellcheck', reason: 'needs shellcheck (installed on the CI runners)' },
   { file: 'tests/security/host/systemd-unit.test.ts', test: "systemd's analyzer rates the unit OK (exposure at most 2.0 of 10)", reason: 'needs systemd-analyze (installed on the CI runners)' },
 ];
 

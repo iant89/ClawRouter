@@ -14,6 +14,28 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 
 ### Important
 
+- **IMPORTANT** · 2026-11-21 · TypeScript 7 (Dependabot pull request 7, merged by the owner)
+  TypeScript 7's npm package is only the native `tsc`: no JavaScript compiler API. The SAST checker
+  needs one, so it imports `typescript-api` (`npm:typescript@6.0.2`, dev only); keep both until a
+  TypeScript 7 API package exists. `deps:check` now accepts an npm alias only with an exact version.
+  The 19 platform packages TypeScript 7 lists for other systems are not installed on Linux, so their
+  licenses are recorded by hand in `supply-chain.json` (Apache-2.0, checked on the registry): a
+  TypeScript 7 upgrade must re-check and update those entries, or the dependency audit fails.
+  `main` was red in CI from that merge until pull request 10.
+
+- **IMPORTANT** · 2026-11-21 · Owner request: a curl-able Ubuntu installer, `deploy/install.sh`
+  "A professional looking Ubuntu install script that the user can just curl": numbered steps
+  ([1/8]…), spinner, ✔/✖, a summary box; command output only in /var/log/clawrouter-install.log.
+  Keep: it installs the hardened unit from `deploy/` (never its own copy), Bun pinned to the
+  Dockerfile version with **SHA-256 hashes in the script** (update all three with BUN_VERSION, from
+  the Bun release's `SHASUMS256.txt`; the test pins the version), a rerun upgrades (key, env file
+  and data kept, backup first), prompts read /dev/tty and no terminal is never a yes, arguments are
+  validated before anything else. Package steps wait for automatic updates (`package_manager_busy`,
+  apt `DPkg::Lock::Timeout=600`) and every running step shows elapsed time: added after the owner
+  asked "Is it stuck?". Tested on Ubuntu 24.04 + systemd 255 in Docker (docs/install.md;
+  the test image needs the proxy CA and `--network host`, and sudoers files must be 0440).
+  Not tried: the raw.githubusercontent.com URL itself, Let's Encrypt, arm64.
+
 - **IMPORTANT** · 2026-11-20 · Security phase 9: security CI pipeline (SEC-026) and regression corpus (SEC-027)
   Merged into `main` (pull request 9, then the first-run fix fast-forwarded on 2026-11-21). No migration, no new
   dependency, no route (matrix unchanged). Owner said "Start phase 9". Guide `docs/security-ci.md`.

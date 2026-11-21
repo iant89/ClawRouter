@@ -50,7 +50,9 @@ new test folder can never fall outside the pipeline.
 ## Severity and waivers
 
 **SAST** ([`scripts/security/sast.ts`](../scripts/security/sast.ts)): rules on the TypeScript
-syntax tree, written for ClawRouter (no scanner dependency, spec §47):
+syntax tree, written for ClawRouter (no scanner dependency, spec §47). TypeScript 7, which the project builds
+with, has no JavaScript API, so the checker parses with TypeScript 6 installed under the alias
+`typescript-api` (`npm:typescript@6.0.2`, development only):
 
 | Severity | Rules | Effect |
 |---|---|---|
