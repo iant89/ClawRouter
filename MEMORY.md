@@ -21,7 +21,9 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
   Dockerfile version with **SHA-256 hashes in the script** (update all three with BUN_VERSION, from
   the Bun release's `SHASUMS256.txt`; the test pins the version), a rerun upgrades (key, env file
   and data kept, backup first), prompts read /dev/tty and no terminal is never a yes, arguments are
-  validated before anything else. Tested on Ubuntu 24.04 + systemd 255 in Docker (docs/install.md;
+  validated before anything else. Package steps wait for automatic updates (`package_manager_busy`,
+  apt `DPkg::Lock::Timeout=600`) and every running step shows elapsed time: added after the owner
+  asked "Is it stuck?". Tested on Ubuntu 24.04 + systemd 255 in Docker (docs/install.md;
   the test image needs the proxy CA and `--network host`, and sudoers files must be 0440).
   Not tried: the raw.githubusercontent.com URL itself, Let's Encrypt, arm64.
 

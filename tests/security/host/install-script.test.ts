@@ -103,6 +103,16 @@ describe('the Ubuntu installer', () => {
     for (const o of ['--domain', '--port', '--ref', '--yes', '--force']) expect(r.stdout.toString()).toContain(o);
   });
 
+  test('waits for automatic updates instead of failing on the package lock, and shows how long steps take', () => {
+    expect(code).toContain('if package_manager_busy; then');
+    expect(code).toContain("pgrep -x 'apt|apt-get|aptitude|dpkg|unattended-upgr|unattended-upgrade'");
+    for (const line of code.split('\n').filter((l) => /\bapt-get (-\S+ )*(update|install)\b/.test(l))) {
+      expect([line.trim(), line.includes('-o DPkg::Lock::Timeout=600')]).toEqual([line.trim(), true]);
+    }
+    const r = Bun.spawnSync(['bash', '-c', `${/^elapsed\(\) \{[\s\S]*?^\}\n/m.exec(script)![0]}${/^took\(\) \{[\s\S]*?^\}\n/m.exec(script)![0]}SECONDS=200; elapsed 77; echo; took 199; echo; took 170; echo; took 75`], { stdout: 'pipe' });
+    expect(r.stdout.toString()).toBe('2:03\n\n (30s)\n (2m 05s)');
+  });
+
   test('asks on the terminal, and a missing terminal is never a yes', () => {
     expect(code).toContain('read -r answer </dev/tty');
     expect(code).toContain('fail "No terminal to ask for confirmation."');

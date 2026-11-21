@@ -102,25 +102,38 @@ run() {
   shift
   CURRENT="$label"
   printf '$ %s\n' "$*" >>"$LOG"
+  local started=$SECONDS
   if [[ $INTERACTIVE -eq 1 ]]; then
     # The step's own failure is reported here, not by the ERR trap inside the background job.
     ( trap - ERR; "$@" ) >>"$LOG" 2>&1 &
     local pid=$! frames='⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏' i=0
     while kill -0 "$pid" 2>/dev/null; do
-      printf '\r  %s%s%s %s' "$CYAN" "${frames:i++%${#frames}:1}" "$RESET" "$label"
+      # The time keeps moving, so a long step (a build, a slow download) never looks frozen.
+      printf '\r  %s%s%s %s %s%s%s\e[K' "$CYAN" "${frames:i++%${#frames}:1}" "$RESET" "$label" "$DIM" "$(elapsed "$started")" "$RESET"
       sleep 0.1
     done
     if wait "$pid"; then
-      printf '\r\e[2K  %s✔%s %s\n' "$GREEN" "$RESET" "$label"
+      printf '\r\e[2K  %s✔%s %s%s%s%s\n' "$GREEN" "$RESET" "$label" "$DIM" "$(took "$started")" "$RESET"
     else
-      printf '\r\e[2K  %s✖%s %s\n' "$RED" "$RESET" "$label"
+      printf '\r\e[2K  %s✖%s %s%s%s%s\n' "$RED" "$RESET" "$label" "$DIM" "$(took "$started")" "$RESET"
       printf '%s' "$DIM"; tail -n 15 "$LOG" | sed 's/^/      /'; printf '%s' "$RESET"
       fail "Step failed: $label"
     fi
   else
-    if ( trap - ERR; "$@" ) >>"$LOG" 2>&1; then ok "$label"; else tail -n 15 "$LOG" | sed 's/^/      /'; fail "Step failed: $label"; fi
+    if ( trap - ERR; "$@" ) >>"$LOG" 2>&1; then ok "$label$(took "$started")"; else tail -n 15 "$LOG" | sed 's/^/      /'; fail "Step failed: $label"; fi
   fi
   CURRENT=""
+}
+
+# "0:42" / "12:05" since $1 (a value of $SECONDS).
+elapsed() {
+  local s=$((SECONDS - $1))
+  printf '%d:%02d' $((s / 60)) $((s % 60))
+}
+# " (42s)" or " (2m 05s)" for a finished step; nothing for one that took under 2 seconds.
+took() {
+  local s=$((SECONDS - $1))
+  if ((s < 2)); then return; elif ((s < 60)); then printf ' (%ds)' "$s"; else printf ' (%dm %02ds)' $((s / 60)) $((s % 60)); fi
 }
 
 on_error() {
@@ -233,8 +246,31 @@ install_packages() {
   export DEBIAN_FRONTEND=noninteractive
   local packages=(ca-certificates curl git unzip openssl)
   [[ -n "$DOMAIN" ]] && packages+=(caddy)
-  run "Updating the package lists" apt-get update -q
-  run "Installing ${packages[*]}" apt-get install -y -q --no-install-recommends "${packages[@]}"
+  # A freshly booted server installs its security updates first and holds the package lock
+  # meanwhile: wait for that openly instead of failing or spinning under the wrong label.
+  if package_manager_busy; then
+    info "Ubuntu is installing its automatic updates; the installer waits until they finish"
+    run "Waiting for the automatic updates (up to 20 minutes)" wait_for_package_manager
+  fi
+  # Lock::Timeout covers an update that starts between the check and apt-get.
+  run "Updating the package lists" apt-get -o DPkg::Lock::Timeout=600 update -q
+  run "Installing ${packages[*]}" apt-get -o DPkg::Lock::Timeout=600 install -y -q --no-install-recommends "${packages[@]}"
+}
+
+# apt, dpkg or unattended-upgrades running (process names are cut to 15 characters).
+package_manager_busy() {
+  pgrep -x 'apt|apt-get|aptitude|dpkg|unattended-upgr|unattended-upgrade' >/dev/null 2>&1
+}
+
+wait_for_package_manager() {
+  local i
+  for i in $(seq 1 600); do
+    package_manager_busy || return 0
+    sleep 2
+  done
+  printf 'The package manager was still busy after 20 minutes:\n'
+  pgrep -a -x 'apt|apt-get|aptitude|dpkg|unattended-upgr|unattended-upgrade' || true
+  return 1
 }
 
 install_bun() {
