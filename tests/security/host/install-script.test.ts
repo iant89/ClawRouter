@@ -153,7 +153,7 @@ describe('the Ubuntu installer', () => {
       Bun.spawnSync(['bash', '-c', `ASCII=${ascii}; ${fns}choose_symbols; echo "\$SYM_OK \${SPIN_FRAMES[0]} \$BOX_TL"`], { env: { PATH: process.env.PATH ?? '/usr/bin:/bin', ...env }, stdout: 'pipe' }).stdout.toString().trim();
     const utf8 = Bun.spawnSync(['locale', '-a'], { stdout: 'pipe' }).stdout.toString().split('\n').find((l) => /utf-?8$/i.test(l)) ?? 'C.UTF-8';
     expect(symbols({ TERM: 'xterm-256color', LANG: utf8 })).toBe('✔ ⠋ ╭');
-    for (const env of [{ TERM: 'xterm-256color' }, { TERM: 'xterm-256color', LC_ALL: 'C' }, { TERM: 'linux', LANG: utf8 }, { TERM: 'vt100', LANG: utf8 }, { TERM: 'dumb', LANG: utf8 }]) {
+    for (const env of <Record<string, string>[]>[{ TERM: 'xterm-256color' }, { TERM: 'xterm-256color', LC_ALL: 'C' }, { TERM: 'linux', LANG: utf8 }, { TERM: 'vt100', LANG: utf8 }, { TERM: 'dumb', LANG: utf8 }]) {
       expect([env, symbols(env)]).toEqual([env, '[ok] | +']);
     }
     expect(symbols({ TERM: 'xterm-256color', LANG: utf8 }, 1)).toBe('[ok] | +');
