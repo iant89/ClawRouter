@@ -32,7 +32,10 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
   and data kept, backup first), prompts read /dev/tty and no terminal is never a yes, arguments are
   validated before anything else. Package steps wait for automatic updates (`package_manager_busy`,
   apt `DPkg::Lock::Timeout=600`) and every running step shows elapsed time: added after the owner
-  asked "Is it stuck?". Tested on Ubuntu 24.04 + systemd 255 in Docker (docs/install.md;
+  asked "Is it stuck?". Owner asked to skip updating package lists: apt is not run when every
+  package is installed, lists updated < 24 h ago are used as they are (update + retry only on
+  failure), and `--skip-packages` never runs apt. List files keep the mirror's dates: judge
+  freshness by the lists directory / update-success-stamp, never the files. Tested on Ubuntu 24.04 + systemd 255 in Docker (docs/install.md;
   the test image needs the proxy CA and `--network host`, and sudoers files must be 0440).
   Merged 2026-11-21 (pull request 10); the one-line command was then run through the real
   raw.githubusercontent.com URL on a fresh Ubuntu 24.04 (installed, 16/16 security checks).

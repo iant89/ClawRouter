@@ -27,7 +27,7 @@ sudo bash install.sh --domain gateway.example.com
 | Step | |
 |---|---|
 | 1. Checking the system | Ubuntu 24.04, x86_64 or arm64 (picks Bun's baseline build on CPUs without AVX2), systemd, 1 GB free, the port free; asks for confirmation |
-| 2. System packages | `ca-certificates curl git unzip openssl` (and `caddy` with `--domain`) from Ubuntu's archive. On a freshly booted server Ubuntu installs its security updates first and holds the package lock: the installer says so and waits (up to 20 minutes) instead of failing |
+| 2. System packages | `ca-certificates curl git unzip openssl` (and `caddy` with `--domain`) from Ubuntu's archive. **Only what is missing**: when everything is installed, apt is not run at all; when the package lists were updated in the last 24 hours, the missing packages are installed without updating them first (and only updated if that fails). On a freshly booted server Ubuntu installs its security updates first and holds the package lock: the installer says so and waits (up to 20 minutes) instead of failing |
 | 3. Bun | the version the Docker image uses, downloaded from Bun's GitHub release and **checked against a SHA-256 written in the script**; anything else stops the install |
 | 4. Source | a shallow clone of `main` (or `--ref`) into `/opt/clawrouter/src` |
 | 5. Build | `bun install --frozen-lockfile` (every package checked against `bun.lock`) and `bun run build` |
@@ -53,6 +53,7 @@ never looks frozen; finished steps that took 2 seconds or more show their time. 
 | `--ref <branch or tag>` | what to install (default `main`) |
 | `--yes`, `-y` | no confirmation (needed without a terminal: cron, CI, `ssh` without `-t`) |
 | `--force` | continue on another Ubuntu version |
+| `--skip-packages` | never run apt (no package list update, no installs); if a package is missing, it stops and prints the `apt-get install` command to run |
 
 ## Upgrading
 
@@ -83,7 +84,9 @@ The longest steps are the automatic-updates wait on a new server and the build o
 
 On Ubuntu 24.04 with systemd 255 (booted in a container, 2026-11-21): a fresh install (16 of 16
 security checks passed), an upgrade with `--domain` (data and key kept, backup made, Caddy
-redirecting to https), and a busy package manager (the wait step, then the install), and the failure paths: no terminal without `--yes`, not root, hostile
+redirecting to https), and a busy package manager (the wait step, then the install), the package step's four cases (all
+installed: apt not run; recent lists: installed without an update; old lists: updated first;
+`--skip-packages` with packages missing: stopped with the command), and the failure paths: no terminal without `--yes`, not root, hostile
 `--domain`/`--port`/`--ref` values, and a Bun download that does not match its hash (stopped,
 nothing installed). After the merge, the one-line command itself was run on a fresh Ubuntu 24.04
 (`curl … raw.githubusercontent.com … | sudo bash`): installed commit 56b5fdb, 16 of 16 security

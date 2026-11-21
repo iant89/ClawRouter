@@ -100,17 +100,31 @@ describe('the Ubuntu installer', () => {
   test('--help explains the options', () => {
     const r = bash('--help');
     expect(r.exitCode).toBe(0);
-    for (const o of ['--domain', '--port', '--ref', '--yes', '--force']) expect(r.stdout.toString()).toContain(o);
+    for (const o of ['--domain', '--port', '--ref', '--yes', '--force', '--skip-packages']) expect(r.stdout.toString()).toContain(o);
   });
 
   test('waits for automatic updates instead of failing on the package lock, and shows how long steps take', () => {
     expect(code).toContain('if package_manager_busy; then');
     expect(code).toContain("pgrep -x 'apt|apt-get|aptitude|dpkg|unattended-upgr|unattended-upgrade'");
-    for (const line of code.split('\n').filter((l) => /\bapt-get (-\S+ )*(update|install)\b/.test(l))) {
+    for (const line of code.split('\n').filter((l) => /\bapt-get (-\S+ )*(update|install)\b/.test(l) && !/\bfail /.test(l))) {
       expect([line.trim(), line.includes('-o DPkg::Lock::Timeout=600')]).toEqual([line.trim(), true]);
     }
     const r = Bun.spawnSync(['bash', '-c', `${/^elapsed\(\) \{[\s\S]*?^\}\n/m.exec(script)![0]}${/^took\(\) \{[\s\S]*?^\}\n/m.exec(script)![0]}SECONDS=200; elapsed 77; echo; took 199; echo; took 170; echo; took 75`], { stdout: 'pipe' });
     expect(r.stdout.toString()).toBe('2:03\n\n (30s)\n (2m 05s)');
+  });
+
+  test('skips apt when the packages are installed, and --skip-packages never runs it', () => {
+    const body = /^install_packages\(\) \{[\s\S]*?^\}\n/m.exec(script)![0];
+    // Installed packages are found before any apt-get line; a full set returns before apt.
+    expect(body.indexOf('missing_packages')).toBeLessThan(body.indexOf('apt-get'));
+    expect(body.indexOf('return\n')).toBeLessThan(body.indexOf('apt-get'));
+    expect(body.indexOf('if [[ $SKIP_PACKAGES -eq 1 ]]')).toBeLessThan(body.indexOf('apt-get'));
+    expect(code).toContain("dpkg-query -W -f='${Status}'");
+    // Freshness is when apt last wrote the lists, not the list files' dates (the mirror's).
+    const recent = /^package_lists_recent\(\) \{[\s\S]*?^\}\n/m.exec(script)![0];
+    expect(recent).toContain('/var/lib/apt/periodic/update-success-stamp /var/lib/apt/lists -maxdepth 0');
+    expect(recent).not.toContain("-name '*_Packages*' -mmin");
+    expect(bash('--help').stdout.toString()).toContain('--skip-packages');
   });
 
   test('asks on the terminal, and a missing terminal is never a yes', () => {

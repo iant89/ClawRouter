@@ -33,6 +33,7 @@ DOMAIN=""
 PORT="8080"
 ASSUME_YES=0
 FORCE=0
+SKIP_PACKAGES=0
 
 # Bun must match the Dockerfile (tests/security/host/install-script.test.ts checks).
 BUN_VERSION="1.4.4"
@@ -166,6 +167,8 @@ Usage: sudo bash install.sh [options]
   --ref <git ref>   branch or tag to install (default: main)
   --yes, -y         do not ask for confirmation
   --force           continue on another Ubuntu version than 24.04
+  --skip-packages   never run apt (no package list update, no installs): the packages must
+                    already be there, or the installer stops and prints the apt command
   --help, -h        this text
 
 Running it again upgrades ClawRouter and keeps the secret key, settings and data.
@@ -179,6 +182,7 @@ while [[ $# -gt 0 ]]; do
     --ref) REF="${2:-}"; shift 2 ;;
     -y|--yes) ASSUME_YES=1; shift ;;
     --force) FORCE=1; shift ;;
+    --skip-packages) SKIP_PACKAGES=1; shift ;;
     -h|--help) usage; exit 0 ;;
     *) usage >&2; printf '\nUnknown option: %s\n' "$1" >&2; exit 2 ;;
   esac
@@ -244,17 +248,60 @@ check_system() {
 install_packages() {
   step "Installing system packages"
   export DEBIAN_FRONTEND=noninteractive
-  local packages=(ca-certificates curl git unzip openssl)
+  local packages=(ca-certificates curl git unzip openssl) missing
   [[ -n "$DOMAIN" ]] && packages+=(caddy)
+  mapfile -t missing < <(missing_packages "${packages[@]}")
+
+  # Everything there already: apt is not touched at all (no package list update).
+  if [[ ${#missing[@]} -eq 0 ]]; then
+    ok "Already installed: ${packages[*]}"
+    return
+  fi
+  if [[ $SKIP_PACKAGES -eq 1 ]]; then
+    fail "Missing packages: ${missing[*]} (--skip-packages was given, so apt is not run)." "Install them first: sudo apt-get install -y ${missing[*]}"
+  fi
+  info "To install: ${missing[*]}"
+
   # A freshly booted server installs its security updates first and holds the package lock
   # meanwhile: wait for that openly instead of failing or spinning under the wrong label.
   if package_manager_busy; then
     info "Ubuntu is installing its automatic updates; the installer waits until they finish"
     run "Waiting for the automatic updates (up to 20 minutes)" wait_for_package_manager
   fi
-  # Lock::Timeout covers an update that starts between the check and apt-get.
-  run "Updating the package lists" apt-get -o DPkg::Lock::Timeout=600 update -q
-  run "Installing ${packages[*]}" apt-get -o DPkg::Lock::Timeout=600 install -y -q --no-install-recommends "${packages[@]}"
+  if package_lists_recent; then
+    # Lists refreshed in the last day: install from them; only if that fails, update and retry.
+    run "Installing ${missing[*]} (package lists are recent, not updated)" install_or_update_and_retry "${missing[@]}"
+  else
+    # Lock::Timeout covers an update that starts between the check and apt-get.
+    run "Updating the package lists" apt-get -o DPkg::Lock::Timeout=600 update -q
+    run "Installing ${missing[*]}" apt_install "${missing[@]}"
+  fi
+}
+
+# The packages of "$@" that are not installed, one per line.
+missing_packages() {
+  local p
+  for p in "$@"; do
+    dpkg-query -W -f='${Status}' "$p" 2>/dev/null | grep -q 'install ok installed' || printf '%s\n' "$p"
+  done
+}
+
+# The package lists were updated in the last 24 hours. The list files keep the mirror's dates,
+# so this looks at when apt last wrote them: Ubuntu's stamp of the last successful update
+# (update-notifier-common), or else the lists directory itself. Without lists, never recent.
+package_lists_recent() {
+  compgen -G '/var/lib/apt/lists/*_Packages*' >/dev/null || return 1
+  [[ -n "$(find /var/lib/apt/periodic/update-success-stamp /var/lib/apt/lists -maxdepth 0 -mmin -1440 -print -quit 2>/dev/null)" ]]
+}
+
+apt_install() {
+  apt-get -o DPkg::Lock::Timeout=600 install -y -q --no-install-recommends "$@"
+}
+
+install_or_update_and_retry() {
+  apt_install "$@" && return 0
+  printf 'Installing from the current package lists failed; updating them and trying again.\n'
+  apt-get -o DPkg::Lock::Timeout=600 update -q && apt_install "$@"
 }
 
 # apt, dpkg or unattended-upgrades running (process names are cut to 15 characters).
