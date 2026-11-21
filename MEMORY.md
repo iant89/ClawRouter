@@ -40,7 +40,12 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
   "NN%" the step wrote (`progress_since`, read twice a second); only use it for commands whose
   output percentages mean progress. Owner saw garbage instead of the spinner on a headless console:
   every symbol comes from `choose_symbols` (Unicode only when `locale charmap` is UTF-8 and TERM is
-  not linux/vt*/dumb/ansi, else ASCII; `--ascii` forces it); a test refuses Unicode anywhere else. Tested on Ubuntu 24.04 + systemd 255 in Docker (docs/install.md;
+  not linux/vt*/dumb/ansi, else ASCII; `--ascii` forces it); a test refuses Unicode anywhere else.
+  Owner could not reach a fresh install (127.0.0.1 only): `--lan` sets CLAWROUTER_HOST=0.0.0.0 **and**
+  CLAWROUTER_COOKIE_SECURE=false (needed: browsers drop the Secure cookie on plain http, sign-in
+  fails silently), opens the port in an active ufw, warns in the summary; refused with --domain;
+  kept by upgrades (read back from the env file). The security check then FAILs "cookies" and
+  WARNs https/setup token by design. Checked in Chromium over the LAN address. Tested on Ubuntu 24.04 + systemd 255 in Docker (docs/install.md;
   the test image needs the proxy CA and `--network host`, and sudoers files must be 0440).
   Merged 2026-11-21 (pull request 10); the one-line command was then run through the real
   raw.githubusercontent.com URL on a fresh Ubuntu 24.04 (installed, 16/16 security checks).

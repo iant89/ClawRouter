@@ -101,7 +101,7 @@ describe('the Ubuntu installer', () => {
   test('--help explains the options', () => {
     const r = bash('--help');
     expect(r.exitCode).toBe(0);
-    for (const o of ['--domain', '--port', '--ref', '--yes', '--force', '--skip-packages', '--ascii']) expect(r.stdout.toString()).toContain(o);
+    for (const o of ['--domain', '--port', '--ref', '--yes', '--force', '--skip-packages', '--ascii', '--lan']) expect(r.stdout.toString()).toContain(o);
   });
 
   test('waits for automatic updates instead of failing on the package lock, and shows how long steps take', () => {
@@ -161,6 +161,26 @@ describe('the Ubuntu installer', () => {
     const unicodeBranch = /^choose_symbols\(\) \{[\s\S]*?^  else$/m.exec(script)![0];
     const outside = code.replace(unicodeBranch, '').split('\n').filter((l) => /[^\x00-\x7F]/.test(l));
     expect(outside).toEqual([]);
+  });
+
+  test('--lan listens on the network over plain HTTP, says so, and cannot be combined with --domain', () => {
+    const r = bash('--lan', '--domain', 'gateway.example.com');
+    expect(r.exitCode).toBe(2);
+    expect(r.stderr.toString()).toContain('Use --lan or --domain, not both');
+    // Both settings, or browsers drop the HTTPS-only session cookie on plain HTTP and sign-in fails.
+    expect(code).toContain('set_setting CLAWROUTER_HOST 0.0.0.0');
+    expect(code).toContain('set_setting CLAWROUTER_COOKIE_SECURE false');
+    expect(code).toContain('Plain HTTP on the network');
+    // Only on request: the default stays on 127.0.0.1 (deploy/clawrouter.env.example).
+    expect(readFileSync(join(repo, 'deploy', 'clawrouter.env.example'), 'utf8')).toContain('CLAWROUTER_HOST=127.0.0.1');
+    expect(code.split('\n').filter((l) => l.includes('set_setting CLAWROUTER_HOST')).length).toBe(1);
+    // set_setting replaces a line, also a commented-out one, or adds it.
+    const dir = mkdtempSync(join(tmpdir(), 'clawrouter-settings-'));
+    const file = join(dir, 'env');
+    writeFileSync(file, 'CLAWROUTER_HOST=127.0.0.1\n# CLAWROUTER_COOKIE_SECURE=true\nCLAWROUTER_PORT=8080\n');
+    const fn = /^set_setting\(\) \{[\s\S]*?^\}\n/m.exec(script)![0];
+    Bun.spawnSync(['bash', '-c', `ENV_FILE='${file}'; ${fn}set_setting CLAWROUTER_HOST 0.0.0.0; set_setting CLAWROUTER_COOKIE_SECURE false; set_setting CLAWROUTER_EXTRA x`]);
+    expect(readFileSync(file, 'utf8')).toBe('CLAWROUTER_HOST=0.0.0.0\nCLAWROUTER_COOKIE_SECURE=false\nCLAWROUTER_PORT=8080\nCLAWROUTER_EXTRA=x\n');
   });
 
   test('asks on the terminal, and a missing terminal is never a yes', () => {

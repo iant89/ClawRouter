@@ -50,6 +50,7 @@ never looks frozen; the Bun download and getting the source also show their perc
 | Option | |
 |---|---|
 | `--domain <name>` | HTTPS through Caddy for that name |
+| `--lan` | listen on every network interface over plain HTTP, for a home or office network without a domain: the console is at `http://<server address>:8080`. Sets `CLAWROUTER_HOST=0.0.0.0` and `CLAWROUTER_COOKIE_SECURE=false` (browsers drop an HTTPS-only cookie on plain HTTP, so sign-in would fail), opens the port if `ufw` is active. Passwords and API keys cross the network unencrypted, and the security check reports that; never for a server reachable from the internet. Kept by later upgrades. Not with `--domain` |
 | `--port <number>` | the local port (default 8080, always on 127.0.0.1) |
 | `--ref <branch or tag>` | what to install (default `main`) |
 | `--yes`, `-y` | no confirmation (needed without a terminal: cron, CI, `ssh` without `-t`) |
@@ -65,11 +66,24 @@ restarts; migrations run at start (and back up first, too).
 
 ## Without a domain
 
-ClawRouter listens on 127.0.0.1 only. From your own computer:
+By default ClawRouter listens on 127.0.0.1 only. From your own computer:
 
 ```bash
 ssh -L 8080:127.0.0.1:8080 you@server     # then open http://localhost:8080
 ```
+
+Or, on a trusted home or office network, install with `--lan` (above). To switch an existing
+install to the network by hand:
+
+```bash
+sudo sed -i 's/^CLAWROUTER_HOST=.*/CLAWROUTER_HOST=0.0.0.0/' /etc/clawrouter/clawrouter.env
+echo 'CLAWROUTER_COOKIE_SECURE=false' | sudo tee -a /etc/clawrouter/clawrouter.env
+sudo systemctl restart clawrouter
+```
+
+Both lines are needed: with only the first, the server answers, but sign-in fails, because the
+browser drops the HTTPS-only session cookie on plain HTTP. To go back, set `CLAWROUTER_HOST=127.0.0.1`
+and remove the cookie line.
 
 ## If it seems stuck
 
@@ -86,7 +100,8 @@ The longest steps are the automatic-updates wait on a new server and the build o
 
 On Ubuntu 24.04 with systemd 255 (booted in a container, 2026-11-21): a fresh install (16 of 16
 security checks passed), an upgrade with `--domain` (data and key kept, backup made, Caddy
-redirecting to https), and a busy package manager (the wait step, then the install), the package step's four cases (all
+redirecting to https), and `--lan` (setup and sign-in in Chromium at the LAN address over plain HTTP, kept by an upgrade; the
+manual switch above too), a busy package manager (the wait step, then the install), the package step's four cases (all
 installed: apt not run; recent lists: installed without an update; old lists: updated first;
 `--skip-packages` with packages missing: stopped with the command), and the failure paths: no terminal without `--yes`, not root, hostile
 `--domain`/`--port`/`--ref` values, and a Bun download that does not match its hash (stopped,

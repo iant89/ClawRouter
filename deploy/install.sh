@@ -34,6 +34,7 @@ PORT="8080"
 ASSUME_YES=0
 FORCE=0
 ASCII=0
+LAN=0
 SKIP_PACKAGES=0
 
 # Bun must match the Dockerfile (tests/security/host/install-script.test.ts checks).
@@ -200,6 +201,9 @@ ClawRouter installer for Ubuntu 24.04
 
 Usage: sudo bash install.sh [options]
 
+  --lan             listen on every network interface over plain HTTP (a home or office
+                    network without a domain): http://<this server's address>:<port>.
+                    Passwords and API keys cross the network unencrypted; not for the internet
   --domain <name>   serve https://<name> through Caddy (certificate from Let's Encrypt;
                     the name must point at this server, ports 80 and 443 open)
   --port <number>   local port ClawRouter listens on (default 8080, on 127.0.0.1)
@@ -218,6 +222,7 @@ EOF
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --domain) DOMAIN="${2:-}"; shift 2 ;;
+    --lan) LAN=1; shift ;;
     --port) PORT="${2:-}"; shift 2 ;;
     --ref) REF="${2:-}"; shift 2 ;;
     -y|--yes) ASSUME_YES=1; shift ;;
@@ -233,6 +238,7 @@ done
 [[ "$PORT" =~ ^[0-9]{2,5}$ && "$PORT" -ge 1024 && "$PORT" -le 65535 ]] || { printf 'The port must be a number from 1024 to 65535.\n' >&2; exit 2; }
 [[ -z "$DOMAIN" || "$DOMAIN" =~ ^([a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,63}$ ]] || { printf 'Not a domain name: %s\n' "$DOMAIN" >&2; exit 2; }
 [[ "$REF" =~ ^[A-Za-z0-9._/-]{1,100}$ && "$REF" != -* ]] || { printf 'Not a branch or tag name: %s\n' "$REF" >&2; exit 2; }
+[[ $LAN -eq 1 && -n "$DOMAIN" ]] && { printf 'Use --lan or --domain, not both: with --domain, Caddy serves the network over HTTPS.\n' >&2; exit 2; }
 [[ -n "$DOMAIN" ]] && TOTAL_STEPS=9
 choose_symbols
 
@@ -282,7 +288,11 @@ check_system() {
   printf '\n'
   info "Source:  $REPO_URL ($REF)"
   info "Install: $PREFIX, data in $DATA_DIR, settings in $CONF_DIR"
-  info "Address: ${DOMAIN:+https://$DOMAIN (through Caddy), }http://127.0.0.1:$PORT"
+  if [[ $LAN -eq 1 ]]; then
+    info "Address: http://$(lan_address):$PORT (every network interface, plain HTTP)"
+  else
+    info "Address: ${DOMAIN:+https://$DOMAIN (through Caddy), }http://127.0.0.1:$PORT"
+  fi
   printf '\n'
   confirm "$( [[ $MODE == upgrade ]] && echo "Upgrade ClawRouter now?" || echo "Install ClawRouter now?" )" || { info "Nothing was changed."; exit 0; }
 }
@@ -435,8 +445,32 @@ prepare_host() {
     sed -i "s/^CLAWROUTER_PORT=.*/CLAWROUTER_PORT=$PORT/" "$ENV_FILE"
     ok "Settings written ($ENV_FILE)"
   fi
+  if [[ $LAN -eq 1 ]]; then
+    # Plain HTTP on the network: the session cookie cannot be HTTPS-only, or browsers drop it.
+    set_setting CLAWROUTER_HOST 0.0.0.0
+    set_setting CLAWROUTER_COOKIE_SECURE false
+    ok "Listening on every network interface over plain HTTP (--lan)"
+  fi
   PORT=$(sed -n 's/^CLAWROUTER_PORT=//p' "$ENV_FILE" | tail -n 1)
   PORT=${PORT:-8080}
+  LISTEN=$(sed -n 's/^CLAWROUTER_HOST=//p' "$ENV_FILE" | tail -n 1)
+}
+
+# Sets NAME=value in the settings file: replaces the line (also a commented-out one), or adds it.
+set_setting() {
+  if grep -qE "^#? ?$1=" "$ENV_FILE"; then
+    sed -i -E "s|^#? ?$1=.*|$1=$2|" "$ENV_FILE"
+  else
+    printf '%s=%s\n' "$1" "$2" >>"$ENV_FILE"
+  fi
+}
+
+# The server's first IPv4 address on the network (for the console address in --lan mode).
+lan_address() {
+  local a
+  a=$(ip -4 -o route get 1.1.1.1 2>/dev/null | sed -n 's/.* src \([0-9.]*\).*/\1/p')
+  [[ -n "$a" ]] || a=$(hostname -I 2>/dev/null | awk '{print $1}')
+  printf '%s' "${a:-SERVER-ADDRESS}"
 }
 
 # Runs a ClawRouter maintenance command as the service account with the service's settings.
@@ -476,6 +510,13 @@ install_service() {
   run "Enabling it at boot" systemctl enable --quiet clawrouter
   run "Starting ClawRouter" systemctl restart clawrouter
   run "Waiting until it is ready" wait_ready
+  if [[ "$LISTEN" == "0.0.0.0" ]]; then
+    if command -v ufw >/dev/null && ufw status | grep -q '^Status: active'; then
+      run "Opening port $PORT in the firewall" ufw allow "$PORT/tcp"
+    else
+      info "No active ufw firewall: port $PORT is reachable from the network"
+    fi
+  fi
 }
 
 setup_https() {
@@ -518,6 +559,7 @@ check_deployment() {
 summary() {
   local url token line
   url=${DOMAIN:+https://$DOMAIN}
+  [[ -z "$url" && "$LISTEN" == "0.0.0.0" ]] && url="http://$(lan_address):$PORT"
   url=${url:-http://127.0.0.1:$PORT}
   token=""
   [[ -f "$DATA_DIR/setup-token" ]] && token=$(<"$DATA_DIR/setup-token")
@@ -530,7 +572,7 @@ summary() {
     printf '  %sSetup%s       open %s/setup and enter this one-time token:\n' "$BOLD" "$RESET" "$url"
     printf '              %s%s%s\n' "$CYAN$BOLD" "$token" "$RESET"
   fi
-  [[ -z "$DOMAIN" ]] && printf '  %sRemote use%s  ssh -L %s:127.0.0.1:%s you@this-server, then open http://localhost:%s\n' "$BOLD" "$RESET" "$PORT" "$PORT" "$PORT"
+  [[ -z "$DOMAIN" && "$LISTEN" != "0.0.0.0" ]] && printf '  %sRemote use%s  ssh -L %s:127.0.0.1:%s you@this-server, then open http://localhost:%s\n' "$BOLD" "$RESET" "$PORT" "$PORT" "$PORT"
   printf '  %sService%s     systemctl status clawrouter %s journalctl -u clawrouter -f\n' "$BOLD" "$RESET" "$SYM_SEP"
   printf '  %sSettings%s    %s (then: systemctl restart clawrouter)\n' "$BOLD" "$RESET" "$ENV_FILE"
   printf '  %sUpgrade%s     run this installer again\n' "$BOLD" "$RESET"
@@ -540,6 +582,11 @@ summary() {
     printf '       %ssudo cat %s%s\n' "$BOLD" "$KEY_FILE" "$RESET"
     printf '     Keep it in a password manager. Without it, stored provider keys cannot be\n'
     printf '     read again, and database backups cannot be restored with them.\n'
+  fi
+  if [[ "$LISTEN" == "0.0.0.0" && -z "$DOMAIN" ]]; then
+    printf '\n  %s%s  Plain HTTP on the network%s: passwords and API keys cross it unencrypted, and\n' "$YELLOW$BOLD" "$SYM_WARN" "$RESET"
+    printf '     the security check reports that as a failure. Fine on a trusted home or office\n'
+    printf '     network; for anything reachable from the internet, use --domain (HTTPS).\n'
   fi
   printf '\n'
 }
