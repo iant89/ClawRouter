@@ -33,6 +33,8 @@ DOMAIN=""
 PORT="8080"
 ASSUME_YES=0
 FORCE=0
+ASCII=0
+SKIP_PACKAGES=0
 
 # Bun must match the Dockerfile (tests/security/host/install-script.test.ts checks).
 BUN_VERSION="1.4.4"
@@ -66,6 +68,24 @@ fi
 STEP=0
 CURRENT=""
 
+# Symbols: Unicode on a UTF-8 terminal, plain ASCII elsewhere. Remote consoles (a provider's web
+# console, IPMI or serial), the Linux text console and non-UTF-8 locales show Unicode as garbage.
+utf8_terminal() {
+  case "${TERM:-}" in linux | dumb | vt100 | vt102 | vt220 | ansi) return 1 ;; esac
+  [[ "$(locale charmap 2>/dev/null)" == "UTF-8" ]]
+}
+choose_symbols() {
+  if [[ $ASCII -eq 0 ]] && utf8_terminal; then
+    SYM_OK='✔' SYM_FAIL='✖' SYM_INFO='•' SYM_WARN='!' SYM_ASK='?' SYM_SEP='·' SYM_MORE='…'
+    SPIN_FRAMES=(⠋ ⠙ ⠹ ⠸ ⠼ ⠴ ⠦ ⠧ ⠇ ⠏)
+    BOX_TL='╭' BOX_TR='╮' BOX_BL='╰' BOX_BR='╯' BOX_H='─' BOX_V='│'
+  else
+    SYM_OK='[ok]' SYM_FAIL='[!!]' SYM_INFO='-' SYM_WARN='[!]' SYM_ASK='[?]' SYM_SEP='|' SYM_MORE='...'
+    SPIN_FRAMES=('|' '/' '-' "\\")
+    BOX_TL='+' BOX_TR='+' BOX_BL='+' BOX_BR='+' BOX_H='-' BOX_V='|'
+  fi
+}
+
 banner() {
   printf '\n%s' "$CYAN$BOLD"
   cat <<'EOF'
@@ -77,7 +97,7 @@ banner() {
   \_____|_|\__,_| \_/\_/  |_|  \_\___/ \__,_|\__\___|_|
 EOF
   printf '%s\n' "$RESET"
-  printf '  %sSelf-hosted AI gateway · installer for Ubuntu 24.04%s\n\n' "$DIM" "$RESET"
+  printf '  %sSelf-hosted AI gateway %s installer for Ubuntu 24.04%s\n\n' "$DIM" "$SYM_SEP" "$RESET"
 }
 
 step() {
@@ -85,11 +105,11 @@ step() {
   printf '\n%s[%d/%d]%s %s%s%s\n' "$BLUE$BOLD" "$STEP" "$TOTAL_STEPS" "$RESET" "$BOLD" "$1" "$RESET"
   printf '\n==== [%d/%d] %s\n' "$STEP" "$TOTAL_STEPS" "$1" >>"$LOG"
 }
-ok()   { printf '  %s✔%s %s\n' "$GREEN" "$RESET" "$1"; }
-info() { printf '  %s•%s %s\n' "$DIM" "$RESET" "$1"; }
-warn() { printf '  %s!%s %s\n' "$YELLOW" "$RESET" "$1"; }
+ok()   { printf '  %s%s%s %s\n' "$GREEN" "$SYM_OK" "$RESET" "$1"; }
+info() { printf '  %s%s%s %s\n' "$DIM" "$SYM_INFO" "$RESET" "$1"; }
+warn() { printf '  %s%s%s %s\n' "$YELLOW" "$SYM_WARN" "$RESET" "$1"; }
 fail() {
-  printf '\n  %s✖ %s%s\n' "$RED$BOLD" "$1" "$RESET" >&2
+  printf '\n  %s%s %s%s\n' "$RED$BOLD" "$SYM_FAIL" "$1" "$RESET" >&2
   [[ -n "${2:-}" ]] && printf '    %s\n' "$2" >&2
   [[ -f "$LOG" ]] && printf '    Details: %s\n' "$LOG" >&2
   exit 1
@@ -102,20 +122,23 @@ run() {
   shift
   CURRENT="$label"
   printf '$ %s\n' "$*" >>"$LOG"
-  local started=$SECONDS
+  local started=$SECONDS from progress=""
+  from=$(stat -c %s "$LOG")
   if [[ $INTERACTIVE -eq 1 ]]; then
     # The step's own failure is reported here, not by the ERR trap inside the background job.
     ( trap - ERR; "$@" ) >>"$LOG" 2>&1 &
-    local pid=$! frames='⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏' i=0
+    local pid=$! i=0
     while kill -0 "$pid" 2>/dev/null; do
+      # Commands run through run_progress report a percentage: read the newest one twice a second.
+      if [[ $SHOW_PROGRESS -eq 1 ]] && ((i % 5 == 0)); then progress=$(progress_since "$from"); fi
       # The time keeps moving, so a long step (a build, a slow download) never looks frozen.
-      printf '\r  %s%s%s %s %s%s%s\e[K' "$CYAN" "${frames:i++%${#frames}:1}" "$RESET" "$label" "$DIM" "$(elapsed "$started")" "$RESET"
+      printf '\r  %s%s%s %s%s %s%s%s\e[K' "$CYAN" "${SPIN_FRAMES[i++ % ${#SPIN_FRAMES[@]}]}" "$RESET" "$label" "${progress:+ $BOLD$progress$RESET}" "$DIM" "$(elapsed "$started")" "$RESET"
       sleep 0.1
     done
     if wait "$pid"; then
-      printf '\r\e[2K  %s✔%s %s%s%s%s\n' "$GREEN" "$RESET" "$label" "$DIM" "$(took "$started")" "$RESET"
+      printf '\r\e[2K  %s%s%s %s%s%s%s\n' "$GREEN" "$SYM_OK" "$RESET" "$label" "$DIM" "$(took "$started")" "$RESET"
     else
-      printf '\r\e[2K  %s✖%s %s%s%s%s\n' "$RED" "$RESET" "$label" "$DIM" "$(took "$started")" "$RESET"
+      printf '\r\e[2K  %s%s%s %s%s%s%s\n' "$RED" "$SYM_FAIL" "$RESET" "$label" "$DIM" "$(took "$started")" "$RESET"
       printf '%s' "$DIM"; tail -n 15 "$LOG" | sed 's/^/      /'; printf '%s' "$RESET"
       fail "Step failed: $label"
     fi
@@ -123,6 +146,23 @@ run() {
     if ( trap - ERR; "$@" ) >>"$LOG" 2>&1; then ok "$label$(took "$started")"; else tail -n 15 "$LOG" | sed 's/^/      /'; fail "Step failed: $label"; fi
   fi
   CURRENT=""
+}
+
+# run_progress: run, showing the percentage the command writes as it goes (git --progress,
+# curl --progress-bar). Only for such commands: other output may hold numbers with "%" too.
+SHOW_PROGRESS=0
+run_progress() {
+  SHOW_PROGRESS=1
+  run "$@"
+  SHOW_PROGRESS=0
+}
+
+# The newest progress the log holds after byte $1: "Receiving objects 45%" (git, which counts
+# objects, then deltas) or "45%" (curl). Progress lines end in \r, so they are split there.
+progress_since() {
+  tail -c +"$(($1 + 1))" "$LOG" 2>/dev/null | tr '\r' '\n' \
+    | grep -oE '(Counting objects|Compressing objects|Receiving objects|Resolving deltas): +[0-9]{1,3}%|[0-9]{1,3}(\.[0-9])?%$' \
+    | tail -n 1 | sed -E 's/: +/ /; s/\.[0-9]%$/%/' || true
 }
 
 # "0:42" / "12:05" since $1 (a value of $SECONDS).
@@ -138,7 +178,7 @@ took() {
 
 on_error() {
   local code=$?
-  printf '\n  %s✖ The installer stopped unexpectedly%s%s (exit %d).\n' "$RED$BOLD" "$RESET" "${CURRENT:+ during: $CURRENT}" "$code" >&2
+  printf '\n  %s%s The installer stopped unexpectedly%s%s (exit %d).\n' "$RED$BOLD" "$SYM_FAIL" "$RESET" "${CURRENT:+ during: $CURRENT}" "$code" >&2
   printf '    Details: %s\n' "$LOG" >&2
 }
 trap on_error ERR
@@ -148,7 +188,7 @@ confirm() {
   [[ $ASSUME_YES -eq 1 ]] && return 0
   local answer
   # No terminal (cron, CI, ssh without -t): never take silence for a yes.
-  if ! { printf '  %s?%s %s [Y/n] ' "$YELLOW" "$RESET" "$1" >/dev/tty && read -r answer </dev/tty; } 2>/dev/null; then
+  if ! { printf '  %s%s%s %s [Y/n] ' "$YELLOW" "$SYM_ASK" "$RESET" "$1" >/dev/tty && read -r answer </dev/tty; } 2>/dev/null; then
     fail "No terminal to ask for confirmation." "Run again with --yes to install without questions."
   fi
   [[ -z "$answer" || "$answer" =~ ^[Yy] ]]
@@ -166,6 +206,9 @@ Usage: sudo bash install.sh [options]
   --ref <git ref>   branch or tag to install (default: main)
   --yes, -y         do not ask for confirmation
   --force           continue on another Ubuntu version than 24.04
+  --ascii           plain ASCII symbols only (chosen by itself on consoles without UTF-8)
+  --skip-packages   never run apt (no package list update, no installs): the packages must
+                    already be there, or the installer stops and prints the apt command
   --help, -h        this text
 
 Running it again upgrades ClawRouter and keeps the secret key, settings and data.
@@ -179,6 +222,8 @@ while [[ $# -gt 0 ]]; do
     --ref) REF="${2:-}"; shift 2 ;;
     -y|--yes) ASSUME_YES=1; shift ;;
     --force) FORCE=1; shift ;;
+    --skip-packages) SKIP_PACKAGES=1; shift ;;
+    --ascii) ASCII=1; shift ;;
     -h|--help) usage; exit 0 ;;
     *) usage >&2; printf '\nUnknown option: %s\n' "$1" >&2; exit 2 ;;
   esac
@@ -189,6 +234,7 @@ done
 [[ -z "$DOMAIN" || "$DOMAIN" =~ ^([a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,63}$ ]] || { printf 'Not a domain name: %s\n' "$DOMAIN" >&2; exit 2; }
 [[ "$REF" =~ ^[A-Za-z0-9._/-]{1,100}$ && "$REF" != -* ]] || { printf 'Not a branch or tag name: %s\n' "$REF" >&2; exit 2; }
 [[ -n "$DOMAIN" ]] && TOTAL_STEPS=9
+choose_symbols
 
 # --- Steps ------------------------------------------------------------------------------
 check_system() {
@@ -244,17 +290,60 @@ check_system() {
 install_packages() {
   step "Installing system packages"
   export DEBIAN_FRONTEND=noninteractive
-  local packages=(ca-certificates curl git unzip openssl)
+  local packages=(ca-certificates curl git unzip openssl) missing
   [[ -n "$DOMAIN" ]] && packages+=(caddy)
+  mapfile -t missing < <(missing_packages "${packages[@]}")
+
+  # Everything there already: apt is not touched at all (no package list update).
+  if [[ ${#missing[@]} -eq 0 ]]; then
+    ok "Already installed: ${packages[*]}"
+    return
+  fi
+  if [[ $SKIP_PACKAGES -eq 1 ]]; then
+    fail "Missing packages: ${missing[*]} (--skip-packages was given, so apt is not run)." "Install them first: sudo apt-get install -y ${missing[*]}"
+  fi
+  info "To install: ${missing[*]}"
+
   # A freshly booted server installs its security updates first and holds the package lock
   # meanwhile: wait for that openly instead of failing or spinning under the wrong label.
   if package_manager_busy; then
     info "Ubuntu is installing its automatic updates; the installer waits until they finish"
     run "Waiting for the automatic updates (up to 20 minutes)" wait_for_package_manager
   fi
-  # Lock::Timeout covers an update that starts between the check and apt-get.
-  run "Updating the package lists" apt-get -o DPkg::Lock::Timeout=600 update -q
-  run "Installing ${packages[*]}" apt-get -o DPkg::Lock::Timeout=600 install -y -q --no-install-recommends "${packages[@]}"
+  if package_lists_recent; then
+    # Lists refreshed in the last day: install from them; only if that fails, update and retry.
+    run "Installing ${missing[*]} (package lists are recent, not updated)" install_or_update_and_retry "${missing[@]}"
+  else
+    # Lock::Timeout covers an update that starts between the check and apt-get.
+    run "Updating the package lists" apt-get -o DPkg::Lock::Timeout=600 update -q
+    run "Installing ${missing[*]}" apt_install "${missing[@]}"
+  fi
+}
+
+# The packages of "$@" that are not installed, one per line.
+missing_packages() {
+  local p
+  for p in "$@"; do
+    dpkg-query -W -f='${Status}' "$p" 2>/dev/null | grep -q 'install ok installed' || printf '%s\n' "$p"
+  done
+}
+
+# The package lists were updated in the last 24 hours. The list files keep the mirror's dates,
+# so this looks at when apt last wrote them: Ubuntu's stamp of the last successful update
+# (update-notifier-common), or else the lists directory itself. Without lists, never recent.
+package_lists_recent() {
+  compgen -G '/var/lib/apt/lists/*_Packages*' >/dev/null || return 1
+  [[ -n "$(find /var/lib/apt/periodic/update-success-stamp /var/lib/apt/lists -maxdepth 0 -mmin -1440 -print -quit 2>/dev/null)" ]]
+}
+
+apt_install() {
+  apt-get -o DPkg::Lock::Timeout=600 install -y -q --no-install-recommends "$@"
+}
+
+install_or_update_and_retry() {
+  apt_install "$@" && return 0
+  printf 'Installing from the current package lists failed; updating them and trying again.\n'
+  apt-get -o DPkg::Lock::Timeout=600 update -q && apt_install "$@"
 }
 
 # apt, dpkg or unattended-upgrades running (process names are cut to 15 characters).
@@ -283,11 +372,11 @@ install_bun() {
   tmp=$(mktemp -d)
   url="https://github.com/oven-sh/bun/releases/download/bun-v$BUN_VERSION/$BUN_BUILD.zip"
   expected="${BUN_SHA256[$BUN_BUILD]}"
-  run "Downloading $BUN_BUILD.zip" curl -fsSL --retry 3 -o "$tmp/bun.zip" "$url"
+  run_progress "Downloading $BUN_BUILD.zip" curl -fSL --progress-bar --retry 3 -o "$tmp/bun.zip" "$url"
   actual=$(sha256sum "$tmp/bun.zip" | awk '{print $1}')
   printf 'sha256 %s, expected %s\n' "$actual" "$expected" >>"$LOG"
   [[ "$actual" == "$expected" ]] || { rm -rf "$tmp"; fail "The Bun download does not match its SHA-256." "Expected $expected, got $actual. Nothing was installed."; }
-  ok "Checksum verified (SHA-256 ${expected:0:16}…)"
+  ok "Checksum verified (SHA-256 ${expected:0:16}${SYM_MORE})"
   run "Unpacking" unzip -q -o "$tmp/bun.zip" -d "$tmp"
   install -m 755 "$tmp/$BUN_BUILD/bun" "$BUN"
   rm -rf "$tmp"
@@ -298,10 +387,10 @@ fetch_source() {
   step "Getting ClawRouter ($REF)"
   install -d -m 755 "$PREFIX"
   if [[ -d "$SRC_DIR/.git" ]]; then
-    run "Fetching $REF" git -C "$SRC_DIR" fetch --depth 1 origin "$REF"
+    run_progress "Fetching $REF" git -C "$SRC_DIR" fetch --progress --depth 1 origin "$REF"
     run "Checking out $REF" git -C "$SRC_DIR" reset --hard FETCH_HEAD
   else
-    run "Cloning $REPO_URL" git clone --quiet --depth 1 --branch "$REF" "$REPO_URL" "$SRC_DIR"
+    run_progress "Cloning $REPO_URL" git clone --progress --depth 1 --branch "$REF" "$REPO_URL" "$SRC_DIR"
   fi
   COMMIT=$(git -C "$SRC_DIR" rev-parse --short HEAD)
   VERSION=$(sed -n 's/^  "version": "\(.*\)",$/\1/p' "$SRC_DIR/package.json" | head -n 1)
@@ -432,17 +521,17 @@ summary() {
   url=${url:-http://127.0.0.1:$PORT}
   token=""
   [[ -f "$DATA_DIR/setup-token" ]] && token=$(<"$DATA_DIR/setup-token")
-  line=$(printf '%.0s─' $(seq 1 66))
-  printf '\n%s╭%s╮%s\n' "$GREEN" "$line" "$RESET"
-  printf '%s│%s  %-64s%s│%s\n' "$GREEN" "$RESET$BOLD" "ClawRouter ${VERSION:-} is $( [[ $MODE == upgrade ]] && echo upgraded || echo installed ) (commit $COMMIT)" "$GREEN" "$RESET"
-  printf '%s╰%s╯%s\n\n' "$GREEN" "$line" "$RESET"
+  line=$(printf "%.0s$BOX_H" $(seq 1 66))
+  printf '\n%s%s%s%s%s\n' "$GREEN" "$BOX_TL" "$line" "$BOX_TR" "$RESET"
+  printf '%s%s%s  %-64s%s%s%s\n' "$GREEN" "$BOX_V" "$RESET$BOLD" "ClawRouter ${VERSION:-} is $( [[ $MODE == upgrade ]] && echo upgraded || echo installed ) (commit $COMMIT)" "$GREEN" "$BOX_V" "$RESET"
+  printf '%s%s%s%s%s\n\n' "$GREEN" "$BOX_BL" "$line" "$BOX_BR" "$RESET"
   printf '  %sConsole%s     %s\n' "$BOLD" "$RESET" "$url"
   if [[ -n "$token" ]]; then
     printf '  %sSetup%s       open %s/setup and enter this one-time token:\n' "$BOLD" "$RESET" "$url"
     printf '              %s%s%s\n' "$CYAN$BOLD" "$token" "$RESET"
   fi
   [[ -z "$DOMAIN" ]] && printf '  %sRemote use%s  ssh -L %s:127.0.0.1:%s you@this-server, then open http://localhost:%s\n' "$BOLD" "$RESET" "$PORT" "$PORT" "$PORT"
-  printf '  %sService%s     systemctl status clawrouter · journalctl -u clawrouter -f\n' "$BOLD" "$RESET"
+  printf '  %sService%s     systemctl status clawrouter %s journalctl -u clawrouter -f\n' "$BOLD" "$RESET" "$SYM_SEP"
   printf '  %sSettings%s    %s (then: systemctl restart clawrouter)\n' "$BOLD" "$RESET" "$ENV_FILE"
   printf '  %sUpgrade%s     run this installer again\n' "$BOLD" "$RESET"
   printf '  %sLog%s         %s\n' "$BOLD" "$RESET" "$LOG"
