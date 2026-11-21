@@ -14,6 +14,15 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 
 ### Important
 
+- **IMPORTANT** · 2026-11-21 · TypeScript 7 (Dependabot pull request 7, merged by the owner)
+  TypeScript 7's npm package is only the native `tsc`: no JavaScript compiler API. The SAST checker
+  needs one, so it imports `typescript-api` (`npm:typescript@6.0.2`, dev only); keep both until a
+  TypeScript 7 API package exists. `deps:check` now accepts an npm alias only with an exact version.
+  The 19 platform packages TypeScript 7 lists for other systems are not installed on Linux, so their
+  licenses are recorded by hand in `supply-chain.json` (Apache-2.0, checked on the registry): a
+  TypeScript 7 upgrade must re-check and update those entries, or the dependency audit fails.
+  `main` was red in CI from that merge until pull request 10.
+
 - **IMPORTANT** · 2026-11-21 · Owner request: a curl-able Ubuntu installer, `deploy/install.sh`
   "A professional looking Ubuntu install script that the user can just curl": numbered steps
   ([1/8]…), spinner, ✔/✖, a summary box; command output only in /var/log/clawrouter-install.log.

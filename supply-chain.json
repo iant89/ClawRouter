@@ -1,24 +1,126 @@
 {
   "lockfile": {
-    "registries": [""],
+    "registries": [
+      ""
+    ],
     "tarballs": {
       "../../vendor/enterprise-ui-react.tgz": "vendor/enterprise-ui-react.tgz"
     },
     "trustedDependencies": []
   },
   "audit": {
-    "failOn": ["high", "critical"],
+    "failOn": [
+      "high",
+      "critical"
+    ],
     "exceptions": []
   },
   "container": {
-    "failOn": ["critical"],
+    "failOn": [
+      "critical"
+    ],
     "fixedOnly": true,
     "exceptions": []
   },
   "licenses": {
-    "allowed": ["MIT", "ISC", "Apache-2.0", "BSD-2-Clause", "BSD-3-Clause", "0BSD", "BlueOak-1.0.0", "CC0-1.0", "Unlicense", "MPL-2.0",
-      "AGPL-3.0-only", "AGPL-3.0-or-later", "GPL-3.0-only", "GPL-3.0-or-later", "GPL-2.0-or-later",
-      "LGPL-3.0-only", "LGPL-3.0-or-later", "LGPL-2.1-only", "LGPL-2.1-or-later"],
-    "packages": {}
+    "allowed": [
+      "MIT",
+      "ISC",
+      "Apache-2.0",
+      "BSD-2-Clause",
+      "BSD-3-Clause",
+      "0BSD",
+      "BlueOak-1.0.0",
+      "CC0-1.0",
+      "Unlicense",
+      "MPL-2.0",
+      "AGPL-3.0-only",
+      "AGPL-3.0-or-later",
+      "GPL-3.0-only",
+      "GPL-3.0-or-later",
+      "GPL-2.0-or-later",
+      "LGPL-3.0-only",
+      "LGPL-3.0-or-later",
+      "LGPL-2.1-only",
+      "LGPL-2.1-or-later"
+    ],
+    "packages": {
+      "@typescript/typescript-aix-ppc64": {
+        "license": "Apache-2.0",
+        "reason": "Checked 2026-11-21: Apache-2.0 on the npm registry for 7.0.2; not installed on Linux x64, so its package.json is not on disk here. Same release as the installed @typescript/typescript-linux-x64 (Apache-2.0, with LICENSE)."
+      },
+      "@typescript/typescript-darwin-arm64": {
+        "license": "Apache-2.0",
+        "reason": "Checked 2026-11-21: Apache-2.0 on the npm registry for 7.0.2; not installed on Linux x64, so its package.json is not on disk here. Same release as the installed @typescript/typescript-linux-x64 (Apache-2.0, with LICENSE)."
+      },
+      "@typescript/typescript-darwin-x64": {
+        "license": "Apache-2.0",
+        "reason": "Checked 2026-11-21: Apache-2.0 on the npm registry for 7.0.2; not installed on Linux x64, so its package.json is not on disk here. Same release as the installed @typescript/typescript-linux-x64 (Apache-2.0, with LICENSE)."
+      },
+      "@typescript/typescript-freebsd-arm64": {
+        "license": "Apache-2.0",
+        "reason": "Checked 2026-11-21: Apache-2.0 on the npm registry for 7.0.2; not installed on Linux x64, so its package.json is not on disk here. Same release as the installed @typescript/typescript-linux-x64 (Apache-2.0, with LICENSE)."
+      },
+      "@typescript/typescript-freebsd-x64": {
+        "license": "Apache-2.0",
+        "reason": "Checked 2026-11-21: Apache-2.0 on the npm registry for 7.0.2; not installed on Linux x64, so its package.json is not on disk here. Same release as the installed @typescript/typescript-linux-x64 (Apache-2.0, with LICENSE)."
+      },
+      "@typescript/typescript-linux-arm": {
+        "license": "Apache-2.0",
+        "reason": "Checked 2026-11-21: Apache-2.0 on the npm registry for 7.0.2; not installed on Linux x64, so its package.json is not on disk here. Same release as the installed @typescript/typescript-linux-x64 (Apache-2.0, with LICENSE)."
+      },
+      "@typescript/typescript-linux-arm64": {
+        "license": "Apache-2.0",
+        "reason": "Checked 2026-11-21: Apache-2.0 on the npm registry for 7.0.2; not installed on Linux x64, so its package.json is not on disk here. Same release as the installed @typescript/typescript-linux-x64 (Apache-2.0, with LICENSE)."
+      },
+      "@typescript/typescript-linux-loong64": {
+        "license": "Apache-2.0",
+        "reason": "Checked 2026-11-21: Apache-2.0 on the npm registry for 7.0.2; not installed on Linux x64, so its package.json is not on disk here. Same release as the installed @typescript/typescript-linux-x64 (Apache-2.0, with LICENSE)."
+      },
+      "@typescript/typescript-linux-mips64el": {
+        "license": "Apache-2.0",
+        "reason": "Checked 2026-11-21: Apache-2.0 on the npm registry for 7.0.2; not installed on Linux x64, so its package.json is not on disk here. Same release as the installed @typescript/typescript-linux-x64 (Apache-2.0, with LICENSE)."
+      },
+      "@typescript/typescript-linux-ppc64": {
+        "license": "Apache-2.0",
+        "reason": "Checked 2026-11-21: Apache-2.0 on the npm registry for 7.0.2; not installed on Linux x64, so its package.json is not on disk here. Same release as the installed @typescript/typescript-linux-x64 (Apache-2.0, with LICENSE)."
+      },
+      "@typescript/typescript-linux-riscv64": {
+        "license": "Apache-2.0",
+        "reason": "Checked 2026-11-21: Apache-2.0 on the npm registry for 7.0.2; not installed on Linux x64, so its package.json is not on disk here. Same release as the installed @typescript/typescript-linux-x64 (Apache-2.0, with LICENSE)."
+      },
+      "@typescript/typescript-linux-s390x": {
+        "license": "Apache-2.0",
+        "reason": "Checked 2026-11-21: Apache-2.0 on the npm registry for 7.0.2; not installed on Linux x64, so its package.json is not on disk here. Same release as the installed @typescript/typescript-linux-x64 (Apache-2.0, with LICENSE)."
+      },
+      "@typescript/typescript-netbsd-arm64": {
+        "license": "Apache-2.0",
+        "reason": "Checked 2026-11-21: Apache-2.0 on the npm registry for 7.0.2; not installed on Linux x64, so its package.json is not on disk here. Same release as the installed @typescript/typescript-linux-x64 (Apache-2.0, with LICENSE)."
+      },
+      "@typescript/typescript-netbsd-x64": {
+        "license": "Apache-2.0",
+        "reason": "Checked 2026-11-21: Apache-2.0 on the npm registry for 7.0.2; not installed on Linux x64, so its package.json is not on disk here. Same release as the installed @typescript/typescript-linux-x64 (Apache-2.0, with LICENSE)."
+      },
+      "@typescript/typescript-openbsd-arm64": {
+        "license": "Apache-2.0",
+        "reason": "Checked 2026-11-21: Apache-2.0 on the npm registry for 7.0.2; not installed on Linux x64, so its package.json is not on disk here. Same release as the installed @typescript/typescript-linux-x64 (Apache-2.0, with LICENSE)."
+      },
+      "@typescript/typescript-openbsd-x64": {
+        "license": "Apache-2.0",
+        "reason": "Checked 2026-11-21: Apache-2.0 on the npm registry for 7.0.2; not installed on Linux x64, so its package.json is not on disk here. Same release as the installed @typescript/typescript-linux-x64 (Apache-2.0, with LICENSE)."
+      },
+      "@typescript/typescript-sunos-x64": {
+        "license": "Apache-2.0",
+        "reason": "Checked 2026-11-21: Apache-2.0 on the npm registry for 7.0.2; not installed on Linux x64, so its package.json is not on disk here. Same release as the installed @typescript/typescript-linux-x64 (Apache-2.0, with LICENSE)."
+      },
+      "@typescript/typescript-win32-arm64": {
+        "license": "Apache-2.0",
+        "reason": "Checked 2026-11-21: Apache-2.0 on the npm registry for 7.0.2; not installed on Linux x64, so its package.json is not on disk here. Same release as the installed @typescript/typescript-linux-x64 (Apache-2.0, with LICENSE)."
+      },
+      "@typescript/typescript-win32-x64": {
+        "license": "Apache-2.0",
+        "reason": "Checked 2026-11-21: Apache-2.0 on the npm registry for 7.0.2; not installed on Linux x64, so its package.json is not on disk here. Same release as the installed @typescript/typescript-linux-x64 (Apache-2.0, with LICENSE)."
+      }
+    }
   }
 }

@@ -79,6 +79,13 @@ export function checkLockfile(root: string, lock: Lockfile, policy: SupplyChainP
           if (!Object.values(policy.lockfile.tarballs).includes(target)) problems.push(`${where} is "${spec}", which is not a tarball the policy lists.`);
           continue;
         }
+        // An npm alias ("npm:typescript@6.0.2") is a registry package under another name: its
+        // version must be exact too. The lockfile entry is checked like any other (registry, hash).
+        const alias = /^npm:((?:@[^/@\s]+\/)?[^@\s]+)@(.+)$/.exec(spec);
+        if (alias) {
+          if (!EXACT.test(alias[2]!)) problems.push(`${where} is "${spec}": an alias must name an exact version.`);
+          continue;
+        }
         if (!EXACT.test(spec)) problems.push(`${where} is "${spec}": direct dependencies must be exact versions (bunfig.toml has exact = true; "bun add" writes them).`);
       }
     }
