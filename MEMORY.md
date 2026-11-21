@@ -14,8 +14,35 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 
 ### Important
 
+- **IMPORTANT** · 2026-11-20 · Security phase 9: security CI pipeline (SEC-026) and regression corpus (SEC-027)
+  Built on `claude/phase-9-start-d8jv9m`, **waits for the owner's review**. No migration, no new
+  dependency, no route (matrix unchanged). Owner said "Start phase 9". Guide `docs/security-ci.md`.
+  **SEC-026** CI is now one reusable workflow `.github/workflows/security-pipeline.yml` called by
+  `ci.yml` and `release.yml` (release `needs: security`; its duplicate check steps were removed).
+  Its steps are `bun run security:ci <stage>` (`scripts/security-ci.ts`, `scripts/security/`):
+  typecheck, unit, integration (`packages/api`, `apps/server`), security, dependencies, secrets,
+  sast, container, sbom, build; `summary` fails when a stage failed **or wrote no report**.
+  Decisions made here (keep unless the owner says otherwise): SAST is our own (`sast.ts`, TypeScript
+  syntax tree, 12 rules; critical `no-eval` never waivable, high fails unless
+  `// security-waiver: <rule> -- <reason ≥15 chars>` on/above the line, stale waivers fail, medium
+  only reported). **A new security test must not use .skip/.only/.todo/.if**: stage 4 fails; a test
+  needing a tool goes in `CONDITIONAL_SECURITY_TESTS` and must still run in CI. Container scan is
+  Trivy (`aquasecurity/trivy-action` v0.36.0, pinned by commit SHA like every action) judged by `supply-chain.json` `container`: only **fixable
+  critical** vulnerabilities fail (`fixedOnly`), the rest reported; the Dockerfile/Compose SEC-004
+  hardening is checked without Docker. Secret scanning reads a PR's commits (`--range`;
+  `fetch-depth: 0`). Fixed: `scan-secrets --history` failed on a PEM header in a test template.
+  **Not verified:** the workflow has never run on GitHub (Trivy step, artifact upload); expect a
+  fix on its first run. Merges are blocked only once the owner makes "security / Security
+  pipeline" a required check (told in the guide). The old required check name ("check") is gone.
+  **SEC-027** `tests/security/cases/`: `registry.ts` (36 cases, CASE-001…036, one file per class,
+  17 classes), `corpus.test.ts` enforces the shape. **Every future security fix adds a case**
+  (`origin: found`), checked to fail without the fix, merged with it; never delete or reuse ids.
+  New PR template `.github/pull_request_template.md` asks for it. New suite categories `ci/` and
+  `cases/` (in `CATEGORIES`). Bun 1.4.4's HTTP parser refuses every smuggling/desync form tried
+  (400 + close); if Bun is upgraded, those cases re-check it.
+
 - **IMPORTANT** · 2026-11-20 · Security phase 8: systemd hardening (SEC-024) and `doctor --security` (SEC-025)
-  Built on `claude/nifty-carson-rdwfcu`, **waits for the owner's review**. No migration, no new
+  Merged into `main` (pull request 8, from `claude/nifty-carson-rdwfcu`). No migration, no new
   dependency, no route (authorization matrix unchanged). Owner asked to "start the next security
   phase"; SEC-022 (CSP, phase 7) is still not started. New test category `tests/security/host/`.
   **SEC-024** `deploy/clawrouter.service` is sandboxed (`systemd-analyze security`: 7.7 → 1.1) and
@@ -869,7 +896,7 @@ Labels: **IMPORTANT** must read · **WARNING** known problem or unverified ·
 ### Messages
 
 - **MESSAGE** · 2026-11-19 · Everything merged after the native Gemini adapter and OpenRouter
-  Security phase 8 (SEC-024, SEC-025) waits for review (see Important). Old branches to delete on GitHub (the session cannot): every merged
+  Security phase 9 (SEC-026, SEC-027) waits for review (see Important); phase 8 is merged. Old branches to delete on GitHub (the session cannot): every merged
   `claude/*` branch (now including `claude/beautiful-euler-7nicga`, `claude/clawrouter-security-hardening-fm633m`, `claude/focused-mendel-0rcfij`, `claude/gemini-native`, `claude/openrouter-provider`, `claude/anthropic-messages`, `claude/license-agpl-1.0`, `claude/hopeful-maxwell-3xrz6m`, `claude/captures-live-groq`, `claude/client-notices`,
   `claude/announcement-emoji` and `claude/eui-shared-components`), the superseded `claude/mcp-server`
   and the stale `claude/groq-provider`; never merge those two (duplicate migration 0020 / older

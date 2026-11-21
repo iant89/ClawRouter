@@ -26,7 +26,7 @@ Partly built items in later phases are marked "(groundwork: …)".
 | 15 Security hardening | ✅ |
 | 16 Performance | ✅ |
 | 17 Production | ✅ |
-| Security hardening ([security roadmap](security-roadmap.md), SEC-001…051) | 🟡 phases 1–6 and 8 done (SEC-001 to 012, 014 to 020, 024, 025), and SEC-021 (fuzz testing) and SEC-023 (filesystem hardening) from phase 7; SEC-022 not started |
+| Security hardening ([security roadmap](security-roadmap.md), SEC-001…051) | 🟡 phases 1–6, 8 and 9 done (SEC-001 to 012, 014 to 020, 024 to 027), and SEC-021 (fuzz testing) and SEC-023 (filesystem hardening) from phase 7; SEC-022 not started |
 
 ---
 

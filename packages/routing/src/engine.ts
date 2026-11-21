@@ -66,6 +66,7 @@ interface Pending {
 
 export function planRoute(request: RouteRequest, snap: RoutingSnapshot): RouteResult {
   const name = request.model.trim();
+  // security-waiver: insecure-random -- weighted routing draws pick a model, they are not secrets
   const random = snap.random ?? Math.random;
   const failures = snap.failures ?? (() => 0);
   const demoteAfter = snap.demoteAfterFailures ?? 3;

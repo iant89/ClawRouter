@@ -20,6 +20,7 @@
  * lockfile check, the license scan and the SBOM all start here.
  */
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import type { ContainerPolicy } from '../security/container.ts';
 import { join } from 'node:path';
 
 export interface SupplyChainPolicy {
@@ -36,6 +37,8 @@ export interface SupplyChainPolicy {
     failOn: Severity[];
     exceptions: AuditException[];
   };
+  /** The built image's vulnerabilities (SEC-026, scripts/security/container.ts). */
+  container: ContainerPolicy;
   licenses: {
     /** SPDX identifiers allowed in ClawRouter (AGPL-3.0-or-later): permissive licenses compatible with it. */
     allowed: string[];

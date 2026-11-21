@@ -46,6 +46,7 @@ export interface RealtimeOptions {
 const MAX_BACKOFF_MS = 30_000;
 
 /** Delay before reconnect attempt `n` (0-based): 1 s, 2 s, 4 s … 30 s, each with up to 50% random jitter off. */
+// security-waiver: insecure-random -- reconnect jitter only spreads retries, it guards nothing
 export function backoffMs(attempt: number, random: () => number = Math.random): number {
   const base = Math.min(MAX_BACKOFF_MS, 1000 * 2 ** attempt);
   return Math.round(base * (0.5 + random() * 0.5));

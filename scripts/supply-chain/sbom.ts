@@ -19,6 +19,7 @@
  * The same inputs always give the same bytes (sorted, the time from
  * SOURCE_DATE_EPOCH or the commit), so a release's SBOM can be rebuilt and compared.
  */
+// security-waiver: sqlite-outside-database -- reads only sqlite_version() for the SBOM, no ClawRouter data
 import { Database } from 'bun:sqlite';
 import { integrityHex, type ThirdPartyPackage } from './packages.ts';
 

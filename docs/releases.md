@@ -61,7 +61,7 @@ Pushing a tag `vX.Y.Z` that matches `package.json` runs
 source ─▶ build ─▶ artifacts ─▶ SHA-256 ─▶ signature ─▶ verify ─▶ GitHub release ─▶ verify the download
 ```
 
-1. Install with the frozen lockfile, `scan-secrets`, `deps:check`, `bun run check`.
+1. The [security pipeline](security-ci.md) passes for the tag (the same workflow every pull request runs: tests, audit, secret scanning, SAST, container scan, SBOM, build); only then does the release job start, installing with the frozen lockfile.
 2. `bun run release:package`: a fresh build, then `clawrouter-<version>.tar.gz` (the
    production `dist/`, `deploy/`, `LICENSE`, `README.md`), both SBOMs, and `SHA256SUMS`.
    The tarball is reproducible: sorted entries, fixed times, owners and modes, no gzip

@@ -37,8 +37,8 @@ tracking copy with status, findings and decisions.
 | SEC-023 | Filesystem hardening | Medium | ✅ |
 | SEC-024 | systemd hardening | High | ✅ |
 | SEC-025 | Security health check (`doctor --security`) | Medium | ✅ |
-| SEC-026 | Security CI pipeline | High | ⬜ |
-| SEC-027 | Security regression corpus (`tests/security/cases/`) | High | ⬜ |
+| SEC-026 | Security CI pipeline | High | ✅ (first GitHub run after merge) |
+| SEC-027 | Security regression corpus (`tests/security/cases/`) | High | ✅ |
 | SEC-028 | Security event model | Medium | ⬜ |
 | SEC-029 | Security alerting | Medium | ⬜ |
 | SEC-030 | Security event retention | Low | ⬜ |
@@ -75,7 +75,7 @@ controls.
 A release may be called "security hardened" only when all of these are done:
 SEC-001 to SEC-012, SEC-014, SEC-015, SEC-017 to SEC-021, SEC-024 to SEC-029,
 SEC-032, SEC-033, SEC-035 to SEC-043, and SEC-047 to SEC-051. (Not in the gate:
-SEC-013, 016, 022, 023, 030, 031, 034, 044 to 046.) Status: 21 of 41.
+SEC-013, 016, 022, 023, 030, 031, 034, 044 to 046.) Status: 23 of 41.
 
 ## Phase 1: Network security boundary
 
@@ -573,21 +573,61 @@ See [releases and the supply chain](releases.md). Policy: `supply-chain.json`; c
 
 ## Phase 9: Continuous security
 
-- **SEC-026** ⬜ Every pull request runs, in order: typecheck, unit tests,
-  integration tests, security tests, dependency audit, secret scanning, SAST,
-  container scanning, SBOM generation, build verification. Security tests cannot
-  be skipped silently; critical failures block merge; high-severity findings
-  block merge unless explicitly waived; dependency and container vulnerabilities
-  are reported; secrets in commits fail CI; security reports are kept as CI
-  artifacts; release builds use the same pipeline. (Today CI runs typecheck,
-  tests, `bun audit` and `scan-secrets`.)
-- **SEC-027** ⬜ `tests/security/cases/`: every discovered vulnerability becomes
-  a permanent regression test (fix, add the test, merge the fix only with it).
-  Cases for SSRF, CSRF, XSS, path traversal, authorization bypass, session
-  fixation, API-key and secret leakage, MCP privilege escalation, request
-  smuggling, HTTP desynchronization, DNS rebinding, denial of service,
-  configuration injection, backup/restore attacks, WebSocket authorization and
-  provider credential leakage.
+- **SEC-026** ✅ One pipeline, [`.github/workflows/security-pipeline.yml`](../.github/workflows/security-pipeline.yml)
+  (a reusable workflow) called by `ci.yml` (pull requests, `main`, weekly) and `release.yml`
+  (the release job `needs` it); its stages are `bun run security:ci`, so it runs locally too.
+  Guide: [security CI](security-ci.md).
+  - [x] The ten stages in the roadmap order, one workflow step each: typecheck, unit
+    tests, integration tests (`packages/api`, `apps/server`), security tests, dependency
+    audit (`deps:check`), secret scanning, SAST, container scanning, SBOM, build
+    verification (with the release dry run). Every test file is in exactly one test stage.
+  - [x] Security tests cannot be skipped silently: `.only/.skip/.todo/.skipIf/.todoIf/.if/.failing`
+    in `tests/security/` fail, a skipped test in the JUnit report fails, a security test file
+    that did not run fails; declared conditional tests (`systemd-analyze`) must run in CI. A
+    stage with no report (skipped, removed, crashed) fails the summary.
+  - [x] Critical failures block merge: critical SAST findings (not waivable), failing tests,
+    high/critical advisories, fixable critical image vulnerabilities fail the job (merges are
+    blocked once the owner makes the check required, see the guide).
+  - [x] High-severity findings block unless explicitly waived: high SAST findings need a
+    `// security-waiver: <rule> -- <reason>` in the code (four today, all reviewed); a stale
+    waiver fails. Advisories and image vulnerabilities take exceptions with a reason and an
+    expiry date in `supply-chain.json`.
+  - [x] Dependency and container vulnerabilities are reported: `audit.json` (every advisory),
+    `trivy-image.json` and `container-scan.json` (every vulnerability, fixed or not).
+  - [x] Secrets in commits fail CI: `scan-secrets --range base..head` reads every commit of a
+    pull request (a key added and removed again still fails), `--history` on `main`. Found
+    while adding it: `--history` reported a PEM header in a test template as a private key;
+    a header followed by `${` is now treated as a template.
+  - [x] Reports kept as CI artifacts (90 days): per-stage JSON and logs, JUnit, SAST, audit,
+    Trivy, SBOMs, the summary (also on the run page).
+  - [x] Release builds use the same pipeline (`release.yml` calls the same workflow; its own
+    duplicate checks were removed).
+  - SAST: `scripts/security/sast.ts`, 12 rules on the TypeScript syntax tree (no dependency;
+    the compiler was already one). Container: `scripts/security/container.ts` (Dockerfile and
+    Compose hardening; Trivy report policy), Trivy through `aquasecurity/trivy-action` v0.36.0
+    (Trivy v0.70.0) pinned by SHA.
+  - Tests: `tests/security/ci/` (the workflow shape and order, skip detection, the summary,
+    every SAST rule and its safe form, the repository passing, Dockerfile/Compose regressions,
+    the Trivy policy, secret scanning of a commit range).
+  - Not verified: the workflow has not run on GitHub yet (the Trivy step in particular);
+    merges are only blocked once the check is required in the branch settings.
+- **SEC-027** ✅ [`tests/security/cases/`](../tests/security/cases/README.md): 36 cases (88 tests),
+  one file per class, every class the roadmap lists covered.
+  - [x] SSRF, CSRF, XSS, path traversal, authorization bypass, session fixation, API-key
+    leakage, secret leakage, MCP privilege escalation, request smuggling, HTTP
+    desynchronization, DNS rebinding, denial of service, configuration injection,
+    backup/restore attacks, WebSocket authorization, provider credential leakage.
+  - [x] The six vulnerabilities found earlier are cases (`origin: found`): the retried policy
+    refusal (CASE-002), import role takeover (011), imported mail password (017), the stalled
+    stream (026), the imported routing version (028), provider error text to clients (034).
+    CASE-002 was checked to fail with its fix undone.
+  - [x] The rule (fix → case → merge only together → never removed) is in the corpus README and
+    the new pull request template; `corpus.test.ts` checks ids, one test per case, a file per
+    class and no unregistered test.
+  - Smuggling and desync are sent byte for byte to a real Bun server in front of ClawRouter
+    (`raw-http.ts`): CL.TE, TE.CL, two lengths, disguised chunking, chunked on HTTP/1.0, bare
+    LF/CR, obs-fold, NUL; Bun 1.4.4 refuses each with 400 and closes the connection. No new
+    vulnerability was found writing the corpus.
 
 ## Phase 10: Security observability
 
