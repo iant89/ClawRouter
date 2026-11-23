@@ -20,7 +20,7 @@
 #
 # Build: install (including the vendored ENTERPRISE-UI), then bundle server,
 # console and maintenance commands into dist/. The image keeps only dist/.
-FROM oven/bun:1.4.4-slim AS build
+FROM oven/bun:1.4.5-slim AS build
 WORKDIR /src
 COPY package.json bun.lock bunfig.toml tsconfig.json ./
 COPY vendor ./vendor
@@ -32,7 +32,7 @@ RUN --mount=type=secret,id=ca,required=false \
     if [ -f /run/secrets/ca ]; then export NODE_EXTRA_CA_CERTS=/run/secrets/ca; fi; bun install --frozen-lockfile
 RUN bun run build
 
-FROM oven/bun:1.4.4-slim
+FROM oven/bun:1.4.5-slim
 WORKDIR /app/dist
 COPY --from=build /src/dist ./
 # Data (database, backups, the setup token) lives on a volume, owned by the unprivileged bun user.
